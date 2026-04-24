@@ -8,6 +8,7 @@ import { ShoppingBag, ChevronRight, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { LottiePlayer } from '../components/LottiePlayer';
+import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
 export const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -84,10 +85,21 @@ export const Orders: React.FC = () => {
 
       {orders.length === 0 ? (
         <div className="glass-dark rounded-[40px] border border-white/5 p-16 text-center space-y-6">
-          <div className="w-48 h-48 mx-auto">
+          <div className="w-56 h-56 mx-auto">
             <LottiePlayer 
-              url="https://assets10.lottiefiles.com/packages/lf20_6wutsrox.json"
+              url={LOTTIE_ANIMATIONS.CAKE}
               className="w-full h-full"
+              fallback={
+                <motion.div
+                  animate={{ 
+                    y: [0, -10, 0],
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  className="w-full h-full flex items-center justify-center p-8"
+                >
+                  <ShoppingBag className="text-primary/20 w-48 h-48" strokeWidth={1} />
+                </motion.div>
+              }
             />
           </div>
           <div className="space-y-2">

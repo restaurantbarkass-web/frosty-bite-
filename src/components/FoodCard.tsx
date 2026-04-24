@@ -1,5 +1,5 @@
 import React, { useState, memo } from 'react';
-import { Star, Plus, Zap, ShoppingCart } from 'lucide-react';
+import { Star, Plus, Zap, ShoppingCart, Check } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useTheme } from '../context/ThemeContext';
 import { LottiePlayer } from './LottiePlayer';
+import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
 interface FoodCardProps {
   item: FoodItem;
@@ -102,7 +103,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
         <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={handleAddToCart}
-            disabled={item.available === false || showSuccess}
+            disabled={item.available === false || showSuccess || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
             className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden"
             title="Add to Cart"
           >
@@ -116,9 +117,18 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
                   className="absolute inset-0 flex items-center justify-center bg-emerald-500"
                 >
                   <LottiePlayer 
-                    url="https://assets9.lottiefiles.com/packages/lf20_pqnqpoc0.json"
+                    url={LOTTIE_ANIMATIONS.CAKE}
                     loop={false}
-                    className="w-8 h-8"
+                    className="w-12 h-12"
+                    fallback={
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      >
+                        <Check className="text-white" size={24} strokeWidth={3} />
+                      </motion.div>
+                    }
                   />
                 </motion.div>
               ) : (
@@ -137,7 +147,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
           
           <button
             onClick={handleBuyNow}
-            disabled={item.available === false}
+            disabled={item.available === false || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
             className="flex-[2] py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Zap size={16} fill="currentColor" />

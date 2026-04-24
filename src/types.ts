@@ -6,6 +6,7 @@ export interface FoodItem {
   rating: number;
   image: string;
   category: string;
+  stockQuantity: number;
   isRecommended?: boolean;
   available?: boolean;
 }

@@ -58,9 +58,10 @@ service cloud.firestore {
     }
 
     function isValidMenuItem(data) {
-      return data.keys().hasAll(['name', 'price', 'category', 'available']) &&
+      return data.keys().hasAll(['name', 'price', 'category', 'available', 'stockQuantity']) &&
              data.name is string && data.name.size() <= 100 &&
              data.price is number && data.price >= 0 &&
+             data.stockQuantity is number && data.stockQuantity >= 0 &&
              data.category is string &&
              data.available is bool &&
              (!('image' in data) || (data.image is string && data.image.size() <= 2000000)) &&

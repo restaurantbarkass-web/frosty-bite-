@@ -23,9 +23,10 @@
         "category": { "type": "string" },
         "image": { "type": "string" },
         "available": { "type": "boolean" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "stockQuantity": { "type": "number" }
       },
-      "required": ["name", "price", "category", "available"]
+      "required": ["name", "price", "category", "available", "stockQuantity"]
     },
     "Order": {
       "title": "Customer Order",

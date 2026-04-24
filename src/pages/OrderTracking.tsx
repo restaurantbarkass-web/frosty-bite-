@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2 } from 'lucide-react';
+import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
@@ -9,12 +9,58 @@ import { Order, Rider } from '../types';
 import { cn } from '../lib/utils';
 import { LottiePlayer } from '../components/LottiePlayer';
 
+import { LOTTIE_ANIMATIONS } from '../constants/animations';
+
 const STATUS_ANIMATIONS: Record<string, string> = {
-  pending: "https://assets3.lottiefiles.com/private_files/lf30_8scfgy7c.json",
-  assigned: "https://assets3.lottiefiles.com/private_files/lf30_8scfgy7c.json", // Processing
-  preparing: "https://assets2.lottiefiles.com/packages/lf20_31804790.json",
-  out_for_delivery: "https://assets1.lottiefiles.com/packages/lf20_6EY660.json",
-  delivered: "https://assets9.lottiefiles.com/packages/lf20_pqnqpoc0.json",
+  pending: LOTTIE_ANIMATIONS.PROCESSING,
+  assigned: LOTTIE_ANIMATIONS.PROCESSING,
+  preparing: LOTTIE_ANIMATIONS.COOKING,
+  out_for_delivery: LOTTIE_ANIMATIONS.DELIVERY_TRUCK,
+  delivered: LOTTIE_ANIMATIONS.SUCCESS_CHECK,
+};
+
+const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
+  pending: (
+    <motion.div
+      animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <Clock className="text-primary" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  assigned: (
+    <motion.div
+      animate={{ y: [0, -10, 0] }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <UserIcon className="text-primary" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  preparing: (
+    <motion.div
+      animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.05, 1] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <ChefHat className="text-primary" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  out_for_delivery: (
+    <motion.div
+      animate={{ x: [-20, 20, -20] }}
+      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+    >
+      <Truck className="text-primary" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  delivered: (
+    <motion.div
+      initial={{ scale: 0, rotate: -20 }}
+      animate={{ scale: 1, rotate: 0 }}
+      transition={{ type: "spring", damping: 12 }}
+    >
+      <CheckCircle className="text-emerald-500" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
 };
 
 const STATUS_STEPS = [
@@ -106,6 +152,7 @@ export const OrderTracking: React.FC = () => {
                  <LottiePlayer 
                     url={STATUS_ANIMATIONS[order.status] || STATUS_ANIMATIONS.pending}
                     className="w-full h-full"
+                    fallback={STATUS_FALLBACKS[order.status] || STATUS_FALLBACKS.pending}
                   />
                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20">
                     {STATUS_STEPS[currentStatusIndex].label}

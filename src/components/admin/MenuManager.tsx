@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
+import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
@@ -12,6 +12,7 @@ interface MenuItem {
   category: string;
   image: string;
   available: boolean;
+  stockQuantity: number;
 }
 
 export const MenuManager: React.FC = () => {
@@ -25,6 +26,7 @@ export const MenuManager: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
+    stockQuantity: '0',
     category: CATEGORIES[0],
     image: '',
     available: true,
@@ -64,6 +66,7 @@ export const MenuManager: React.FC = () => {
       const data = {
         ...formData,
         price: Number(formData.price),
+        stockQuantity: Number(formData.stockQuantity),
         image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`
       };
 
@@ -72,10 +75,10 @@ export const MenuManager: React.FC = () => {
       } else {
         await addDoc(collection(db, 'menu'), data);
       }
-
+      
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', price: '', category: CATEGORIES[0], image: '', available: true, description: '' });
+      setFormData({ name: '', price: '', stockQuantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'menu');
     }
@@ -125,7 +128,7 @@ export const MenuManager: React.FC = () => {
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             setEditingItem(null);
-            setFormData({ name: '', price: '', category: CATEGORIES[0], image: '', available: true, description: '' });
+            setFormData({ name: '', price: '', stockQuantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
             setIsAdding(true);
           }}
           className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
@@ -177,6 +180,7 @@ export const MenuManager: React.FC = () => {
                       setFormData({
                         name: item.name,
                         price: item.price.toString(),
+                        stockQuantity: (item.stockQuantity || 0).toString(),
                         category: item.category,
                         image: item.image,
                         available: item.available,
@@ -204,9 +208,37 @@ export const MenuManager: React.FC = () => {
 
               <div className="p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
-                    <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-start">
+                      <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
+                      <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Stock:</span>
+                        <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-0.5 border border-white/10">
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newStock = Math.max(0, (item.stockQuantity || 0) - 1);
+                              await updateDoc(doc(db, 'menu', item.id), { stockQuantity: newStock });
+                            }}
+                            className="text-zinc-500 hover:text-orange-500 transition-colors"
+                          >
+                            <Minus size={10} />
+                          </button>
+                          <span className="text-xs font-bold text-white min-w-[20px] text-center">{item.stockQuantity || 0}</span>
+                          <button 
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const newStock = (item.stockQuantity || 0) + 1;
+                              await updateDoc(doc(db, 'menu', item.id), { stockQuantity: newStock });
+                            }}
+                            className="text-zinc-500 hover:text-orange-500 transition-colors"
+                          >
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className={`flex items-center gap-1 text-xs font-bold ${item.available ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {item.available ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
@@ -275,6 +307,18 @@ export const MenuManager: React.FC = () => {
                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Stock Quantity</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={formData.stockQuantity}
+                      onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})}
+                      placeholder="e.g. 50" 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                    />
                   </div>
 
                   <div className="space-y-2">

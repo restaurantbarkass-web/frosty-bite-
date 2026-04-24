@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Lottie from 'lottie-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 interface LottiePlayerProps {
   url: string;
@@ -7,6 +8,7 @@ interface LottiePlayerProps {
   autoplay?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  fallback?: React.ReactNode;
 }
 
 /**
@@ -17,32 +19,43 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
   loop = true, 
   autoplay = true, 
   className,
-  style 
+  style,
+  fallback
 }) => {
   const [animationData, setAnimationData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let isMounted = true;
+    setLoading(true);
+    setError(false);
 
     const fetchAnimation = async () => {
       try {
         const response = await fetch(url, {
-          method: 'GET',
+          referrerPolicy: 'no-referrer',
           headers: {
-            'Accept': 'application/json',
-          },
-          mode: 'cors'
+            'Accept': 'application/json'
+          }
         });
-        if (!response.ok) throw new Error(`Failed to fetch animation: ${response.status} ${response.statusText}`);
+        
+        if (response.status === 403) {
+          throw new Error('Access denied (403). The animation provider may be blocking this request.');
+        }
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const data = await response.json();
         if (isMounted) {
           setAnimationData(data);
+          setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Unknown error');
-          console.error('Lottie load error:', err);
+          console.error(`Lottie load error for ${url}:`, err);
+          setError(true);
+          setLoading(false);
         }
       }
     };
@@ -54,12 +67,20 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
     };
   }, [url]);
 
-  if (error) {
-    return <div className="text-xs text-red-500">Animation failed to load</div>;
+  if (loading) {
+    return (
+      <div className={className} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 className="animate-spin text-primary/20" size={24} />
+      </div>
+    );
   }
 
-  if (!animationData) {
-    return <div className="animate-pulse bg-white/5 rounded-full w-full h-full" />;
+  if (error || !animationData) {
+    return (
+      <div className={className} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {fallback || <AlertCircle className="text-primary/20" size={24} />}
+      </div>
+    );
   }
 
   return (

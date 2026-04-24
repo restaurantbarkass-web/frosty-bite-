@@ -34,7 +34,8 @@ export const MENU_ITEMS: FoodItem[] = [
     price: 1200,
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1586788680434-30d3246718d0?auto=format&fit=crop&q=80&w=800',
-    category: 'Cakes'
+    category: 'Cakes',
+    stockQuantity: 10
   },
   {
     id: '2',
@@ -43,7 +44,8 @@ export const MENU_ITEMS: FoodItem[] = [
     price: 180,
     rating: 4.8,
     image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=800',
-    category: 'Pastries'
+    category: 'Pastries',
+    stockQuantity: 20
   },
   {
     id: '3',
@@ -52,7 +54,8 @@ export const MENU_ITEMS: FoodItem[] = [
     price: 250,
     rating: 4.7,
     image: 'https://images.unsplash.com/photo-1585478282226-1d713204d95c?auto=format&fit=crop&q=80&w=800',
-    category: 'Breads'
+    category: 'Breads',
+    stockQuantity: 15
   },
   {
     id: '4',
@@ -61,7 +64,8 @@ export const MENU_ITEMS: FoodItem[] = [
     price: 90,
     rating: 4.6,
     image: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?auto=format&fit=crop&q=80&w=800',
-    category: 'Cookies'
+    category: 'Cookies',
+    stockQuantity: 50
   },
   {
     id: '5',
@@ -70,6 +74,7 @@ export const MENU_ITEMS: FoodItem[] = [
     price: 220,
     rating: 4.9,
     image: 'https://images.unsplash.com/photo-1544787210-2211d44b5042?auto=format&fit=crop&q=80&w=800',
-    category: 'Beverages'
+    category: 'Beverages',
+    stockQuantity: 30
   }
 ];
