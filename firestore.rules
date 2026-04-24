@@ -121,7 +121,8 @@ service cloud.firestore {
     // MENU
     match /menu/{itemId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidMenuItem(incoming());
+      allow create, update: if isAdmin() && isValidMenuItem(incoming());
+      allow delete: if isAdmin();
     }
 
     // ORDERS
@@ -144,6 +145,8 @@ service cloud.firestore {
          incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
          incoming().status in ['out_for_delivery', 'delivered'])
       );
+
+      allow delete: if isAdmin();
     }
 
     // RIDERS
@@ -177,7 +180,8 @@ service cloud.firestore {
     // COUPONS
     match /coupons/{couponId} {
       allow read: if isSignedIn();
-      allow create, delete: if isAdmin() && isValidCoupon(incoming());
+      allow create: if isAdmin() && isValidCoupon(incoming());
+      allow delete: if isAdmin();
       allow update: if isAdmin() || (
         isSignedIn() && 
         incoming().diff(existing()).affectedKeys().hasOnly(['usageCount']) &&

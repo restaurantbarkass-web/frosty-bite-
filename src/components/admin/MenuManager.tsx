@@ -21,6 +21,7 @@ export const MenuManager: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -85,12 +86,11 @@ export const MenuManager: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await deleteDoc(doc(db, 'menu', id));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `menu/${id}`);
-      }
+    try {
+      await deleteDoc(doc(db, 'menu', id));
+      setDeletingId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `menu/${id}`);
     }
   };
 
@@ -118,6 +118,49 @@ export const MenuManager: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deletingId && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeletingId(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">Delete Item?</h3>
+                <p className="text-gray-500 text-sm">This action cannot be undone. Are you sure you want to remove this item?</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setDeletingId(null)}
+                  className="flex-1 py-3 bg-white/5 text-white font-bold rounded-xl hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleDelete(deletingId)}
+                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Menu Management</h2>
@@ -193,7 +236,7 @@ export const MenuManager: React.FC = () => {
                     <Edit2 size={16} />
                   </button>
                   <button 
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => setDeletingId(item.id)}
                     className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-red-500 transition-all"
                   >
                     <Trash2 size={16} />

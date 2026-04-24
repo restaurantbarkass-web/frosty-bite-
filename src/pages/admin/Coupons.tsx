@@ -37,6 +37,7 @@ export const Coupons: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form State
   const [newCoupon, setNewCoupon] = useState({
@@ -118,9 +119,9 @@ export const Coupons: React.FC = () => {
   };
 
   const handleDeleteCoupon = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this coupon?')) return;
     try {
       await deleteDoc(doc(db, 'coupons', id));
+      setDeletingId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `coupons/${id}`);
     }
@@ -141,6 +142,49 @@ export const Coupons: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deletingId && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 text-left">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeletingId(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl"
+            >
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">Delete Coupon?</h3>
+                <p className="text-gray-500 text-sm">This will permanently remove this coupon code. This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setDeletingId(null)}
+                  className="flex-1 py-3 bg-white/5 text-white font-bold rounded-xl hover:bg-white/10 transition-all font-sans"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => handleDeleteCoupon(deletingId)}
+                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all font-sans"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white">Coupons & Discounts</h2>
@@ -289,7 +333,7 @@ export const Coupons: React.FC = () => {
                         {coupon.status === 'active' ? <XCircle size={16} /> : <CheckCircle size={16} />}
                       </button>
                       <button 
-                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        onClick={() => setDeletingId(coupon.id)}
                         className="p-2 bg-white/5 border border-white/10 rounded-lg text-zinc-500 hover:text-red-500 transition-all"
                       >
                         <Trash2 size={16} />
@@ -353,7 +397,7 @@ export const Coupons: React.FC = () => {
                   {coupon.status === 'active' ? 'Disable' : 'Enable'}
                 </button>
                 <button 
-                  onClick={() => handleDeleteCoupon(coupon.id)}
+                  onClick={() => setDeletingId(coupon.id)}
                   className="px-4 py-2.5 bg-red-500/10 border border-red-500/10 rounded-xl text-red-500"
                 >
                   <Trash2 size={16} />
