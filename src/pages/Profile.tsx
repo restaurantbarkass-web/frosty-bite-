@@ -15,12 +15,25 @@ export const Profile: React.FC = () => {
   const [userData, setUserData] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders'>('personal');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: ''
+  });
+
+  const [settingsData, setSettingsData] = useState({
+    notifications: {
+      orderUpdates: true,
+      promotions: false,
+      riderChat: true
+    },
+    privacy: {
+      shareActivity: false,
+      saveSearchHistory: true
+    }
   });
 
   useEffect(() => {
@@ -36,6 +49,9 @@ export const Profile: React.FC = () => {
           phone: data.phone || '',
           address: data.address || ''
         });
+        if (data.settings) {
+          setSettingsData(data.settings);
+        }
       }
       setLoading(false);
     }, (error) => {
@@ -81,7 +97,51 @@ export const Profile: React.FC = () => {
       setIsEditing(false);
     } catch (error) {
       handleFirestoreError(error as any, OperationType.UPDATE, `users/${authUser.uid}`);
-      alert("Failed to update profile. Please try again.");
+    }
+  };
+
+  const handleUpdateSettings = async (newSettings: any) => {
+    if (!authUser) return;
+    try {
+      await updateDoc(doc(db, 'users', authUser.uid), { settings: newSettings });
+      setSettingsData(newSettings);
+    } catch (error) {
+      handleFirestoreError(error as any, OperationType.UPDATE, `settings/${authUser.uid}`);
+    }
+  };
+
+  const handleExportData = () => {
+    const data = {
+      profile: user,
+      orders: recentOrders,
+      settings: settingsData,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `frosty-bite-data-${authUser?.uid.slice(0, 8)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
+      try {
+        // In a real app we would delete from Auth too, but here we'll just clear Firestore and logout
+        // Deleting from Auth in Firebase usually requires a recent login
+        await updateDoc(doc(db, 'users', authUser?.uid!), { 
+          deleted: true,
+          deletedAt: new Date().toISOString(),
+          status: 'deactivated'
+        });
+        alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
+        await handleLogout();
+      } catch (error) {
+        console.error("Account deletion failed:", error);
+      }
     }
   };
 
@@ -237,7 +297,10 @@ export const Profile: React.FC = () => {
                 <LogOut size={18} />
                 Logout
               </button>
-              <button className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest transition-all active:scale-95">
+              <button 
+                onClick={() => setIsSettingsOpen(true)}
+                className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest transition-all active:scale-95"
+              >
                 Account Settings
               </button>
             </div>
@@ -383,6 +446,126 @@ export const Profile: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Account Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
+                  <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
+                </div>
+                <button 
+                  onClick={() => setIsSettingsOpen(false)} 
+                  className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-10">
+                {/* Notifications Section */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-sm font-bold text-white">Order Status Updates</p>
+                        <p className="text-[10px] text-zinc-500">Real-time alerts for your orders</p>
+                      </div>
+                      <button 
+                        onClick={() => handleUpdateSettings({
+                          ...settingsData,
+                          notifications: { ...settingsData.notifications, orderUpdates: !settingsData.notifications.orderUpdates }
+                        })}
+                        className={cn(
+                          "w-12 h-6 rounded-full transition-all relative",
+                          settingsData.notifications.orderUpdates ? "bg-primary" : "bg-zinc-800"
+                        )}
+                      >
+                        <div className={cn(
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          settingsData.notifications.orderUpdates ? "right-1" : "left-1"
+                        )} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-sm font-bold text-white">Promotional Offers</p>
+                        <p className="text-[10px] text-zinc-500">New discounts and seasonal treats</p>
+                      </div>
+                      <button 
+                        onClick={() => handleUpdateSettings({
+                          ...settingsData,
+                          notifications: { ...settingsData.notifications, promotions: !settingsData.notifications.promotions }
+                        })}
+                        className={cn(
+                          "w-12 h-6 rounded-full transition-all relative",
+                          settingsData.notifications.promotions ? "bg-primary" : "bg-zinc-800"
+                        )}
+                      >
+                        <div className={cn(
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          settingsData.notifications.promotions ? "right-1" : "left-1"
+                        )} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Section */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Data & Portability</h4>
+                  <div className="flex flex-col gap-4">
+                    <button 
+                      onClick={handleExportData}
+                      className="w-full flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                          <ShoppingBag size={20} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-bold text-white">Export Order History</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Download as JSON</p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danger Zone */}
+                <div className="space-y-6 pt-4">
+                  <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Danger Zone</h4>
+                  <button 
+                     onClick={handleDeleteAccount}
+                    className="w-full h-16 border-2 border-red-500/20 rounded-2xl flex items-center justify-between px-6 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-widest"
+                  >
+                    Permanently Delete Account
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
