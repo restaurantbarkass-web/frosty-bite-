@@ -3,6 +3,12 @@
   publish = "dist"
 
 [[redirects]]
+  from = "/"
+  to = "https://frosty-bite.vercel.app"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
