@@ -1,11 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "https://frosty-bite.vercel.app",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
   ]

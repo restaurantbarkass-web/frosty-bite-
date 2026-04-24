@@ -42,12 +42,6 @@ function AppContent() {
 
   const location = useLocation();
 
-  React.useEffect(() => {
-    if (location.pathname === '/') {
-      window.location.href = 'https://frosty-bite.vercel.app';
-    }
-  }, [location.pathname]);
-
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
   const hideNavFooter = isAdminPage || isProductPage;
