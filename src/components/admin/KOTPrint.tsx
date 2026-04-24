@@ -53,7 +53,7 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
             />
             <p className="text-xs font-bold">Artisan Bakery & Frosty Treats</p>
             <p className="text-[10px] mt-1">123 Food Street, Hyderabad, TS</p>
-            <p className="text-[10px]">Ph: +91 62914 67694</p>
+            <p className="text-[10px]">Ph: +91 77358 00239</p>
             <div className="mt-2 py-1 border-y border-dashed border-black/20">
               <p className="text-xs font-black uppercase tracking-widest">TAX INVOICE / KOT</p>
             </div>

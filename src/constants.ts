@@ -13,7 +13,7 @@ export const RIDER_EMAILS = [
   "delivery@barkaas.com"
 ];
 
-export const RESTAURANT_WHATSAPP = "916291467694"; // Updated restaurant number
+export const RESTAURANT_WHATSAPP = "917735800239"; // Updated restaurant number
 
 export type UserRole = 'admin' | 'rider' | 'customer';
 
