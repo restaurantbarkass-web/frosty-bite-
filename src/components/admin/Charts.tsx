@@ -1,0 +1,163 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  Cell,
+  AreaChart,
+  Area
+} from 'recharts';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#1a1a1a] border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+        <p className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">{label}</p>
+        <p className="text-white text-lg font-bold">
+          {payload[0].name === 'revenue' ? `₹${payload[0].value.toLocaleString()}` : `${payload[0].value} orders`}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export const OrdersChart: React.FC = () => {
+  const [data, setData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const orders = snapshot.docs.map(doc => doc.data());
+      const ordersByDate = orders.reduce((acc: any, curr: any) => {
+        if (!curr.createdAt) return acc;
+        const date = new Date(curr.createdAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const chartData = Object.entries(ordersByDate).map(([name, orders]) => ({ name, orders }));
+      setData(chartData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px]">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h3 className="text-xl font-bold text-white tracking-tight">Orders Over Time</h3>
+          <p className="text-sm text-gray-500">Weekly performance overview</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <span className="text-xs text-gray-400 font-medium">Orders</span>
+          </div>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+            dy={10}
+          />
+          <YAxis 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Area 
+            type="monotone" 
+            dataKey="orders" 
+            stroke="#f97316" 
+            strokeWidth={4}
+            fillOpacity={1} 
+            fill="url(#colorOrders)" 
+            animationDuration={2000}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export const PopularItemsChart: React.FC = () => {
+  const [data, setData] = useState<any[]>([]);
+  const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const orders = snapshot.docs.map(doc => doc.data());
+      const itemCounts: any = {};
+      
+      orders.forEach((order: any) => {
+        if (order.items) {
+          order.items.forEach((item: string) => {
+            itemCounts[item] = (itemCounts[item] || 0) + 1;
+          });
+        }
+      });
+
+      const popularItems = Object.entries(itemCounts)
+        .map(([name, sales]) => ({ name, sales: sales as number }))
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 5);
+      
+      setData(popularItems);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'orders');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px]">
+      <div className="mb-8">
+        <h3 className="text-xl font-bold text-white tracking-tight">Popular Items</h3>
+        <p className="text-sm text-gray-500">Most sold items this month</p>
+      </div>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ left: 40 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
+          <XAxis type="number" hide />
+          <YAxis 
+            dataKey="name" 
+            type="category" 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: '#fff', fontSize: 12, fontWeight: 600 }}
+            width={100}
+          />
+          <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
+          <Bar dataKey="sales" radius={[0, 10, 10, 0]} barSize={32} animationDuration={1500}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} fillOpacity={0.8} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};

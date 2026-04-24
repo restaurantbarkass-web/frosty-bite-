@@ -1,0 +1,135 @@
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
+} from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, getDocFromServer } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
+
+import { getRoleFromEmail } from './constants';
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const googleProvider = new GoogleAuthProvider();
+
+// Connection Test
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log("Firestore connection successful.");
+  } catch (error) {
+    if(error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration. The client is offline.");
+    }
+    // Skip logging for other errors, as this is simply a connection test.
+  }
+}
+testConnection();
+
+/**
+ * Synchronizes the authenticated user's data with Firestore.
+ * Ensures the user document exists and has the correct role.
+ */
+export const syncUserWithFirestore = async (user: any) => {
+  if (!user) return;
+  
+  const role = getRoleFromEmail(user.email);
+  const userRef = doc(db, 'users', user.uid);
+  
+  try {
+    // Use setDoc with merge: true directly to avoid a preliminary getDoc
+    // which might fail due to permission issues if the user document is missing
+    await setDoc(userRef, {
+      uid: user.uid,
+      name: user.displayName || 'Anonymous',
+      email: user.email,
+      role: role,
+      photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}&background=f97316&color=fff`,
+      // Only set createdAt if it doesn't exist (using merge: true)
+      // Note: serverTimestamp() will always update if not guarded, 
+      // but for users it's fine to have a lastSync or similar.
+      lastSync: serverTimestamp(),
+    }, { merge: true });
+  } catch (error) {
+    console.error('Error in syncUserWithFirestore:', error);
+    handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`, user);
+  }
+};
+
+export const signInWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    await syncUserWithFirestore(user);
+    return user;
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      return null;
+    }
+    if (error.code === 'auth/popup-blocked') {
+      alert('The sign-in popup was blocked by your browser. Please allow popups for this site and try again.');
+      return null;
+    }
+    console.error('Error signing in with Google:', error);
+    throw error;
+  }
+};
+
+export const logout = () => signOut(auth);
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, currentUser?: any) {
+  const activeUser = currentUser || auth.currentUser;
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: activeUser?.uid,
+      email: activeUser?.email,
+      emailVerified: activeUser?.emailVerified,
+      isAnonymous: activeUser?.isAnonymous,
+      tenantId: activeUser?.tenantId,
+      providerInfo: activeUser?.providerData.map((provider: any) => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}

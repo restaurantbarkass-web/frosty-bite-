@@ -1,0 +1,348 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { CATEGORIES } from '../../constants';
+
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+  available: boolean;
+}
+
+export const MenuManager: React.FC = () => {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    price: '',
+    category: CATEGORIES[0],
+    image: '',
+    available: true,
+    description: ''
+  });
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  useEffect(() => {
+    const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const menuData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as MenuItem[];
+      setMenuItems(menuData);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'menu');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const data = {
+        ...formData,
+        price: Number(formData.price),
+        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`
+      };
+
+      if (editingItem) {
+        await updateDoc(doc(db, 'menu', editingItem.id), data);
+      } else {
+        await addDoc(collection(db, 'menu'), data);
+      }
+
+      setIsAdding(false);
+      setEditingItem(null);
+      setFormData({ name: '', price: '', category: CATEGORIES[0], image: '', available: true, description: '' });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'menu');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        await deleteDoc(doc(db, 'menu', id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `menu/${id}`);
+      }
+    }
+  };
+
+  const toggleAvailability = async (item: MenuItem) => {
+    try {
+      await updateDoc(doc(db, 'menu', item.id), { available: !item.available });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `menu/${item.id}`);
+    }
+  };
+
+  const filteredMenu = menuItems.filter(item => 
+    item.name.toLowerCase().includes(search.toLowerCase()) || 
+    item.category.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-20 flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+        <p className="text-zinc-500 font-bold animate-pulse">Loading menu...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Menu Management</h2>
+          <p className="text-gray-500 font-medium">Add, edit, or remove items from your restaurant menu</p>
+        </div>
+        <motion.button 
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            setEditingItem(null);
+            setFormData({ name: '', price: '', category: CATEGORIES[0], image: '', available: true, description: '' });
+            setIsAdding(true);
+          }}
+          className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
+        >
+          <Plus size={20} />
+          Add New Item
+        </motion.button>
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="relative flex-1 group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors" size={18} />
+          <input 
+            type="text" 
+            placeholder="Search menu items..." 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#111]/80 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500/50 transition-all"
+          />
+        </div>
+        <button className="flex items-center gap-3 px-6 py-4 bg-[#111]/80 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all">
+          <Filter size={18} />
+          Filter
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <AnimatePresence mode="popLayout">
+          {filteredMenu.map((item) => (
+            <motion.div 
+              key={item.id}
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="group bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden hover:border-orange-500/30 transition-all"
+            >
+              <div className="relative h-48 overflow-hidden">
+                <img 
+                  src={item.image} 
+                  alt={item.name} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setEditingItem(item);
+                      setFormData({
+                        name: item.name,
+                        price: item.price.toString(),
+                        category: item.category,
+                        image: item.image,
+                        available: item.available,
+                        description: (item as any).description || ''
+                      });
+                      setIsAdding(true);
+                    }}
+                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-orange-500 transition-all"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(item.id)}
+                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-red-500 transition-all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="absolute bottom-4 left-4">
+                  <span className="px-3 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest">
+                    {item.category}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
+                    <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
+                  </div>
+                  <div className={`flex items-center gap-1 text-xs font-bold ${item.available ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {item.available ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                    {item.available ? 'Available' : 'Sold Out'}
+                  </div>
+                </div>
+                <button 
+                  onClick={() => toggleAvailability(item)}
+                  className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-semibold hover:bg-white/10 transition-all"
+                >
+                  {item.available ? 'Mark as Sold Out' : 'Mark as Available'}
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      <AnimatePresence>
+        {isAdding && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAdding(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-xl bg-[#111] border border-white/10 rounded-[32px] p-10 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
+              
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-2xl font-bold text-white">{editingItem ? 'Edit Menu Item' : 'Add New Food Item'}</h3>
+                  <button onClick={() => setIsAdding(false)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-all">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Item Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="e.g. Chicken Mandi" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Price (₹)</label>
+                      <input 
+                        type="number" 
+                        required
+                        value={formData.price}
+                        onChange={(e) => setFormData({...formData, price: e.target.value})}
+                        placeholder="e.g. 350" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Description</label>
+                    <textarea 
+                      value={formData.description}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
+                      placeholder="Describe the item..." 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Category</label>
+                    <select 
+                      value={formData.category}
+                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all appearance-none"
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat} className="bg-[#111]">{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Image</label>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <input 
+                          type="text" 
+                          value={formData.image}
+                          onChange={(e) => setFormData({...formData, image: e.target.value})}
+                          placeholder="Image URL or upload below" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                        />
+                      </div>
+                      <label className="flex items-center justify-center px-6 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all">
+                        <ImageIcon size={20} className="text-gray-400" />
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                    {formData.image && (
+                      <div className="mt-2 h-20 w-20 rounded-xl overflow-hidden border border-white/10">
+                        <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-4 pt-4">
+                    <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all">
+                      Cancel
+                    </button>
+                    <button type="submit" className="flex-1 py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all">
+                      {editingItem ? 'Update Item' : 'Save Item'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};

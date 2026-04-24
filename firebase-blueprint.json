@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Represents a user account and their role in the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "admin", "rider"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "MenuItem": {
+      "title": "Bakery Item",
+      "description": "An item on the bakery menu.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "available": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "price", "category", "available"]
+    },
+    "Order": {
+      "title": "Customer Order",
+      "description": "Details of a customer purchase.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "phone": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "out-for-delivery", "delivered", "cancelled"] },
+        "address": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "customerName", "phone", "items", "total", "status", "address"]
+    },
+    "Rider": {
+      "title": "Delivery Rider",
+      "description": "A delivery partner.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "busy", "offline"] },
+        "currentOrderId": { "type": "string" }
+      },
+      "required": ["uid", "name", "status"]
+    },
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "Global settings for the application.",
+      "type": "object",
+      "properties": {
+        "isOrderingOpen": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["isOrderingOpen"]
+    },
+    "ThemeSettings": {
+      "title": "Theme Settings",
+      "description": "Visual customization and global branding for the app.",
+      "type": "object",
+      "properties": {
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "backgroundColor": { "type": "string" },
+        "surfaceColor": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "borderRadius": { "type": "string" },
+        "darkMode": { "type": "boolean" },
+        "offerText": { "type": "string" },
+        "showOfferBanner": { "type": "boolean" },
+        "offerLink": { "type": "string" },
+        "offerColor": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Storage for user profile data."
+    },
+    "menu/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Bakery menu items."
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer order records."
+    },
+    "riders/{riderId}": {
+      "schema": "Rider",
+      "description": "Rider tracking and availability."
+    },
+    "settings/appConfig": {
+      "schema": "AppConfig",
+      "description": "Global application state."
+    },
+    "settings/theme": {
+      "schema": "ThemeSettings",
+      "description": "Global theme configuration."
+    }
+  }
+}

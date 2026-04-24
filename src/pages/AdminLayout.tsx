@@ -1,0 +1,74 @@
+import React, { useState } from 'react';
+import { Sidebar } from '../components/admin/Sidebar';
+import { Navbar } from '../components/admin/Navbar';
+import { Dashboard } from './admin/Dashboard';
+import { Orders } from './admin/Orders';
+import { Menu } from './admin/Menu';
+import { Riders } from './admin/Riders';
+import { Analytics } from './admin/Analytics';
+import { Coupons } from './admin/Coupons';
+import { Customers } from './admin/Customers';
+import { ThemeSettings } from './admin/ThemeSettings';
+import { motion, AnimatePresence } from 'motion/react';
+
+export const AdminLayout: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard': return <Dashboard />;
+      case 'orders': return <Orders />;
+      case 'customers': return <Customers />;
+      case 'menu': return <Menu />;
+      case 'coupons': return <Coupons />;
+      case 'riders': return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+          <div className="w-24 h-24 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500">
+            <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          </div>
+          <div className="text-center">
+            <h2 className="text-3xl font-bold mb-2">Rider Management</h2>
+            <p className="text-gray-500 max-w-md mx-auto">
+              The rider management module is currently under development. 
+              We are building a powerful system to track and manage your delivery fleet in real-time.
+            </p>
+          </div>
+          <div className="px-6 py-2 bg-orange-500/20 text-orange-500 rounded-full text-sm font-bold uppercase tracking-widest animate-pulse">
+            Coming Soon
+          </div>
+        </div>
+      );
+      case 'analytics': return <Analytics />;
+      case 'theme': return <ThemeSettings />;
+      default: return <Dashboard />;
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen bg-[#050505] text-white font-sans selection:bg-orange-500/30 selection:text-orange-500 overflow-x-hidden">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              {renderContent()}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+    </div>
+  );
+};

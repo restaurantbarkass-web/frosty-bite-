@@ -1,0 +1,476 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreVertical, 
+  Trash2, 
+  Edit2, 
+  CheckCircle, 
+  XCircle,
+  Tag,
+  Calendar,
+  Users,
+  Percent,
+  DollarSign
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
+
+interface Coupon {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  minOrder: number;
+  expiryDate: string;
+  usageLimit: number;
+  usageCount: number;
+  status: 'active' | 'expired' | 'disabled';
+  isFirstOrderOnly?: boolean;
+  createdAt: any;
+}
+
+export const Coupons: React.FC = () => {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Form State
+  const [newCoupon, setNewCoupon] = useState({
+    code: '',
+    type: 'percentage' as 'percentage' | 'fixed',
+    value: 0,
+    minOrder: 0,
+    expiryDate: '',
+    usageLimit: 100,
+  });
+
+  useEffect(() => {
+    const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const couponData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Coupon[];
+      setCoupons(couponData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'coupons');
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await addDoc(collection(db, 'coupons'), {
+        ...newCoupon,
+        code: newCoupon.code.toUpperCase(),
+        usageCount: 0,
+        status: 'active',
+        createdAt: serverTimestamp(),
+      });
+      setIsModalOpen(false);
+      setNewCoupon({
+        code: '',
+        type: 'percentage',
+        value: 0,
+        minOrder: 0,
+        expiryDate: '',
+        usageLimit: 100,
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'coupons');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateFirstOrderCoupon = async () => {
+    setIsLoading(true);
+    try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30);
+      const expiryStr = expiryDate.toISOString().split('T')[0];
+
+      await addDoc(collection(db, 'coupons'), {
+        code: 'FIRSTORDER',
+        type: 'percentage',
+        value: 20,
+        minOrder: 0,
+        expiryDate: expiryStr,
+        usageLimit: 100,
+        usageCount: 0,
+        status: 'active',
+        isFirstOrderOnly: true,
+        createdAt: serverTimestamp(),
+      });
+      alert('FIRSTORDER coupon generated successfully!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'coupons');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this coupon?')) return;
+    try {
+      await deleteDoc(doc(db, 'coupons', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `coupons/${id}`);
+    }
+  };
+
+  const toggleCouponStatus = async (id: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+      await updateDoc(doc(db, 'coupons', id), { status: newStatus });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `coupons/${id}`);
+    }
+  };
+
+  const filteredCoupons = coupons.filter(c => 
+    c.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight text-white">Coupons & Discounts</h2>
+          <p className="text-zinc-500 text-sm font-medium">Manage promotional codes and special offers</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={generateFirstOrderCoupon}
+            disabled={isLoading}
+            className="flex items-center gap-2 bg-white/5 text-zinc-500 px-6 py-3 rounded-2xl font-bold hover:bg-white/10 hover:text-white transition-all border border-white/5 disabled:opacity-50"
+          >
+            <Tag size={20} />
+            Generate FIRSTORDER
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
+          >
+            <Plus size={20} />
+            Create Coupon
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="glass-dark p-6 rounded-3xl border border-white/5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500">
+              <Tag size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Active Coupons</p>
+              <h3 className="text-2xl font-black text-white">{coupons.filter(c => c.status === 'active').length}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="glass-dark p-6 rounded-3xl border border-white/5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+              <CheckCircle size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Redemptions</p>
+              <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + curr.usageCount, 0)}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="glass-dark p-6 rounded-3xl border border-white/5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-500">
+              <Calendar size={24} />
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Expiring Soon</p>
+              <h3 className="text-2xl font-black text-white">3</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Coupons List */}
+      <div className="glass-dark rounded-[2.5rem] border border-white/5 overflow-hidden">
+        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <input 
+              type="text" 
+              placeholder="Search by code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="p-3 bg-white/5 border border-white/10 rounded-xl text-zinc-500 hover:text-white transition-all">
+              <Filter size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto hidden lg:block">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-white/5">
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Coupon Code</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Discount</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Min. Order</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Usage</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Expiry</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredCoupons.map((coupon) => (
+                <tr key={coupon.id} className="hover:bg-white/5 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <Tag size={18} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-black text-white tracking-wider">{coupon.code}</span>
+                        {coupon.isFirstOrderOnly && (
+                          <span className="text-[8px] text-orange-500 font-black uppercase tracking-widest">First Order Only</span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm font-bold text-white">
+                      {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">₹{coupon.minOrder}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                        <span>{coupon.usageCount} / {coupon.usageLimit}</span>
+                      </div>
+                      <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-orange-500" 
+                          style={{ width: `${(coupon.usageCount / coupon.usageLimit) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">{coupon.expiryDate}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      coupon.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
+                      coupon.status === 'expired' ? 'bg-red-500/10 text-red-500' : 
+                      'bg-zinc-500/10 text-zinc-500'
+                    }`}>
+                      {coupon.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => toggleCouponStatus(coupon.id, coupon.status)}
+                        className="p-2 bg-white/5 border border-white/10 rounded-lg text-zinc-500 hover:text-white transition-all"
+                      >
+                        {coupon.status === 'active' ? <XCircle size={16} /> : <CheckCircle size={16} />}
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCoupon(coupon.id)}
+                        className="p-2 bg-white/5 border border-white/10 rounded-lg text-zinc-500 hover:text-red-500 transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Coupon List */}
+        <div className="lg:hidden divide-y divide-white/5">
+          {filteredCoupons.map((coupon) => (
+            <div key={coupon.id} className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                    <Tag size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-black text-white tracking-wider text-sm">{coupon.code}</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${
+                      coupon.status === 'active' ? 'text-emerald-500' : 'text-zinc-500'
+                    }`}>{coupon.status}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-white">
+                    {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.minOrder}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex justify-between text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-1">
+                    <span>Usage</span>
+                    <span>{coupon.usageCount}/{coupon.usageLimit}</span>
+                  </div>
+                  <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-orange-500" 
+                      style={{ width: `${(coupon.usageCount / coupon.usageLimit) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">Expires</p>
+                  <p className="text-[10px] text-white font-bold">{coupon.expiryDate}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => toggleCouponStatus(coupon.id, coupon.status)}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-2"
+                >
+                  {coupon.status === 'active' ? 'Disable' : 'Enable'}
+                </button>
+                <button 
+                  onClick={() => handleDeleteCoupon(coupon.id)}
+                  className="px-4 py-2.5 bg-red-500/10 border border-red-500/10 rounded-xl text-red-500"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-2xl font-black text-white">New Coupon</h3>
+                <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
+                  <XCircle size={24} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateCoupon} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Coupon Code</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="E.G. WELCOME50"
+                      value={newCoupon.code}
+                      onChange={(e) => setNewCoupon({...newCoupon, code: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Type</label>
+                    <select 
+                      value={newCoupon.type}
+                      onChange={(e) => setNewCoupon({...newCoupon, type: e.target.value as any})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                    >
+                      <option value="percentage">Percentage (%)</option>
+                      <option value="fixed">Fixed Amount (₹)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Value</label>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        required
+                        value={newCoupon.value}
+                        onChange={(e) => setNewCoupon({...newCoupon, value: Number(e.target.value)})}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                        {newCoupon.type === 'percentage' ? <Percent size={16} /> : <DollarSign size={16} />}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Min. Order (₹)</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={newCoupon.minOrder}
+                      onChange={(e) => setNewCoupon({...newCoupon, minOrder: Number(e.target.value)})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Usage Limit</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={newCoupon.usageLimit}
+                      onChange={(e) => setNewCoupon({...newCoupon, usageLimit: Number(e.target.value)})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Expiry Date</label>
+                    <input 
+                      type="date" 
+                      required
+                      value={newCoupon.expiryDate}
+                      onChange={(e) => setNewCoupon({...newCoupon, expiryDate: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? 'Creating...' : 'Create Coupon'}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
