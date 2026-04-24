@@ -5,7 +5,8 @@ export const ADMIN_EMAILS = [
   "owner@barkaas.com",
   "restaurantbarkass@gmail.com", // Keeping the original bootstrap admin
   "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com"
+  "sayedazainab216@gmail.com",
+  "sayedazainabali76@gmail.com"
 ];
 
 export const RIDER_EMAILS = [
