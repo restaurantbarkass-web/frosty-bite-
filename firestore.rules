@@ -28,7 +28,7 @@ service cloud.firestore {
     // Admin check logic
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com"] ||
+        request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com"] ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -89,6 +89,18 @@ service cloud.firestore {
     function isValidAppConfig(data) {
       return data.keys().hasAll(['isOrderingOpen']) &&
              data.isOrderingOpen is bool;
+    }
+
+    function isValidCoupon(data) {
+      return data.keys().hasAll(['code', 'type', 'value', 'minOrder', 'expiryDate', 'usageLimit', 'usageCount', 'status']) &&
+             data.code is string && data.code.size() <= 50 &&
+             data.type in ['percentage', 'fixed'] &&
+             data.value is number && data.value >= 0 &&
+             data.minOrder is number && data.minOrder >= 0 &&
+             data.expiryDate is string &&
+             data.usageLimit is number && data.usageLimit >= 0 &&
+             data.usageCount is number && data.usageCount >= 0 &&
+             data.status in ['active', 'expired', 'disabled'];
     }
 
     // -------------------------------------------------------------------------
@@ -159,6 +171,17 @@ service cloud.firestore {
       allow create: if isAdmin() || isOwner(incoming().userId);
       allow update: if isOwner(resource.data.userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
       allow delete: if isOwner(resource.data.userId);
+    }
+
+    // COUPONS
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin() && isValidCoupon(incoming());
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['usageCount']) &&
+        incoming().usageCount == existing().usageCount + 1
+      );
     }
   }
 }

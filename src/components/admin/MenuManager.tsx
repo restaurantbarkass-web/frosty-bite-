@@ -260,7 +260,7 @@ export const MenuManager: React.FC = () => {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        placeholder="e.g. Chicken Mandi" 
+                        placeholder="e.g. Artisan Sourdough" 
                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
                       />
                     </div>

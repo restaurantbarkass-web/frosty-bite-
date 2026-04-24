@@ -85,6 +85,24 @@
         "offerLink": { "type": "string" },
         "offerColor": { "type": "string" }
       }
+    },
+    "Coupon": {
+      "title": "Discount Coupon",
+      "description": "Promotional codes for discounts.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed"] },
+        "value": { "type": "number" },
+        "minOrder": { "type": "number" },
+        "expiryDate": { "type": "string", "format": "date" },
+        "usageLimit": { "type": "number" },
+        "usageCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "expired", "disabled"] },
+        "isFirstOrderOnly": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "type", "value", "minOrder", "expiryDate", "usageLimit", "usageCount", "status"]
     }
   },
   "firestore": {
@@ -111,6 +129,10 @@
     "settings/theme": {
       "schema": "ThemeSettings",
       "description": "Global theme configuration."
+    },
+    "coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "Promotional discount codes."
     }
   }
 }

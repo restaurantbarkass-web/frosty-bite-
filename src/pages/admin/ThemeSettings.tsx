@@ -248,7 +248,7 @@ export const ThemeSettings: React.FC = () => {
                 <textarea 
                   value={theme.offerText}
                   onChange={(e) => setTheme({...theme, offerText: e.target.value})}
-                  placeholder="e.g. 🎉 Get 50% Off on all Mandi Items today!"
+                  placeholder="e.g. 🎉 Get 50% Off on all Bakery Items today!"
                   className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white text-sm focus:outline-none focus:border-orange-500 transition-all h-20 resize-none"
                 />
               </div>

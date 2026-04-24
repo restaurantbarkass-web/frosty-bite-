@@ -219,7 +219,7 @@ export const Profile: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Mandi Points</p>
+                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Frosty Points</p>
                   <p className="text-2xl font-black text-white">450</p>
                 </div>
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
