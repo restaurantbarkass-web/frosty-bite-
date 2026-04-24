@@ -53,7 +53,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => 
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                   <div className="w-48 h-48">
                     <LottiePlayer 
-                      url="https://lottie.host/2e0e5672-136b-4e11-857c-87d25e4c636f/7Z8Tf9u7H5.json"
+                      url="https://assets10.lottiefiles.com/packages/lf20_6wutsrox.json"
                       className="w-full h-full"
                     />
                   </div>

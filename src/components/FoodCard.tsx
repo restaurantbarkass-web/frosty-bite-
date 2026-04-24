@@ -116,7 +116,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
                   className="absolute inset-0 flex items-center justify-center bg-emerald-500"
                 >
                   <LottiePlayer 
-                    url="https://lottie.host/80261971-f925-46f8-958b-034cc890250a/QoZqMvC7Fq.json"
+                    url="https://assets9.lottiefiles.com/packages/lf20_pqnqpoc0.json"
                     loop={false}
                     className="w-8 h-8"
                   />

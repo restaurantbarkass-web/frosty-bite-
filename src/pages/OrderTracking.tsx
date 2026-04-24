@@ -10,11 +10,11 @@ import { cn } from '../lib/utils';
 import { LottiePlayer } from '../components/LottiePlayer';
 
 const STATUS_ANIMATIONS: Record<string, string> = {
-  pending: "https://lottie.host/d4850fa9-7104-4433-87f5-2be96680a6b1/u8W93Yp8S7.json",
-  assigned: "https://lottie.host/d4850fa9-7104-4433-87f5-2be96680a6b1/u8W93Yp8S7.json", // Processing
-  preparing: "https://lottie.host/31804790-28b4-4b53-9602-0c9103c80918/mI8Z6A1D2D.json",
-  out_for_delivery: "https://lottie.host/626d7c71-0814-419b-ab04-58580556281b/qIOnR0X9oQ.json",
-  delivered: "https://lottie.host/c9f9116e-e9f0-4663-8822-79469e38f972/0A678e2FzE.json",
+  pending: "https://assets3.lottiefiles.com/private_files/lf30_8scfgy7c.json",
+  assigned: "https://assets3.lottiefiles.com/private_files/lf30_8scfgy7c.json", // Processing
+  preparing: "https://assets2.lottiefiles.com/packages/lf20_31804790.json",
+  out_for_delivery: "https://assets1.lottiefiles.com/packages/lf20_6EY660.json",
+  delivered: "https://assets9.lottiefiles.com/packages/lf20_pqnqpoc0.json",
 };
 
 const STATUS_STEPS = [

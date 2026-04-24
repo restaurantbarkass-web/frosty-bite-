@@ -27,8 +27,14 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
 
     const fetchAnimation = async () => {
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch animation');
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          mode: 'cors'
+        });
+        if (!response.ok) throw new Error(`Failed to fetch animation: ${response.status} ${response.statusText}`);
         const data = await response.json();
         if (isMounted) {
           setAnimationData(data);
