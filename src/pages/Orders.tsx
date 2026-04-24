@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, ChevronRight, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { LottiePlayer } from '../components/LottiePlayer';
+import { FrostyAnimation } from '../components/LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
 export const Orders: React.FC = () => {
@@ -86,7 +86,7 @@ export const Orders: React.FC = () => {
       {orders.length === 0 ? (
         <div className="glass-dark rounded-[40px] border border-white/5 p-16 text-center space-y-6">
           <div className="w-56 h-56 mx-auto">
-            <LottiePlayer 
+            <FrostyAnimation 
               url={LOTTIE_ANIMATIONS.CAKE}
               className="w-full h-full"
               fallback={

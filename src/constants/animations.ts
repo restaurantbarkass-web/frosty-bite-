@@ -1,21 +1,23 @@
 /**
- * Common Lottie Animation URLs for the Frosty Bite App
- * You can find thousands more at lottiefiles.com
+ * UI Animation Assets for the Frosty Bite App
  */
-export const LOTTIE_ANIMATIONS = {
+export const FROSTY_ANIMATIONS = {
   // Feedback & UI
-  SUCCESS_CHECK: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
-  ORDER_CONFIRMED: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
+  SUCCESS_CHECK: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json", // Sample real success check
+  ORDER_CONFIRMED: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json",
   
   // Statuses
-  COOKING: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
-  DELIVERY_TRUCK: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
-  PROCESSING: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
+  COOKING: "https://assets1.lottiefiles.com/packages/lf20_N9Z9mG.json",
+  DELIVERY_TRUCK: "https://assets1.lottiefiles.com/packages/lf20_N9Z9mG.json",
+  PROCESSING: "https://assets1.lottiefiles.com/packages/lf20_N9Z9mG.json",
   
   // Empty states
-  EMPTY_CART: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
-  CAKE: "https://raw.githubusercontent.com/xvrh/lottie-flutter/master/example/assets/LottieLogo1.json",
+  EMPTY_CART: "https://assets5.lottiefiles.com/packages/lf20_qh5z2fdq.json",
+  CAKE: "https://assets5.lottiefiles.com/packages/lf20_qh5z2fdq.json",
 };
+
+// Aliased for backward compatibility
+export const LOTTIE_ANIMATIONS = FROSTY_ANIMATIONS;
 
 /**
  * CODE EXAMPLE: Using a local JSON file

@@ -3,7 +3,7 @@ import { X, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { LottiePlayer } from './LottiePlayer';
+import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
 interface CartSidebarProps {
@@ -53,7 +53,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => 
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                   <div className="w-56 h-56">
-                    <LottiePlayer 
+                    <FrostyAnimation 
                       url={LOTTIE_ANIMATIONS.CAKE}
                       className="w-full h-full"
                       fallback={
@@ -91,7 +91,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => 
                     className="flex justify-center mb-4"
                   >
                     <div className="w-32 h-32 opacity-80">
-                      <LottiePlayer 
+                      <FrostyAnimation 
                         url={LOTTIE_ANIMATIONS.CAKE}
                         className="w-full h-full"
                         fallback={

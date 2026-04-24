@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTheme } from '../context/ThemeContext';
-import { LottiePlayer } from './LottiePlayer';
+import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
 interface FoodCardProps {
@@ -116,7 +116,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 flex items-center justify-center bg-emerald-500"
                 >
-                  <LottiePlayer 
+                  <FrostyAnimation 
                     url={LOTTIE_ANIMATIONS.CAKE}
                     loop={false}
                     className="w-12 h-12"

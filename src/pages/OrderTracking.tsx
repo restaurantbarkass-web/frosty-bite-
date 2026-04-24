@@ -7,7 +7,7 @@ import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { Order, Rider } from '../types';
 import { cn } from '../lib/utils';
-import { LottiePlayer } from '../components/LottiePlayer';
+import { FrostyAnimation } from '../components/LottiePlayer';
 
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
@@ -149,7 +149,7 @@ export const OrderTracking: React.FC = () => {
             {/* Main Status Animation */}
             <div className="flex flex-col items-center justify-center py-6 mb-8 border-b border-white/5">
               <div className="w-56 h-56 relative">
-                 <LottiePlayer 
+                 <FrostyAnimation 
                     url={STATUS_ANIMATIONS[order.status] || STATUS_ANIMATIONS.pending}
                     className="w-full h-full"
                     fallback={STATUS_FALLBACKS[order.status] || STATUS_FALLBACKS.pending}

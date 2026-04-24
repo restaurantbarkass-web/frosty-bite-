@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Lottie from 'lottie-react';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { BrandAnimation } from './BrandAnimation';
 
 interface LottiePlayerProps {
   url: string;
@@ -12,9 +13,9 @@ interface LottiePlayerProps {
 }
 
 /**
- * A reusable Lottie player component that loads animations from a URL.
+ * A reusable animation player component for Frosty Bite.
  */
-export const LottiePlayer: React.FC<LottiePlayerProps> = ({ 
+export const FrostyAnimation: React.FC<LottiePlayerProps> = ({ 
   url, 
   loop = true, 
   autoplay = true, 
@@ -40,20 +41,27 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
           }
         });
         
-        if (response.status === 403) {
-          throw new Error('Access denied (403). The animation provider may be blocking this request.');
+        if (!response.ok) {
+          setError(true);
+          setLoading(false);
+          return;
         }
         
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
         const data = await response.json();
+        
+        // If it's a generic logo, quietly switch to our custom brand fallback
+        if (data?.layers?.[0]?.nm === 'MASTER' && data?.layers?.[1]?.nm?.includes('S5-Y')) {
+           setError(true);
+           setLoading(false);
+           return;
+        }
+
         if (isMounted) {
           setAnimationData(data);
           setLoading(false);
         }
       } catch (err) {
         if (isMounted) {
-          console.error(`Lottie load error for ${url}:`, err);
           setError(true);
           setLoading(false);
         }
@@ -70,7 +78,7 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
   if (loading) {
     return (
       <div className={className} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 className="animate-spin text-primary/20" size={24} />
+        <BrandAnimation size="sm" className="scale-50 opacity-20" />
       </div>
     );
   }
@@ -78,7 +86,7 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
   if (error || !animationData) {
     return (
       <div className={className} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {fallback || <AlertCircle className="text-primary/20" size={24} />}
+        {fallback || <BrandAnimation size="sm" className="scale-75 opacity-50" />}
       </div>
     );
   }
@@ -93,6 +101,9 @@ export const LottiePlayer: React.FC<LottiePlayerProps> = ({
     />
   );
 };
+
+// Aliased for backward compatibility if needed
+export const LottiePlayer = FrostyAnimation;
 
 // Example local JSON component (for documentation/code example purposes)
 /*
