@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock } from 'lucide-react';
+import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
@@ -17,6 +17,7 @@ const STATUS_ANIMATIONS: Record<string, string> = {
   preparing: LOTTIE_ANIMATIONS.COOKING,
   out_for_delivery: LOTTIE_ANIMATIONS.DELIVERY_TRUCK,
   delivered: LOTTIE_ANIMATIONS.SUCCESS_CHECK,
+  cancelled: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json", // We can use something else or fallback
 };
 
 const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
@@ -59,6 +60,19 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
       transition={{ type: "spring", damping: 12 }}
     >
       <CheckCircle className="text-emerald-500" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  cancelled: (
+    <motion.div
+      initial={{ scale: 0, rotate: 20 }}
+      animate={{ scale: 1, rotate: 0 }}
+      className="flex flex-col items-center"
+    >
+      <div className="relative">
+        <Package className="text-red-500 opacity-20" size={80} strokeWidth={1} />
+        <X className="text-red-500 absolute inset-0 m-auto" size={48} strokeWidth={3} />
+      </div>
+      <p className="text-red-500 font-black uppercase tracking-widest mt-4 text-xs">Order Rejected</p>
     </motion.div>
   ),
 };
@@ -124,6 +138,57 @@ export const OrderTracking: React.FC = () => {
         <button onClick={() => navigate('/')} className="bg-primary text-white px-8 py-3 rounded-xl font-bold">
           Back to Menu
         </button>
+      </div>
+    );
+  }
+
+  if (order.status === 'cancelled') {
+    return (
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="mb-8"
+        >
+          <div className="relative inline-block">
+            <motion.div
+              animate={{ rotate: [0, -5, 5, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              <Package className="text-zinc-800" size={120} strokeWidth={1} />
+            </motion.div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5, type: 'spring' }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white p-2 rounded-full shadow-xl shadow-red-500/40"
+            >
+              <X size={40} strokeWidth={3} />
+            </motion.div>
+          </div>
+        </motion.div>
+        
+        <h2 className="text-4xl font-black italic tracking-tighter text-white mb-4 uppercase">Order Rejected</h2>
+        <p className="text-zinc-500 max-w-md mb-12">
+          We're sorry, but your order has been cancelled by the restaurant. 
+          Please contact support if you need further assistance or try ordering again.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+          <button 
+            onClick={() => navigate('/')} 
+            className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-sm"
+          >
+            Back to Menu
+          </button>
+          <button 
+            onClick={() => sendWhatsAppMessage('9999999999', `Hi, my order #${orderId} was rejected. Can you help?`)}
+            className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-sm flex items-center justify-center gap-2"
+          >
+            <Phone size={18} />
+            Support
+          </button>
+        </div>
       </div>
     );
   }
