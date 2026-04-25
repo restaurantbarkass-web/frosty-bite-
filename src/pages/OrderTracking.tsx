@@ -195,6 +195,31 @@ export const OrderTracking: React.FC = () => {
 
   const currentStatusIndex = STATUS_STEPS.findIndex(step => step.id === order.status);
 
+  // Calculate remaining time
+  const getRemainingTime = () => {
+    if (!order.createdAt || !order.estimatedDeliveryTime) return null;
+    
+    const startTime = order.createdAt.seconds * 1000;
+    const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
+    const now = Date.now();
+    const diff = estimatedEndTime - now;
+    
+    if (diff <= 0) return "Arriving soon";
+    
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const [countdown, setCountdown] = useState<string | null>(getRemainingTime());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getRemainingTime());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [order]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
@@ -202,9 +227,17 @@ export const OrderTracking: React.FC = () => {
           <h1 className="text-3xl font-bold mb-2">Track Order</h1>
           <p className="text-muted">Order ID: <span className="text-primary font-mono">{orderId}</span></p>
         </div>
-        <div className="mt-4 md:mt-0 glass px-4 py-2 rounded-xl text-sm font-bold text-green-500">
-          Estimated Delivery: 25 mins
-        </div>
+        {order.status !== 'delivered' && (
+          <div className="mt-4 md:mt-0 glass px-6 py-3 rounded-2xl flex flex-col items-end gap-1">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Estimated Arrival</span>
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-primary" />
+              <span className="text-xl font-black text-white tabular-nums">
+                {countdown || (order.estimatedDeliveryTime ? `${order.estimatedDeliveryTime} mins` : 'Calculating...')}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -70,7 +70,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   const [editFormData, setEditFormData] = useState({
     customerName: '',
     phone: '',
-    address: ''
+    address: '',
+    estimatedDeliveryTime: 30
   });
 
   useEffect(() => {
@@ -188,7 +189,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
 
   const updateStatus = async (id: string, newStatus: Order['status']) => {
     try {
-      await updateDoc(doc(db, 'orders', id), { status: newStatus });
+      const order = orders.find(o => o.id === id);
+      const updateData: any = { status: newStatus };
+      
+      // Add default estimate if not present
+      if (order && !order.estimatedDeliveryTime) {
+        updateData.estimatedDeliveryTime = 30; // Default 30 mins
+      }
+
+      await updateDoc(doc(db, 'orders', id), updateData);
     } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
       alert(`Failed to update status: ${error.message || 'Permission denied'}`);
@@ -200,7 +209,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     if (!editingOrder) return;
 
     try {
-      await updateDoc(doc(db, 'orders', editingOrder.id), editFormData);
+      await updateDoc(doc(db, 'orders', editingOrder.id), {
+        ...editFormData,
+        estimatedDeliveryTime: Number(editFormData.estimatedDeliveryTime)
+      });
       setEditingOrder(null);
     } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${editingOrder.id}`);
@@ -223,11 +235,19 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     if (!rider) return;
 
     try {
-      await updateDoc(doc(db, 'orders', orderId), { 
+      const order = orders.find(o => o.id === orderId);
+      const updateData: any = { 
         riderId: rider.id,
         riderName: rider.name,
-        status: 'preparing' // Auto-update to preparing when assigned
-      });
+        status: 'preparing'
+      };
+
+      // Add default estimate if not present
+      if (order && !order.estimatedDeliveryTime) {
+        updateData.estimatedDeliveryTime = 30;
+      }
+
+      await updateDoc(doc(db, 'orders', orderId), updateData);
     } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
       alert(`Failed to assign rider: ${error.message || 'Permission denied'}`);
@@ -441,7 +461,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                         setEditFormData({
                           customerName: order.customerName,
                           phone: order.phone || '',
-                          address: order.address || ''
+                          address: order.address || '',
+                          estimatedDeliveryTime: order.estimatedDeliveryTime || 30
                         });
                       }}
                       className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-primary hover:bg-white/10 transition-all"
@@ -549,7 +570,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     setEditFormData({
                       customerName: order.customerName,
                       phone: order.phone || '',
-                      address: order.address || ''
+                      address: order.address || '',
+                      estimatedDeliveryTime: order.estimatedDeliveryTime || 30
                     });
                   }}
                   className="p-3 rounded-xl bg-white/10 text-white"
@@ -697,6 +719,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-24 resize-none" 
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Estimated Delivery Time (minutes)</label>
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        required
+                        min="1"
+                        max="180"
+                        value={editFormData.estimatedDeliveryTime}
+                        onChange={(e) => setEditFormData({...editFormData, estimatedDeliveryTime: Number(e.target.value)})}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
+                      />
+                      <Clock size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-500" />
+                    </div>
                   </div>
 
                   <div className="flex gap-4 pt-4">

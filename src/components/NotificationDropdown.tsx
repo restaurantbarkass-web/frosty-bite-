@@ -30,7 +30,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed sm:absolute top-24 sm:top-full left-4 right-4 sm:left-auto sm:right-0 sm:mt-4 sm:w-80 bg-[#0a0a0a] border border-white/10 rounded-3xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl"
+            className="fixed sm:absolute inset-x-2 top-24 sm:top-full sm:inset-auto sm:right-0 sm:mt-4 w-auto sm:w-80 bg-[#0b0b0b] border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[100] overflow-hidden backdrop-blur-3xl mx-auto sm:mx-0 max-w-[calc(100vw-1rem)]"
           >
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">

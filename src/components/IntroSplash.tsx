@@ -13,8 +13,13 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    // Auto-complete after 4 seconds if they don't click
+    const autoExit = setTimeout(onComplete, 4500);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(autoExit);
+    };
+  }, [onComplete]);
 
   return (
     <motion.div
@@ -30,9 +35,13 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
           loop
           muted
           playsInline
-          className="w-full h-full object-cover scale-105"
+          className="w-full h-full object-cover scale-105 transition-opacity duration-1000"
+          poster="https://images.pexels.com/photos/30335428/pexels-photo-30335428.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+          onCanPlay={(e) => {
+            e.currentTarget.play().catch(console.error);
+          }}
         >
-          <source src="https://www.image2url.com/r2/default/videos/1776876094528-e9bad1cb-3d22-4f9f-9571-3e77d4e91d4a.mp4" type="video/mp4" />
+          <source src="https://videos.pexels.com/video-files/30335428/30335428-hd_1920_1080_24fps.mp4" type="video/mp4" />
         </video>
         {/* Cinematic Overlays */}
         <div className="absolute inset-0 bg-black/40" />

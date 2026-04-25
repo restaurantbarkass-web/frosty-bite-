@@ -21,6 +21,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
+import { FoodCard } from '../components/FoodCard';
 
 import { CartSidebar } from '../components/CartSidebar';
 
@@ -30,6 +31,7 @@ export const ProductDetail: React.FC = () => {
   const { addToCart, totalItems } = useCart();
   
   const [product, setProduct] = useState<FoodItem | null>(null);
+  const [relatedItems, setRelatedItems] = useState<FoodItem[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
@@ -44,15 +46,27 @@ export const ProductDetail: React.FC = () => {
       try {
         // First check constants
         const localProduct = MENU_ITEMS.find(item => item.id === id);
+        let currentProduct: FoodItem | null = null;
+
         if (localProduct) {
-          setProduct(localProduct);
+          currentProduct = localProduct;
         } else {
           // Then check Firestore
           const docRef = doc(db, 'menu', id);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            setProduct({ id: docSnap.id, ...docSnap.data() } as FoodItem);
+            currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
           }
+        }
+
+        if (currentProduct) {
+          setProduct(currentProduct);
+          
+          // Set related items
+          const related = MENU_ITEMS
+            .filter(item => item.category === currentProduct?.category && item.id !== currentProduct?.id)
+            .slice(0, 4);
+          setRelatedItems(related);
         }
       } catch (error) {
         console.error("Error fetching product:", error);
@@ -274,6 +288,31 @@ export const ProductDetail: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Related Products Section */}
+      {relatedItems.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-12"
+          >
+            <h2 className="text-4xl lg:text-6xl font-display uppercase tracking-tighter mb-4">
+              You Might Also Like
+            </h2>
+            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
+              Similar items in {product.category}
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {relatedItems.map((item) => (
+              <FoodCard key={item.id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Bottom Action Bar */}
       <motion.div 

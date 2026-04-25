@@ -40,6 +40,8 @@ export interface Order {
   deliveryCharge?: number;
   subtotal?: number;
   gst?: number;
+  estimatedDeliveryTime?: number; // in minutes
+  estimatedArrival?: string; // ISO date string
 }
 
 export interface Rider {

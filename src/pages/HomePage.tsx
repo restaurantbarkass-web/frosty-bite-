@@ -104,15 +104,33 @@ export const Home: React.FC = () => {
   return (
     <div className="min-h-screen pb-20">
       {/* Hero Section */}
-      <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20">
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&q=80&w=2000"
-            className="w-full h-full object-cover opacity-50"
-            alt="Bakery Background"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background" />
+      <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden bg-[#0a0a0a]">
+        {/* Background Video Layer */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover opacity-100 transition-opacity duration-1000"
+            poster="https://images.pexels.com/photos/30335428/pexels-photo-30335428.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
+            onCanPlay={(e) => {
+              e.currentTarget.play().catch(() => {
+                // Secondary fallback attempt
+                e.currentTarget.muted = true;
+                e.currentTarget.play();
+              });
+            }}
+          >
+            <source src="https://videos.pexels.com/video-files/30335428/30335428-hd_1920_1080_24fps.mp4" type="video/mp4" />
+            <source src="https://videos.pexels.com/video-files/30335428/30335428-uhd_2160_1440_24fps.mp4" type="video/mp4" />
+          </video>
+          {/* Enhanced Overlays */}
+          <div className="absolute inset-0 bg-black/30 z-[1] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background z-[2] pointer-events-none" />
         </div>
+
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <motion.div
