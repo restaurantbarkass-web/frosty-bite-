@@ -4,6 +4,7 @@ import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '../lib/utils';
 
 import { useTheme } from '../context/ThemeContext';
 import { FrostyAnimation } from './LottiePlayer';
@@ -80,13 +81,27 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
         </div>
 
         {item.available === false && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
-            <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-full shadow-xl">Sold Out</span>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[4px] flex flex-col items-center justify-center p-6 text-center z-20"
+          >
+            <motion.div
+              initial={{ scale: 0.5, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.3em] px-6 py-2.5 rounded-full shadow-[0_0_30px_rgba(239,68,68,0.5)] border-2 border-white/20 mb-4"
+            >
+              Sold Out
+            </motion.div>
+            <p className="text-white/60 text-[9px] font-bold uppercase tracking-widest max-w-[120px]">
+              Join the waitlist for the next batch
+            </p>
+          </motion.div>
         )}
       </div>
 
-      <div className="p-6">
+      <div className={cn("p-6 transition-all duration-500", item.available === false && "opacity-40 grayscale-[0.5]")}>
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-black text-xl leading-tight text-white group-hover:text-orange-500 transition-colors tracking-tight">
             {item.name}

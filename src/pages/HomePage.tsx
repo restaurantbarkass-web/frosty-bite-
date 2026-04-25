@@ -60,7 +60,7 @@ export const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, 'menu'), where('available', '==', true));
+    const q = collection(db, 'menu');
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
         id: doc.id,

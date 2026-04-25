@@ -135,6 +135,42 @@ export const OrderTracking: React.FC = () => {
     return () => unsubscribe();
   }, [orderId]);
 
+  const currentStatusIndex = order ? STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending')) : 0;
+  const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
+
+  // Calculate remaining time
+  const getRemainingTime = () => {
+    if (!order || !order.createdAt || !order.estimatedDeliveryTime) return null;
+    
+    try {
+      const seconds = order.createdAt.seconds || (order.createdAt as any)._seconds;
+      if (!seconds) return null;
+
+      const startTime = seconds * 1000;
+      const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
+      const now = Date.now();
+      const diff = estimatedEndTime - now;
+      
+      if (diff <= 0) return "Arriving soon";
+      
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const [countdown, setCountdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCountdown(getRemainingTime());
+    const timer = setInterval(() => {
+      setCountdown(getRemainingTime());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [order]);
+
   if (loading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center">
@@ -205,42 +241,6 @@ export const OrderTracking: React.FC = () => {
       </div>
     );
   }
-
-  const currentStatusIndex = order ? STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending')) : 0;
-  const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
-
-  // Calculate remaining time
-  const getRemainingTime = () => {
-    if (!order || !order.createdAt || !order.estimatedDeliveryTime) return null;
-    
-    try {
-      const seconds = order.createdAt.seconds || (order.createdAt as any)._seconds;
-      if (!seconds) return null;
-
-      const startTime = seconds * 1000;
-      const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
-      const now = Date.now();
-      const diff = estimatedEndTime - now;
-      
-      if (diff <= 0) return "Arriving soon";
-      
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    } catch (e) {
-      return null;
-    }
-  };
-
-  const [countdown, setCountdown] = useState<string | null>(null);
-
-  useEffect(() => {
-    setCountdown(getRemainingTime());
-    const timer = setInterval(() => {
-      setCountdown(getRemainingTime());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [order]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
