@@ -197,12 +197,12 @@ export const Home: React.FC = () => {
               </div>
             </div>
           </motion.div>
-          <motion.h1
+            <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl md:text-7xl font-black tracking-tighter mb-6"
+            className="text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
           >
-            SWEET BLISS IN <span className="text-primary">EVERY</span> BITE
+            Frosty <span className="font-sans font-black NOT-italic text-primary block md:inline">Bite</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}

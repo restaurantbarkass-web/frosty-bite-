@@ -2,7 +2,7 @@ import { FoodItem } from './types';
 
 export const ADMIN_EMAILS = [
   "admin1@gmail.com",
-  "owner@barkaas.com",
+  "owner@frostybite.com",
   "restaurantbarkass@gmail.com", // Keeping the original bootstrap admin
   "wasifmd924@gmail.com",
   "sayedazainab216@gmail.com",
@@ -11,7 +11,7 @@ export const ADMIN_EMAILS = [
 
 export const RIDER_EMAILS = [
   "rider1@gmail.com",
-  "delivery@barkaas.com"
+  "delivery@frostybite.com"
 ];
 
 export const RESTAURANT_WHATSAPP = "917735800239"; // Updated restaurant number

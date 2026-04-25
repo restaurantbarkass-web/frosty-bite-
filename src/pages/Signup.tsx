@@ -106,7 +106,7 @@ export const Signup: React.FC = () => {
             >
               <img 
                 src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
-                alt="Barkaas Logo" 
+                alt="Frosty Bite Logo" 
                 className="h-32 w-auto object-contain drop-shadow-2xl rounded-2xl"
                 referrerPolicy="no-referrer"
               />

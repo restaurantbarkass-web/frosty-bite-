@@ -51,7 +51,7 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
               className="h-16 w-auto mx-auto mb-2 object-contain grayscale brightness-0"
               referrerPolicy="no-referrer"
             />
-            <p className="text-xs font-bold">Artisan Bakery & Frosty Treats</p>
+            <p className="text-xs font-bold">Artisan Bakery & Frozen Treats</p>
             <p className="text-[10px] mt-1">123 Food Street, Hyderabad, TS</p>
             <p className="text-[10px]">Ph: +91 77358 00239</p>
             <div className="mt-2 py-1 border-y border-dashed border-black/20">

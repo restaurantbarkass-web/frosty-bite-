@@ -50,32 +50,33 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
+                transition={{ duration: 1 }}
+                className="space-y-12"
               >
-                <div className="flex justify-center mb-8">
-                  <Logo size="lg" />
+                <div className="flex flex-col items-center">
+                  <Logo size="lg" className="mb-8" />
+                  
+                    <h1 className="text-7xl md:text-9xl font-serif italic text-white tracking-tighter leading-none">
+                      Frosty Bite
+                    </h1>
+                  <p className="text-primary/80 font-bold tracking-[0.4em] uppercase text-sm md:text-base">
+                    Artisan Bakery & Frozen Treats
+                  </p>
                 </div>
-                
-                <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white mb-2 italic">
-                  FROSTY <span className="text-primary NOT-italic">BITE</span>
-                </h1>
-                <p className="text-primary/80 font-bold tracking-[0.4em] uppercase text-sm md:text-base">
-                  Artisan Bakery & Frozen Treats
-                </p>
-              </motion.div>
 
-              <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onComplete}
-                className="group relative px-10 py-5 bg-white text-black font-black rounded-full text-lg tracking-widest uppercase flex items-center gap-3 mx-auto shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-primary/40 transition-all"
-              >
-                <span>Discover</span>
-                <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-              </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onComplete}
+                  className="group relative px-10 py-5 bg-white text-black font-black rounded-full text-lg tracking-widest uppercase flex items-center gap-3 mx-auto shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-primary/40 transition-all"
+                >
+                  <span>Discover</span>
+                  <ArrowRight className="group-hover:translate-x-2 transition-transform" />
+                </motion.button>
+              </motion.div>
             </div>
           )}
         </AnimatePresence>
