@@ -8,8 +8,7 @@ export const requestForToken = async () => {
   
   try {
     const currentToken = await getToken(messaging, {
-      // You should provide a VAPID key here if you have one.
-      // vapidKey: 'YOUR_VAPID_KEY'
+      vapidKey: 'H-nMK36Y6wNVZIQpFGNKpYYt0cmqcEZ-tqbeIT9djHU'
     });
     
     if (currentToken) {
