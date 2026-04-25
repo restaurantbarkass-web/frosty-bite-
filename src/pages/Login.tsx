@@ -232,7 +232,7 @@ export const Login: React.FC = () => {
                       }
                     />
                     <div className="flex justify-end">
-                      <Link to="/forgot-password" size-sm className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
+                      <Link to="/forgot-password" className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
                         Forgot Password?
                       </Link>
                     </div>
