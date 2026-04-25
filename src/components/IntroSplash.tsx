@@ -13,12 +13,8 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 1500);
-    // Auto-complete after 4 seconds if they don't click
-    const autoExit = setTimeout(onComplete, 4500);
-
     return () => {
       clearTimeout(timer);
-      clearTimeout(autoExit);
     };
   }, [onComplete]);
 
