@@ -4,6 +4,7 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { CartSidebar } from './components/CartSidebar';
@@ -53,6 +54,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
+      <Toaster position="top-right" />
       <AnimatePresence>
         {showSplash && location.pathname === '/' && (
           <IntroSplash onComplete={handleSplashComplete} />

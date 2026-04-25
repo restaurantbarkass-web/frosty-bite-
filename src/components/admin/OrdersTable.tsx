@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import toast from 'react-hot-toast';
 
 import { Order, Rider } from '../../types';
 
@@ -56,8 +57,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   const [isMuted, setIsMuted] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const lastOrderCountRef = React.useRef<number>(0);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const lastOrderCountRef = useRef<number>(0);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasInitializedRef = useRef(false);
 
   const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
@@ -68,6 +72,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   });
 
   useEffect(() => {
+    // Check permission on mount
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+
     const unsubscribeRiders = onSnapshot(collection(db, 'riders'), (snapshot) => {
       const ridersData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -84,14 +93,57 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     };
   }, []);
 
-  // Auto-print logic for new pending orders
-  useEffect(() => {
-    if (autoPrint && !loading && orders.length > lastOrderCountRef.current) {
-      const newOrder = orders[0]; // Newest order is at index 0 due to orderBy createdAt desc
-      if (newOrder && newOrder.status === 'pending') {
-        handlePrintKOT(newOrder, true);
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        toast.success('Notifications enabled!');
       }
     }
+  };
+
+  // Real-time notification logic for new orders
+  useEffect(() => {
+    if (loading) return;
+
+    // On initial load, just populate the known IDs
+    if (!hasInitializedRef.current) {
+      orders.forEach(o => knownOrderIdsRef.current.add(o.id));
+      lastOrderCountRef.current = orders.length;
+      hasInitializedRef.current = true;
+      return;
+    }
+
+    // Find new orders that weren't in our known set
+    const newOrders = orders.filter(o => !knownOrderIdsRef.current.has(o.id));
+    
+    if (newOrders.length > 0) {
+      newOrders.forEach(order => {
+        // Show Toast
+        toast.success(`New Order #${order.id.slice(-6).toUpperCase()} from ${order.customerName}!`, {
+          duration: 10000,
+          icon: '🍕',
+        });
+
+        // Show Browser Notification
+        if (Notification.permission === 'granted') {
+          new Notification('New Order Received!', {
+            body: `${order.customerName} placed an order for ₹${order.total}`,
+            icon: '/logo.png' 
+          });
+        }
+
+        // Add to known IDs
+        knownOrderIdsRef.current.add(order.id);
+      });
+
+      // Auto-print newest if enabled
+      if (autoPrint) {
+        handlePrintKOT(newOrders[0], true);
+      }
+    }
+
     lastOrderCountRef.current = orders.length;
   }, [orders, autoPrint, loading]);
 
@@ -247,6 +299,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
               <div className="w-2 h-2 bg-amber-500 rounded-full" />
               <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">New Orders</span>
             </div>
+          )}
+          {notificationPermission !== 'granted' && (
+            <button 
+              onClick={requestNotificationPermission}
+              className="p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all"
+              title="Enable Browser Notifications"
+            >
+              <Bell size={20} />
+            </button>
           )}
           <button 
             onClick={() => setIsMuted(!isMuted)}
