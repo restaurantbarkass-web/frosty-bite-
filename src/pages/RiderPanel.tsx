@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Truck, MapPin, Navigation, CheckCircle, Phone, Power } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
+import { requestForToken, onMessageListener } from '../utils/messaging';
+import toast from 'react-hot-toast';
 
 const AVAILABLE_ORDERS = [
   { id: 'ORD004', restaurant: 'Frosty Bite Central', distance: '1.2 km', destination: 'Banjara Hills', payout: '₹45' },
@@ -13,6 +15,28 @@ export const RiderPanel: React.FC = () => {
   const { user } = useAuth();
   const [isOnline, setIsOnline] = useState(true);
   const [activeOrder, setActiveOrder] = useState<any>(null);
+
+  useEffect(() => {
+    // Request permission and register token
+    const setupNotifications = async () => {
+      const token = await requestForToken();
+      if (token) {
+        console.log('Push notifications enabled for rider');
+      }
+    };
+
+    setupNotifications();
+
+    // Listen for foreground messages
+    onMessageListener().then((payload: any) => {
+      if (payload) {
+        toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+          duration: 10000,
+          icon: '🛵'
+        });
+      }
+    });
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">

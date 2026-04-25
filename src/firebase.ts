@@ -16,6 +16,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager
 } from 'firebase/firestore';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
 import { getRoleFromEmail } from './constants';
@@ -29,6 +30,8 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
+
+export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
 export const googleProvider = new GoogleAuthProvider();
 

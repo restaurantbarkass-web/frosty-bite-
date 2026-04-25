@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
 import { Dashboard } from './admin/Dashboard';
@@ -10,10 +10,34 @@ import { Coupons } from './admin/Coupons';
 import { Customers } from './admin/Customers';
 import { ThemeSettings } from './admin/ThemeSettings';
 import { motion, AnimatePresence } from 'motion/react';
+import { requestForToken, onMessageListener } from '../utils/messaging';
+import toast from 'react-hot-toast';
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    // Request permission and register token
+    const setupNotifications = async () => {
+      const token = await requestForToken();
+      if (token) {
+        console.log('Push notifications enabled');
+      }
+    };
+
+    setupNotifications();
+
+    // Listen for foreground messages
+    onMessageListener().then((payload: any) => {
+      if (payload) {
+        toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+          duration: 10000,
+          icon: '📢'
+        });
+      }
+    });
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
