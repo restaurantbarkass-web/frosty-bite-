@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -112,6 +112,13 @@ export const Checkout: React.FC = () => {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [error]);
 
   useEffect(() => {
     const unsubscribe = appConfigService.subscribeToConfig((data) => {
@@ -355,7 +362,7 @@ Thank you for choosing Frosty Bite! 🥯
                 </div>
               )}
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-medium">
+                <div ref={errorRef} className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-medium">
                   {error}
                 </div>
               )}
