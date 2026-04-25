@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
+import { useNotifications } from '../../context/NotificationContext';
 
 import { Order, Rider } from '../../types';
 
@@ -63,6 +64,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasInitializedRef = useRef(false);
 
+  const { addNotification } = useNotifications();
   const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
   const [editFormData, setEditFormData] = useState({
@@ -120,6 +122,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     
     if (newOrders.length > 0) {
       newOrders.forEach(order => {
+        // Save to notifications collection
+        addNotification({
+          title: 'New Order Received',
+          message: `${order.customerName} placed an order for ₹${order.total}`,
+          type: 'order',
+          userId: auth.currentUser?.uid || '',
+          link: '/admin'
+        });
+
         // Show Toast
         toast.success(`New Order #${order.id.slice(-6).toUpperCase()} from ${order.customerName}!`, {
           duration: 10000,

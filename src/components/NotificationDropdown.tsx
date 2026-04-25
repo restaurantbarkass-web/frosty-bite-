@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, Check, ShoppingBag, Truck, Info, X } from 'lucide-react';
+import { Bell, Check, ShoppingBag, Truck, Info, X, MessageCircle } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute top-full right-0 mt-4 w-80 bg-[#0a0a0a] border border-white/10 rounded-3xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl"
+            className="fixed sm:absolute top-24 sm:top-full left-4 right-4 sm:left-auto sm:right-0 sm:mt-4 sm:w-80 bg-[#0a0a0a] border border-white/10 rounded-3xl shadow-2xl z-50 overflow-hidden backdrop-blur-2xl"
           >
             <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -65,9 +66,23 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                           {getIcon(notif.type)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-bold mb-1 ${!notif.read ? 'text-white' : 'text-zinc-400'}`}>
-                            {notif.title}
-                          </p>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <p className={`text-xs font-bold ${!notif.read ? 'text-white' : 'text-zinc-400'}`}>
+                              {notif.title}
+                            </p>
+                            {notif.type === 'order' && (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendWhatsAppMessage('9999999999', `Order: ${notif.title}\nDetails: ${notif.message}`);
+                                }}
+                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"
+                                title="Share to WhatsApp"
+                              >
+                                <MessageCircle size={10} />
+                              </button>
+                            )}
+                          </div>
                           <p className="text-[11px] text-zinc-500 line-clamp-2 mb-2">
                             {notif.message}
                           </p>
