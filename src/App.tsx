@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -33,6 +33,7 @@ const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
 function AppContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash only once per session
     if (typeof window !== 'undefined') {
@@ -43,9 +44,17 @@ function AppContent() {
 
   const location = useLocation();
 
+  useEffect(() => {
+    const handleSearchState = (e: any) => {
+      setIsSearching(e.detail);
+    };
+    window.addEventListener('is-searching', handleSearchState);
+    return () => window.removeEventListener('is-searching', handleSearchState);
+  }, []);
+
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
-  const hideNavFooter = isAdminPage || isProductPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching;
 
   const handleSplashComplete = () => {
     sessionStorage.setItem('splash_seen', 'true');

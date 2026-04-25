@@ -25,6 +25,11 @@ export const Home: React.FC = () => {
   const [config, setConfig] = useState<AppConfig | null>(null);
 
   useEffect(() => {
+    // Notify App component about search state to hide/show navigation
+    window.dispatchEvent(new CustomEvent('is-searching', { detail: showSuggestions && searchQuery.length > 0 }));
+  }, [showSuggestions, searchQuery]);
+
+  useEffect(() => {
     const handleNavbarSearch = (e: any) => {
       setSearchQuery(e.detail);
       const element = document.getElementById('menu-section');
