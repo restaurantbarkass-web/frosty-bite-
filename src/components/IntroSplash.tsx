@@ -39,7 +39,7 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
           playsInline
           className="w-full h-full object-cover scale-105"
         >
-          <source src="https://www.image2url.com/r2/default/videos/1777129258776-0084422c-bcfc-4742-97cb-d926bf3a1ccf.mp4" type="video/mp4" />
+          <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
         </video>
         {/* Cinematic Overlays */}
         <div className="absolute inset-0 bg-black/40" />

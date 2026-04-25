@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock } from 'lucide-react';
+import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout, db, handleFirestoreError, OperationType } from '../firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import { doc, onSnapshot, updateDoc, collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { Button } from '../components/Button';
-import { Order } from '../types';
+import { Order, FoodItem } from '../types';
+import { FoodCard } from '../components/FoodCard';
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
   const navigate = useNavigate();
   const [userData, setUserData] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [wishlist, setWishlist] = useState<FoodItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'personal' | 'orders'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist'>('personal');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -77,9 +79,21 @@ export const Profile: React.FC = () => {
       console.error("Orders fetching error:", error);
     });
 
+    // Real-time wishlist
+    const wishlistUnsubscribe = onSnapshot(collection(db, 'users', authUser.uid, 'wishlist'), (snapshot) => {
+      const wishlistData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FoodItem[];
+      setWishlist(wishlistData);
+    }, (error) => {
+      console.error("Wishlist fetching error:", error);
+    });
+
     return () => {
       userUnsubscribe();
       ordersUnsubscribe();
+      wishlistUnsubscribe();
     };
   }, [authUser]);
 
@@ -248,6 +262,15 @@ export const Profile: React.FC = () => {
         >
           Orders
         </button>
+        <button 
+          onClick={() => setActiveTab('wishlist')}
+          className={cn(
+            "flex-1 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all",
+            activeTab === 'wishlist' ? "bg-white text-black shadow-lg" : "text-zinc-500 hover:text-white"
+          )}
+        >
+          Wishlist
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -305,7 +328,7 @@ export const Profile: React.FC = () => {
               </button>
             </div>
           </motion.div>
-        ) : (
+        ) : activeTab === 'orders' ? (
           <motion.div 
             key="orders"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -366,6 +389,36 @@ export const Profile: React.FC = () => {
                   </div>
                 </Link>
               ))
+            )}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="wishlist"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="space-y-6"
+          >
+            {wishlist.length === 0 ? (
+              <div className="glass-dark rounded-[2.5rem] border border-white/5 p-12 text-center space-y-4">
+                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700">
+                  <Heart size={40} />
+                </div>
+                <h3 className="text-xl font-bold text-white">Your wishlist is empty</h3>
+                <p className="text-zinc-500 text-sm max-w-xs mx-auto">Save your favorite items for later!</p>
+                <Link 
+                  to="/" 
+                  className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest mt-4 shadow-lg shadow-primary/20"
+                >
+                  Explore Menu
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {wishlist.map((item) => (
+                  <FoodCard key={item.id} item={item} />
+                ))}
+              </div>
             )}
           </motion.div>
         )}

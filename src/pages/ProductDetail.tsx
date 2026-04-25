@@ -1,27 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ArrowLeft, 
-  Star, 
-  Plus, 
-  Minus, 
-  ShoppingCart, 
-  Zap, 
-  Clock, 
-  Flame, 
-  ShieldCheck,
-  Share2,
-  Heart
-} from 'lucide-react';
+import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { MENU_ITEMS } from '../constants';
 import { db } from '../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
+import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
+import toast from 'react-hot-toast';
 
 import { CartSidebar } from '../components/CartSidebar';
 
@@ -29,14 +21,31 @@ export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart, totalItems } = useCart();
+  const { user } = useAuth();
   
   const [product, setProduct] = useState<FoodItem | null>(null);
   const [relatedItems, setRelatedItems] = useState<FoodItem[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiked, setIsLiked] = useState(false);
+  const [isWishlisting, setIsWishlisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews' | 'ingredients'>('description');
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchWishlistStatus = async () => {
+      if (user && id) {
+        try {
+          const liked = await checkIfWishlisted(user.uid, id);
+          setIsLiked(liked);
+        } catch (error) {
+          console.error("Error checking wishlist status:", error);
+        }
+      }
+    };
+
+    fetchWishlistStatus();
+  }, [user, id]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -44,26 +53,38 @@ export const ProductDetail: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // First check constants
-        const localProduct = MENU_ITEMS.find(item => item.id === id);
+        // First check Firestore
+        const docRef = doc(db, 'menu', id);
+        const docSnap = await getDoc(docRef);
         let currentProduct: FoodItem | null = null;
 
-        if (localProduct) {
-          currentProduct = localProduct;
+        if (docSnap.exists()) {
+          currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
         } else {
-          // Then check Firestore
-          const docRef = doc(db, 'menu', id);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
+          // Then check constants as fallback
+          const localProduct = MENU_ITEMS.find(item => item.id === id);
+          if (localProduct) {
+            currentProduct = localProduct;
           }
         }
 
         if (currentProduct) {
           setProduct(currentProduct);
           
-          // Set related items
-          const related = MENU_ITEMS
+          // Fetch related items from Firestore
+          const menuRef = collection(db, 'menu');
+          const q = query(menuRef, where('available', '==', true));
+          const querySnapshot = await getDocs(q);
+          const firestoreItems = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as FoodItem[];
+
+          // Use firestore items if they exist, otherwise fallback to MENU_ITEMS (or based on user request, maybe only firestore)
+          // The user said "dont show false product", so if firestoreItems exists, use only that.
+          const sourceItems = firestoreItems.length > 0 ? firestoreItems : MENU_ITEMS;
+
+          const related = sourceItems
             .filter(item => item.category === currentProduct?.category && item.id !== currentProduct?.id)
             .slice(0, 4);
           setRelatedItems(related);
@@ -92,6 +113,46 @@ export const ProductDetail: React.FC = () => {
     if (product) {
       addToCart(product);
       navigate('/checkout');
+    }
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!user) {
+      toast.error('Please login to add items to wishlist');
+      navigate('/login');
+      return;
+    }
+
+    if (!product || isWishlisting) return;
+
+    setIsWishlisting(true);
+    try {
+      const added = await toggleWishlist(user.uid, product);
+      setIsLiked(added);
+      if (added) {
+        toast.success('Added to wishlist!', {
+          icon: '❤️',
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        });
+      } else {
+        toast.success('Removed from wishlist', {
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to update wishlist');
+    } finally {
+      setIsWishlisting(false);
     }
   };
 
@@ -141,10 +202,11 @@ export const ProductDetail: React.FC = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            onClick={() => setIsLiked(!isLiked)}
-            className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-colors shadow-2xl ${isLiked ? 'text-red-500' : 'text-white hover:bg-white/10'}`}
+            onClick={handleToggleWishlist}
+            disabled={isWishlisting}
+            className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-all shadow-2xl active:scale-90 disabled:opacity-50 ${isLiked ? 'text-red-500' : 'text-white hover:bg-white/10'}`}
           >
-            <Heart size={22} fill={isLiked ? "currentColor" : "none"} />
+            <Heart size={22} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
           </motion.button>
         </div>
       </header>
@@ -262,29 +324,49 @@ export const ProductDetail: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Quantity Selector */}
+          {/* Quantity Selector & Wishlist */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="flex items-center gap-6"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-6"
           >
-            <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Quantity</span>
-            <div className="flex items-center bg-white/5 rounded-2xl border border-white/10 p-1">
-              <button 
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <Minus size={18} />
-              </button>
-              <span className="w-12 text-center font-bold text-lg">{quantity}</span>
-              <button 
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
-              >
-                <Plus size={18} />
-              </button>
+            <div className="flex items-center gap-6">
+              <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Quantity</span>
+              <div className="flex items-center bg-white/5 rounded-2xl border border-white/10 p-1">
+                <button 
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                >
+                  <Minus size={18} />
+                </button>
+                <span className="w-12 text-center font-bold text-lg">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
             </div>
+
+            <button
+              onClick={handleToggleWishlist}
+              disabled={isWishlisting}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50",
+                isLiked 
+                  ? "bg-red-500/10 border-red-500/20 text-red-500" 
+                  : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+              )}
+            >
+              <Heart 
+                size={16} 
+                fill={isLiked ? "currentColor" : "none"} 
+                className={cn("transition-transform group-hover:scale-110", isWishlisting && "animate-pulse")} 
+              />
+              {isLiked ? 'Wishlisted' : 'Add to Wishlist'}
+            </button>
           </motion.div>
         </div>
       </div>

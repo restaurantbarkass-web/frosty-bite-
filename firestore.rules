@@ -123,6 +123,11 @@ service cloud.firestore {
       allow update: if (isOwner(userId) || isAdmin()) && 
                     incoming().role == existing().role && 
                     isValidUser(incoming());
+
+      // WISHLIST
+      match /wishlist/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // MENU

@@ -267,16 +267,34 @@ export const Home: React.FC = () => {
             <AnimatePresence>
               {showSuggestions && suggestions.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: -2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -2 }}
-                  className="absolute left-0 right-0 top-full bg-black/90 backdrop-blur-3xl border border-white/20 border-t-transparent rounded-b-2xl overflow-hidden z-50 shadow-2xl"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  className="absolute left-0 right-0 top-full bg-black/90 backdrop-blur-3xl border border-white/20 border-t-transparent rounded-b-2xl overflow-hidden z-50 shadow-2xl origin-top"
                 >
                   <div className="h-[1px] mx-6 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                  <div className="py-2">
+                  <motion.div 
+                    initial="hidden"
+                    animate="show"
+                    variants={{
+                      hidden: { opacity: 0 },
+                      show: {
+                        opacity: 1,
+                        transition: {
+                          staggerChildren: 0.05
+                        }
+                      }
+                    }}
+                    className="py-2"
+                  >
                     {suggestions.map((suggestion, index) => (
-                      <button
+                      <motion.button
                         key={index}
+                        variants={{
+                          hidden: { opacity: 0, x: -10 },
+                          show: { opacity: 1, x: 0 }
+                        }}
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => {
                           setSearchQuery(suggestion);
@@ -294,24 +312,32 @@ export const Home: React.FC = () => {
                         {activeIndex === index && (
                           <motion.div 
                             layoutId="suggestion-pill"
-                            className="absolute inset-y-2 left-2 w-1 bg-primary rounded-full"
+                            className="absolute inset-y-2 left-2 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(125,211,252,0.5)]"
                           />
                         )}
                         <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
-                          activeIndex === index ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-500"
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                          activeIndex === index ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "bg-white/5 text-gray-500"
                         )}>
                           <Search size={14} />
                         </div>
                         <span className="flex-1 truncate">
                           {highlightMatch(suggestion, searchQuery)}
                         </span>
-                        {activeIndex === index && (
-                          <ChevronRight size={16} className="text-primary animate-pulse" />
-                        )}
-                      </button>
+                        <AnimatePresence>
+                          {activeIndex === index && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.5, x: 10 }}
+                              animate={{ opacity: 1, scale: 1, x: 0 }}
+                              exit={{ opacity: 0, scale: 0.5, x: 10 }}
+                            >
+                              <ChevronRight size={16} className="text-primary" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>
