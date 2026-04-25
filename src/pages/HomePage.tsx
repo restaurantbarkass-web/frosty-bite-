@@ -225,12 +225,12 @@ export const Home: React.FC = () => {
               {/* Focus Glow Background */}
               <div className="absolute -inset-1 bg-primary/20 rounded-2xl blur-xl opacity-0 group-focus-within/search:opacity-100 transition-opacity duration-1000 -z-10" />
               
-              <div className="flex-1 flex items-center px-4 space-x-3">
-                <Search className={cn("transition-colors duration-300", showSuggestions ? "text-primary" : "text-gray-500")} size={24} />
+              <div className="flex-1 flex items-center px-2 sm:px-4 space-x-2 sm:space-x-3 min-w-0">
+                <Search className={cn("transition-colors duration-300 flex-shrink-0", showSuggestions ? "text-primary" : "text-gray-500")} size={20} />
                 <input
                   type="text"
-                  placeholder="Search for Cakes, Pastries or Breads..."
-                  className="w-full bg-transparent border-none focus:ring-0 text-base py-4 text-white placeholder:text-gray-400 font-medium"
+                  placeholder="Search Cakes, Pastries or Breads..."
+                  className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base py-3 sm:py-4 text-white placeholder:text-gray-400 font-medium min-w-0 px-0"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
@@ -257,7 +257,7 @@ export const Home: React.FC = () => {
                   element?.scrollIntoView({ behavior: 'smooth' });
                   setShowSuggestions(false);
                 }}
-                className="bg-primary text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0 active:scale-95"
+                className="bg-primary text-white px-3 sm:px-10 py-3 sm:py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0 active:scale-95 text-[10px] sm:text-sm"
               >
                 Search
               </button>
@@ -347,7 +347,7 @@ export const Home: React.FC = () => {
 
 
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}
         <AnimatePresence>
           {config && !config.isOrderingOpen && (
