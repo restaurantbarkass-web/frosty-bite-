@@ -27,12 +27,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeRole: (() => void) | null = null;
 
     // Safety timeout to prevent infinite loading/black screen
+    // Increased to 15s for slower dev environments
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn('Auth loading timed out. Proceeding with default state.');
-        setLoading(false);
-      }
-    }, 8000);
+      setLoading((currentLoading) => {
+        if (currentLoading) {
+          console.warn('Auth loading taking longer than expected. Proceeding with current state.');
+          return false;
+        }
+        return false;
+      });
+    }, 15000);
 
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       // Clear any existing role listener

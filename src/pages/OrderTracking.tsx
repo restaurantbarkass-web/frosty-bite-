@@ -93,57 +93,63 @@ export const OrderTracking: React.FC = () => {
   const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [countdown, setCountdown] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
 
     const checkReview = async () => {
-      const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
-      const snap = await getDocs(q);
-      setHasReviewed(!snap.empty);
+      try {
+        const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
+        const snap = await getDocs(q);
+        setHasReviewed(!snap.empty);
+      } catch (e) {
+        console.error('Error checking review:', e);
+      }
     };
 
     const orderRef = doc(db, 'orders', orderId);
     checkReview();
-    const unsubscribe = onSnapshot(orderRef, async (snapshot) => {
+
+    const unsubscribe = onSnapshot(orderRef, (snapshot) => {
       if (snapshot.exists()) {
         const orderData = { id: snapshot.id, ...snapshot.data() } as Order;
         setOrder(orderData);
         
         // Fetch rider if assigned
         if (orderData.assignedRiderId && typeof orderData.assignedRiderId === 'string' && orderData.assignedRiderId.trim() !== '') {
-          try {
-            const riderRef = doc(db, 'riders', orderData.assignedRiderId);
-            const riderSnap = await getDoc(riderRef);
-            if (riderSnap.exists()) {
-              setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
-            }
-          } catch (e) {
-            console.error('Error fetching rider:', e);
-          }
+          getDoc(doc(db, 'riders', orderData.assignedRiderId))
+            .then(riderSnap => {
+              if (riderSnap.exists()) {
+                setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
+              }
+            })
+            .catch(e => console.error('Error fetching rider:', e));
         }
         setLoading(false);
       } else {
         console.error('Order not found');
+        setOrder(null);
         setLoading(false);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
+      console.error('Snapshot error:', error);
+      try {
+        handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
+      } catch (e) {}
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [orderId]);
 
-  const currentStatusIndex = order ? STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending')) : 0;
-  const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
-
-  // Calculate remaining time
-  const getRemainingTime = () => {
+  // Use a ref-like approach for getRemainingTime to avoid it changing on every render
+  const getRemainingTime = React.useCallback(() => {
     if (!order || !order.createdAt || !order.estimatedDeliveryTime) return null;
     
     try {
-      const seconds = order.createdAt.seconds || (order.createdAt as any)._seconds;
+      const createdAt = order.createdAt as any;
+      const seconds = createdAt.seconds || createdAt._seconds;
       if (!seconds) return null;
 
       const startTime = seconds * 1000;
@@ -159,9 +165,7 @@ export const OrderTracking: React.FC = () => {
     } catch (e) {
       return null;
     }
-  };
-
-  const [countdown, setCountdown] = useState<string | null>(null);
+  }, [order]);
 
   useEffect(() => {
     setCountdown(getRemainingTime());
@@ -169,7 +173,10 @@ export const OrderTracking: React.FC = () => {
       setCountdown(getRemainingTime());
     }, 1000);
     return () => clearInterval(timer);
-  }, [order]);
+  }, [getRemainingTime]);
+
+  const currentStatusIndex = order ? STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending')) : 0;
+  const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
 
   if (loading) {
     return (
@@ -331,7 +338,7 @@ export const OrderTracking: React.FC = () => {
                 <p className="text-zinc-500 text-sm">Share this code with the rider to confirm delivery</p>
               </div>
               <div className="flex justify-center gap-3">
-                {(order.deliveryOtp || '').split('').map((digit, i) => (
+                {String(order.deliveryOtp || '').split('').map((digit, i) => (
                   <div key={i} className="w-12 h-16 bg-zinc-900 border border-white/10 rounded-xl flex items-center justify-center text-3xl font-black text-primary shadow-xl">
                     {digit}
                   </div>
