@@ -163,7 +163,7 @@ export const Orders: React.FC = () => {
                         </div>
                         <div className="flex items-baseline gap-1.5 text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
                           <MapPin size={12} className="text-primary" />
-                          <span className="truncate max-w-[200px]">{order.address}</span>
+                          <span className="truncate max-w-[200px]">{order.address || 'No address'}</span>
                         </div>
                       </div>
                     </div>
@@ -171,7 +171,7 @@ export const Orders: React.FC = () => {
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-white/5 pt-4 sm:pt-0">
                       <div className="text-right">
                         <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Paid</p>
-                        <p className="text-2xl font-black text-white">₹{order.total}</p>
+                        <p className="text-2xl font-black text-white">₹{order.total || 0}</p>
                       </div>
                       <ChevronRight className="w-6 h-6 text-zinc-700 group-hover:text-primary transition-all group-hover:translate-x-2 hidden sm:block mt-2" />
                     </div>

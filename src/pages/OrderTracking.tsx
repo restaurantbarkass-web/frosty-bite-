@@ -111,11 +111,15 @@ export const OrderTracking: React.FC = () => {
         setOrder(orderData);
         
         // Fetch rider if assigned
-        if (orderData.assignedRiderId) {
-          const riderRef = doc(db, 'riders', orderData.assignedRiderId);
-          const riderSnap = await getDoc(riderRef);
-          if (riderSnap.exists()) {
-            setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
+        if (orderData.assignedRiderId && typeof orderData.assignedRiderId === 'string' && orderData.assignedRiderId.trim() !== '') {
+          try {
+            const riderRef = doc(db, 'riders', orderData.assignedRiderId);
+            const riderSnap = await getDoc(riderRef);
+            if (riderSnap.exists()) {
+              setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
+            }
+          } catch (e) {
+            console.error('Error fetching rider:', e);
           }
         }
         setLoading(false);
@@ -202,12 +206,12 @@ export const OrderTracking: React.FC = () => {
     );
   }
 
-  const currentStatusIndex = STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending'));
+  const currentStatusIndex = order ? STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending')) : 0;
   const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
 
   // Calculate remaining time
   const getRemainingTime = () => {
-    if (!order.createdAt || !order.estimatedDeliveryTime) return null;
+    if (!order || !order.createdAt || !order.estimatedDeliveryTime) return null;
     
     try {
       const seconds = order.createdAt.seconds || (order.createdAt as any)._seconds;
@@ -228,9 +232,10 @@ export const OrderTracking: React.FC = () => {
     }
   };
 
-  const [countdown, setCountdown] = useState<string | null>(getRemainingTime());
+  const [countdown, setCountdown] = useState<string | null>(null);
 
   useEffect(() => {
+    setCountdown(getRemainingTime());
     const timer = setInterval(() => {
       setCountdown(getRemainingTime());
     }, 1000);
@@ -326,7 +331,7 @@ export const OrderTracking: React.FC = () => {
                 <p className="text-zinc-500 text-sm">Share this code with the rider to confirm delivery</p>
               </div>
               <div className="flex justify-center gap-3">
-                {order.deliveryOtp.split('').map((digit, i) => (
+                {(order.deliveryOtp || '').split('').map((digit, i) => (
                   <div key={i} className="w-12 h-16 bg-zinc-900 border border-white/10 rounded-xl flex items-center justify-center text-3xl font-black text-primary shadow-xl">
                     {digit}
                   </div>
@@ -382,7 +387,7 @@ export const OrderTracking: React.FC = () => {
               <MapPin size={48} className="text-primary mb-4 animate-bounce" />
               <h4 className="font-bold mb-2">Live Tracking</h4>
               <p className="text-muted text-xs">
-                {rider ? `Your rider is currently at ${rider.location.lat.toFixed(4)}, ${rider.location.lng.toFixed(4)}` : 'Waiting for rider assignment...'}
+                {rider && rider.location ? `Your rider is currently at ${rider.location.lat?.toFixed(4) || '0'}, ${rider.location.lng?.toFixed(4) || '0'}` : 'Waiting for rider assignment...'}
               </p>
             </div>
           </div>
@@ -390,7 +395,7 @@ export const OrderTracking: React.FC = () => {
           <div className="glass-dark p-6 rounded-3xl border border-border">
             <h4 className="font-bold mb-4">Delivery Address</h4>
             <p className="text-sm text-muted">
-              {order.address}
+              {order.address || 'No address provided'}
             </p>
           </div>
 
