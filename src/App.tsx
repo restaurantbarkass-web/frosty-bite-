@@ -26,6 +26,7 @@ const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Pro
 const RiderPanel = lazy(() => import('./pages/RiderPanel').then(m => ({ default: m.RiderPanel })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail').then(m => ({ default: m.ProductDetail })));
 const Orders = lazy(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
 
@@ -83,6 +84,7 @@ function AppContent() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/checkout" element={
               <ProtectedRoute allowedRoles={['customer', 'admin']}>
                 <Checkout />
