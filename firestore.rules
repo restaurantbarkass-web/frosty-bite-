@@ -111,6 +111,16 @@ service cloud.firestore {
              data.status in ['active', 'expired', 'disabled'];
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll(['orderId', 'userId', 'customerName', 'rating', 'comment', 'createdAt']) &&
+             data.orderId is string &&
+             data.userId == request.auth.uid &&
+             data.customerName is string &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() <= 1000 &&
+             data.createdAt == request.time;
+    }
+
     // -------------------------------------------------------------------------
     // Collection Match Blocks
     // -------------------------------------------------------------------------
@@ -199,6 +209,15 @@ service cloud.firestore {
         incoming().diff(existing()).affectedKeys().hasOnly(['usageCount']) &&
         incoming().usageCount == existing().usageCount + 1
       );
+    }
+
+    // REVIEWS
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming()) &&
+                    get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.userId == request.auth.uid &&
+                    get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.status == 'delivered';
+      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
     }
   }
 }

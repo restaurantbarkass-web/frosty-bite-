@@ -4,10 +4,11 @@ import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Order, Rider } from '../types';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
+import { ReviewForm } from '../components/ReviewForm';
 
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 
@@ -91,11 +92,19 @@ export const OrderTracking: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
 
+    const checkReview = async () => {
+      const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
+      const snap = await getDocs(q);
+      setHasReviewed(!snap.empty);
+    };
+
     const orderRef = doc(db, 'orders', orderId);
+    checkReview();
     const unsubscribe = onSnapshot(orderRef, async (snapshot) => {
       if (snapshot.exists()) {
         const orderData = { id: snapshot.id, ...snapshot.data() } as Order;
@@ -376,6 +385,43 @@ export const OrderTracking: React.FC = () => {
               {order.address}
             </p>
           </div>
+
+          {order.status === 'delivered' && !hasReviewed && orderId && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="pt-8 space-y-6"
+            >
+              <ReviewForm 
+                orderId={orderId} 
+                onSuccess={() => setHasReviewed(true)} 
+              />
+              
+              <button 
+                onClick={() => navigate('/orders')}
+                className="w-full flex items-center justify-center gap-2 py-4 text-zinc-500 font-black uppercase tracking-[0.2em] text-[10px] hover:text-white transition-colors"
+              >
+                <ShoppingBag size={14} />
+                View Order History
+              </button>
+            </motion.div>
+          )}
+
+          {order.status === 'delivered' && hasReviewed && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="pt-8"
+            >
+              <button 
+                onClick={() => navigate('/orders')}
+                className="w-full bg-white/5 border border-white/10 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:bg-white/10 transition-all active:scale-95 shadow-xl"
+              >
+                <ShoppingBag size={18} className="text-primary" />
+                View Full Order History
+              </button>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

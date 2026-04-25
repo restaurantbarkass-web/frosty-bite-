@@ -104,6 +104,20 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["code", "type", "value", "minOrder", "expiryDate", "usageLimit", "usageCount", "status"]
+    },
+    "Review": {
+      "title": "Order Review",
+      "description": "Feedback from a customer about their order.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "userId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "userId", "customerName", "rating", "comment", "createdAt"]
     }
   },
   "firestore": {
@@ -134,6 +148,10 @@
     "coupons/{couponId}": {
       "schema": "Coupon",
       "description": "Promotional discount codes."
+    },
+    "reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Customer feedback and ratings."
     }
   }
 }

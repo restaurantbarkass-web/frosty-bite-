@@ -10,6 +10,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { appConfigService, AppConfig } from '../services/appConfigService';
+import { ReviewsSection } from '../components/ReviewsSection';
 
 // Home Page Component
 export const Home: React.FC = () => {
@@ -445,6 +446,9 @@ export const Home: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Reviews Section */}
+      <ReviewsSection />
     </div>
   );
 };
