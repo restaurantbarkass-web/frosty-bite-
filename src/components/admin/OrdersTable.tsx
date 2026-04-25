@@ -126,8 +126,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   const updateStatus = async (id: string, newStatus: Order['status']) => {
     try {
       await updateDoc(doc(db, 'orders', id), { status: newStatus });
-    } catch (error) {
+    } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+      alert(`Failed to update status: ${error.message || 'Permission denied'}`);
     }
   };
 
@@ -138,8 +139,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     try {
       await updateDoc(doc(db, 'orders', editingOrder.id), editFormData);
       setEditingOrder(null);
-    } catch (error) {
+    } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${editingOrder.id}`);
+      alert(`Failed to save changes: ${error.message || 'Permission denied'}`);
     }
   };
 
@@ -147,8 +149,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     try {
       await deleteDoc(doc(db, 'orders', id));
       setDeletingId(null);
-    } catch (error) {
+    } catch (error: any) {
       handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
+      alert(`Failed to delete order: ${error.message || 'Permission denied'}`);
     }
   };
 
@@ -162,8 +165,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
         riderName: rider.name,
         status: 'preparing' // Auto-update to preparing when assigned
       });
-    } catch (error) {
+    } catch (error: any) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      alert(`Failed to assign rider: ${error.message || 'Permission denied'}`);
     }
   };
 
