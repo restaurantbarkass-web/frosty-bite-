@@ -15,6 +15,7 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
     const timer = setTimeout(() => setShowContent(true), 1500);
     // Auto-complete after 4 seconds if they don't click
     const autoExit = setTimeout(onComplete, 4500);
+
     return () => {
       clearTimeout(timer);
       clearTimeout(autoExit);
@@ -26,23 +27,17 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.1 }}
       transition={{ duration: 1, ease: "easeInOut" }}
-      className="fixed inset-0 z-[200] bg-black flex items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
+      onClick={onComplete}
     >
       {/* Background Video */}
       <div className="absolute inset-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover scale-105 transition-opacity duration-1000"
-          poster="https://images.pexels.com/photos/30335428/pexels-photo-30335428.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1"
-          onCanPlay={(e) => {
-            e.currentTarget.play().catch(console.error);
-          }}
-        >
-          <source src="https://videos.pexels.com/video-files/30335428/30335428-hd_1920_1080_24fps.mp4" type="video/mp4" />
-        </video>
+        <img 
+          src="https://www.image2url.com/r2/default/images/1777124818386-bf0124a4-a64f-4911-90db-48cbce3395c2.blob" 
+          alt="Artisanal Bakery Splash" 
+          className="w-full h-full object-cover scale-105"
+          referrerPolicy="no-referrer"
+        />
         {/* Cinematic Overlays */}
         <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
