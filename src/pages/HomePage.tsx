@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Search, MapPin, Sparkles, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Search, MapPin, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { MENU_ITEMS, CATEGORIES } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { getFoodRecommendations } from '../services/geminiService';
@@ -16,6 +16,9 @@ export const Home: React.FC = () => {
   const location = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
   const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
@@ -95,6 +98,68 @@ export const Home: React.FC = () => {
 
   const displayItems = firestoreMenu.length > 0 ? firestoreMenu : MENU_ITEMS;
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0) {
+        setSearchQuery(suggestions[activeIndex]);
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+        setTimeout(() => {
+          const element = document.getElementById('menu-section');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        const element = document.getElementById('menu-section');
+        element?.scrollIntoView({ behavior: 'smooth' });
+        setShowSuggestions(false);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <span className="font-medium text-gray-400">
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <span key={i} className="text-white font-black group-hover:text-primary transition-colors">{part}</span>
+          ) : part
+        )}
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setSuggestions([]);
+      setActiveIndex(-1);
+      return;
+    }
+
+    const itemSuggestions = displayItems
+      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .map(item => item.name);
+
+    const categorySuggestions = CATEGORIES
+      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    const combined = Array.from(new Set([...itemSuggestions, ...categorySuggestions]))
+      .slice(0, 6);
+
+    setSuggestions(combined);
+    setActiveIndex(-1);
+  }, [searchQuery, displayItems]);
+
   const filteredItems = displayItems.filter(item => {
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -151,27 +216,105 @@ export const Home: React.FC = () => {
           <motion.div
             initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-xl mx-auto bg-black/80 backdrop-blur-2xl p-2 rounded-2xl flex items-center shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/20"
+            className="max-w-xl mx-auto relative group/search"
           >
-            <div className="flex-1 flex items-center px-4 space-x-3">
-              <Search className="text-primary" size={24} />
-              <input
-                type="text"
-                placeholder="Search for Cakes, Pastries or Breads..."
-                className="w-full bg-transparent border-none focus:ring-0 text-base py-4 text-white placeholder:text-gray-400"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className={cn(
+              "relative bg-black/80 backdrop-blur-2xl p-2 rounded-2xl flex items-center shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/20 transition-all duration-500",
+              showSuggestions && searchQuery.length > 0 && "rounded-b-none border-b-transparent shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+            )}>
+              {/* Focus Glow Background */}
+              <div className="absolute -inset-1 bg-primary/20 rounded-2xl blur-xl opacity-0 group-focus-within/search:opacity-100 transition-opacity duration-1000 -z-10" />
+              
+              <div className="flex-1 flex items-center px-4 space-x-3">
+                <Search className={cn("transition-colors duration-300", showSuggestions ? "text-primary" : "text-gray-500")} size={24} />
+                <input
+                  type="text"
+                  placeholder="Search for Cakes, Pastries or Breads..."
+                  className="w-full bg-transparent border-none focus:ring-0 text-base py-4 text-white placeholder:text-gray-400 font-medium"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onKeyDown={handleKeyDown}
+                />
+                <AnimatePresence>
+                  {searchQuery && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={() => setSearchQuery('')}
+                      className="p-2 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
+                    >
+                      <X size={20} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+              <button 
+                onClick={() => {
+                  const element = document.getElementById('menu-section');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                  setShowSuggestions(false);
+                }}
+                className="bg-primary text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0 active:scale-95"
+              >
+                Search
+              </button>
             </div>
-            <button 
-              onClick={() => {
-                const element = document.getElementById('menu-section');
-                element?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="bg-primary text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0"
-            >
-              Search
-            </button>
+
+            {/* Search Suggestions */}
+            <AnimatePresence>
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  className="absolute left-0 right-0 top-full bg-black/90 backdrop-blur-3xl border border-white/20 border-t-transparent rounded-b-2xl overflow-hidden z-50 shadow-2xl"
+                >
+                  <div className="h-[1px] mx-6 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  <div className="py-2">
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => {
+                          setSearchQuery(suggestion);
+                          setShowSuggestions(false);
+                          setTimeout(() => {
+                            const element = document.getElementById('menu-section');
+                            element?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className={cn(
+                          "w-full px-6 py-4 text-left transition-all flex items-center space-x-4 group relative",
+                          activeIndex === index ? "bg-white/10" : "hover:bg-white/5"
+                        )}
+                      >
+                        {activeIndex === index && (
+                          <motion.div 
+                            layoutId="suggestion-pill"
+                            className="absolute inset-y-2 left-2 w-1 bg-primary rounded-full"
+                          />
+                        )}
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
+                          activeIndex === index ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-500"
+                        )}>
+                          <Search size={14} />
+                        </div>
+                        <span className="flex-1 truncate">
+                          {highlightMatch(suggestion, searchQuery)}
+                        </span>
+                        {activeIndex === index && (
+                          <ChevronRight size={16} className="text-primary animate-pulse" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       </section>

@@ -32,12 +32,15 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
     >
       {/* Background Video */}
       <div className="absolute inset-0">
-        <img 
-          src="https://www.image2url.com/r2/default/images/1777124818386-bf0124a4-a64f-4911-90db-48cbce3395c2.blob" 
-          alt="Artisanal Bakery Splash" 
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
           className="w-full h-full object-cover scale-105"
-          referrerPolicy="no-referrer"
-        />
+        >
+          <source src="https://www.image2url.com/r2/default/videos/1777129258776-0084422c-bcfc-4742-97cb-d926bf3a1ccf.mp4" type="video/mp4" />
+        </video>
         {/* Cinematic Overlays */}
         <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
