@@ -528,12 +528,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <button 
                   onClick={() => handlePrintKOT(order)}
                   className="p-3 rounded-xl bg-white/10 text-white"
+                  title="Print"
                 >
                   <Printer size={18} />
                 </button>
                 <button 
+                  onClick={() => {
+                    setEditingOrder(order);
+                    setEditFormData({
+                      customerName: order.customerName,
+                      phone: order.phone || '',
+                      address: order.address || ''
+                    });
+                  }}
+                  className="p-3 rounded-xl bg-white/10 text-white"
+                  title="Edit Info"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button 
                   onClick={() => setDeletingId(order.id)}
                   className="p-3 rounded-xl bg-red-500/10 text-red-500"
+                  title="Delete"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -541,14 +557,61 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                   onClick={() => {
                     setSelectedOrder(selectedOrder === order.id ? null : order.id);
                   }}
-                  className="p-3 rounded-xl bg-primary text-white"
+                  className={`p-3 rounded-xl transition-all ${selectedOrder === order.id ? 'bg-primary text-white' : 'bg-white/10 text-white'}`}
+                  title="Update Status"
                 >
-                  <Edit2 size={18} />
+                  <MoreVertical size={18} />
                 </button>
               </div>
             </div>
+
+            {/* Mobile Status & Rider Updates */}
+            <AnimatePresence>
+              {selectedOrder === order.id && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-4 pt-4 border-t border-white/5 overflow-hidden"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'preparing', label: 'Preparing', color: 'bg-blue-500' },
+                      { id: 'out_for_delivery', label: 'Dispatch', color: 'bg-purple-500' },
+                      { id: 'delivered', label: 'Delivered', color: 'bg-emerald-500' },
+                      { id: 'cancelled', label: 'Cancel', color: 'bg-red-500' }
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          updateStatus(order.id, s.id as Order['status']);
+                          setSelectedOrder(null);
+                        }}
+                        className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white ${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Assign Rider</label>
+                    <select 
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50 transition-all font-bold"
+                      value={order.riderId || ""}
+                      onChange={(e) => assignRider(order.id, e.target.value)}
+                    >
+                      <option value="" disabled>Choose Rider</option>
+                      {riders.map(r => (
+                        <option key={r.id} value={r.id} className="bg-[#111]">{r.name} ({r.status})</option>
+                      ))}
+                    </select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
-            {order.status === 'pending' && (
+            {order.status === 'pending' && selectedOrder !== order.id && (
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button 
                   onClick={() => updateStatus(order.id, 'preparing')}
