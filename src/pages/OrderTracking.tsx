@@ -202,22 +202,30 @@ export const OrderTracking: React.FC = () => {
     );
   }
 
-  const currentStatusIndex = STATUS_STEPS.findIndex(step => step.id === order.status);
+  const currentStatusIndex = STATUS_STEPS.findIndex(step => step.id === (order.status || 'pending'));
+  const safeStatusIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex;
 
   // Calculate remaining time
   const getRemainingTime = () => {
     if (!order.createdAt || !order.estimatedDeliveryTime) return null;
     
-    const startTime = order.createdAt.seconds * 1000;
-    const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
-    const now = Date.now();
-    const diff = estimatedEndTime - now;
-    
-    if (diff <= 0) return "Arriving soon";
-    
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    try {
+      const seconds = order.createdAt.seconds || (order.createdAt as any)._seconds;
+      if (!seconds) return null;
+
+      const startTime = seconds * 1000;
+      const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
+      const now = Date.now();
+      const diff = estimatedEndTime - now;
+      
+      if (diff <= 0) return "Arriving soon";
+      
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    } catch (e) {
+      return null;
+    }
   };
 
   const [countdown, setCountdown] = useState<string | null>(getRemainingTime());
@@ -262,7 +270,7 @@ export const OrderTracking: React.FC = () => {
                     fallback={STATUS_FALLBACKS[order.status] || STATUS_FALLBACKS.pending}
                   />
                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20">
-                    {STATUS_STEPS[currentStatusIndex].label}
+                    {STATUS_STEPS[safeStatusIndex].label}
                   </div>
               </div>
             </div>
@@ -272,8 +280,8 @@ export const OrderTracking: React.FC = () => {
               <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-border" />
 
               {STATUS_STEPS.map((step, index) => {
-                const isActive = index <= currentStatusIndex;
-                const isCurrent = index === currentStatusIndex;
+                const isActive = index <= safeStatusIndex;
+                const isCurrent = index === safeStatusIndex;
 
                 return (
                   <div key={step.id} className="relative flex items-start space-x-6">

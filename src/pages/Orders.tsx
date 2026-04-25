@@ -20,8 +20,7 @@ export const Orders: React.FC = () => {
 
     const q = query(
       collection(db, 'orders'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -29,7 +28,15 @@ export const Orders: React.FC = () => {
         id: doc.id,
         ...doc.data()
       })) as Order[];
-      setOrders(ordersData);
+      
+      // Sort client-side to avoid index requirement
+      const sortedOrders = ordersData.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setOrders(sortedOrders);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'orders');
@@ -136,12 +143,12 @@ export const Orders: React.FC = () => {
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-3">
-                          <h4 className="text-xl font-black text-white tracking-tight leading-none uppercase">Order #{order.id.slice(0, 6)}</h4>
+                          <h4 className="text-xl font-black text-white tracking-tight leading-none uppercase">Order #{order.id?.slice(0, 6) || 'N/A'}</h4>
                           <span className={cn(
                             "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest",
-                            getStatusColor(order.status)
+                            getStatusColor(order.status || 'pending')
                           )}>
-                            {order.status.replace(/-/g, ' ')}
+                            {(order.status || 'pending').replace(/-/g, ' ')}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 font-bold uppercase tracking-widest mt-2">
@@ -151,7 +158,7 @@ export const Orders: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-1.5">
                             <ShoppingBag size={12} className="text-primary" />
-                            {order.items.length} Items
+                            {(order.items || []).length} Items
                           </div>
                         </div>
                         <div className="flex items-baseline gap-1.5 text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
