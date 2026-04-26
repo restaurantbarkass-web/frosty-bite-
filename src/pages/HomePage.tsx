@@ -448,7 +448,71 @@ export const Home: React.FC = () => {
       </div>
 
       {/* Reviews Section */}
-      <ReviewsSection />
+      <div id="reviews" className="mb-20">
+        <ReviewsSection />
+      </div>
+
+      {/* SEO Content Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 text-gray-400">
+        <div className="glass-dark p-8 md:p-12 rounded-[40px] border border-white/5">
+          <h1 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase mb-6">
+            Welcome to Frosty Bite – Fresh Bakery, Cakes & Pastries
+          </h1>
+          <p className="text-lg leading-relaxed mb-12 max-w-4xl">
+            Frosty Bite is your perfect destination for fresh bakery items, delicious cakes, and mouth-watering pastries. 
+            We prepare every treat with high-quality ingredients to give you the best taste and experience.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20">
+            <div>
+              <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-6 flex items-center gap-3">
+                <span className="w-8 h-[2px] bg-primary"></span>
+                Our Specialties
+              </h2>
+              <ul className="space-y-4 text-gray-300">
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <span className="font-medium">Freshly Baked Cakes for every celebration</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <span className="font-medium">Delicious Pastries made with premium butter</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <span className="font-medium">Custom Cakes tailored to your special occasions</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <span className="font-medium">Fast and Easy Online Ordering with real-time tracking</span>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-6 flex items-center gap-3">
+                <span className="w-8 h-[2px] bg-primary"></span>
+                Why Choose Frosty Bite?
+              </h2>
+              <p className="text-gray-300 leading-relaxed text-base italic">
+                At Frosty Bite, we focus on quality, freshness, and customer satisfaction. 
+                Whether it's a birthday cake or a sweet pastry craving, we ensure every order is made with care and delivered fresh to your doorstep. 
+                Our commitment to excellence makes us the top-rated bakery in the region.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-16 pt-12 border-t border-white/5">
+            <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-4">
+              Order Your Favorite Treats
+            </h2>
+            <p className="text-gray-400 leading-relaxed max-w-3xl">
+              Browse our complete bakery collection and order cakes and pastries online. 
+              Enjoy fast delivery and make every moment special with Frosty Bite. From our oven to your heart, we promise a delightful experience.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
