@@ -515,7 +515,7 @@ export const Home: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={() => {
-                  const el = document.getElementById('menu');
+                  const el = document.getElementById('menu-section');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 className="px-8 py-4 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all"
