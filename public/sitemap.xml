@@ -3,17 +3,9 @@
 
   <url>
     <loc>https://frosty-bite.vercel.app/</loc>
+    <lastmod>2026-04-26</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
-  </url>
-
-  <url>
-    <loc>https://frosty-bite.vercel.app/menu</loc>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://frosty-bite.vercel.app/about</loc>
-    <priority>0.7</priority>
   </url>
 
 </urlset>
