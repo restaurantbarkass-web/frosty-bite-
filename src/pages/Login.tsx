@@ -29,6 +29,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [linkSent, setLinkSent] = useState(false);
 
   // Form State
   const [email, setEmail] = useState('');
@@ -53,6 +54,7 @@ export const Login: React.FC = () => {
         setSuccess('Logged in successfully!');
       } else {
         await authService.sendSignInLink(email);
+        setLinkSent(true);
         setSuccess('Sign-in link sent! Please check your email inbox (and spam folder).');
       }
     } catch (err: any) {
@@ -160,80 +162,107 @@ export const Login: React.FC = () => {
           </AnimatePresence>
 
           {/* Login Forms */}
-          <div className="space-y-6">
-            {/* Method Toggle */}
-            <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
-              <button 
-                onClick={() => setMethod('password')}
-                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                Password
-              </button>
-              <button 
-                onClick={() => setMethod('link')}
-                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                Sign-in Link
-              </button>
-            </div>
-
-            <form onSubmit={handleEmailLogin} className="space-y-4">
-              <InputField 
-                label="Email Address"
-                placeholder="name@example.com"
-                icon={Mail}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              {method === 'password' && (
-                <>
-                  <InputField 
-                    label="Password"
-                    placeholder="••••••••"
-                    icon={Lock}
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    rightElement={
-                      <button 
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-500 hover:text-gray-300 transition-colors"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    }
-                  />
-                  <div className="flex justify-end">
-                    <Link to="/forgot-password" className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
-                      Forgot Password?
-                    </Link>
-                  </div>
-                </>
-              )}
-
-              <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-                {method === 'password' ? 'Login' : 'Send Sign-in Link'}
-              </Button>
-            </form>
-
-            <div className="relative py-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#121212] px-4 text-gray-500 font-medium tracking-widest">Or continue with</span></div>
-            </div>
-
-            <Button 
-              variant="google" 
-              onClick={handleGoogleLogin}
-              isLoading={isLoading}
-              icon={<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />}
+          {linkSent ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center space-y-6 py-4"
             >
-              Google
-            </Button>
-          </div>
+              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto border border-orange-500/20">
+                <Mail className="text-orange-500" size={32} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Check your email</h2>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  We've sent a special link to <span className="text-white font-bold">{email}</span>. 
+                  Click it to finish signing in securely.
+                </p>
+              </div>
+              <button 
+                onClick={() => setLinkSent(false)}
+                className="text-orange-500 text-xs font-black uppercase tracking-widest hover:text-orange-400 transition-colors pt-4"
+              >
+                Back to Login
+              </button>
+            </motion.div>
+          ) : (
+            <div className="space-y-6">
+              {/* Method Toggle */}
+              <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
+                <button 
+                  onClick={() => setMethod('password')}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Password
+                </button>
+                <button 
+                  onClick={() => setMethod('link')}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Sign-in Link
+                </button>
+              </div>
+
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <InputField 
+                  label="Email Address"
+                  placeholder="name@example.com"
+                  icon={Mail}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+                {method === 'password' && (
+                  <>
+                    <InputField 
+                      label="Password"
+                      placeholder="••••••••"
+                      icon={Lock}
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                      rightElement={
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-gray-500 hover:text-gray-300 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      }
+                    />
+                    <div className="flex justify-end">
+                      <Link to="/forgot-password" className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
+                        Forgot Password?
+                      </Link>
+                    </div>
+                  </>
+                )}
+
+                <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
+                  {method === 'password' ? 'Login' : 'Send Sign-in Link'}
+                </Button>
+              </form>
+
+              <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-[#121212] px-4 text-gray-500 font-medium tracking-widest">Or continue with</span></div>
+              </div>
+
+              <Button 
+                variant="google" 
+                onClick={handleGoogleLogin}
+                isLoading={isLoading}
+                icon={<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />}
+              >
+                Google
+              </Button>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="mt-8 text-center">

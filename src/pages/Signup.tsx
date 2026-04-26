@@ -28,6 +28,7 @@ export const Signup: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [linkSent, setLinkSent] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -74,6 +75,7 @@ export const Signup: React.FC = () => {
         }
       } else {
         await authService.sendSignInLink(email);
+        setLinkSent(true);
         setSuccess('Sign-up link sent! Please check your email inbox.');
       }
 
@@ -164,69 +166,100 @@ export const Signup: React.FC = () => {
             )}
           </AnimatePresence>
 
-          {/* Method Toggle */}
-          <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
-            <button 
-              onClick={() => setMethod('password')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+          {/* Signup Form / Method */}
+          {linkSent ? (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center space-y-6 py-4"
             >
-              Password
-            </button>
-            <button 
-              onClick={() => setMethod('link')}
-              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-            >
-              Email Link
-            </button>
-          </div>
+              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto border border-orange-500/20">
+                <Mail className="text-orange-500" size={32} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Check your email</h2>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  We've sent a sign-up link to <span className="text-white font-bold">{email}</span>. 
+                  Click it to complete your account creation.
+                </p>
+              </div>
+              <button 
+                onClick={() => setLinkSent(false)}
+                className="text-orange-500 text-xs font-black uppercase tracking-widest hover:text-orange-400 transition-colors pt-4"
+              >
+                Back to Sign-up
+              </button>
+            </motion.div>
+          ) : (
+            <>
+              {/* Method Toggle */}
+              <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
+                <button 
+                  onClick={() => setMethod('password')}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Password
+                </button>
+                <button 
+                  onClick={() => setMethod('link')}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Email Link
+                </button>
+              </div>
 
-          {/* Signup Form */}
-          <form onSubmit={handleSignup} className="space-y-4">
-            {method === 'password' && (
-              <InputField 
-                label="Full Name"
-                placeholder="John Doe"
-                icon={User}
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            )}
-            <InputField 
-              label="Email Address"
-              placeholder="name@example.com"
-              icon={Mail}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            {method === 'password' && (
-              <InputField 
-                label="Password"
-                placeholder="••••••••"
-                icon={Lock}
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                rightElement={
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            )}
+              {/* Signup Form */}
+              <form onSubmit={handleSignup} className="space-y-4">
+                {method === 'password' && (
+                  <InputField 
+                    label="Full Name"
+                    placeholder="John Doe"
+                    icon={User}
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    required
+                  />
+                )}
+                <InputField 
+                  label="Email Address"
+                  placeholder="name@example.com"
+                  icon={Mail}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+                {method === 'password' && (
+                  <InputField 
+                    label="Password"
+                    placeholder="••••••••"
+                    icon={Lock}
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    required
+                    rightElement={
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-500 hover:text-gray-300 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    }
+                  />
+                )}
 
-            <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-              {method === 'password' ? 'Create Account' : 'Send Sign-up Link'}
-            </Button>
-          </form>
+                <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
+                  {method === 'password' ? 'Create Account' : 'Send Sign-up Link'}
+                </Button>
+              </form>
+            </>
+          )}
 
           {/* Footer */}
           <div className="mt-8 text-center">
