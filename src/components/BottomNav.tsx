@@ -16,6 +16,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
     { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
     { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
     { name: 'Profile', path: '/profile', icon: User, protected: true },
+    { name: 'Login', path: '/login', icon: User, publicOnly: true },
   ];
 
   if (isAdmin) {
@@ -37,26 +38,27 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
           const isActive = location.pathname === link.path;
           
           if (link.protected && !user) return null;
+          if (link.publicOnly && user) return null;
 
           if (link.action) {
             return (
               <button
                 key={link.name}
                 onClick={link.action}
-                className="relative flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all active:scale-90"
+                className="relative flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all active:scale-90"
               >
                 <div className={cn(
-                  "p-2.5 rounded-xl transition-all",
-                  isActive ? "bg-primary text-white" : "text-gray-400"
+                  "p-2 rounded-lg transition-all",
+                  "text-gray-400 group-hover:text-white"
                 )}>
-                  <Icon size={24} />
+                  <Icon size={20} />
                 </div>
                 {link.badge && link.badge > 0 && (
-                  <span className="absolute top-2 right-2 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
+                  <span className="absolute top-1 right-1 bg-primary text-white text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-lg">
                     {link.badge}
                   </span>
                 )}
-                <span className="text-[8px] font-black uppercase text-gray-500 mt-1">{link.name}</span>
+                <span className="text-[7px] font-black uppercase text-gray-500 tracking-tighter">{link.name}</span>
               </button>
             );
           }
@@ -65,24 +67,24 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
             <Link
               key={link.path}
               to={link.path}
-              className="relative flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all active:scale-90"
+              className="relative flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all active:scale-90"
             >
               <div className={cn(
-                "p-2.5 rounded-xl transition-all",
-                isActive ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-gray-400 hover:text-white"
+                "p-2 rounded-lg transition-all shadow-sm",
+                isActive ? "bg-primary text-white shadow-primary/20" : "text-gray-400 hover:text-white"
               )}>
-                <Icon size={24} />
+                <Icon size={20} />
               </div>
               <span className={cn(
-                "text-[8px] font-black uppercase mt-1",
-                isActive ? "text-primary" : "text-gray-500"
+                "text-[7px] font-black uppercase tracking-tighter mt-0.5",
+                isActive ? "text-primary" : "text-gray-500 font-bold"
               )}>
                 {link.name}
               </span>
               {isActive && (
                 <motion.div 
                   layoutId="bottom-nav-active"
-                  className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full shadow-[0_0_10px_#f97316]"
+                  className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(255,107,38,0.6)]"
                 />
               )}
             </Link>

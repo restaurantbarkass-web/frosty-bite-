@@ -30,11 +30,16 @@ export const FinishSignIn: React.FC = () => {
           }
 
           if (email) {
-            await authService.handleSignInWithLink(email, window.location.href);
+            const result = await authService.handleSignInWithLink(email, window.location.href);
+            console.log('Sign-in successful!', result.user.email);
+            
             setStatus('success');
+            
+            // Wait for a brief moment to ensure AuthContext picks up the change
+            // and show the success message to the user
             setTimeout(() => {
-              navigate('/');
-            }, 2000);
+              navigate('/', { replace: true });
+            }, 2500);
           }
         } else {
           console.log('URL is not a valid sign-in link.');
@@ -99,12 +104,27 @@ export const FinishSignIn: React.FC = () => {
 
         {status === 'success' && (
           <div className="flex flex-col items-center gap-6">
-            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center border border-green-500/20">
-              <CheckCircle2 className="text-green-400" size={32} />
-            </div>
+            <motion.div 
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/20"
+            >
+              <CheckCircle2 className="text-white" size={40} />
+            </motion.div>
             <div>
               <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Welcome Back!</h2>
               <p className="text-gray-400 text-sm font-medium">Successfully signed in. Redirecting you home...</p>
+              <div className="mt-8 flex justify-center">
+                <div className="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ x: "-100%" }}
+                    animate={{ x: "100%" }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    className="w-full h-full bg-green-500"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -56,7 +56,8 @@ function AppContent() {
 
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
-  const hideNavFooter = isAdminPage || isProductPage || isSearching;
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage;
 
   const handleSplashComplete = () => {
     sessionStorage.setItem('splash_seen', 'true');

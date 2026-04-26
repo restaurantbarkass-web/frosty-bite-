@@ -184,7 +184,15 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
           </div>
 
           {/* Mobile Menu Button - Hidden to prefer BottomNav */}
-          <div className="md:hidden flex items-center space-x-4">
+          <div className="md:hidden flex items-center space-x-2">
+            {!user && (
+              <Link
+                to="/login"
+                className="text-[10px] font-black uppercase tracking-widest bg-primary text-white px-5 py-2.5 rounded-full active:scale-95 transition-all shadow-lg shadow-primary/20"
+              >
+                Login
+              </Link>
+            )}
             <button
               onClick={onCartClick}
               className="relative p-2 text-muted hover:text-primary active:scale-95 transition-all"
