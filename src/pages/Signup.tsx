@@ -61,8 +61,16 @@ export const Signup: React.FC = () => {
         return;
       }
       
-      setSuccess('Account created successfully!');
-      setTimeout(() => navigate('/'), 1500);
+      setSuccess('Account created! Please check your email to verify your account.');
+      
+      // Send verification email
+      try {
+        await authService.sendVerificationEmail();
+      } catch (verifyErr) {
+        console.error('Error sending verification email:', verifyErr);
+      }
+
+      setTimeout(() => navigate('/'), 2500);
     } catch (err: any) {
       setError(err.message || 'Failed to create account. Please try again.');
     } finally {

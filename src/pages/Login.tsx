@@ -24,6 +24,7 @@ export const Login: React.FC = () => {
   const { user, isAdmin, isRider } = useAuth();
   
   // UI State
+  const [method, setMethod] = useState<'password' | 'link'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +45,25 @@ export const Login: React.FC = () => {
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsLoading(true);
     try {
-      await authService.handleEmailLogin(email, password);
-      setSuccess('Logged in successfully!');
+      if (method === 'password') {
+        await authService.handleEmailLogin(email, password);
+        setSuccess('Logged in successfully!');
+      } else {
+        await authService.sendSignInLink(email);
+        setSuccess('Sign-in link sent! Please check your email inbox (and spam folder).');
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to login. Please check your credentials.');
+      console.error(err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain not authorized. Add your URL to "Authorized domains" in Firebase Console.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Email Link login is not enabled. Enable "Email link (passwordless sign-in)" in Firebase Console.');
+      } else {
+        setError(err.message || 'Failed to send link. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -147,6 +161,22 @@ export const Login: React.FC = () => {
 
           {/* Login Forms */}
           <div className="space-y-6">
+            {/* Method Toggle */}
+            <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
+              <button 
+                onClick={() => setMethod('password')}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Password
+              </button>
+              <button 
+                onClick={() => setMethod('link')}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Sign-in Link
+              </button>
+            </div>
+
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <InputField 
                 label="Email Address"
@@ -157,32 +187,36 @@ export const Login: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <InputField 
-                label="Password"
-                placeholder="••••••••"
-                icon={Lock}
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                rightElement={
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-              <div className="flex justify-end">
-                <Link to="/forgot-password" className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
-                  Forgot Password?
-                </Link>
-              </div>
+              {method === 'password' && (
+                <>
+                  <InputField 
+                    label="Password"
+                    placeholder="••••••••"
+                    icon={Lock}
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    rightElement={
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-500 hover:text-gray-300 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    }
+                  />
+                  <div className="flex justify-end">
+                    <Link to="/forgot-password" className="text-xs text-orange-500 hover:text-orange-400 font-medium transition-colors">
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </>
+              )}
 
               <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-                Login
+                {method === 'password' ? 'Login' : 'Send Sign-in Link'}
               </Button>
             </form>
 
