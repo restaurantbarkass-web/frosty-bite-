@@ -11,32 +11,48 @@ export const FinishSignIn: React.FC = () => {
 
   useEffect(() => {
     const handleFinishSignIn = async () => {
+      console.log('Checking for sign-in link in URL:', window.location.href);
       try {
         const isLink = await authService.isSignInLink(window.location.href);
+        console.log('Is sign-in link?', isLink);
         
         if (isLink) {
           let email = window.localStorage.getItem('emailForSignIn');
+          console.log('Retrieved email from localStorage:', email);
           
           if (!email) {
+            console.log('Email missing from localStorage, prompting user.');
             email = window.prompt('Please provide your email for confirmation');
           }
 
           if (email) {
+            console.log('Attempting sign-in with email:', email);
             await authService.handleSignInWithLink(email, window.location.href);
+            console.log('Sign-in successful!');
             setStatus('success');
             setTimeout(() => {
               navigate('/');
             }, 2000);
           } else {
-            setError('Email is required to complete sign-in.');
+            console.warn('Sign-in aborted: Email not provided.');
+            setError('Email is required to complete sign-in. Please try again.');
             setStatus('error');
           }
         } else {
+          console.log('Not a sign-in link, redirecting to login.');
           navigate('/login');
         }
       } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Failed to complete sign-in. The link may have expired or already been used.');
+        console.error('Sign-in error:', err);
+        let errorMsg = err.message || 'Failed to complete sign-in.';
+        
+        if (err.code === 'auth/invalid-action-code') {
+          errorMsg = 'This sign-in link has already been used or has expired.';
+        } else if (err.code === 'auth/user-disabled') {
+           errorMsg = 'This account has been disabled.';
+        }
+
+        setError(errorMsg);
         setStatus('error');
       }
     };

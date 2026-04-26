@@ -23,6 +23,7 @@ export const Signup: React.FC = () => {
   const { user } = useAuth();
   
   // UI State
+  const [method, setMethod] = useState<'password' | 'link'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,37 +43,52 @@ export const Signup: React.FC = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setIsLoading(true);
     try {
-      const result = await authService.handleSignup(email, password);
-      const newUser = result.user;
-      
-      // Sync with Firestore
-      try {
-        await syncUserWithFirestore({
-          ...newUser,
-          displayName: name
-        });
-      } catch (syncErr: any) {
-        console.error('Firestore sync error during signup:', syncErr);
-        // We still consider signup successful if auth worked, but warn the user
-        setSuccess('Account created but profile sync failed. Please try logging in.');
-        setTimeout(() => navigate('/'), 2000);
-        return;
-      }
-      
-      setSuccess('Account created! Please check your email to verify your account.');
-      
-      // Send verification email
-      try {
-        await authService.sendVerificationEmail();
-      } catch (verifyErr) {
-        console.error('Error sending verification email:', verifyErr);
+      if (method === 'password') {
+        const result = await authService.handleSignup(email, password);
+        const newUser = result.user;
+        
+        // Sync with Firestore
+        try {
+          await syncUserWithFirestore({
+            ...newUser,
+            displayName: name
+          });
+        } catch (syncErr: any) {
+          console.error('Firestore sync error during signup:', syncErr);
+          // We still consider signup successful if auth worked, but warn the user
+          setSuccess('Account created but profile sync failed. Please try logging in.');
+          setTimeout(() => navigate('/'), 2000);
+          return;
+        }
+        
+        setSuccess('Account created! Please check your email to verify your account.');
+        
+        // Send verification email
+        try {
+          await authService.sendVerificationEmail();
+        } catch (verifyErr) {
+          console.error('Error sending verification email:', verifyErr);
+        }
+      } else {
+        await authService.sendSignInLink(email);
+        setSuccess('Sign-up link sent! Please check your email inbox.');
       }
 
-      setTimeout(() => navigate('/'), 2500);
+      setTimeout(() => {
+        if (method === 'password') navigate('/');
+      }, 2500);
     } catch (err: any) {
-      setError(err.message || 'Failed to create account. Please try again.');
+      console.error(err);
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain not authorized. Add your URL to "Authorized domains" in Firebase Console.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Email Link sign-in is not enabled. Please enable it in Firebase Console.');
+      } else {
+        setError(err.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -148,17 +164,35 @@ export const Signup: React.FC = () => {
             )}
           </AnimatePresence>
 
+          {/* Method Toggle */}
+          <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
+            <button 
+              onClick={() => setMethod('password')}
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Password
+            </button>
+            <button 
+              onClick={() => setMethod('link')}
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Email Link
+            </button>
+          </div>
+
           {/* Signup Form */}
           <form onSubmit={handleSignup} className="space-y-4">
-            <InputField 
-              label="Full Name"
-              placeholder="John Doe"
-              icon={User}
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+            {method === 'password' && (
+              <InputField 
+                label="Full Name"
+                placeholder="John Doe"
+                icon={User}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            )}
             <InputField 
               label="Email Address"
               placeholder="name@example.com"
@@ -168,27 +202,29 @@ export const Signup: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <InputField 
-              label="Password"
-              placeholder="••••••••"
-              icon={Lock}
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              rightElement={
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              }
-            />
+            {method === 'password' && (
+              <InputField 
+                label="Password"
+                placeholder="••••••••"
+                icon={Lock}
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                rightElement={
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                }
+              />
+            )}
 
             <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-              Create Account
+              {method === 'password' ? 'Create Account' : 'Send Sign-up Link'}
             </Button>
           </form>
 
