@@ -98,20 +98,39 @@ const ProductDetail: React.FC = () => {
           setProduct(currentProduct);
           
           let firestoreItems: FoodItem[] = [];
+          
+          // Initial check from cache for speed
+          const cachedMenu = localStorage.getItem('menu_cache');
+          if (cachedMenu) {
+            try {
+              firestoreItems = JSON.parse(cachedMenu);
+            } catch (e) {}
+          }
+
           try {
             // Fetch related items from Firestore
             const menuRef = collection(db, 'menu');
             const q = query(menuRef, where('available', '==', true));
             const querySnapshot = await getDocs(q);
-            firestoreItems = querySnapshot.docs.map(doc => ({
+            const freshItems = querySnapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data()
             })) as FoodItem[];
+            
+            if (freshItems.length > 0) {
+              firestoreItems = freshItems;
+              // Update cache while we're here
+              localStorage.setItem('menu_cache', JSON.stringify(firestoreItems));
+            }
           } catch (listError: any) {
-             // Silently ignore quota for related items
+             const isQuota = listError?.message?.toLowerCase().includes('quota') || listError?.message?.toLowerCase().includes('limit exceeded');
+             if (isQuota) {
+               console.warn("Firestore Quota Exceeded for related items. Using current cache.");
+               // if firestoreItems is already set from cache, we're good
+             }
           }
 
-          // Use firestore items if they exist, otherwise fallback to MENU_ITEMS
+          // Use firestore items (or cached) if they exist, otherwise fallback to MENU_ITEMS
           const sourceItems = firestoreItems.length > 0 ? firestoreItems : MENU_ITEMS;
 
           const related = sourceItems
