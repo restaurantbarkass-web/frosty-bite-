@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 
 export interface Notification {
   id: string;
@@ -25,7 +26,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, role, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
@@ -34,8 +35,62 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    // Initial load from cache
+    // NEW: For admins, listen to all NEW orders to show global toasts/notifications
+    let unsubscribeOrders: (() => void) | null = null;
+    
+    if (isAdmin || role === 'admin' || user.email === 'restaurantbarkass@gmail.com') {
+      const ordersQuery = query(
+        collection(db, 'orders'),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
+
+      const knownOrderIds = new Set<string>();
+      let isInitialLoad = true;
+
+      unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
+        if (isInitialLoad) {
+          snapshot.docs.forEach(doc => knownOrderIds.add(doc.id));
+          isInitialLoad = false;
+          return;
+        }
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const order = { id: change.doc.id, ...change.doc.data() } as any;
+            if (!knownOrderIds.has(order.id)) {
+              knownOrderIds.add(order.id);
+              
+              // Show toast
+              toast.success(`New Order #${order.id.slice(-6).toUpperCase()} received!`, {
+                duration: 8000,
+                icon: '🍕'
+              });
+
+              // Play sound (if not on orders page which has its own alarm)
+              if (!window.location.pathname.includes('/admin')) {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play().catch(() => {});
+              }
+
+              // Browser notification
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Order Received!', {
+                  body: `${order.customerName} placed an order for ₹${order.total}`,
+                  icon: '/logo.png'
+                });
+              }
+            }
+          }
+        });
+      }, (error) => {
+        console.warn('Admin orders listener error:', error.message);
+      });
+    }
+
+    // Existing notification listener
     const cacheKey = `notifications_cache_${user.uid}`;
+    // ... rest of existing listener
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -56,10 +111,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       // Client-side sort and limit
       const sortedNotifs = notifs.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      }).slice(0, 20);
+        const getTime = (notif: Notification) => {
+          if (!notif.createdAt) return Date.now();
+          if (typeof notif.createdAt.toDate === 'function') return notif.createdAt.toDate().getTime();
+          if (notif.createdAt.seconds) return notif.createdAt.seconds * 1000;
+          if (typeof notif.createdAt === 'string') return new Date(notif.createdAt).getTime();
+          return Date.now();
+        };
+        return getTime(b) - getTime(a);
+      }).slice(0, 50); // Show more notifications
 
       setNotifications(sortedNotifs);
       localStorage.setItem(cacheKey, JSON.stringify(sortedNotifs));
@@ -79,8 +139,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     });
 
-    return () => unsubscribe();
-  }, [user]);
+    return () => {
+      unsubscribe();
+      if (unsubscribeOrders) unsubscribeOrders();
+    };
+  }, [user, role, isAdmin]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

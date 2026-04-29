@@ -58,7 +58,7 @@ const Orders: React.FC = () => {
       const staleOrders = sortedOrders.filter(order => {
         if (!order.createdAt || order.status !== 'pending') return false;
         const ca = order.createdAt as any;
-        const createdAt = ca.toDate ? ca.toDate() : new Date(ca.seconds * 1000);
+        const createdAt = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
         return createdAt < oneHourAgo;
       });
 
@@ -174,7 +174,7 @@ const Orders: React.FC = () => {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+      const date = (timestamp && typeof timestamp.toDate === 'function') ? timestamp.toDate() : (timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
       return date.toLocaleDateString('en-IN', { 
         day: 'numeric', 
         month: 'short', 

@@ -32,12 +32,14 @@ import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { useNotifications } from '../context/NotificationContext';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart, subtotal: cartSubtotal, clearCart } = useCart();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const { isOrderingOpen } = useAppConfig();
   const [isOrdering, setIsOrdering] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -279,6 +281,16 @@ export const Checkout: React.FC = () => {
       }
       
       if (formData.paymentMethod === 'upi' && docRef) {
+        if (user) {
+          addNotification({
+            title: 'Order Placed (UPI)',
+            message: `Order #${docRef.id.slice(-6).toUpperCase()} placed. Please complete payment.`,
+            type: 'order',
+            userId: user.uid,
+            link: `/upi-checkout/${docRef.id}`
+          });
+        }
+
         navigate(`/upi-checkout/${docRef.id}`, { 
           state: { 
             orderId: docRef.id,
@@ -294,6 +306,16 @@ export const Checkout: React.FC = () => {
         });
       } else {
         // COD Success
+        if (user) {
+          addNotification({
+            title: 'Order Placed (COD)',
+            message: `Order #${docRef.id.slice(-6).toUpperCase()} placed successfully via COD.`,
+            type: 'order',
+            userId: user.uid,
+            link: '/orders'
+          });
+        }
+
         const orderSummary = {
           orderId: docRef.id,
           customerName: formData.name,

@@ -108,7 +108,12 @@ export const Profile: React.FC = () => {
       setRecentOrders(ordersData);
       localStorage.setItem(ordersCacheKey, JSON.stringify(ordersData));
     }, (error) => {
-      console.error("Orders fetching error:", error);
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error("Orders fetching error:", error);
+      } else {
+        console.warn('Orders Quota Exceeded in Profile');
+      }
     });
 
     // Real-time wishlist
@@ -120,7 +125,12 @@ export const Profile: React.FC = () => {
       setWishlist(wishlistData);
       localStorage.setItem(wishlistCacheKey, JSON.stringify(wishlistData));
     }, (error) => {
-      console.error("Wishlist fetching error:", error);
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error("Wishlist fetching error:", error);
+      } else {
+        console.warn('Wishlist Quota Exceeded in Profile');
+      }
     });
 
     return () => {
@@ -215,7 +225,7 @@ export const Profile: React.FC = () => {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+      const date = (timestamp && typeof timestamp.toDate === 'function') ? timestamp.toDate() : (timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
       return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     } catch (e) {
       return 'N/A';

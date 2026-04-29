@@ -52,25 +52,37 @@ export const DashboardCards: React.FC = () => {
   });
 
   useEffect(() => {
-    const unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const allOrders = snapshot.docs.map(doc => doc.data());
-      
-      // Filter out UPI/Online orders that haven't submitted a UTR yet
-      const orders = allOrders.filter(o => {
-        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
-          return false;
-        }
-        return true;
-      });
+    const ordersCacheKey = 'dashboard_stats_orders_cache';
+    const usersCacheKey = 'dashboard_stats_users_cache';
+    
+    // Initial fetch from cache
+    const cachedOrders = localStorage.getItem(ordersCacheKey);
+    const cachedUsersCount = localStorage.getItem(usersCacheKey);
+    
+    if (cachedOrders) {
+      try { processOrders(JSON.parse(cachedOrders)); } catch (e) {}
+    }
+    if (cachedUsersCount) {
+      setStats(prev => ({ ...prev, totalCustomers: parseInt(cachedUsersCount) || 0 }));
+    }
 
+    function processOrders(orders: any[]) {
       const now = new Date();
       const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
       
-      const totalOrdersLast24h = orders.filter(o => o.createdAt && (o.createdAt.seconds * 1000) >= twentyFourHoursAgo).length;
+      const totalOrdersLast24h = orders.filter(o => {
+        const ca = o.createdAt;
+        const ts = (ca && typeof ca.toDate === 'function') ? ca.toDate().getTime() : (ca?.seconds ? ca.seconds * 1000 : new Date(ca).getTime());
+        return ts >= twentyFourHoursAgo;
+      }).length;
       
       const revenueToday = orders
-        .filter(o => o.createdAt && (o.createdAt.seconds * 1000) >= today)
+        .filter(o => {
+          const ca = o.createdAt;
+          const ts = (ca && typeof ca.toDate === 'function') ? ca.toDate().getTime() : (ca?.seconds ? ca.seconds * 1000 : new Date(ca).getTime());
+          return ts >= today;
+        })
         .reduce((acc, curr) => acc + (curr.total || 0), 0);
       
       const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
@@ -81,8 +93,28 @@ export const DashboardCards: React.FC = () => {
         revenueToday,
         activeOrders
       }));
+    }
+
+    const unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const allOrders = snapshot.docs.map(doc => doc.data());
+      
+      // Filter out UPI/Online orders that haven't submitted a UTR yet
+      const actionableOrders = allOrders.filter(o => {
+        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
+          return false;
+        }
+        return true;
+      });
+
+      processOrders(actionableOrders);
+      localStorage.setItem(ordersCacheKey, JSON.stringify(actionableOrders));
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
+      } else {
+        console.warn('DashboardCards: Orders quota exceeded. Using cache.');
+      }
     });
 
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -90,8 +122,14 @@ export const DashboardCards: React.FC = () => {
         ...prev,
         totalCustomers: snapshot.size
       }));
+      localStorage.setItem(usersCacheKey, snapshot.size.toString());
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'users');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'users');
+      } else {
+        console.warn('DashboardCards: Users quota exceeded. Using cache.');
+      }
     });
 
     return () => {

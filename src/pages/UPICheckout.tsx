@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
+import { useNotifications } from '../context/NotificationContext';
 
 const PAYMENT_EXPIRY_SECONDS = 600;
 const UPI_ID = "7735800239@ibl";
@@ -46,6 +47,7 @@ export const UPICheckout: React.FC = () => {
 
   const { cart, clearCart } = useCart();
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
 
   const [timeLeft, setTimeLeft] = useState(PAYMENT_EXPIRY_SECONDS);
   const expiryTimeRef = useRef<number>(Date.now() + PAYMENT_EXPIRY_SECONDS * 1000);
@@ -150,6 +152,17 @@ export const UPICheckout: React.FC = () => {
 
       setConfirmedOrder(orderSummary);
       setShowConfirmation(true);
+      
+      if (user) {
+        addNotification({
+          title: 'Payment Submitted',
+          message: `UTR for order #${state!.orderId.slice(-6).toUpperCase()} submitted for verification.`,
+          type: 'order',
+          userId: user.uid,
+          link: `/order-tracking/${state!.orderId}`
+        });
+      }
+
       openWhatsAppOrder(orderSummary);
       clearCart();
       toast.success('Payment Submitted for Verification! 🍰');

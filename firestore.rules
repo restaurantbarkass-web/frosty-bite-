@@ -170,8 +170,8 @@ service cloud.firestore {
       allow create: if isOrderingOpen() && isValidOrder(incoming());
       
       allow update: if (isSignedIn() || existing().userId == 'guest') && (
-        // Admin action: Full update
-        (isAdmin() && isValidOrderSchema(incoming())) ||
+        // Admin action: Trusted update
+        isAdmin() ||
         // User/Guest action: Cancel if pending
         ((isOwner(existing().userId) || existing().userId == 'guest') && 
          incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
@@ -197,7 +197,7 @@ service cloud.firestore {
          incoming().status in ['out_for_delivery', 'delivered'])
       );
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().userId) && existing().status == 'pending' && (request.time > existing().createdAt + duration.value(60, 'm')));
     }
 
     // RIDERS

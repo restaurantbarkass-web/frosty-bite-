@@ -142,7 +142,8 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   
   // Check for Quota Exceeded specifically
   const isQuotaError = errorMessage.toLowerCase().includes('quota') || 
-                      errorMessage.toLowerCase().includes('limit exceeded');
+                      errorMessage.toLowerCase().includes('limit exceeded') ||
+                      errorMessage.toLowerCase().includes('resource-exhausted');
 
   const errInfo: FirestoreErrorInfo = {
     error: isQuotaError ? "DATABASE_QUOTA_EXCEEDED" : errorMessage,
@@ -163,13 +164,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
 
-  // Log the original error for debugging but throw a structured one
+  // Log a structured warning for quota errors but don't crash
   if (isQuotaError) {
-    console.warn('Firestore Quota Exceeded. The app will use cached/default data where possible.');
-    return; // Don't throw for quota errors, just warn
+    console.warn(`[Firestore Quota] Operation: ${operationType}, Path: ${path || 'unknown'}`);
+    const isWrite = [OperationType.CREATE, OperationType.UPDATE, OperationType.DELETE, OperationType.WRITE].includes(operationType);
+    if (!isWrite) {
+      // For read/list operations, we silently fail to allow the app to use cached data or show generic UI
+      return; 
+    }
   } else {
     console.error('Firestore Error: ', JSON.stringify(errInfo));
   }
 
+  // Only throw if it's NOT a read quota error
   throw new Error(JSON.stringify(errInfo));
 }

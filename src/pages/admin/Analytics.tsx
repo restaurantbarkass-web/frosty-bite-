@@ -59,7 +59,13 @@ export const Analytics: React.FC = () => {
       setFilteredOrders(actionableOrders);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
+      } else {
+        console.warn('Firestore Quota Exceeded in Analytics. Using current state.');
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -73,7 +79,8 @@ export const Analytics: React.FC = () => {
 
     const filtered = orders.filter(order => {
       if (!order.createdAt) return false;
-      const orderDate = new Date(order.createdAt.seconds * 1000);
+      const ca = order.createdAt as any;
+      const orderDate = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
 
@@ -98,7 +105,9 @@ export const Analytics: React.FC = () => {
   // Group by date for chart
   const revenueByDate = filteredOrders.reduce((acc: any, curr: any) => {
     if (!curr.createdAt) return acc;
-    const date = new Date(curr.createdAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const ca = curr.createdAt;
+    const dateObj = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
+    const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     acc[date] = (acc[date] || 0) + (curr.total || 0);
     return acc;
   }, {});
@@ -136,7 +145,7 @@ export const Analytics: React.FC = () => {
       order.createdAt 
         ? (typeof (order.createdAt as any).toDate === 'function' 
             ? (order.createdAt as any).toDate().toLocaleString() 
-            : new Date((order.createdAt as any).seconds * 1000).toLocaleString())
+            : (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString() : new Date(order.createdAt).toLocaleString()))
         : 'N/A'
     ].map(escapeCSV));
 

@@ -103,7 +103,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
       setRiders(ridersData);
       setInternalLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'riders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'riders');
+      } else {
+        console.warn('Firestore Quota Exceeded for riders in OrdersTable');
+        setInternalLoading(false);
+      }
     });
 
     return () => {
@@ -202,34 +208,70 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     };
   }, [orders, isMuted]);
 
-  const verifyPayment = async (id: string) => {
+  const verifyPayment = async (orderId: string) => {
+    const loadingToast = toast.loading('Verifying payment...');
     try {
-      await updateDoc(doc(db, 'orders', id), {
+      await updateDoc(doc(db, 'orders', orderId), {
         paymentStatus: 'paid',
         status: 'confirmed' // Auto-confirm after admin verifies payment
       });
-      toast.success('Payment verified & Order confirmed!');
+
+      const order = orders.find(o => o.id === orderId);
+      if (order && order.userId !== 'guest') {
+        addNotification({
+          title: 'Payment Verified',
+          message: `Your payment for order #${orderId.slice(-6).toUpperCase()} has been verified.`,
+          type: 'order',
+          userId: order.userId,
+          link: `/order-tracking/${orderId}`
+        });
+      }
+
+      toast.success('Payment verified & Order confirmed!', { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
-      toast.error('Failed to verify payment');
+      console.error('Verify payment error:', error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      } catch (e: any) {
+        toast.error(`Verification failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
-  const rejectPayment = async (id: string) => {
+  const rejectPayment = async (orderId: string) => {
+    const loadingToast = toast.loading('Rejecting payment proof...');
     try {
-      await updateDoc(doc(db, 'orders', id), {
+      await updateDoc(doc(db, 'orders', orderId), {
         paymentStatus: 'pending', // Reset payment status
         status: 'cancelled', // Cancel the order as proof was invalid
+        utr: null, // Clear UTR so they can resubmit if needed
         notes: "Admin rejected payment proof (UTR). Please contact support or re-order."
       });
-      toast.error('Payment rejected & Order cancelled');
+
+      const order = orders.find(o => o.id === orderId);
+      if (order && order.userId !== 'guest') {
+        addNotification({
+          title: 'Payment Rejected',
+          message: `Payment proof for order #${orderId.slice(-6).toUpperCase()} was rejected.`,
+          type: 'order',
+          userId: order.userId,
+          link: `/order-tracking/${orderId}`
+        });
+      }
+
+      toast.success('Payment rejected & Order cancelled', { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
-      toast.error('Failed to reject payment');
+      console.error('Reject payment error:', error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      } catch (e: any) {
+        toast.error(`Rejection failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
   const updateStatus = async (id: string, newStatus: Order['status']) => {
+    const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = orders.find(o => o.id === id);
       const updateData: any = { status: newStatus };
@@ -245,15 +287,40 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
       }
 
       await updateDoc(doc(db, 'orders', id), updateData);
+
+      if (order && order.userId !== 'guest') {
+        const statusMessages: Record<string, string> = {
+          'confirmed': 'Your order has been accepted and is being processed.',
+          'preparing': 'Your meal is being prepared by our chefs.',
+          'out_for_delivery': 'Your order is out for delivery!',
+          'delivered': 'Enjoy your meal! Your order has been delivered.',
+          'cancelled': 'Your order has been cancelled.'
+        };
+
+        addNotification({
+          title: `Order ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+          message: statusMessages[newStatus] || `Your order status is now: ${newStatus}`,
+          type: 'order',
+          userId: order.userId,
+          link: `/order-tracking/${id}`
+        });
+      }
+
+      toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
-      alert(`Failed to update status: ${error.message || 'Permission denied'}`);
+      console.error('Update status error:', error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+      } catch (e: any) {
+        toast.error(`Update failed: ${e.message.includes('QUOTA') ? 'Database Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingOrder) return;
+    const loadingToast = toast.loading('Saving changes...');
 
     try {
       await updateDoc(doc(db, 'orders', editingOrder.id), {
@@ -261,25 +328,37 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
         estimatedDeliveryTime: Number(editFormData.estimatedDeliveryTime)
       });
       setEditingOrder(null);
+      toast.success('Changes saved!', { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${editingOrder.id}`);
-      alert(`Failed to save changes: ${error.message || 'Permission denied'}`);
+      console.error('Edit submit error:', error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `orders/${editingOrder.id}`);
+      } catch (e: any) {
+        toast.error(`Failed to save: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
   const deleteOrder = async (id: string) => {
+    const loadingToast = toast.loading('Deleting order...');
     try {
       await deleteDoc(doc(db, 'orders', id));
       setDeletingId(null);
+      toast.success('Order deleted', { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
-      alert(`Failed to delete order: ${error.message || 'Permission denied'}`);
+      console.error('Delete error:', error);
+      try {
+        handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
+      } catch (e: any) {
+        toast.error(`Failed to delete: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
   const assignRider = async (orderId: string, riderId: string) => {
     const rider = riders.find(r => r.id === riderId);
     if (!rider) return;
+    const loadingToast = toast.loading(`Assigning ${rider.name}...`);
 
     try {
       const order = orders.find(o => o.id === orderId);
@@ -295,9 +374,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
       }
 
       await updateDoc(doc(db, 'orders', orderId), updateData);
+
+      if (order && order.userId !== 'guest') {
+        addNotification({
+          title: 'Rider Assigned',
+          message: `${rider.name} has been assigned to your order.`,
+          type: 'rider',
+          userId: order.userId,
+          link: `/order-tracking/${orderId}`
+        });
+      }
+
+      toast.success(`Assigned to ${rider.name}`, { id: loadingToast });
     } catch (error: any) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      alert(`Failed to assign rider: ${error.message || 'Permission denied'}`);
+      console.error('Assign rider error:', error);
+      try {
+        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      } catch (e: any) {
+        toast.error(`Assignment failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+      }
     }
   };
 
