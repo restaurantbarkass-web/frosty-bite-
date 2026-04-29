@@ -33,6 +33,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const FinishSignIn = lazy(() => import('./pages/FinishSignIn'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const Orders = lazy(() => import('./pages/Orders'));
+const Notifications = lazy(() => import('./pages/Notifications'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
@@ -125,6 +126,11 @@ function AppContent() {
             <Route path="/orders" element={
               <ProtectedRoute>
                 <Orders />
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             } />
             <Route path="/product/:id" element={<ProductDetail />} />

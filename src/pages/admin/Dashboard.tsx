@@ -122,7 +122,9 @@ export const Dashboard: React.FC = () => {
       order.createdAt 
         ? (typeof (order.createdAt as any).toDate === 'function' 
             ? (order.createdAt as any).toDate().toLocaleString() 
-            : (order.createdAt.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleString() : new Date(order.createdAt).toLocaleString()))
+            : ((order.createdAt as any).seconds 
+                ? new Date((order.createdAt as any).seconds * 1000).toLocaleString() 
+                : new Date(order.createdAt as any).toLocaleString()))
         : 'N/A'
     ].map(escapeCSV));
 

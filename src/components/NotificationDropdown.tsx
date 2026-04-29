@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Bell, Check, ShoppingBag, Truck, Info, X, MessageCircle } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 
 import { RESTAURANT_WHATSAPP } from '../constants';
@@ -14,6 +15,7 @@ interface NotificationDropdownProps {
 
 export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOpen, onClose }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -57,7 +59,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                   {notifications.map((notif) => (
                     <motion.div
                       key={notif.id}
-                      onClick={() => markAsRead(notif.id)}
+                      onClick={() => {
+                        markAsRead(notif.id);
+                        if (notif.link) {
+                          onClose();
+                          navigate(notif.link);
+                        }
+                      }}
                       className={`p-5 hover:bg-white/5 transition-colors cursor-pointer relative group ${!notif.read ? 'bg-primary/5' : ''}`}
                     >
                       {!notif.read && (
@@ -117,7 +125,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
 
             {notifications.length > 0 && (
               <div className="p-4 bg-white/5 text-center">
-                <button className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">
+                <button 
+                  onClick={() => {
+                    onClose();
+                    navigate('/notifications');
+                  }}
+                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
+                >
                   View all activity
                 </button>
               </div>
