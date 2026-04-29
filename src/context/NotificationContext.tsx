@@ -36,9 +36,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const q = query(
       collection(db, 'notifications'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(20)
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -46,7 +44,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         id: doc.id,
         ...doc.data()
       })) as Notification[];
-      setNotifications(notifs);
+      
+      // Client-side sort and limit
+      const sortedNotifs = notifs.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      }).slice(0, 20);
+
+      setNotifications(sortedNotifs);
     }, (error) => {
       console.error('Error fetching notifications:', error);
       setNotifications([]);

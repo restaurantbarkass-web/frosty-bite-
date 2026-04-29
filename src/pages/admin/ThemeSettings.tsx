@@ -12,7 +12,7 @@ import {
   Sun,
   Tag
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 

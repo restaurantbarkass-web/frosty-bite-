@@ -14,7 +14,8 @@ import {
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { TrendingUp, DollarSign, ShoppingBag, Clock, Download, FileText, Calendar } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Order } from '../../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -31,8 +32,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Analytics: React.FC = () => {
-  const [orders, setOrders] = useState<any[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -44,9 +45,18 @@ export const Analytics: React.FC = () => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-      setOrders(ordersData);
-      setFilteredOrders(ordersData);
+      })) as Order[];
+
+      // Filter out UPI/Online orders that haven't submitted a UTR yet
+      const actionableOrders = ordersData.filter(o => {
+        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
+          return false;
+        }
+        return true;
+      });
+
+      setOrders(actionableOrders);
+      setFilteredOrders(actionableOrders);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'orders');
@@ -83,7 +93,7 @@ export const Analytics: React.FC = () => {
   // Calculate stats
   const totalRevenue = filteredOrders.reduce((acc, curr) => acc + (curr.total || 0), 0);
   const totalOrders = filteredOrders.length;
-  const deliveredOrders = filteredOrders.filter(o => o.status === 'Delivered').length;
+  const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered').length;
   
   // Group by date for chart
   const revenueByDate = filteredOrders.reduce((acc: any, curr: any) => {

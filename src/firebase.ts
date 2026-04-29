@@ -27,11 +27,17 @@ export const auth = getAuth(app);
 // Initialize Firestore with experimental settings to force long polling.
 // This often resolves 'unavailable' errors in restrictive network environments or sandboxes.
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 
-export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+export const messaging = typeof window !== 'undefined' ? (() => {
+  try {
+    return getMessaging(app);
+  } catch (e) {
+    console.warn('Firebase Messaging not supported in this environment');
+    return null;
+  }
+})() : null;
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -138,7 +144,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       emailVerified: activeUser?.emailVerified,
       isAnonymous: activeUser?.isAnonymous,
       tenantId: activeUser?.tenantId,
-      providerInfo: activeUser?.providerData.map((provider: any) => ({
+      providerInfo: activeUser?.providerData?.map((provider: any) => ({
         providerId: provider.providerId,
         displayName: provider.displayName,
         email: provider.email,

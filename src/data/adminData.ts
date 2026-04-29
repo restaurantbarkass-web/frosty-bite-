@@ -102,19 +102,19 @@ export const dummyRiders: Rider[] = [
     name: 'Ahmed Khan',
     status: 'On Delivery',
     currentOrder: 'ORD-003',
-    phone: '+91 9876543210'
+    phone: '+91 77358 00239'
   },
   {
     id: 'Rider-002',
     name: 'Suresh Kumar',
     status: 'Online',
-    phone: '+91 9876543211'
+    phone: '+91 77358 00240'
   },
   {
     id: 'Rider-003',
     name: 'Rahul Singh',
     status: 'Offline',
-    phone: '+91 9876543212'
+    phone: '+91 77358 00241'
   }
 ];
 

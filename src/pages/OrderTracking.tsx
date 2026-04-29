@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
-import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { doc, onSnapshot, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -11,9 +11,11 @@ import { FrostyAnimation } from '../components/LottiePlayer';
 import { ReviewForm } from '../components/ReviewForm';
 
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
+import { RESTAURANT_WHATSAPP } from '../constants';
 
 const STATUS_ANIMATIONS: Record<string, string> = {
   pending: LOTTIE_ANIMATIONS.PROCESSING,
+  confirmed: LOTTIE_ANIMATIONS.PROCESSING,
   assigned: LOTTIE_ANIMATIONS.PROCESSING,
   preparing: LOTTIE_ANIMATIONS.COOKING,
   out_for_delivery: LOTTIE_ANIMATIONS.DELIVERY_TRUCK,
@@ -28,6 +30,14 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
       <Clock className="text-primary" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
+  confirmed: (
+    <motion.div
+      animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <CheckCircle className="text-primary" size={64} strokeWidth={1.5} />
     </motion.div>
   ),
   assigned: (
@@ -79,7 +89,8 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_STEPS = [
-  { id: 'pending', label: 'Pending', icon: Package, description: 'Waiting for rider assignment' },
+  { id: 'pending', label: 'Pending', icon: Package, description: 'Waiting for payment confirmation' },
+  { id: 'confirmed', label: 'Confirmed', icon: CheckCircle, description: 'Payment confirmed, preparing order' },
   { id: 'assigned', label: 'Rider Assigned', icon: UserIcon, description: 'A rider is coming to pick up' },
   { id: 'preparing', label: 'Preparing', icon: Package, description: 'Chef is working their magic' },
   { id: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, description: 'Rider is on the way' },
@@ -128,9 +139,17 @@ export const OrderTracking: React.FC = () => {
         }
         setLoading(false);
       } else {
-        console.error('Order not found');
-        setOrder(null);
-        setLoading(false);
+        // Give it a small 2-second grace period for latency
+        setTimeout(() => {
+          setLoading((prevLoading) => {
+            if (prevLoading) {
+               console.error('Order not found after grace period');
+               setOrder(null);
+               return false;
+            }
+            return false;
+          });
+        }, 2000);
       }
     }, (error) => {
       console.error('Snapshot error:', error);
@@ -189,11 +208,55 @@ export const OrderTracking: React.FC = () => {
 
   if (!order) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold mb-4">Order Not Found</h2>
-        <button onClick={() => navigate('/')} className="bg-primary text-white px-8 py-3 rounded-xl font-bold">
-          Back to Menu
-        </button>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 text-center">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="mb-8"
+        >
+          <div className="relative inline-block">
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            >
+              <Package className="text-zinc-800" size={120} strokeWidth={1} />
+            </motion.div>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5, type: 'spring' }}
+              className="absolute -top-2 -right-2 bg-amber-500 text-white p-2 rounded-full shadow-xl shadow-amber-500/40"
+            >
+              <AlertTriangle size={40} strokeWidth={3} />
+            </motion.div>
+          </div>
+        </motion.div>
+        
+        <h2 className="text-4xl font-black italic tracking-tighter text-white mb-4 uppercase">Order Not Found</h2>
+        <div className="space-y-4 mb-12">
+          <p className="text-zinc-500 max-w-md mx-auto">
+            We couldn't locate the order with ID: <span className="text-primary font-mono">{orderId}</span>. 
+            It might still be processing or the link is incorrect.
+          </p>
+          <div className="bg-white/5 p-4 rounded-2xl max-w-sm mx-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 border border-white/5">
+            Check your profile or order history
+          </div>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+          <button 
+            onClick={() => navigate('/')} 
+            className="flex-1 bg-white text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-sm shadow-xl"
+          >
+            Back to Menu
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="flex-1 bg-zinc-800 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-zinc-700 transition-all text-sm border border-white/10"
+          >
+            Retry Search
+          </button>
+        </div>
       </div>
     );
   }
@@ -225,10 +288,18 @@ export const OrderTracking: React.FC = () => {
         </motion.div>
         
         <h2 className="text-4xl font-black italic tracking-tighter text-white mb-4 uppercase">Order Rejected</h2>
-        <p className="text-zinc-500 max-w-md mb-12">
-          We're sorry, but your order has been cancelled by the restaurant. 
-          Please contact support if you need further assistance or try ordering again.
-        </p>
+        <div className="space-y-4 mb-12">
+          <p className="text-zinc-500 max-w-md mx-auto">
+            We're sorry, but your order has been cancelled by the restaurant. 
+            Please contact support if you need further assistance or try ordering again.
+          </p>
+          {order.notes && (
+            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl max-w-md mx-auto">
+              <p className="text-red-500 font-bold text-xs uppercase tracking-widest mb-1">Reason:</p>
+              <p className="text-white text-sm italic">"{order.notes}"</p>
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
           <button 
@@ -238,7 +309,7 @@ export const OrderTracking: React.FC = () => {
             Back to Menu
           </button>
           <button 
-            onClick={() => sendWhatsAppMessage('9999999999', `Hi, my order #${orderId} was rejected. Can you help?`)}
+            onClick={() => sendWhatsAppMessage(RESTAURANT_WHATSAPP, `Hi, my order #${orderId} was rejected. Can you help?`)}
             className="flex-1 bg-emerald-500 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all text-sm flex items-center justify-center gap-2"
           >
             <Phone size={18} />
@@ -282,7 +353,9 @@ export const OrderTracking: React.FC = () => {
                     fallback={STATUS_FALLBACKS[order.status] || STATUS_FALLBACKS.pending}
                   />
                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-primary text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20">
-                    {STATUS_STEPS[safeStatusIndex].label}
+                    {(order.status === 'pending' && order.utr) 
+                      ? 'Verifying Payment' 
+                      : STATUS_STEPS[safeStatusIndex].label}
                   </div>
               </div>
             </div>
@@ -294,6 +367,14 @@ export const OrderTracking: React.FC = () => {
               {STATUS_STEPS.map((step, index) => {
                 const isActive = index <= safeStatusIndex;
                 const isCurrent = index === safeStatusIndex;
+
+                let label = step.label;
+                let description = step.description;
+
+                if (step.id === 'pending' && order.status === 'pending' && order.utr) {
+                  label = 'Verifying Payment';
+                  description = 'Admin is currently verifying your UPI UTR number';
+                }
 
                 return (
                   <div key={step.id} className="relative flex items-start space-x-6">
@@ -313,9 +394,9 @@ export const OrderTracking: React.FC = () => {
                     </div>
                     <div>
                       <h3 className={cn("font-bold text-lg", isActive ? "text-white" : "text-muted")}>
-                        {step.label}
+                        {label}
                       </h3>
-                      <p className="text-muted text-sm">{step.description}</p>
+                      <p className="text-muted text-sm">{description}</p>
                     </div>
                   </div>
                 );
@@ -447,3 +528,5 @@ export const OrderTracking: React.FC = () => {
     </div>
   );
 };
+
+export default OrderTracking;

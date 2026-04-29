@@ -2,13 +2,16 @@ import React, { useState, memo } from 'react';
 import { Star, Plus, Zap, ShoppingCart, Check } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
-import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import toast from 'react-hot-toast';
 
 import { useTheme } from '../context/ThemeContext';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 interface FoodCardProps {
   item: FoodItem;
@@ -16,11 +19,36 @@ interface FoodCardProps {
 
 export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
   const { addToCart } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isFlying, setIsFlying] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { isOrderingOpen } = useAppConfig();
 
   const handleAddToCart = () => {
+    if (!user) {
+      toast.error('Please login to add items to cart', {
+        icon: '🔐',
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+    if (!isOrderingOpen) {
+      toast.error('Orders are currently closed', {
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      return;
+    }
     setIsFlying(true);
     setShowSuccess(true);
     addToCart(item);
@@ -31,8 +59,42 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
   };
 
   const handleBuyNow = () => {
+    if (!user) {
+      toast.error('Please login to buy treats', {
+        icon: '🔐',
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+    if (!isOrderingOpen) {
+      toast.error('Orders are currently closed', {
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      return;
+    }
     addToCart(item);
-    navigate('/checkout');
+    toast.success('Proceeding to checkout...', {
+      duration: 1000,
+      icon: '🚀',
+      style: {
+        borderRadius: '16px',
+        background: '#18181b',
+        color: '#fff',
+        border: '1px solid rgba(255,255,255,0.1)'
+      }
+    });
+    setTimeout(() => {
+      navigate('/checkout', { state: { fromBuyNow: true } });
+    }, 500);
   };
 
   return (
@@ -101,7 +163,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
         )}
       </div>
 
-      <div className={cn("p-6 transition-all duration-500", item.available === false && "opacity-40 grayscale-[0.5]")}>
+      <div className={cn("p-6 transition-all duration-500", (item.available === false || !isOrderingOpen) && "opacity-40 grayscale-[0.5]")}>
         <div className="flex justify-between items-start mb-3">
           <h3 className="font-black text-xl leading-tight text-white group-hover:text-orange-500 transition-colors tracking-tight">
             {item.name}
@@ -118,9 +180,9 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
         <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={handleAddToCart}
-            disabled={item.available === false || showSuccess || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
+            disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
             className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden"
-            title="Add to Cart"
+            title={!isOrderingOpen ? "Orders are currently closed" : "Add to Cart"}
           >
             <AnimatePresence mode="wait">
               {showSuccess ? (
@@ -162,8 +224,9 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
           
           <button
             onClick={handleBuyNow}
-            disabled={item.available === false || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
+            disabled={item.available === false || !isOrderingOpen || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
             className="flex-[2] py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!isOrderingOpen ? "Orders are currently closed" : "Buy Now"}
           >
             <Zap size={16} fill="currentColor" />
             <span className="text-xs font-black uppercase tracking-[0.15em]">Buy Now</span>

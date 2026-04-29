@@ -41,6 +41,9 @@
         "status": { "type": "string", "enum": ["pending", "confirmed", "out-for-delivery", "delivered", "cancelled"] },
         "address": { "type": "string" },
         "paymentMethod": { "type": "string" },
+        "utr": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "orderId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "customerName", "phone", "items", "total", "status", "address"]

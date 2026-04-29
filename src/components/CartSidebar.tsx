@@ -1,10 +1,11 @@
 import React from 'react';
-import { X, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface CartSidebarProps {
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => {
   const { cart, updateQuantity, removeFromCart, totalPrice, totalItems } = useCart();
   const navigate = useNavigate();
+  const { isOrderingOpen } = useAppConfig();
 
   return (
     <AnimatePresence>
@@ -50,6 +52,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => 
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+              {!isOrderingOpen && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500">
+                  <AlertTriangle className="shrink-0" size={20} />
+                  <p className="text-xs font-bold leading-tight">Orders are currently closed. You can preview your cart, but checkout is disabled.</p>
+                </div>
+              )}
+              
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                   <div className="w-56 h-56">
@@ -175,12 +184,14 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, onClose }) => 
                 </div>
                 <button
                   onClick={() => {
+                    if (!isOrderingOpen) return;
                     onClose();
                     navigate('/checkout');
                   }}
-                  className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95"
+                  disabled={!isOrderingOpen}
+                  className="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform active:scale-95 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed"
                 >
-                  Checkout
+                  {isOrderingOpen ? 'Checkout' : 'Checkout Closed'}
                 </button>
               </div>
             )}

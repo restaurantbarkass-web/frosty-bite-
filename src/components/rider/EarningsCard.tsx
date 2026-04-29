@@ -1,6 +1,6 @@
 import React from 'react';
 import { DollarSign, Truck, TrendingUp, Calendar } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface EarningsCardProps {
   todayEarnings: number;

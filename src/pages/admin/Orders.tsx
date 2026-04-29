@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { Filter, Search, Download, Calendar, Clock, X } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
@@ -13,26 +14,44 @@ export const Orders: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [activeTab, setActiveTab] = useState<'active' | 'verification'>('active');
   const [stats, setStats] = useState({
     pending: 0,
+    confirmed: 0,
     preparing: 0,
     out_for_delivery: 0,
     delivered: 0
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'orders'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Order[];
-      setAllOrders(ordersData);
+      
+      // Filter out UPI/Online orders that haven't submitted a UTR yet
+      const actionableOrders = ordersData.filter(o => {
+        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
+          return false;
+        }
+        return true;
+      });
+
+      // Client-side sort
+      const sortedOrders = actionableOrders.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setAllOrders(sortedOrders);
       
       const now = new Date().getTime();
       const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
       
-      const last24hOrders = ordersData.filter(o => {
+      const last24hOrders = actionableOrders.filter(o => {
         const d = o.createdAt 
           ? (typeof (o.createdAt as any).toDate === 'function' 
               ? (o.createdAt as any).toDate() 
@@ -43,6 +62,7 @@ export const Orders: React.FC = () => {
 
       setStats({
         pending: last24hOrders.filter(o => o.status === 'pending').length,
+        confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
         preparing: last24hOrders.filter(o => o.status === 'preparing').length,
         out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
         delivered: last24hOrders.filter(o => o.status === 'delivered').length,
@@ -184,11 +204,12 @@ export const Orders: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         {[
           { label: 'Pending', count: stats.pending, color: 'amber' },
+          { label: 'Confirmed', count: stats.confirmed, color: 'emerald' },
           { label: 'Preparing', count: stats.preparing, color: 'blue' },
-          { label: 'Out for Delivery', count: stats.out_for_delivery, color: 'purple' },
+          { label: 'Dispatch', count: stats.out_for_delivery, color: 'purple' },
           { label: 'Delivered', count: stats.delivered, color: 'emerald' },
         ].map((stat) => (
           <div key={stat.label} className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex items-center justify-between group hover:border-white/10 transition-all">
@@ -204,7 +225,34 @@ export const Orders: React.FC = () => {
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 group">
+        <div className="flex bg-[#111] p-1 rounded-2xl border border-white/5">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={cn(
+              "px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              activeTab === 'active' 
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" 
+                : "text-gray-500 hover:text-white"
+            )}
+          >
+            Active Orders
+          </button>
+          <button
+            onClick={() => setActiveTab('verification')}
+            className={cn(
+              "px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2",
+              activeTab === 'verification' 
+                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
+                : "text-gray-500 hover:text-white"
+            )}
+          >
+            Payment Verification
+            {allOrders.filter(o => o.paymentStatus === 'pending_verification').length > 0 && (
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            )}
+          </button>
+        </div>
+        <div className="relative flex-1 group w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors" size={18} />
           <input 
             type="text" 
@@ -214,13 +262,23 @@ export const Orders: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <button className="flex items-center gap-3 px-6 py-4 bg-[#111]/80 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all">
-          <Filter size={18} />
-          More Filters
-        </button>
       </div>
 
-      <OrdersTable orders={filteredOrders} loading={loading} />
+      <OrdersTable 
+        orders={filteredOrders.filter(o => {
+          if (activeTab === 'verification') {
+            return o.paymentStatus === 'pending_verification';
+          }
+          // Only show in active if it's NOT awaiting verification 
+          // AND if it's UPI, it should either be paid or we allow seeing pending ones?
+          // User said "before that dont show", so let's hide non-verified UPI orders from active list.
+          if (o.paymentMethod === 'upi' && (o.paymentStatus === 'pending' || o.paymentStatus === 'pending_verification')) {
+            return false;
+          }
+          return true;
+        })} 
+        loading={loading} 
+      />
     </div>
   );
 };

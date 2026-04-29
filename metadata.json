@@ -1,6 +1,6 @@
 {
   "name": "Frosty Bite",
-  "description": "Full-Featured Progressive Mobile Application for Frosty Bite Bakery. Order artisan breads, customized cakes, and bakery delicacies with real-time tracking, customer management, and mobile-optimized interfaces.",
+  "description": "Artisan bakery and frosty treats",
   "requestFramePermissions": [
     "geolocation"
   ]

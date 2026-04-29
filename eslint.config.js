@@ -2,18 +2,7 @@ import firebaseRulesPlugin from '@firebase/eslint-plugin-security-rules';
 
 export default [
   {
-    ignores: ['dist/**/*']
+    ignores: ['dist/**/*', 'build/**/*']
   },
-  {
-    files: ['**/*.rules'],
-    languageOptions: {
-      parser: firebaseRulesPlugin.preprocessors['.rules'],
-    },
-    plugins: {
-      '@firebase/security-rules': firebaseRulesPlugin,
-    },
-    rules: {
-      ...firebaseRulesPlugin.configs['flat/recommended'].rules,
-    },
-  },
+  firebaseRulesPlugin.configs['flat/recommended']
 ];

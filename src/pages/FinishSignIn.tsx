@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { authService } from '../services/authService';
 
@@ -184,3 +184,5 @@ export const FinishSignIn: React.FC = () => {
     </div>
   );
 };
+
+export default FinishSignIn;

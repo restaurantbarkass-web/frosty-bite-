@@ -11,7 +11,7 @@ import {
   DollarSign,
   MessageCircle
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 
 interface OrderCardProps {

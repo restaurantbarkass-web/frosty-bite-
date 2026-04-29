@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
@@ -10,9 +10,21 @@ import { useNotifications } from '../../context/NotificationContext';
 
 import { Order, Rider } from '../../types';
 
-const StatusBadge = ({ status }: { status: Order['status'] }) => {
+const StatusBadge = ({ order }: { order: Order }) => {
+  const { status, paymentStatus, paymentMethod } = order;
+  
+  if ((paymentMethod === 'upi' || paymentMethod === 'online') && order.utr && paymentStatus !== 'paid') {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-500 border-amber-500/20">
+        <Clock size={14} />
+        {paymentStatus === 'pending_verification' ? 'Awaiting Verification' : 'Awaiting Payment'}
+      </div>
+    );
+  }
+
   const styles = {
     'pending': 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    'confirmed': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
     'assigned': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
     'preparing': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
     'out_for_delivery': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
@@ -22,6 +34,7 @@ const StatusBadge = ({ status }: { status: Order['status'] }) => {
 
   const icons = {
     'pending': <Clock size={14} />,
+    'confirmed': <CheckCircle2 size={14} />,
     'preparing': <Package size={14} />,
     'out_for_delivery': <Truck size={14} />,
     'delivered': <CheckCircle2 size={14} />,
@@ -30,6 +43,7 @@ const StatusBadge = ({ status }: { status: Order['status'] }) => {
 
   const labels = {
     'pending': 'Pending',
+    'confirmed': 'Confirmed (Paid)',
     'preparing': 'Preparing',
     'out_for_delivery': 'Out for Delivery',
     'delivered': 'Delivered',
@@ -37,9 +51,9 @@ const StatusBadge = ({ status }: { status: Order['status'] }) => {
   };
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${styles[status]}`}>
-      {icons[status]}
-      {labels[status]}
+    <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold ${styles[status as keyof typeof styles] || styles.pending}`}>
+      {icons[status as keyof typeof icons] || icons.pending}
+      {labels[status as keyof typeof labels] || labels.pending}
     </div>
   );
 };
@@ -71,6 +85,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     customerName: '',
     phone: '',
     address: '',
+    notes: '',
     estimatedDeliveryTime: 30
   });
 
@@ -187,10 +202,42 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     };
   }, [orders, isMuted]);
 
+  const verifyPayment = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), {
+        paymentStatus: 'paid',
+        status: 'confirmed' // Auto-confirm after admin verifies payment
+      });
+      toast.success('Payment verified & Order confirmed!');
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+      toast.error('Failed to verify payment');
+    }
+  };
+
+  const rejectPayment = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'orders', id), {
+        paymentStatus: 'pending', // Reset payment status
+        status: 'cancelled', // Cancel the order as proof was invalid
+        notes: "Admin rejected payment proof (UTR). Please contact support or re-order."
+      });
+      toast.error('Payment rejected & Order cancelled');
+    } catch (error: any) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
+      toast.error('Failed to reject payment');
+    }
+  };
+
   const updateStatus = async (id: string, newStatus: Order['status']) => {
     try {
       const order = orders.find(o => o.id === id);
       const updateData: any = { status: newStatus };
+      
+      // Auto-set payment status to paid if admin accepts a UPI order with UTR
+      if (newStatus === 'confirmed' && order?.utr) {
+        updateData.paymentStatus = 'paid';
+      }
       
       // Add default estimate if not present
       if (order && !order.estimatedDeliveryTime) {
@@ -393,12 +440,27 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       <span className="text-sm font-semibold text-gray-200">{order.customerName}</span>
                       {order.phone && (
                         <button 
-                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customerName}, this is Frosty Bite Bakery regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
+                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customerName}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
                           className="flex items-center gap-1 text-[10px] text-emerald-500 hover:text-emerald-400 font-bold"
                         >
                           <MessageCircle size={10} />
                           {order.phone}
                         </button>
+                      )}
+                      {order.utr && (
+                        <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
+                          <CheckCircle2 size={10} className="text-primary" />
+                          <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
+                            UTR: {order.utr}
+                          </span>
+                        </div>
+                      )}
+                      {order.notes && (
+                        <div className="mt-1 max-w-[200px]">
+                          <p className="text-[10px] text-amber-500 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10 italic">
+                            NB: {order.notes}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -413,10 +475,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                   </div>
                 </td>
                 <td className="px-8 py-6">
-                  <span className="text-sm font-bold text-white">₹{order.total}</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-white">₹{order.total}</span>
+                    {order.discount && order.discount > 0 && (
+                      <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
+                        -₹{order.discount} ({order.couponCode})
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-8 py-6">
-                  <StatusBadge status={order.status} />
+                  <StatusBadge order={order} />
                 </td>
                 <td className="px-8 py-6">
                   <select 
@@ -431,24 +500,59 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                   </select>
                 </td>
                 <td className="px-8 py-6">
-                  <div className="flex items-center gap-2">
-                    {order.status === 'pending' && (
-                      <div className="flex items-center gap-2 mr-2">
-                        <button 
-                          onClick={() => updateStatus(order.id, 'preparing')}
-                          className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          onClick={() => updateStatus(order.id, 'cancelled')}
-                          className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                    <button 
+                    <div className="flex items-center gap-2">
+                      {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
+                        <div className="flex items-center gap-2 mr-2">
+                          {order.utr && (
+                            <>
+                              <button 
+                                onClick={() => verifyPayment(order.id)}
+                                className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                              >
+                                <CheckCircle2 size={12} />
+                                Accept (Verify UTR: {order.utr})
+                              </button>
+                              <button 
+                                onClick={() => rejectPayment(order.id)}
+                                className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 flex items-center gap-2"
+                              >
+                                <X size={12} />
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          {order.status === 'pending' && (
+                            <div className="flex items-center gap-2 mr-2">
+                              <button 
+                                onClick={() => updateStatus(order.id, 'confirmed')}
+                                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                              >
+                                Accept Order
+                              </button>
+                              <button 
+                                onClick={() => updateStatus(order.id, 'cancelled')}
+                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {order.status === 'confirmed' && (
+                        <div className="flex items-center gap-2 mr-2">
+                          <button 
+                            onClick={() => updateStatus(order.id, 'preparing')}
+                            className="px-3 py-1.5 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20"
+                          >
+                            Start Cooking
+                          </button>
+                        </div>
+                      )}
+                      <button 
                       onClick={() => handlePrintKOT(order)}
                       className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-emerald-500 hover:bg-white/10 transition-all"
                       title="Print KOT"
@@ -462,6 +566,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                           customerName: order.customerName,
                           phone: order.phone || '',
                           address: order.address || '',
+                          notes: order.notes || '',
                           estimatedDeliveryTime: order.estimatedDeliveryTime || 30
                         });
                       }}
@@ -496,18 +601,30 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                               { id: 'out_for_delivery', label: 'Out for Delivery' },
                               { id: 'delivered', label: 'Delivered' },
                               { id: 'cancelled', label: 'Cancelled' }
-                            ].map((s) => (
-                              <button
-                                key={s.id}
-                                onClick={() => {
-                                  updateStatus(order.id, s.id as Order['status']);
-                                  setSelectedOrder(null);
-                                }}
-                                className="w-full text-left px-4 py-3 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-                              >
-                                Mark as {s.label}
-                              </button>
-                            ))}
+                            ].map((s) => {
+                              const isUnpaidUPI = (order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid';
+                              // Only allow cancelling unpaid UPI orders
+                              const isDisabled = isUnpaidUPI && s.id !== 'cancelled';
+                              
+                              return (
+                                <button
+                                  key={s.id}
+                                  disabled={isDisabled}
+                                  onClick={() => {
+                                    updateStatus(order.id, s.id as Order['status']);
+                                    setSelectedOrder(null);
+                                  }}
+                                  className={`w-full text-left px-4 py-3 text-xs font-semibold transition-all ${
+                                    isDisabled 
+                                      ? "text-gray-700 cursor-not-allowed bg-black/10" 
+                                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                                  }`}
+                                  title={isDisabled ? "Payment verification required" : ""}
+                                >
+                                  Mark as {s.label}
+                                </button>
+                              );
+                            })}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -533,7 +650,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
           <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-primary uppercase font-mono">#{order.id.slice(-6)}</span>
-              <StatusBadge status={order.status} />
+              <StatusBadge order={order} />
             </div>
             
             <div className="flex items-center gap-3">
@@ -543,6 +660,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
               <div className="flex flex-col">
                 <span className="text-sm font-black text-white">{order.customerName}</span>
                 <span className="text-xs text-gray-500">{order.phone}</span>
+                {order.utr && (
+                  <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
+                    <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
+                      UTR: {order.utr}
+                    </span>
+                  </div>
+                )}
+                {order.notes && (
+                  <p className="mt-2 text-[10px] text-amber-500 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10 italic">
+                    Note: {order.notes}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -555,7 +684,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-white/5">
-              <span className="text-lg font-black text-white">₹{order.total}</span>
+              <div className="flex flex-col">
+                <span className="text-lg font-black text-white">₹{order.total}</span>
+                {order.discount && order.discount > 0 && (
+                  <span className="text-[10px] text-primary font-black uppercase tracking-widest">
+                    -₹{order.discount} ({order.couponCode})
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => handlePrintKOT(order)}
@@ -564,16 +700,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 >
                   <Printer size={18} />
                 </button>
-                <button 
-                  onClick={() => {
-                    setEditingOrder(order);
-                    setEditFormData({
-                      customerName: order.customerName,
-                      phone: order.phone || '',
-                      address: order.address || '',
-                      estimatedDeliveryTime: order.estimatedDeliveryTime || 30
-                    });
-                  }}
+                    <button 
+                      onClick={() => {
+                        setEditingOrder(order);
+                        setEditFormData({
+                          customerName: order.customerName,
+                          phone: order.phone || '',
+                          address: order.address || '',
+                          notes: order.notes || '',
+                          estimatedDeliveryTime: order.estimatedDeliveryTime || 30
+                        });
+                      }}
                   className="p-3 rounded-xl bg-white/10 text-white"
                   title="Edit Info"
                 >
@@ -613,18 +750,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       { id: 'out_for_delivery', label: 'Dispatch', color: 'bg-purple-500' },
                       { id: 'delivered', label: 'Delivered', color: 'bg-emerald-500' },
                       { id: 'cancelled', label: 'Cancel', color: 'bg-red-500' }
-                    ].map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          updateStatus(order.id, s.id as Order['status']);
-                          setSelectedOrder(null);
-                        }}
-                        className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white ${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
+                    ].map((s) => {
+                      const isUnpaidUPI = (order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid';
+                      const isDisabled = isUnpaidUPI && s.id !== 'cancelled';
+                      
+                      return (
+                        <button
+                          key={s.id}
+                          disabled={isDisabled}
+                          onClick={() => {
+                            updateStatus(order.id, s.id as Order['status']);
+                            setSelectedOrder(null);
+                          }}
+                          className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all ${
+                            isDisabled 
+                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" 
+                              : `${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="space-y-2">
@@ -644,19 +791,55 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
               )}
             </AnimatePresence>
             
-            {order.status === 'pending' && selectedOrder !== order.id && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
+            {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
+              <div className="pt-2 space-y-2">
+                {order.utr && (
+                  <>
+                    <button 
+                      onClick={() => verifyPayment(order.id)}
+                      className="w-full py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 size={16} />
+                      Accept Order (UTR: {order.utr})
+                    </button>
+                    <button 
+                      onClick={() => rejectPayment(order.id)}
+                      className="w-full py-4 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <X size={16} />
+                      Reject Order
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                {order.status === 'pending' && selectedOrder !== order.id && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <button 
+                      onClick={() => updateStatus(order.id, 'confirmed')}
+                      className="py-3 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                    >
+                      Accept Order
+                    </button>
+                    <button 
+                      onClick={() => updateStatus(order.id, 'cancelled')}
+                      className="py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {order.status === 'confirmed' && selectedOrder !== order.id && (
+              <div className="pt-2">
                 <button 
                   onClick={() => updateStatus(order.id, 'preparing')}
-                  className="py-3 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                  className="w-full py-3 bg-blue-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
                 >
-                  Accept
-                </button>
-                <button 
-                  onClick={() => updateStatus(order.id, 'cancelled')}
-                  className="py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
-                >
-                  Reject
+                  Start Cooking
                 </button>
               </div>
             )}
@@ -717,7 +900,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       required
                       value={editFormData.address}
                       onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-24 resize-none" 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Order Notes (Optional)</label>
+                    <textarea 
+                      value={editFormData.notes}
+                      onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none" 
                     />
                   </div>
 

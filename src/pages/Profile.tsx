@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -474,7 +474,7 @@ export const Profile: React.FC = () => {
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    placeholder="e.g. +91 98765 43210"
+                    placeholder="e.g. +91 77358 00239"
                     className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold" 
                   />
                 </div>
@@ -626,3 +626,5 @@ export const Profile: React.FC = () => {
     </div>
   );
 };
+
+export default Profile;

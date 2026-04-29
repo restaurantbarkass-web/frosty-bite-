@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Search, MapPin, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { MENU_ITEMS, CATEGORIES } from '../constants';
@@ -11,6 +11,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 import { ReviewsSection } from '../components/ReviewsSection';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 // Home Page Component
 export const Home: React.FC = () => {
@@ -23,7 +24,7 @@ export const Home: React.FC = () => {
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
   const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const { isOrderingOpen } = useAppConfig();
 
   useEffect(() => {
     // Notify App component about search state to hide/show navigation
@@ -51,13 +52,6 @@ export const Home: React.FC = () => {
       }, 500);
     }
   }, [location.search]);
-
-  useEffect(() => {
-    const unsubscribe = appConfigService.subscribeToConfig((data) => {
-      setConfig(data);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const q = collection(db, 'menu');
@@ -356,7 +350,7 @@ export const Home: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}
         <AnimatePresence>
-          {config && !config.isOrderingOpen && (
+          {!isOrderingOpen && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -456,10 +450,10 @@ export const Home: React.FC = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 text-gray-400">
         <div className="glass-dark p-8 md:p-12 rounded-[40px] border border-white/5">
           <h1 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase mb-6">
-            Welcome to Frosty Bite Bakery in Cuttack – Fresh Bakery, Cakes & Pastries
+            Welcome to Frosty Bite – Artisan Bakery & Frosty Treats
           </h1>
           <p className="text-lg leading-relaxed mb-12 max-w-4xl">
-            Frosty Bite Bakery is your perfect destination for fresh bakery items, delicious cakes, and mouth-watering pastries in Cuttack. 
+            Frosty Bite is your perfect destination for artisan bakery items, delicious cakes, and mouth-watering frosty treats. 
             We prepare every treat with high-quality ingredients to give you the best taste and experience.
           </p>
 
@@ -492,12 +486,12 @@ export const Home: React.FC = () => {
             <div>
               <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-6 flex items-center gap-3">
                 <span className="w-8 h-[2px] bg-primary"></span>
-                Why Choose Frosty Bite Bakery?
+                Why Choose Frosty Bite?
               </h2>
               <p className="text-gray-300 leading-relaxed text-base italic">
-                At Frosty Bite Bakery, we focus on quality, freshness, and customer satisfaction. 
-                Whether it's a birthday cake or a sweet pastry craving, we ensure every order is made with care and delivered fresh to your doorstep in Cuttack. 
-                Our commitment to excellence makes us the top-rated bakery in Cuttack.
+                At Frosty Bite, we focus on quality, freshness, and customer satisfaction. 
+                Whether it's a birthday cake or a sweet pastry craving, we ensure every order is made with care and delivered fresh to your doorstep. 
+                Our commitment to excellence makes us the top-rated artisan bakery.
               </p>
             </div>
           </div>
@@ -505,11 +499,11 @@ export const Home: React.FC = () => {
           <div className="mt-16 pt-12 border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="max-w-2xl">
               <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-4">
-                Order Your Favorite Treats in Cuttack
+                Order Your Favorite Treats
               </h2>
               <p className="text-gray-400 leading-relaxed">
-                Browse our complete bakery collection and order cakes and pastries online for delivery in Cuttack. 
-                Enjoy fast delivery and make every moment special with Frosty Bite Bakery. From our oven to your heart, we promise a delightful experience.
+                Browse our complete bakery collection and order cakes and pastries online. 
+                Enjoy fast delivery and make every moment special with Frosty Bite. From our oven to your heart, we promise a delightful experience.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -538,3 +532,5 @@ export const Home: React.FC = () => {
     </div>
   );
 };
+
+export default Home;

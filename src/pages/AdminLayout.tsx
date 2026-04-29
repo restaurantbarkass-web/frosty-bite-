@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
-import { Dashboard } from './admin/Dashboard';
-import { Orders } from './admin/Orders';
-import { Menu } from './admin/Menu';
-import { Riders } from './admin/Riders';
-import { Analytics } from './admin/Analytics';
-import { Coupons } from './admin/Coupons';
-import { Customers } from './admin/Customers';
-import { ThemeSettings } from './admin/ThemeSettings';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { requestForToken, onMessageListener } from '../utils/messaging';
 import toast from 'react-hot-toast';
+
+const Dashboard = lazy(() => import('./admin/Dashboard').then(m => ({ default: m.Dashboard })));
+const Orders = lazy(() => import('./admin/Orders').then(m => ({ default: m.Orders })));
+const Menu = lazy(() => import('./admin/Menu').then(m => ({ default: m.Menu })));
+const Analytics = lazy(() => import('./admin/Analytics').then(m => ({ default: m.Analytics })));
+const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Coupons })));
+const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
+const ThemeSettings = lazy(() => import('./admin/ThemeSettings').then(m => ({ default: m.ThemeSettings })));
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -81,18 +81,26 @@ export const AdminLayout: React.FC = () => {
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
         <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar">
           <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-            >
-              {renderContent()}
-            </motion.div>
+            <Suspense fallback={
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            }>
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+              >
+                {renderContent()}
+              </motion.div>
+            </Suspense>
           </AnimatePresence>
         </main>
       </div>
     </div>
   );
 };
+
+export default AdminLayout;

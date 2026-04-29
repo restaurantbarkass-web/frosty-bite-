@@ -21,7 +21,7 @@ export interface Order {
   customerName: string;
   items: any[];
   total: number;
-  status: 'pending' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   assignedRiderId?: string;
   riderId?: string;
   riderName?: string;
@@ -35,8 +35,11 @@ export interface Order {
   phone: string;
   deliveryOtp?: string;
   notes?: string;
-  paymentMethod?: 'cash' | 'online';
-  paymentStatus?: 'pending' | 'paid';
+  paymentMethod?: 'cash' | 'online' | 'upi' | 'cod';
+  paymentStatus?: 'pending' | 'paid' | 'pending_verification';
+  utr?: string;
+  discount?: number;
+  couponCode?: string | null;
   deliveryCharge?: number;
   subtotal?: number;
   gst?: number;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Search, User, LogOut } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { logout } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -12,24 +12,28 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
 import { RESTAURANT_WHATSAPP } from './constants';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './lib/utils';
+import { Instagram, MessageCircle } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 // Lazy load pages for performance
-const Home = lazy(() => import('./pages/HomePage').then(m => ({ default: m.Home })));
-const Checkout = lazy(() => import('./pages/Checkout').then(m => ({ default: m.Checkout })));
-const OrderTracking = lazy(() => import('./pages/OrderTracking').then(m => ({ default: m.OrderTracking })));
-const AdminLayout = lazy(() => import('./pages/AdminLayout').then(m => ({ default: m.AdminLayout })));
-const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
-const RiderPanel = lazy(() => import('./pages/RiderPanel').then(m => ({ default: m.RiderPanel })));
-const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
-const Signup = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
+import Home from './pages/HomePage';
+const Checkout = lazy(() => import('./pages/Checkout'));
+const UPICheckout = lazy(() => import('./pages/UPICheckout'));
+const OrderTracking = lazy(() => import('./pages/OrderTracking'));
+const AdminLayout = lazy(() => import('./pages/AdminLayout'));
+const Profile = lazy(() => import('./pages/Profile'));
+const RiderPanel = lazy(() => import('./pages/RiderPanel'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const FinishSignIn = lazy(() => import('./pages/FinishSignIn').then(m => ({ default: m.FinishSignIn })));
-const ProductDetail = lazy(() => import('./pages/ProductDetail').then(m => ({ default: m.ProductDetail })));
-const Orders = lazy(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
+const FinishSignIn = lazy(() => import('./pages/FinishSignIn'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const Orders = lazy(() => import('./pages/Orders'));
 
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
@@ -38,10 +42,14 @@ function AppContent() {
   const [isSearching, setIsSearching] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash only once per session
-    if (typeof window !== 'undefined') {
-      return !sessionStorage.getItem('splash_seen');
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        return !sessionStorage.getItem('splash_seen');
+      }
+    } catch (e) {
+      console.warn('sessionStorage access failed:', e);
     }
-    return true;
+    return false; // Default to false if we can't check, to avoid stuck splash
   });
 
   const location = useLocation();
@@ -59,10 +67,10 @@ function AppContent() {
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage;
 
-  const handleSplashComplete = () => {
+  const handleSplashComplete = useCallback(() => {
     sessionStorage.setItem('splash_seen', 'true');
     setShowSplash(false);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -89,15 +97,16 @@ function AppContent() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/finish-sign-in" element={<FinishSignIn />} />
             <Route path="/checkout" element={
-              <ProtectedRoute allowedRoles={['customer', 'admin']}>
+              <ProtectedRoute>
                 <Checkout />
               </ProtectedRoute>
             } />
-            <Route path="/order-tracking/:orderId" element={
+            <Route path="/upi-checkout/:orderId" element={
               <ProtectedRoute>
-                <OrderTracking />
+                <UPICheckout />
               </ProtectedRoute>
             } />
+            <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
             <Route path="/admin/*" element={
               <ProtectedRoute allowedRoles={['admin']} autoLogout={true}>
                 <AdminLayout />
@@ -125,25 +134,55 @@ function AppContent() {
 
       {!hideNavFooter && (
         <footer className={cn(
-          "border-t border-border py-12 bg-secondary/20",
-          "pb-40 md:py-12" // Extra padding for footer too on mobile
+          "border-t border-border bg-secondary/10",
+          "pb-44 md:pb-0" // Extra padding for BottomNav on mobile
         )}>
-          <div className="max-w-7xl mx-auto px-4 text-center">
-            <div className="flex items-center justify-center mb-6">
-              <Logo size="sm" />
+          <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-12">
+              <div className="space-y-6 text-center md:text-left">
+                <Logo size="sm" />
+                <p className="text-muted-foreground text-sm max-w-xs mx-auto md:mx-0 leading-relaxed">
+                  Artisan bakery and frosty treats crafted with love. Experience the perfect blend of warmth and chill.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4">
+                <a 
+                  href="https://www.instagram.com/frosty_bite07?igsh=dXpqZXE0Y2pvOWt0" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="group flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all underline-offset-4 hover:underline"
+                >
+                  <Instagram size={14} className="group-hover:scale-110 transition-transform" />
+                  Instagram
+                </a>
+                <a 
+                  href={`https://wa.me/${RESTAURANT_WHATSAPP}`} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="group flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all underline-offset-4 hover:underline"
+                >
+                  <MessageCircle size={14} className="group-hover:scale-110 transition-transform" />
+                  Support
+                </a>
+                <a href="#" className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all underline-offset-4 hover:underline">
+                  Privacy
+                </a>
+                <a href="#" className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all underline-offset-4 hover:underline">
+                  Terms
+                </a>
+              </div>
             </div>
-            <p className="text-muted text-sm">© 2026 Frosty Bite Bakery. All rights reserved.</p>
-            <div className="flex justify-center space-x-6 mt-6 text-muted text-xs uppercase tracking-widest font-bold">
-              <a href="#" className="hover:text-primary transition-colors">Privacy</a>
-              <a href="#" className="hover:text-primary transition-colors">Terms</a>
-              <a 
-                href={`https://wa.me/${RESTAURANT_WHATSAPP}`} 
-                target="_blank" 
-                rel="noreferrer"
-                className="hover:text-primary transition-colors flex items-center gap-1"
-              >
-                Support 💬
-              </a>
+
+            <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+              <p className="text-muted-foreground/60 text-[10px] font-medium uppercase tracking-widest">
+                © 2026 Frosty Bite. Crafted for excellence.
+              </p>
+              <div className="flex items-center gap-4 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+                <span>Safe & Secure Payments</span>
+                <span className="w-1 h-1 bg-border rounded-full" />
+                <span>Fast Delivery</span>
+              </div>
             </div>
           </div>
         </footer>
@@ -181,8 +220,6 @@ function AppContent() {
     </div>
   );
 }
-
-import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   return (

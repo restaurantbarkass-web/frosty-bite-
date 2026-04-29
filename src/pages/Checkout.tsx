@@ -1,194 +1,330 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  CreditCard, 
+  Truck, 
+  ShieldCheck, 
+  ShoppingBag,
+  ChevronRight,
+  Wallet,
+  HandCoins,
+  CheckCircle2,
+  ChevronLeft,
+  User,
+  Phone,
+  MapPin,
+  Loader2,
+  QrCode,
+  X,
+  Zap,
+  Ticket,
+  Check,
+  AlertTriangle
+} from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'motion/react';
-import { MapPin, CreditCard, Smartphone, ChevronRight, CheckCircle2, ShoppingBag, Tag, X, Sparkles, AlertTriangle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, doc, increment } from 'firebase/firestore';
-import { assignRider } from '../services/riderAssignmentService';
-import { sendWhatsAppMessage } from "../utils/whatsapp";
-import { RESTAURANT_WHATSAPP } from '../constants';
-import { appConfigService, AppConfig } from '../services/appConfigService';
-
-const SuccessOverlay: React.FC<{ orderId: string }> = ({ orderId }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-black overflow-hidden"
-    >
-      {/* Background Particles */}
-      <div className="absolute inset-0 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ 
-              x: Math.random() * window.innerWidth, 
-              y: window.innerHeight + 100,
-              scale: Math.random() * 0.5 + 0.5,
-              opacity: 0.8
-            }}
-            animate={{ 
-              y: -100,
-              rotate: 360,
-              opacity: 0
-            }}
-            transition={{ 
-              duration: Math.random() * 2 + 2, 
-              repeat: Infinity,
-              delay: Math.random() * 2
-            }}
-            className="absolute w-2 h-2 bg-primary rounded-full"
-          />
-        ))}
-      </div>
-
-      <div className="relative z-10 text-center px-4">
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", damping: 12, stiffness: 100, delay: 0.2 }}
-          className="w-32 h-32 bg-primary rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(249,115,22,0.4)]"
-        >
-          <CheckCircle2 size={64} className="text-white" />
-        </motion.div>
-
-        <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-white mb-4 italic uppercase">
-            Order <span className="text-primary">Confirmed</span>
-          </h1>
-          <p className="text-xl text-muted font-medium mb-8">
-            Your Frosty Bite treats are being prepared.
-          </p>
-          
-          <div className="inline-flex items-center gap-3 px-6 py-3 bg-secondary/50 border border-border rounded-2xl backdrop-blur-xl">
-            <ShoppingBag size={20} className="text-primary" />
-            <span className="text-sm font-bold tracking-widest uppercase text-white">
-              Order ID: <span className="text-primary">{orderId}</span>
-            </span>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Decorative Logo */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.1 }}
-        className="absolute bottom-[-10%] left-[-5%] w-[50vw] pointer-events-none select-none flex items-center justify-center"
-      >
-        <img 
-          src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
-          alt="" 
-          className="w-full h-auto object-contain grayscale brightness-0 invert"
-          referrerPolicy="no-referrer"
-        />
-      </motion.div>
-    </motion.div>
-  );
-};
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, doc, updateDoc, increment } from 'firebase/firestore';
+import toast from 'react-hot-toast';
+import { cn } from '../lib/utils';
+import { OrderConfirmation } from '../components/OrderConfirmation';
+import { openWhatsAppOrder } from '../utils/whatsapp';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 export const Checkout: React.FC = () => {
-  const { cart, totalPrice, subtotal, discount, appliedCoupon, applyCoupon, removeCoupon, clearCart } = useCart();
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [confirmedOrderId, setConfirmedOrderId] = useState('');
-  const [address, setAddress] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod' | null>('upi');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const location = useLocation();
+  const { cart, subtotal: cartSubtotal, clearCart } = useCart();
+  const { user } = useAuth();
+  const { isOrderingOpen } = useAppConfig();
+  const [isOrdering, setIsOrdering] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
+
+  const deliverySectionRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLTextAreaElement>(null);
+
+  const [formData, setFormData] = useState({
+    name: user?.displayName || '',
+    phone: '',
+    address: '',
+    notes: '',
+    paymentMethod: 'upi' as 'upi' | 'cod'
+  });
   const [isLocating, setIsLocating] = useState(false);
+  const [isHighlighted, setIsHighlighted] = useState(false);
   const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ 
+    id: string;
+    code: string; 
+    value: number; 
+    type: 'percentage' | 'fixed' 
+  } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
-  const [showCouponSuccess, setShowCouponSuccess] = useState(false);
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (error && errorRef.current) {
-      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [error]);
-
-  useEffect(() => {
-    const unsubscribe = appConfigService.subscribeToConfig((data) => {
-      setConfig(data);
-    });
-    return () => unsubscribe();
-  }, []);
+  const subtotal = cartSubtotal;
+  const discountAmount = appliedCoupon 
+    ? (appliedCoupon.type === 'percentage' 
+        ? (subtotal * appliedCoupon.value) / 100 
+        : appliedCoupon.value)
+    : 0;
+  const finalPrice = Math.max(0, subtotal - discountAmount);
 
   const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
+    const trimmedCode = couponCode.trim();
+    if (!trimmedCode) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
     
     setIsApplyingCoupon(true);
-    setCouponError(null);
-    
+    // Artificial delay for professional feel
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     try {
+      const code = trimmedCode.toUpperCase();
+      
+      const couponsRef = collection(db, 'coupons');
       const q = query(
-        collection(db, 'coupons'), 
-        where('code', '==', couponCode.toUpperCase()),
-        where('status', '==', 'active')
+        couponsRef, 
+        where('code', '==', code),
+        where('status', '==', 'active'),
+        limit(1)
       );
       
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        setCouponError('Invalid or expired coupon code');
+        toast.error('Invalid or expired coupon code');
         setIsApplyingCoupon(false);
         return;
       }
 
       const couponDoc = querySnapshot.docs[0];
-      const couponData = { id: couponDoc.id, ...couponDoc.data() } as any;
-
+      const couponData = couponDoc.data();
+      
       // Validate expiry
-      const now = new Date();
-      const expiry = new Date(couponData.expiryDate);
-      if (expiry < now) {
-        setCouponError('This coupon has expired');
-        setIsApplyingCoupon(false);
-        return;
-      }
-
-      // Validate usage limit
-      if (couponData.usageCount >= couponData.usageLimit) {
-        setCouponError('Coupon usage limit reached');
+      const expiryDate = new Date(couponData.expiryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (expiryDate < today) {
+        toast.error('This coupon has expired');
         setIsApplyingCoupon(false);
         return;
       }
 
       // Validate min order
       if (subtotal < couponData.minOrder) {
-        setCouponError(`Minimum order of ₹${couponData.minOrder} required`);
+        toast.error(`Minimum order ₹${couponData.minOrder} required for this coupon`);
         setIsApplyingCoupon(false);
         return;
       }
 
-      applyCoupon(couponData);
-      setShowCouponSuccess(true);
+      // Validate usage limit
+      if (couponData.usageLimit > 0 && couponData.usageCount >= couponData.usageLimit) {
+        toast.error('This coupon has reached its usage limit');
+        setIsApplyingCoupon(false);
+        return;
+      }
+
+      // If all checks pass
+      setAppliedCoupon({ 
+        id: couponDoc.id,
+        code: couponData.code, 
+        value: couponData.value,
+        type: couponData.type
+      });
+
+      const discountDisplay = couponData.type === 'percentage' ? `${couponData.value}%` : `₹${couponData.value}`;
+      toast.success(`${discountDisplay} discount applied!`, { icon: '🎉' });
+      
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#F97316', '#FFFFFF', '#DBEAFE']
+      });
+      
       setCouponCode('');
-      setTimeout(() => setShowCouponSuccess(false), 3000);
-    } catch (err) {
-      console.error('Error applying coupon:', err);
-      setCouponError('Failed to apply coupon');
+    } catch (error) {
+      console.error('Error applying coupon:', error);
+      handleFirestoreError(error, OperationType.GET, 'coupons');
+      toast.error('Failed to validate coupon');
     } finally {
       setIsApplyingCoupon(false);
     }
   };
 
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    toast.success('Coupon removed');
+  };
+
+  // Handle smooth scroll if coming from Buy Now
+  useEffect(() => {
+    if (location.state?.fromBuyNow && deliverySectionRef.current) {
+      const timer = setTimeout(() => {
+        deliverySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setIsHighlighted(true);
+        setTimeout(() => nameRef.current?.focus(), 800);
+        setTimeout(() => setIsHighlighted(false), 3000);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
+
+  if (cart.length === 0 && !showConfirmation) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-6 bg-cream">
+        <div className="w-24 h-24 rounded-full bg-secondary flex items-center justify-center text-primary">
+          <ShoppingBag size={40} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-black text-chocolate uppercase italic tracking-tight">Your Cart is Empty</h2>
+          <p className="text-gray-500">Looks like you haven't added any treats yet!</p>
+        </div>
+        <button 
+          onClick={() => navigate('/')}
+          className="btn-premium"
+        >
+          Browse Bakery
+        </button>
+      </div>
+    );
+  }
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isOrdering) return;
+
+    if (!isOrderingOpen) {
+      toast.error('Orders are currently closed. Please try again later.');
+      return;
+    }
+    
+    if (!formData.name) {
+      toast.error('Please enter your full name');
+      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      nameRef.current?.focus();
+      return;
+    }
+    
+    if (!formData.phone || formData.phone.length < 10) {
+      toast.error('Please enter a valid 10-digit phone number');
+      phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      phoneRef.current?.focus();
+      return;
+    }
+    
+    if (!formData.address) {
+      toast.error('Please enter your delivery address');
+      addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      addressRef.current?.focus();
+      return;
+    }
+
+    setIsOrdering(true);
+    try {
+      const orderData = {
+        userId: user?.uid || 'guest',
+        items: cart.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        })),
+        subtotal: subtotal,
+        discount: discountAmount,
+        couponCode: appliedCoupon?.code || null,
+        total: finalPrice,
+        status: 'pending',
+        paymentMethod: formData.paymentMethod,
+        paymentStatus: formData.paymentMethod === 'upi' ? 'pending_verification' : 'pending',
+        address: formData.address,
+        phone: formData.phone,
+        customerName: formData.name,
+        notes: formData.notes,
+        createdAt: serverTimestamp(),
+      };
+
+      let docRef;
+      try {
+        docRef = await addDoc(collection(db, 'orders'), orderData);
+        
+        // Increment coupon usage count if applied
+        if (appliedCoupon?.id) {
+          try {
+            const couponRef = doc(db, 'coupons', appliedCoupon.id);
+            await updateDoc(couponRef, {
+              usageCount: increment(1)
+            });
+          } catch (err) {
+            console.error('Failed to increment coupon usage:', err);
+            // Non-blocking for the order itself
+          }
+        }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.CREATE, 'orders');
+      }
+      
+      if (formData.paymentMethod === 'upi' && docRef) {
+        navigate(`/upi-checkout/${docRef.id}`, { 
+          state: { 
+            orderId: docRef.id,
+            totalPrice: finalPrice,
+            name: formData.name,
+            phone: formData.phone,
+            address: formData.address,
+            notes: formData.notes,
+            discount: discountAmount,
+            couponCode: appliedCoupon?.code,
+            scrollToQR: true
+          } 
+        });
+      } else {
+        // COD Success
+        const orderSummary = {
+          orderId: docRef.id,
+          customerName: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          notes: formData.notes,
+          method: 'cod' as const,
+          amount: finalPrice,
+          discount: discountAmount,
+          couponCode: appliedCoupon?.code,
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image
+          })),
+          estimatedDelivery: 45 // Default estimate
+        };
+        
+        setConfirmedOrder(orderSummary);
+        setShowConfirmation(true);
+        openWhatsAppOrder(orderSummary);
+        clearCart();
+      }
+    } catch (error) {
+      console.error('Order failed:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setIsOrdering(false);
+    }
+  };
+
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
-      setError('Geolocation is not supported by your browser');
+      toast.error("Geolocation is not supported by your browser");
       return;
     }
 
@@ -197,427 +333,430 @@ export const Checkout: React.FC = () => {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          setAddress(`Located via GPS: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-          setIsLocating(false);
-          setError(null);
-        } catch (err) {
-          setError('Failed to get your location details');
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+          );
+          const data = await response.json();
+          
+          if (data.display_name) {
+            setFormData(prev => ({ ...prev, address: data.display_name }));
+            toast.success("Location updated!");
+          } else {
+            toast.error("Could not find address for your location");
+          }
+        } catch (error) {
+          toast.error("Error fetching address. Please enter manually.");
+        } finally {
           setIsLocating(false);
         }
       },
-      (err) => {
-        setError('Please enable location permissions to use this feature');
+      (error) => {
         setIsLocating(false);
-      }
+        if (error.code === 1) {
+          toast.error("Location permission denied. Please enable it in browser settings.");
+        } else {
+          toast.error("Error getting location. Please enter manually.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
 
-  const handleOrderSuccess = (order: any) => {
-    const itemsList = order.items.map((item: any) => `- ${item.name} x ${item.quantity} (₹${item.price * item.quantity})`).join('\n');
-    
-    const message = `
-🧁 *Frosty Bite Order Confirmed!*
-
-*Customer Details:*
-Name: ${order.customerName}
-Phone: ${order.phone}
-Address: ${order.address}
-Payment: ${order.paymentMethod.toUpperCase()}
-
-*Order Summary:*
-${itemsList}
-
-*Total Amount: ₹${order.total}*
-
-Order ID: ${order.id || 'Pending'}
-Thank you for choosing Frosty Bite! 🥯
-    `;
-
-    sendWhatsAppMessage(RESTAURANT_WHATSAPP, message);
-  };
-
-  const handlePlaceOrder = async () => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    if (config && !config.isOrderingOpen) {
-      setError('🚫 Online orders are currently closed. Please try again later.');
-      return;
-    }
-
-    if (!fullName.trim() || !phone.trim() || !address.trim() || !paymentMethod) {
-      setError('Please fill in all mandatory fields: Name, Phone, Address, and Payment Method.');
-      return;
-    }
-
-    if (phone.trim().length < 10) {
-      setError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-
-    setError(null);
-    setIsProcessing(true);
-    try {
-      const deliveryLocation = {
-        lat: 17.3850 + (Math.random() - 0.5) * 0.01,
-        lng: 78.4867 + (Math.random() - 0.5) * 0.01
-      };
-
-      const gstAmount = Math.round(totalPrice * 0.05);
-      const deliveryCharge = 0; // Currently free
-
-      const orderData = {
-        userId: user.uid,
-        customerName: fullName.trim(),
-        phone: phone.trim(),
-        items: cart,
-        subtotal: subtotal,
-        discount: discount,
-        gst: gstAmount,
-        deliveryCharge: deliveryCharge,
-        total: totalPrice,
-        couponId: appliedCoupon?.id || null,
-        couponCode: appliedCoupon?.code || null,
-        status: 'pending',
-        address: address.trim(),
-        notes: notes.trim(),
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
-        deliveryLocation: deliveryLocation,
-        createdAt: serverTimestamp(),
-      };
-
-      const orderRef = await addDoc(collection(db, 'orders'), orderData);
-      const orderId = orderRef.id;
-
-      // Update coupon usage count if applied
-      if (appliedCoupon) {
-        await updateDoc(doc(db, 'coupons', appliedCoupon.id), {
-          usageCount: increment(1)
-        });
-      }
-
-      await assignRider(orderId, deliveryLocation);
-      handleOrderSuccess({ ...orderData, id: orderId });
-      
-      setConfirmedOrderId(orderId);
-      setShowSuccess(true);
-      clearCart();
-
-      // Navigate after animation
-      setTimeout(() => {
-        navigate(`/order-tracking/${orderId}`);
-      }, 4000);
-
-    } catch (error) {
-      console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  if (cart.length === 0 && !isProcessing && !showSuccess) {
+  if (showConfirmation && confirmedOrder) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold mb-4">Your cart is empty</h2>
-        <button onClick={() => navigate('/')} className="bg-primary text-white px-8 py-3 rounded-xl font-bold">
-          Back to Menu
-        </button>
-      </div>
+      <OrderConfirmation 
+        isOpen={showConfirmation}
+        orderData={confirmedOrder}
+        onClose={() => {
+          setShowConfirmation(false);
+          navigate('/orders');
+        }}
+      />
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <AnimatePresence>
-        {showSuccess && <SuccessOverlay orderId={confirmedOrderId} />}
-      </AnimatePresence>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+          <div className="space-y-4">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-400 hover:text-primary transition-colors font-black uppercase tracking-widest text-[10px]">
+              <ChevronLeft size={14} /> Back to menu
+            </button>
+            <h1 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none">
+              Finalize Your <br />
+              <span className="text-primary">Order</span>
+            </h1>
+          </div>
+          <div className="glass-bakery p-6 rounded-[32px] md:text-right">
+            <p className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Cart Total</p>
+            <p className="text-4xl font-black text-white italic tracking-tighter leading-none">₹{subtotal}</p>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Address Section */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="glass-dark p-8 rounded-3xl border border-border"
-          >
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <MapPin size={20} />
-              </div>
-              <h2 className="text-2xl font-bold">Delivery Address</h2>
+        {/* Orders Closed Banner */}
+        {!isOrderingOpen && (
+          <div className="mb-12 p-8 bg-red-500/10 border border-red-500/20 rounded-[32px] flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center text-red-500 shrink-0">
+              <AlertTriangle size={32} />
             </div>
-            <div className="space-y-4">
-              {config && !config.isOrderingOpen && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-6 rounded-2xl flex items-center gap-4 animate-pulse">
-                  <AlertTriangle size={24} />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-black uppercase tracking-widest">Ordering Disabled</span>
-                    <span className="text-xs font-bold opacity-80">Online orders are currently closed. Please try again later.</span>
-                  </div>
-                </div>
+            <div className="space-y-1 flex-1">
+              <h3 className="text-2xl font-black uppercase tracking-tighter text-red-500 italic">Online Orders are Currently Closed</h3>
+              <p className="text-sm font-bold text-red-500/80">🚫 We are not accepting new orders at this moment. You can still fill in your details, but you won't be able to place the order until we reopen.</p>
+            </div>
+            <button 
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-red-600 transition-colors"
+            >
+              Back to Menu
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <form onSubmit={handlePlaceOrder} className="lg:col-span-8 space-y-6">
+            {/* Delivery Details */}
+            <div 
+              ref={deliverySectionRef} 
+              className={cn(
+                "bakery-card p-8 md:p-10 space-y-8 transition-all duration-1000",
+                isHighlighted && "border-primary shadow-[0_0_50px_rgba(249,115,22,0.15)] ring-1 ring-primary/50"
               )}
-              {error && (
-                <div ref={errorRef} className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-medium">
-                  {error}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Truck size={24} />
                 </div>
-              )}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">Full Name *</label>
-                <input
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-secondary border-border rounded-xl p-4 focus:ring-primary"
-                />
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Delivery Details</h2>
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">Phone Number *</label>
-                <input
-                  type="tel"
-                  placeholder="10-digit mobile number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-secondary border-border rounded-xl p-4 focus:ring-primary"
-                />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <User size={12} className="text-primary" /> Full Name *
+                  </label>
+                  <input
+                    ref={nameRef}
+                    type="text"
+                    required
+                    placeholder="Enter your full name"
+                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <Phone size={12} className="text-primary" /> Phone Number *
+                  </label>
+                  <input
+                    ref={phoneRef}
+                    type="tel"
+                    required
+                    placeholder="10-digit mobile number"
+                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
+                  />
+                </div>
               </div>
-              <div>
-                <div className="flex justify-between items-center mb-2 ml-1">
-                  <label className="block text-xs font-bold uppercase tracking-widest text-muted">Complete Address *</label>
-                  <button 
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                    <MapPin size={12} className="text-primary" /> Complete Address *
+                  </label>
+                  <button
+                    type="button"
                     onClick={handleLocateMe}
                     disabled={isLocating}
-                    className="text-xs font-bold text-primary flex items-center gap-1 hover:underline disabled:opacity-50"
+                    className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                   >
                     {isLocating ? (
-                      <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
+                      <Loader2 size={12} className="animate-spin" />
                     ) : (
-                      <MapPin size={12} />
+                      <Zap size={12} fill="currentColor" />
                     )}
                     Locate Me
                   </button>
                 </div>
                 <textarea
+                  ref={addressRef}
+                  required
+                  rows={3}
                   placeholder="House No, Street, Landmark, Area"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full bg-secondary border-border rounded-xl p-4 h-32 focus:ring-primary"
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white resize-none"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2 ml-1">Order Notes (Optional)</label>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">
+                  Order Notes (Optional)
+                </label>
                 <textarea
-                  placeholder="Any special instructions for the kitchen or delivery partner?"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full bg-secondary border-border rounded-xl p-4 h-24 focus:ring-primary"
+                  rows={2}
+                  placeholder="Anything else we should know? (e.g. deliver after 5 PM)"
+                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white resize-none"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
             </div>
-          </motion.div>
 
-          {/* Payment Section */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-dark p-8 rounded-3xl border border-border"
-          >
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                <CreditCard size={20} />
+            {/* Coupon Code section */}
+            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-6 md:p-8 rounded-[2.5rem] overflow-hidden relative group">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-[20px] bg-primary/10 flex items-center justify-center text-primary group-hover:rotate-12 transition-transform duration-500">
+                  <Ticket size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white uppercase italic tracking-tight leading-none">Coupon Code</h3>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Unlock a delicious deal</p>
+                </div>
               </div>
-              <h2 className="text-2xl font-bold">Payment Method *</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <button 
-                onClick={() => setPaymentMethod('upi')}
-                className={`flex items-center justify-between p-4 bg-secondary border-2 rounded-2xl transition-all ${paymentMethod === 'upi' ? 'border-primary' : 'border-transparent'}`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Smartphone className={paymentMethod === 'upi' ? 'text-primary' : 'text-muted'} />
-                  <span className={`font-bold ${paymentMethod === 'upi' ? 'text-white' : 'text-muted'}`}>UPI / GPay</span>
-                </div>
-                {paymentMethod === 'upi' && <CheckCircle2 className="text-primary" size={20} />}
-              </button>
-              <button 
-                onClick={() => setPaymentMethod('cod')}
-                className={`flex items-center justify-between p-4 bg-secondary border-2 rounded-2xl transition-all ${paymentMethod === 'cod' ? 'border-primary' : 'border-transparent'}`}
-              >
-                <div className="flex items-center space-x-3">
-                  <CreditCard className={paymentMethod === 'cod' ? 'text-primary' : 'text-muted'} />
-                  <span className={`font-bold ${paymentMethod === 'cod' ? 'text-white' : 'text-muted'}`}>Cash on Delivery</span>
-                </div>
-                {paymentMethod === 'cod' && <CheckCircle2 className="text-primary" size={20} />}
-              </button>
-              <button 
-                className="flex items-center justify-between p-4 bg-secondary border border-border rounded-2xl opacity-50 cursor-not-allowed"
-                disabled
-              >
-                <div className="flex items-center space-x-3">
-                  <CreditCard className="text-muted" />
-                  <span className="font-bold text-muted">Card</span>
-                </div>
-              </button>
-            </div>
-          </motion.div>
-        </div>
 
-        {/* Order Summary */}
-        <div className="space-y-8">
-          {/* Coupon Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-dark p-6 rounded-3xl border border-border relative overflow-hidden"
-          >
-            <AnimatePresence>
-              {showCouponSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="absolute inset-0 z-10 bg-green-500/90 backdrop-blur-sm flex flex-col items-center justify-center text-white"
-                >
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ repeat: Infinity, duration: 0.5 }}
-                  >
-                    <Sparkles size={40} />
-                  </motion.div>
-                  <span className="text-lg font-black uppercase tracking-tighter mt-2 italic">Coupon Applied!</span>
-                  <span className="text-xs font-bold opacity-80">You saved ₹{discount}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Tag size={18} className="text-primary" />
-                <h3 className="text-sm font-black uppercase tracking-widest text-white">Promo Code</h3>
+              <div className="relative">
+                <AnimatePresence mode="wait">
+                  {!appliedCoupon ? (
+                    <motion.div 
+                      key="input"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="space-y-4"
+                    >
+                      <div className="flex gap-2 sm:gap-3">
+                        <input
+                          type="text"
+                          placeholder="ENTER CODE"
+                          className="flex-1 bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-black text-white uppercase placeholder:text-zinc-700 placeholder:text-[10px] tracking-widest min-w-0"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={isApplyingCoupon || !couponCode}
+                          className="px-6 sm:px-8 bg-primary text-white disabled:bg-zinc-800 disabled:opacity-50 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-primary/25 whitespace-nowrap"
+                        >
+                          {isApplyingCoupon ? (
+                            <Loader2 size={16} className="animate-spin mx-auto" />
+                          ) : (
+                            'Apply'
+                          )}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="applied"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      className="flex items-center justify-between bg-primary/10 border border-primary/20 p-4 sm:p-5 rounded-2xl relative overflow-hidden"
+                    >
+                      <motion.div 
+                        initial={{ scaleX: 0 }}
+                        animate={{ scaleX: 1 }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className="absolute inset-x-0 bottom-0 h-0.5 bg-primary/40 origin-left"
+                      />
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
+                          <Check size={20} className="text-white" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm sm:text-base font-black text-white uppercase italic tracking-tight">{appliedCoupon.code}</p>
+                            <span className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black uppercase rounded-md tracking-widest border border-primary/30">Verified</span>
+                          </div>
+                          <p className="text-[11px] font-bold text-primary uppercase mt-1 tracking-wider italic">₹{discountAmount.toFixed(0)} Discounted! ✨</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeCoupon}
+                        className="p-3 hover:bg-white/10 rounded-xl transition-all text-zinc-500 hover:text-red-400 active:scale-90"
+                        title="Remove Coupon"
+                      >
+                        <X size={18} />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              {appliedCoupon && (
-                <button 
-                  onClick={removeCoupon}
-                  className="text-xs font-bold text-red-500 hover:text-red-400 flex items-center gap-1"
+            </div>
+
+            {/* Payment Method */}
+            <div className="bakery-card p-8 md:p-10 space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <CreditCard size={24} />
+                </div>
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Payment Method</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({ ...formData, paymentMethod: 'upi' });
+                    // Scroll to final checkout button for better UX
+                    document.getElementById('checkout-action-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className={cn(
+                    "relative flex flex-col p-6 rounded-3xl border-2 transition-all group overflow-hidden text-left",
+                    formData.paymentMethod === 'upi' 
+                      ? "border-primary bg-primary/10" 
+                      : "border-white/5 hover:border-primary/20 hover:bg-white/5"
+                  )}
                 >
-                  <X size={12} />
-                  Remove
+                  <div className="flex items-center justify-between mb-4 relative z-10">
+                    <div className={cn(
+                      "p-3 rounded-xl",
+                      formData.paymentMethod === 'upi' ? "bg-primary text-white shadow-sm" : "bg-white/5 text-zinc-500"
+                    )}>
+                      <Wallet size={24} />
+                    </div>
+                    {formData.paymentMethod === 'upi' && (
+                      <CheckCircle2 size={24} className="text-primary" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-black text-white uppercase italic tracking-tight leading-none relative z-10">Pay via UPI</h3>
+                  <p className="text-xs text-zinc-500 font-bold tracking-widest mt-2 uppercase relative z-10">Google Pay, PhonePe, Paytm</p>
+                  
+                  {formData.paymentMethod === 'upi' && (
+                    <div className="mt-4 relative z-10 flex items-center gap-2 text-primary font-black uppercase tracking-tighter text-[10px] animate-pulse">
+                      <QrCode size={12} />
+                      Click to Process & View QR
+                    </div>
+                  )}
+
+                  <div className={cn(
+                    "absolute bottom-0 right-0 w-32 h-32 blur-3xl -mb-16 -mr-16 transition-all",
+                    formData.paymentMethod === 'upi' ? "bg-primary/20" : "bg-transparent"
+                  )} />
                 </button>
-              )}
-            </div>
 
-            {!appliedCoupon ? (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="ENTER CODE"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="flex-1 bg-secondary border-border rounded-xl px-4 py-3 text-sm font-bold tracking-widest focus:ring-primary uppercase"
-                  />
-                  <button
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon || !couponCode.trim()}
-                    className="bg-primary text-white px-6 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-50"
-                  >
-                    {isApplyingCoupon ? '...' : 'Apply'}
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, paymentMethod: 'cod' })}
+                  className={cn(
+                    "relative flex flex-col p-6 rounded-3xl border-2 transition-all group overflow-hidden text-left",
+                    formData.paymentMethod === 'cod' 
+                      ? "border-white bg-white/10" 
+                      : "border-white/5 hover:border-white/20 hover:bg-white/5"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-4 relative z-10">
+                    <div className={cn(
+                      "p-3 rounded-xl",
+                      formData.paymentMethod === 'cod' ? "bg-white text-black shadow-sm" : "bg-white/5 text-zinc-500"
+                    )}>
+                      <HandCoins size={24} />
+                    </div>
+                    {formData.paymentMethod === 'cod' && (
+                      <CheckCircle2 size={24} className="text-white" />
+                    )}
+                  </div>
+                  <h3 className="text-lg font-black text-white uppercase italic tracking-tight leading-none relative z-10">Cash on Delivery</h3>
+                  <p className="text-xs text-zinc-500 font-bold tracking-widest mt-2 uppercase relative z-10">Pay when your order arrives</p>
+                  <div className={cn(
+                    "absolute bottom-0 right-0 w-32 h-32 blur-3xl -mb-16 -mr-16 transition-all",
+                    formData.paymentMethod === 'cod' ? "bg-zinc-800/40" : "bg-transparent"
+                  )} />
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Order Summary Sidebar */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bakery-card p-8 space-y-6 lg:sticky lg:top-24">
+              <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
+                Order Summary
+                <span className="text-xs font-bold text-zinc-500">({cart.length} items)</span>
+              </h3>
+
+              <div className="space-y-4 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex gap-4 group">
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/5">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    </div>
+                    <div className="flex-1 min-w-0 py-1">
+                      <h4 className="text-sm font-black text-white uppercase italic tracking-tight truncate leading-tight">{item.name}</h4>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Qty: {item.quantity}</p>
+                      <p className="text-xs font-black text-primary italic mt-1">₹{item.price * item.quantity}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-6 border-t border-white/5 space-y-4">
+                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal}</span>
                 </div>
-                {couponError && (
-                  <motion.p 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-[10px] font-bold text-red-500 ml-1"
-                  >
-                    {couponError}
-                  </motion.p>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-primary">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>-₹{discountAmount}</span>
+                  </div>
                 )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-green-500 flex items-center justify-center text-white">
-                    <CheckCircle2 size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-black text-white tracking-widest uppercase italic">{appliedCoupon.code}</p>
-                    <p className="text-[10px] font-bold text-green-500 uppercase">Discount Applied</p>
-                  </div>
+                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
+                  <span>Delivery</span>
+                  <span className="text-emerald-500">FREE</span>
                 </div>
-                <span className="text-sm font-black text-white italic">-₹{discount}</span>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-lg font-black text-white uppercase italic tracking-tight">Total Payable</span>
+                  <span className="text-2xl font-black text-white italic tracking-tighter">₹{finalPrice}</span>
+                </div>
               </div>
-            )}
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-dark p-8 rounded-3xl border border-border sticky top-24"
-          >
-            <h3 className="text-xl font-bold mb-6">Order Summary</h3>
-            <div className="space-y-4 mb-8 max-h-60 overflow-y-auto scrollbar-hide">
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between items-center text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-muted">{item.quantity}x</span>
-                    <span className="font-medium">{item.name}</span>
-                  </div>
-                  <span className="font-bold">₹{item.price * item.quantity}</span>
+              <button
+                id="checkout-action-btn"
+                onClick={handlePlaceOrder}
+                disabled={isOrdering || !isOrderingOpen}
+                className={cn(
+                  "w-full btn-premium group h-16 transition-all",
+                  (isOrdering || !isOrderingOpen) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
+                )}
+              >
+                <div className="flex items-center justify-center gap-3">
+                  {isOrdering ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      <span className="font-black uppercase tracking-widest text-sm">Processing Order...</span>
+                    </>
+                  ) : !isOrderingOpen ? (
+                    <>
+                      <X size={20} />
+                      <span className="font-black uppercase tracking-widest">Orders Closed</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-black uppercase tracking-widest">
+                        {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR Code & Pay'}
+                      </span>
+                      <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
+              </button>
 
-            <div className="space-y-3 pt-6 border-t border-border">
-              <div className="flex justify-between text-muted">
-                <span>Subtotal</span>
-                <span>₹{subtotal}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-green-500">
-                  <div className="flex items-center gap-1">
-                    <span>Discount</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-green-500/10 px-2 py-0.5 rounded-full">
-                      {appliedCoupon?.code}
-                    </span>
-                  </div>
-                  <span>-₹{discount}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-muted">
-                <span>Delivery Fee</span>
-                <span className="text-green-500">FREE</span>
-              </div>
-              <div className="flex justify-between text-xl font-bold pt-3">
-                <span>Total</span>
-                <span className="text-primary">₹{totalPrice}</span>
+              <div className="flex items-center justify-center gap-2 text-zinc-500">
+                <ShieldCheck size={14} className="text-primary" />
+                <span className="text-[9px] font-black uppercase tracking-[0.15em]">100% Encrypted & Secure</span>
               </div>
             </div>
-
-            <button
-              onClick={handlePlaceOrder}
-              disabled={isProcessing || (config !== null && !config.isOrderingOpen)}
-              className="w-full mt-8 py-4 bg-primary text-white rounded-2xl font-bold text-lg flex items-center justify-center space-x-2 disabled:opacity-50"
-            >
-              {isProcessing ? (
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Place Order</span>
-                  <ChevronRight size={20} />
-                </>
-              )}
-            </button>
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default Checkout;

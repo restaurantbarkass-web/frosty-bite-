@@ -10,17 +10,12 @@ interface CartContextType {
   totalItems: number;
   totalPrice: number;
   subtotal: number;
-  discount: number;
-  appliedCoupon: any | null;
-  applyCoupon: (coupon: any) => void;
-  removeCoupon: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
 
   const addToCart = (item: FoodItem) => {
     setCart(prev => {
@@ -56,30 +51,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = () => {
     setCart([]);
-    setAppliedCoupon(null);
-  };
-
-  const applyCoupon = (coupon: any) => {
-    setAppliedCoupon(coupon);
-  };
-
-  const removeCoupon = () => {
-    setAppliedCoupon(null);
   };
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  let discount = 0;
-  if (appliedCoupon) {
-    if (appliedCoupon.type === 'percentage') {
-      discount = (subtotal * appliedCoupon.value) / 100;
-    } else {
-      discount = appliedCoupon.value;
-    }
-  }
-
-  const totalPrice = Math.max(0, subtotal - discount);
+  const totalPrice = subtotal; // Currently same as subtotal here, checkout handles its own coupons
 
   return (
     <CartContext.Provider value={{ 
@@ -90,11 +66,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearCart, 
       totalItems, 
       totalPrice,
-      subtotal,
-      discount,
-      appliedCoupon,
-      applyCoupon,
-      removeCoupon
+      subtotal
     }}>
       {children}
     </CartContext.Provider>

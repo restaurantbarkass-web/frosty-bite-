@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
@@ -14,14 +14,16 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 import toast from 'react-hot-toast';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 import { CartSidebar } from '../components/CartSidebar';
 
-export const ProductDetail: React.FC = () => {
+const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addToCart, totalItems } = useCart();
   const { user } = useAuth();
+  const { isOrderingOpen } = useAppConfig();
   
   const [product, setProduct] = useState<FoodItem | null>(null);
   const [relatedItems, setRelatedItems] = useState<FoodItem[]>([]);
@@ -101,18 +103,85 @@ export const ProductDetail: React.FC = () => {
   }, [id]);
 
   const handleAddToCart = () => {
+    if (!user) {
+      toast.error('Please login to add items to cart', {
+        icon: '🔐',
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    if (!isOrderingOpen) {
+      toast.error('Orders are currently closed', {
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      return;
+    }
     if (product) {
       for (let i = 0; i < quantity; i++) {
         addToCart(product);
       }
-      // Optional: Show success toast or feedback
+      toast.success(`${quantity} ${product.name} added to cart`, {
+        icon: '🛒',
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
     }
   };
 
   const handleBuyNow = () => {
+    if (!user) {
+      toast.error('Please login to buy treats', {
+        icon: '🔐',
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    if (!isOrderingOpen) {
+      toast.error('Orders are currently closed', {
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      return;
+    }
     if (product) {
-      addToCart(product);
-      navigate('/checkout');
+      // Add based on selected quantity
+      for (let i = 0; i < quantity; i++) {
+        addToCart(product);
+      }
+      
+      // Small timeout for visual feedback before navigating
+      toast.success('Going to checkout...', {
+        duration: 800,
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+        }
+      });
+      
+      setTimeout(() => {
+        navigate('/checkout', { state: { fromBuyNow: true } });
+      }, 500);
     }
   };
 
@@ -431,7 +500,7 @@ export const ProductDetail: React.FC = () => {
           >
             <Zap size={20} fill="currentColor" />
             <span className="text-xs font-black uppercase tracking-[0.2em]">
-              {product.available === false ? 'Currently Unavailable' : 'Order Now'}
+              {product.available === false ? 'Currently Unavailable' : 'Buy Now'}
             </span>
           </button>
         </div>
@@ -439,3 +508,5 @@ export const ProductDetail: React.FC = () => {
     </div>
   );
 };
+
+export default ProductDetail;

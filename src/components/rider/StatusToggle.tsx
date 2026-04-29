@@ -1,6 +1,6 @@
 import React from 'react';
 import { Power, CheckCircle, XCircle } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface StatusToggleProps {
   isOnline: boolean;

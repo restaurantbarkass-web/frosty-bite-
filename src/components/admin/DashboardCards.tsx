@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, DollarSign, Activity, Users, TrendingUp, TrendingDown } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 
@@ -53,7 +53,16 @@ export const DashboardCards: React.FC = () => {
 
   useEffect(() => {
     const unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const orders = snapshot.docs.map(doc => doc.data());
+      const allOrders = snapshot.docs.map(doc => doc.data());
+      
+      // Filter out UPI/Online orders that haven't submitted a UTR yet
+      const orders = allOrders.filter(o => {
+        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
+          return false;
+        }
+        return true;
+      });
+
       const now = new Date();
       const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();

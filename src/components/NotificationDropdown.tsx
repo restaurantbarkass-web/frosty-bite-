@@ -1,9 +1,11 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Check, ShoppingBag, Truck, Info, X, MessageCircle } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
+
+import { RESTAURANT_WHATSAPP } from '../constants';
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -74,7 +76,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  sendWhatsAppMessage('9999999999', `Order: ${notif.title}\nDetails: ${notif.message}`);
+                                  sendWhatsAppMessage(RESTAURANT_WHATSAPP, `Order: ${notif.title}\nDetails: ${notif.message}`);
                                 }}
                                 className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"
                                 title="Share to WhatsApp"

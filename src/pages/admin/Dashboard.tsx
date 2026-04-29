@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardCards } from '../../components/admin/DashboardCards';
 import { OrdersChart, PopularItemsChart } from '../../components/admin/Charts';
 import { OrdersTable } from '../../components/admin/OrdersTable';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
 
@@ -21,13 +21,30 @@ export const Dashboard: React.FC = () => {
       setConfig(data);
     });
 
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'), limit(10));
+    const q = query(collection(db, 'orders'));
     const unsubscribeOrders = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Order[];
-      setRecentOrders(ordersData);
+      
+      // Client-side sort, filter and limit
+      const sortedOrders = ordersData
+        .filter(o => {
+          // Hide UPI/Online orders that haven't submitted a UTR yet
+          if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
+            return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          const timeA = a.createdAt?.seconds || 0;
+          const timeB = b.createdAt?.seconds || 0;
+          return timeB - timeA;
+        })
+        .slice(0, 10);
+
+      setRecentOrders(sortedOrders);
       setLoadingOrders(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'orders');
