@@ -40,7 +40,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
       let errorMessage = "We've encountered an unexpected issue. Our team has been notified.";
       
       if (isFirestoreError) {
-        errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
+        try {
+          const parsed = JSON.parse(this.state.error!.message);
+          if (parsed.error === 'DATABASE_QUOTA_EXCEEDED') {
+            errorMessage = "Our kitchen is a bit overloaded right now (Daily limit reached). Please try again later today or tomorrow when the ovens cool down!";
+          } else {
+            errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
+          }
+        } catch (e) {
+          errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
+        }
       }
 
       return (

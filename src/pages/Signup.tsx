@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, 
   Lock, 
@@ -8,7 +8,6 @@ import {
   EyeOff, 
   ArrowRight, 
   ArrowLeft,
-  ChefHat, 
   User, 
   AlertCircle,
   CheckCircle2
@@ -19,7 +18,7 @@ import { syncUserWithFirestore } from '../firebase';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
-export const Signup: React.FC = () => {
+const Signup: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   

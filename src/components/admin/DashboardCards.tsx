@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, DollarSign, Activity, Users, TrendingUp, TrendingDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { requestForToken, onMessageListener } from '../utils/messaging';
 import toast from 'react-hot-toast';
 
@@ -11,7 +11,6 @@ const Menu = lazy(() => import('./admin/Menu').then(m => ({ default: m.Menu })))
 const Analytics = lazy(() => import('./admin/Analytics').then(m => ({ default: m.Analytics })));
 const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Coupons })));
 const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
-const ThemeSettings = lazy(() => import('./admin/ThemeSettings').then(m => ({ default: m.ThemeSettings })));
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,7 +63,6 @@ export const AdminLayout: React.FC = () => {
         </div>
       );
       case 'analytics': return <Analytics />;
-      case 'theme': return <ThemeSettings />;
       default: return <Dashboard />;
     }
   };

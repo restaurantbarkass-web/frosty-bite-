@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DashboardCards } from '../../components/admin/DashboardCards';
 import { OrdersChart, PopularItemsChart } from '../../components/admin/Charts';
 import { OrdersTable } from '../../components/admin/OrdersTable';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
 

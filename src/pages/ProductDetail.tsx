@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
@@ -56,14 +56,26 @@ const ProductDetail: React.FC = () => {
       setIsLoading(true);
       try {
         // First check Firestore
-        const docRef = doc(db, 'menu', id);
-        const docSnap = await getDoc(docRef);
         let currentProduct: FoodItem | null = null;
+        
+        try {
+          const docRef = doc(db, 'menu', id);
+          const docSnap = await getDoc(docRef);
 
-        if (docSnap.exists()) {
-          currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
-        } else {
-          // Then check constants as fallback
+          if (docSnap.exists()) {
+            currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
+          }
+        } catch (dbError: any) {
+          const isQuota = dbError?.message?.toLowerCase().includes('quota') || dbError?.message?.toLowerCase().includes('limit exceeded');
+          if (!isQuota) {
+            console.error("Database error in fetchProduct:", dbError);
+          } else {
+            console.warn("Firestore Quota Exceeded in fetchProduct. Using local fallback.");
+          }
+        }
+
+        // If not in Firestore or DB error, check constants as fallback
+        if (!currentProduct) {
           const localProduct = MENU_ITEMS.find(item => item.id === id);
           if (localProduct) {
             currentProduct = localProduct;
@@ -73,17 +85,21 @@ const ProductDetail: React.FC = () => {
         if (currentProduct) {
           setProduct(currentProduct);
           
-          // Fetch related items from Firestore
-          const menuRef = collection(db, 'menu');
-          const q = query(menuRef, where('available', '==', true));
-          const querySnapshot = await getDocs(q);
-          const firestoreItems = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as FoodItem[];
+          let firestoreItems: FoodItem[] = [];
+          try {
+            // Fetch related items from Firestore
+            const menuRef = collection(db, 'menu');
+            const q = query(menuRef, where('available', '==', true));
+            const querySnapshot = await getDocs(q);
+            firestoreItems = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as FoodItem[];
+          } catch (listError: any) {
+             // Silently ignore quota for related items
+          }
 
-          // Use firestore items if they exist, otherwise fallback to MENU_ITEMS (or based on user request, maybe only firestore)
-          // The user said "dont show false product", so if firestoreItems exists, use only that.
+          // Use firestore items if they exist, otherwise fallback to MENU_ITEMS
           const sourceItems = firestoreItems.length > 0 ? firestoreItems : MENU_ITEMS;
 
           const related = sourceItems
@@ -92,7 +108,7 @@ const ProductDetail: React.FC = () => {
           setRelatedItems(related);
         }
       } catch (error) {
-        console.error("Error fetching product:", error);
+        console.error("Error in fetchProduct:", error);
       } finally {
         setIsLoading(false);
       }

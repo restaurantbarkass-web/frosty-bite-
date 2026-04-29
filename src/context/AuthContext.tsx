@@ -54,18 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const userData = docSnap.data();
               setRole(userData.role as UserRole);
             } else {
-              // Fallback to email whitelist if doc doesn't exist yet
               setRole(getRoleFromEmail(currentUser.email));
             }
             setLoading(false);
           }, (error) => {
-            console.error('Error fetching user role:', error);
-            try {
-              handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`, currentUser);
-            } catch (handledError) {
-              // Fallback
-              setRole(getRoleFromEmail(currentUser.email));
-            }
+            console.warn('Error fetching user role, falling back to email whitelist:', error);
+            setRole(getRoleFromEmail(currentUser.email));
             setLoading(false);
           });
         };

@@ -2,7 +2,6 @@ import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
@@ -12,7 +11,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
 import { RESTAURANT_WHATSAPP } from './constants';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { Instagram, MessageCircle } from 'lucide-react';
 
@@ -229,11 +228,9 @@ export default function App() {
       <Router>
         <AuthProvider>
           <NotificationProvider>
-            <ThemeProvider>
-              <CartProvider>
-                <AppContent />
-              </CartProvider>
-            </ThemeProvider>
+            <CartProvider>
+              <AppContent />
+            </CartProvider>
           </NotificationProvider>
         </AuthProvider>
       </Router>

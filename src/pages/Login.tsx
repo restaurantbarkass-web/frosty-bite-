@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Mail, 
   Lock, 
@@ -8,10 +8,6 @@ import {
   EyeOff, 
   ArrowRight, 
   ArrowLeft,
-  ChefHat, 
-  User, 
-  Bike,
-  ShieldCheck,
   AlertCircle,
   CheckCircle2
 } from 'lucide-react';
@@ -20,7 +16,7 @@ import { authService } from '../services/authService';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
-export const Login: React.FC = () => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isRider } = useAuth();
   

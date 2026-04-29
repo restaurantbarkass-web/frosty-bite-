@@ -3,7 +3,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -43,7 +43,12 @@ const Orders: React.FC = () => {
       setOrders(sortedOrders);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
+      } else {
+        console.warn('Firestore Quota Exceeded in Customer Orders History');
+      }
       setLoading(false);
     });
 

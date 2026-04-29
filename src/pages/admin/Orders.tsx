@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { Filter, Search, Download, Calendar, Clock, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -69,7 +69,13 @@ export const Orders: React.FC = () => {
       });
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
+      } else {
+        console.warn('Firestore Quota Exceeded in Orders Page');
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();

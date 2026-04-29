@@ -3,12 +3,11 @@ import { Star, Plus, Zap, ShoppingCart, Check } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
-import { useTheme } from '../context/ThemeContext';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useAppConfig } from '../hooks/useAppConfig';

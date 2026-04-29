@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';

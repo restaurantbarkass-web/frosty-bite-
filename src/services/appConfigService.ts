@@ -22,16 +22,21 @@ export const appConfigService = {
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
     const docRef = doc(db, CONFIG_DOC_PATH);
     
-    return onSnapshot(docRef, (snapshot) => {
+    const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         callback(snapshot.data() as AppConfig);
       } else {
-        // Initialize if doesn't exist
         const initialConfig: AppConfig = { isOrderingOpen: true };
-        setDoc(docRef, { ...initialConfig, updatedAt: serverTimestamp() });
         callback(initialConfig);
       }
+    }, (error) => {
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Error in subscribeToConfig:', error);
+      }
+      callback({ isOrderingOpen: true });
     });
+    return unsubscribe;
   },
 
   /**
@@ -49,10 +54,17 @@ export const appConfigService = {
    * Fetches the current configuration once.
    */
   getConfig: async (): Promise<AppConfig> => {
-    const docRef = doc(db, CONFIG_DOC_PATH);
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return snap.data() as AppConfig;
+    try {
+      const docRef = doc(db, CONFIG_DOC_PATH);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return snap.data() as AppConfig;
+      }
+    } catch (error: any) {
+      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Error in getConfig:', error);
+      }
     }
     return { isOrderingOpen: true };
   }

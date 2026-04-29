@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, ArrowLeft, Mail, Loader2, CheckCircle2 } from 'lucide-react';
 import { auth } from '../firebase';

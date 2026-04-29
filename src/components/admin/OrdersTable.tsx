@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';

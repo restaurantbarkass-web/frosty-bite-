@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { Star, MessageCircle, Quote } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface Review {
@@ -32,7 +32,12 @@ export const ReviewsSection: React.FC = () => {
       setReviews(reviewsData);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'reviews');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'reviews');
+      } else {
+        console.warn('Firestore Quota Exceeded for reviews.');
+      }
       setLoading(false);
     });
 

@@ -14,7 +14,7 @@ import {
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { TrendingUp, DollarSign, ShoppingBag, Clock, Download, FileText, Calendar } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Order } from '../../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {

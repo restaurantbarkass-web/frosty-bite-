@@ -4,16 +4,14 @@ import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboa
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
-import { useTheme } from '../context/ThemeContext';
 import { Logo } from './Logo';
 
 export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { totalItems } = useCart();
   const { user, role, isAdmin, isRider } = useAuth();
-  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -47,33 +45,6 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
 
   return (
     <nav className="sticky top-0 z-50 w-full glass-dark border-b border-white/5">
-      {/* Offer Banner */}
-      <AnimatePresence>
-        {theme.showOfferBanner && theme.offerText && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            style={{ backgroundColor: theme.offerColor }}
-            className="w-full py-2.5 px-4 overflow-hidden shadow-lg relative z-[60]"
-          >
-            <div className="max-w-7xl mx-auto flex items-center justify-center gap-4 text-center">
-              <span className="text-sm font-black text-white tracking-wide">
-                {theme.offerText}
-              </span>
-              {theme.offerLink && (
-                <Link 
-                  to={theme.offerLink}
-                  className="px-4 py-1 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-[10px] font-black uppercase text-white transition-all whitespace-nowrap"
-                >
-                  View Offer
-                </Link>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Status Banner */}
       <AnimatePresence mode="wait">
         {config && (

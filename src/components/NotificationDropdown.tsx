@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Bell, Check, ShoppingBag, Truck, Info, X, MessageCircle } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';

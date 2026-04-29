@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { CATEGORIES } from '../../constants';
@@ -55,7 +55,13 @@ export const MenuManager: React.FC = () => {
       setMenuItems(menuData);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'menu');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'menu');
+      } else {
+        console.warn('Firestore Quota Exceeded in MenuManager');
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();

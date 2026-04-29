@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Star, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 

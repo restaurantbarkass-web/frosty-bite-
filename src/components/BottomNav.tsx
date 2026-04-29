@@ -4,7 +4,7 @@ import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard } from 'lucide-
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { cn } from '../lib/utils';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();

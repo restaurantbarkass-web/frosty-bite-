@@ -13,7 +13,7 @@ import {
   Palette,
   Users
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { logout } from '../../firebase';
 import { useNavigate } from 'react-router-dom';
@@ -33,7 +33,6 @@ const menuItems = [
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'riders', label: 'Riders', icon: Bike },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'theme', label: 'Theme Settings', icon: Palette },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

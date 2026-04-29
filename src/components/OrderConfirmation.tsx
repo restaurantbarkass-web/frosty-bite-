@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { Package, MapPin, CreditCard, ChevronRight, Clock, ShoppingBag, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';

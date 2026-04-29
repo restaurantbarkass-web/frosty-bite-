@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bike, Phone, MapPin, Star, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 

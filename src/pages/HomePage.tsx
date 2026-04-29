@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, MapPin, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { MENU_ITEMS, CATEGORIES } from '../constants';
@@ -62,7 +62,13 @@ export const Home: React.FC = () => {
       })) as FoodItem[];
       setFirestoreMenu(items);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'menu');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'menu');
+      } else {
+        console.warn('Firestore Quota Exceeded for menu. Falling back to default items.');
+        setFirestoreMenu([]); // This forces use of MENU_ITEMS constants
+      }
     });
     return () => unsubscribe();
   }, []);

@@ -18,7 +18,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';

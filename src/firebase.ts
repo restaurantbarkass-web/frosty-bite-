@@ -24,10 +24,12 @@ import { getRoleFromEmail } from './constants';
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore with experimental settings to force long polling.
-// This often resolves 'unavailable' errors in restrictive network environments or sandboxes.
+// Initialize Firestore with experimental settings or local cache
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
 }, firebaseConfig.firestoreDatabaseId);
 
 export const messaging = typeof window !== 'undefined' ? (() => {
@@ -136,8 +138,14 @@ export interface FirestoreErrorInfo {
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, currentUser?: any) {
   const activeUser = currentUser || auth.currentUser;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Check for Quota Exceeded specifically
+  const isQuotaError = errorMessage.toLowerCase().includes('quota') || 
+                      errorMessage.toLowerCase().includes('limit exceeded');
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: isQuotaError ? "DATABASE_QUOTA_EXCEEDED" : errorMessage,
     authInfo: {
       userId: activeUser?.uid,
       email: activeUser?.email,
@@ -154,6 +162,14 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+
+  // Log the original error for debugging but throw a structured one
+  if (isQuotaError) {
+    console.warn('Firestore Quota Exceeded. The app will use cached/default data where possible.');
+    return; // Don't throw for quota errors, just warn
+  } else {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  }
+
   throw new Error(JSON.stringify(errInfo));
 }
