@@ -7,9 +7,7 @@ import { logout } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
-
 import { useTheme } from '../context/ThemeContext';
-
 import { Logo } from './Logo';
 
 export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {

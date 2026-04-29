@@ -109,7 +109,8 @@ export const UPICheckout: React.FC = () => {
       const duplicateOrders = querySnapshot.docs.filter(doc => doc.id !== state!.orderId);
       
       if (duplicateOrders.length > 0) {
-        toast.error('This UTR has already been used for another order. Please check again.');
+        const dupOrder = duplicateOrders[0].data();
+        toast.error(`This UTR has already been used for an order of ₹${dupOrder.total}. Please check again.`);
         setIsVerifying(false);
         return;
       }

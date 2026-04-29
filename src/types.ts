@@ -64,4 +64,21 @@ export interface User {
   name: string;
   email: string;
   address: string;
+  theme?: AppTheme;
+}
+
+export type ThemeMode = 'light' | 'dark' | 'custom';
+
+export interface AppTheme {
+  mode: ThemeMode;
+  primary: string;
+  background: string;
+  text: string;
+  card: string;
+  isDark?: boolean;
+  // Admin properties
+  showOfferBanner?: boolean;
+  offerText?: string;
+  offerColor?: string;
+  offerLink?: string;
 }

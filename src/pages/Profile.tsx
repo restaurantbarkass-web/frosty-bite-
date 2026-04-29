@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart } from 'lucide-react';
+import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout, db, handleFirestoreError, OperationType } from '../firebase';
@@ -9,6 +9,7 @@ import { doc, onSnapshot, updateDoc, collection, query, where, orderBy, limit } 
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
+import { ThemeSettingsPanel } from '../components/ThemeSettingsPanel';
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -18,6 +19,7 @@ export const Profile: React.FC = () => {
   const [wishlist, setWishlist] = useState<FoodItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isThemePanelOpen, setIsThemePanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist'>('personal');
   const [formData, setFormData] = useState({
@@ -537,6 +539,29 @@ export const Profile: React.FC = () => {
               <div className="space-y-10">
                 {/* Notifications Section */}
                 <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Appearance</h4>
+                  <button 
+                    onClick={() => {
+                      setIsSettingsOpen(false);
+                      setIsThemePanelOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                        <Palette size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold text-white">Theme Customization</p>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Colors, Mode & Style</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </button>
+                </div>
+
+                {/* Notifications Section */}
+                <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
@@ -623,6 +648,8 @@ export const Profile: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <ThemeSettingsPanel isOpen={isThemePanelOpen} onClose={() => setIsThemePanelOpen(false)} />
     </div>
   );
 };

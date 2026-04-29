@@ -448,11 +448,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                         </button>
                       )}
                       {order.utr && (
-                        <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
-                          <CheckCircle2 size={10} className="text-primary" />
-                          <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
-                            UTR: {order.utr}
-                          </span>
+                        <div className="mt-1 flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
+                            <CheckCircle2 size={10} className="text-primary" />
+                            <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
+                              UTR: {order.utr}
+                            </span>
+                          </div>
+                          {orders.some(o => o.id !== order.id && o.utr === order.utr) && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-md w-fit animate-pulse">
+                              <X size={10} className="text-red-500" />
+                              <span className="text-[9px] text-red-500 font-black uppercase tracking-widest leading-none">
+                                DUPLICATE UTR DETECTED
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                       {order.notes && (
@@ -661,10 +671,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <span className="text-sm font-black text-white">{order.customerName}</span>
                 <span className="text-xs text-gray-500">{order.phone}</span>
                 {order.utr && (
-                  <div className="mt-1 flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
-                    <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
-                      UTR: {order.utr}
-                    </span>
+                  <div className="mt-1 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
+                      <span className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">
+                        UTR: {order.utr}
+                      </span>
+                    </div>
+                    {orders.some(o => o.id !== order.id && o.utr === order.utr) && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-md w-fit animate-pulse">
+                        <X size={8} className="text-red-500" />
+                        <span className="text-[8px] text-red-500 font-black uppercase tracking-widest leading-none">
+                          DUPLICATE UTR
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {order.notes && (
