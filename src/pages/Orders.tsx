@@ -40,6 +40,27 @@ const Orders: React.FC = () => {
         return timeB - timeA;
       });
 
+      // Cleanup: Auto-delete pending orders older than 1 hour
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+      
+      const staleOrders = sortedOrders.filter(order => {
+        if (!order.createdAt || order.status !== 'pending') return false;
+        const ca = order.createdAt as any;
+        const createdAt = ca.toDate ? ca.toDate() : new Date(ca.seconds * 1000);
+        return createdAt < oneHourAgo;
+      });
+
+      if (staleOrders.length > 0) {
+        import('firebase/firestore').then(({ doc, deleteDoc }) => {
+          staleOrders.forEach(order => {
+            if (order.id) {
+              deleteDoc(doc(db, 'orders', order.id)).catch(err => console.error('Failed to auto-delete stale order:', err));
+            }
+          });
+        });
+      }
+
       setOrders(sortedOrders);
       setLoading(false);
     }, (error) => {
