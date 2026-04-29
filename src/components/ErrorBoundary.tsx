@@ -46,11 +46,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 text-center">
           <div className="max-w-md w-full glass-dark p-10 rounded-[32px] border border-white/10 shadow-2xl">
-            <div className="w-20 h-20 bg-red-500/20 rounded-3xl flex items-center justify-center text-red-500 mx-auto mb-8">
-              <AlertTriangle size={40} />
+            <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center text-primary mx-auto mb-8">
+              <RefreshCcw size={40} />
             </div>
-            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Something went wrong</h2>
-            <p className="text-zinc-500 font-medium mb-10 leading-relaxed">
+            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Bake Interrupted</h2>
+            <p className="text-zinc-500 font-medium mb-10 leading-relaxed px-4">
               {errorMessage}
             </p>
             <div className="flex flex-col gap-4">
