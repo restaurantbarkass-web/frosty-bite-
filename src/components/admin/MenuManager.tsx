@@ -47,12 +47,23 @@ export const MenuManager: React.FC = () => {
 
   useEffect(() => {
     const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
+    
+    // Initial load from cache
+    const cachedMenu = localStorage.getItem('menu_cache');
+    if (cachedMenu) {
+      try {
+        setMenuItems(JSON.parse(cachedMenu));
+        setLoading(false);
+      } catch (e) {}
+    }
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const menuData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as MenuItem[];
       setMenuItems(menuData);
+      localStorage.setItem('menu_cache', JSON.stringify(menuData));
       setLoading(false);
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
@@ -60,7 +71,15 @@ export const MenuManager: React.FC = () => {
         handleFirestoreError(error, OperationType.GET, 'menu');
       } else {
         console.warn('Firestore Quota Exceeded in MenuManager. Showing cached items.');
-        // Don't setMenuItems([]) here, keep what we have
+        // If we don't have items, try one more time from cache
+        if (menuItems.length === 0) {
+          const lastResort = localStorage.getItem('menu_cache');
+          if (lastResort) {
+            try {
+              setMenuItems(JSON.parse(lastResort));
+            } catch (e) {}
+          }
+        }
         setLoading(false);
       }
     });

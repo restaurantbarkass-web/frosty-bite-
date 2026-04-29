@@ -70,11 +70,23 @@ const ProductDetail: React.FC = () => {
           if (!isQuota) {
             console.error("Database error in fetchProduct:", dbError);
           } else {
-            console.warn("Firestore Quota Exceeded in fetchProduct. Using local fallback.");
+            console.warn("Firestore Quota Exceeded in fetchProduct. Using local cache fallback.");
+            
+            // Try to find in localStorage cache
+            const cachedMenu = localStorage.getItem('menu_cache');
+            if (cachedMenu) {
+              try {
+                const menuItems = JSON.parse(cachedMenu) as FoodItem[];
+                const found = menuItems.find(item => item.id === id);
+                if (found) {
+                  currentProduct = found;
+                }
+              } catch (e) {}
+            }
           }
         }
 
-        // If not in Firestore or DB error, check constants as fallback
+        // If still not found, check constants as last resort
         if (!currentProduct) {
           const localProduct = MENU_ITEMS.find(item => item.id === id);
           if (localProduct) {

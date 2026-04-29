@@ -20,7 +20,7 @@ async function startServer() {
     app.use(vite.middlewares);
 
     // Fallback for SPA routing in development
-    app.use('*', async (req, res, next) => {
+    app.use('*all', async (req, res, next) => {
       const url = req.originalUrl;
       try {
         let template = fs.readFileSync(path.resolve(__dirname, 'index.html'), 'utf-8');
@@ -37,7 +37,7 @@ async function startServer() {
     app.use(express.static(distPath));
     
     // SPA Fallback for production: send index.html for any unknown routes
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

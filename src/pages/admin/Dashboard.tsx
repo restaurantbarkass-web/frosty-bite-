@@ -47,7 +47,13 @@ export const Dashboard: React.FC = () => {
       setRecentOrders(sortedOrders);
       setLoadingOrders(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, 'orders');
+      } else {
+        console.warn('Firestore Quota Exceeded in Dashboard. Showing empty orders state.');
+      }
+      setLoadingOrders(false);
     });
 
     return () => {

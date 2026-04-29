@@ -55,19 +55,39 @@ export const Home: React.FC = () => {
 
   useEffect(() => {
     const q = collection(db, 'menu');
+    
+    // Initial load from cache to show something immediately
+    const cachedMenu = localStorage.getItem('menu_cache');
+    if (cachedMenu) {
+      try {
+        setFirestoreMenu(JSON.parse(cachedMenu));
+      } catch (e) {
+        console.error('Failed to parse menu cache', e);
+      }
+    }
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as FoodItem[];
       setFirestoreMenu(items);
+      localStorage.setItem('menu_cache', JSON.stringify(items));
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
       if (!isQuota) {
         handleFirestoreError(error, OperationType.GET, 'menu');
       } else {
-        console.warn('Firestore Quota Exceeded for menu. The app will continue showing known items.');
-        // We don't setFirestoreMenu([]) here anymore, so existing or cached items stay visible
+        console.warn('Firestore Quota Exceeded for menu. Showing last known items from cache.');
+        // If firestoreMenu is still empty, try one last time from cache
+        if (firestoreMenu.length === 0) {
+          const lastResort = localStorage.getItem('menu_cache');
+          if (lastResort) {
+            try {
+              setFirestoreMenu(JSON.parse(lastResort));
+            } catch (e) {}
+          }
+        }
       }
     });
     return () => unsubscribe();
