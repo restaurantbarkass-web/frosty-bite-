@@ -54,7 +54,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       setNotifications(sortedNotifs);
     }, (error) => {
-      console.error('Error fetching notifications:', error);
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Error fetching notifications:', error);
+      } else {
+        console.warn('Firestore Quota Exceeded for notifications.');
+      }
       setNotifications([]);
     });
 

@@ -114,8 +114,11 @@ export const OrderTracking: React.FC = () => {
         const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
         const snap = await getDocs(q);
         setHasReviewed(!snap.empty);
-      } catch (e) {
-        console.error('Error checking review:', e);
+      } catch (e: any) {
+        const isQuota = e?.message?.toLowerCase().includes('quota') || e?.message?.toLowerCase().includes('limit exceeded');
+        if (!isQuota) {
+          console.error('Error checking review:', e);
+        }
       }
     };
 
@@ -135,7 +138,12 @@ export const OrderTracking: React.FC = () => {
                 setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
               }
             })
-            .catch(e => console.error('Error fetching rider:', e));
+            .catch(e => {
+              const isQuota = e?.message?.toLowerCase().includes('quota') || e?.message?.toLowerCase().includes('limit exceeded');
+              if (!isQuota) {
+                console.error('Error fetching rider:', e);
+              }
+            });
         }
         setLoading(false);
       } else {
@@ -152,10 +160,15 @@ export const OrderTracking: React.FC = () => {
         }, 2000);
       }
     }, (error) => {
-      console.error('Snapshot error:', error);
-      try {
-        handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
-      } catch (e) {}
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Snapshot error:', error);
+        try {
+          handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
+        } catch (e) {}
+      } else {
+        console.warn('Firestore Quota Exceeded in OrderTracking snapshot');
+      }
       setLoading(false);
     });
 

@@ -39,8 +39,11 @@ export const checkIfWishlisted = async (userId: string, itemId: string) => {
   try {
     const docSnap = await getDoc(wishlistRef);
     return docSnap.exists();
-  } catch (error) {
-    console.error('Error checking wishlist status:', error);
+  } catch (error: any) {
+    const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
+    if (!isQuota) {
+      console.error('Error checking wishlist status:', error);
+    }
     return false;
   }
 };
@@ -50,8 +53,13 @@ export const getUserWishlist = async (userId: string) => {
   try {
     const querySnapshot = await getDocs(wishlistRef);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FoodItem));
-  } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, `users/${userId}/wishlist`);
-    throw error;
+  } catch (error: any) {
+    const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
+    if (!isQuota) {
+      handleFirestoreError(error, OperationType.LIST, `users/${userId}/wishlist`);
+      throw error;
+    }
+    console.warn('Firestore Quota Exceeded in getUserWishlist');
+    return [];
   }
 };

@@ -66,8 +66,8 @@ export const Home: React.FC = () => {
       if (!isQuota) {
         handleFirestoreError(error, OperationType.GET, 'menu');
       } else {
-        console.warn('Firestore Quota Exceeded for menu. Falling back to default items.');
-        setFirestoreMenu([]); // This forces use of MENU_ITEMS constants
+        console.warn('Firestore Quota Exceeded for menu. The app will continue showing known items.');
+        // We don't setFirestoreMenu([]) here anymore, so existing or cached items stay visible
       }
     });
     return () => unsubscribe();

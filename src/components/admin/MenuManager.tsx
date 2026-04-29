@@ -59,7 +59,8 @@ export const MenuManager: React.FC = () => {
       if (!isQuota) {
         handleFirestoreError(error, OperationType.GET, 'menu');
       } else {
-        console.warn('Firestore Quota Exceeded in MenuManager');
+        console.warn('Firestore Quota Exceeded in MenuManager. Showing cached items.');
+        // Don't setMenuItems([]) here, keep what we have
         setLoading(false);
       }
     });

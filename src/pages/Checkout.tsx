@@ -150,10 +150,15 @@ export const Checkout: React.FC = () => {
       });
       
       setCouponCode('');
-    } catch (error) {
-      console.error('Error applying coupon:', error);
-      handleFirestoreError(error, OperationType.GET, 'coupons');
-      toast.error('Failed to validate coupon');
+    } catch (error: any) {
+      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Error applying coupon:', error);
+        handleFirestoreError(error, OperationType.GET, 'coupons');
+      } else {
+        console.warn('Firestore Quota Exceeded in handleApplyCoupon');
+      }
+      toast.error(isQuota ? 'Service temporarily unavailable' : 'Failed to validate coupon');
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -314,9 +319,15 @@ export const Checkout: React.FC = () => {
         openWhatsAppOrder(orderSummary);
         clearCart();
       }
-    } catch (error) {
-      console.error('Order failed:', error);
-      toast.error('Failed to place order. Please try again.');
+    } catch (error: any) {
+      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        console.error('Order failed:', error);
+        toast.error('Failed to place order. Please try again.');
+      } else {
+        console.warn('Firestore Quota Exceeded in handlePlaceOrder');
+        toast.error('Service temporarily busy. Please try again in a few minutes.');
+      }
     } finally {
       setIsOrdering(false);
     }
