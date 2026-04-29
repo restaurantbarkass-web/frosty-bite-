@@ -109,6 +109,16 @@ export const OrderTracking: React.FC = () => {
   useEffect(() => {
     if (!orderId) return;
 
+    // Initial load from cache
+    const cacheKey = `order_tracking_cache_${orderId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setOrder(JSON.parse(cached));
+        setLoading(false);
+      } catch (e) {}
+    }
+
     const checkReview = async () => {
       try {
         const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
@@ -129,6 +139,7 @@ export const OrderTracking: React.FC = () => {
       if (snapshot.exists()) {
         const orderData = { id: snapshot.id, ...snapshot.data() } as Order;
         setOrder(orderData);
+        localStorage.setItem(cacheKey, JSON.stringify(orderData));
         
         // Fetch rider if assigned
         if (orderData.assignedRiderId && typeof orderData.assignedRiderId === 'string' && orderData.assignedRiderId.trim() !== '') {
@@ -167,7 +178,13 @@ export const OrderTracking: React.FC = () => {
           handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
         } catch (e) {}
       } else {
-        console.warn('Firestore Quota Exceeded in OrderTracking snapshot');
+        console.warn('Firestore Quota Exceeded in OrderTracking snapshot. Using cache.');
+        if (!order) {
+           const lastResort = localStorage.getItem(cacheKey);
+           if (lastResort) {
+             try { setOrder(JSON.parse(lastResort)); } catch (e) {}
+           }
+        }
       }
       setLoading(false);
     });

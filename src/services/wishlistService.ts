@@ -50,16 +50,29 @@ export const checkIfWishlisted = async (userId: string, itemId: string) => {
 
 export const getUserWishlist = async (userId: string) => {
   const wishlistRef = collection(db, 'users', userId, 'wishlist');
+  
+  // Try to load from cache first for immediate UI
+  const cacheKey = `wishlist_cache_${userId}`;
+  const cached = localStorage.getItem(cacheKey);
+  let localData: FoodItem[] = [];
+  if (cached) {
+    try {
+      localData = JSON.parse(cached);
+    } catch (e) {}
+  }
+
   try {
     const querySnapshot = await getDocs(wishlistRef);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FoodItem));
+    const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FoodItem));
+    localStorage.setItem(cacheKey, JSON.stringify(items));
+    return items;
   } catch (error: any) {
     const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
     if (!isQuota) {
       handleFirestoreError(error, OperationType.LIST, `users/${userId}/wishlist`);
       throw error;
     }
-    console.warn('Firestore Quota Exceeded in getUserWishlist');
-    return [];
+    console.warn('Firestore Quota Exceeded in getUserWishlist. Using cache.');
+    return localData;
   }
 };

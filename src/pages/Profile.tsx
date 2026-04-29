@@ -41,11 +41,37 @@ export const Profile: React.FC = () => {
   useEffect(() => {
     if (!authUser) return;
 
+    // Load initial data from cache
+    const profileCacheKey = `profile_cache_${authUser.uid}`;
+    const ordersCacheKey = `recent_orders_cache_${authUser.uid}`;
+    const wishlistCacheKey = `wishlist_cache_profile_${authUser.uid}`;
+
+    const cachedProfile = localStorage.getItem(profileCacheKey);
+    const cachedOrders = localStorage.getItem(ordersCacheKey);
+    const cachedWishlist = localStorage.getItem(wishlistCacheKey);
+
+    if (cachedProfile) {
+      try {
+        const data = JSON.parse(cachedProfile);
+        setUserData(data);
+        setFormData({
+          name: data.name || authUser.displayName || '',
+          phone: data.phone || '',
+          address: data.address || ''
+        });
+        if (data.settings) setSettingsData(data.settings);
+        setLoading(false);
+      } catch (e) {}
+    }
+    if (cachedOrders) try { setRecentOrders(JSON.parse(cachedOrders)); } catch (e) {}
+    if (cachedWishlist) try { setWishlist(JSON.parse(cachedWishlist)); } catch (e) {}
+
     // Real-time user data
     const userUnsubscribe = onSnapshot(doc(db, 'users', authUser.uid), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         setUserData(data);
+        localStorage.setItem(profileCacheKey, JSON.stringify(data));
         setFormData({
           name: data.name || authUser.displayName || '',
           phone: data.phone || '',
@@ -57,7 +83,12 @@ export const Profile: React.FC = () => {
       }
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${authUser.uid}`);
+      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+      if (!isQuota) {
+        handleFirestoreError(error, OperationType.GET, `users/${authUser.uid}`);
+      } else {
+        console.warn('Firestore Quota Exceeded in Profile. Using cache.');
+      }
       setLoading(false);
     });
 
@@ -75,6 +106,7 @@ export const Profile: React.FC = () => {
         ...doc.data()
       })) as Order[];
       setRecentOrders(ordersData);
+      localStorage.setItem(ordersCacheKey, JSON.stringify(ordersData));
     }, (error) => {
       console.error("Orders fetching error:", error);
     });
@@ -86,6 +118,7 @@ export const Profile: React.FC = () => {
         ...doc.data()
       })) as FoodItem[];
       setWishlist(wishlistData);
+      localStorage.setItem(wishlistCacheKey, JSON.stringify(wishlistData));
     }, (error) => {
       console.error("Wishlist fetching error:", error);
     });

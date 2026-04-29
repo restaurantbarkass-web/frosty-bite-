@@ -22,6 +22,15 @@ const Orders: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
+    const cacheKey = `orders_cache_${user.uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setOrders(JSON.parse(cached));
+        setLoading(false);
+      } catch (e) {}
+    }
+
     const q = query(
       collection(db, 'orders'),
       where('userId', '==', user.uid)
@@ -39,6 +48,8 @@ const Orders: React.FC = () => {
         const timeB = b.createdAt?.seconds || 0;
         return timeB - timeA;
       });
+      
+      localStorage.setItem(cacheKey, JSON.stringify(sortedOrders));
 
       // Cleanup: Auto-delete pending orders older than 1 hour
       const now = new Date();
@@ -68,7 +79,13 @@ const Orders: React.FC = () => {
       if (!isQuota) {
         handleFirestoreError(error, OperationType.GET, 'orders');
       } else {
-        console.warn('Firestore Quota Exceeded in Customer Orders History');
+        console.warn('Firestore Quota Exceeded in Customer Orders History. Using cache.');
+        if (orders.length === 0) {
+           const lastResort = localStorage.getItem(cacheKey);
+           if (lastResort) {
+             try { setOrders(JSON.parse(lastResort)); } catch (e) {}
+           }
+        }
       }
       setLoading(false);
     });

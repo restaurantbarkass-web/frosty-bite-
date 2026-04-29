@@ -34,6 +34,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
+    // Initial load from cache
+    const cacheKey = `notifications_cache_${user.uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setNotifications(JSON.parse(cached));
+      } catch (e) {}
+    }
+
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', user.uid)
@@ -53,14 +62,21 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }).slice(0, 20);
 
       setNotifications(sortedNotifs);
+      localStorage.setItem(cacheKey, JSON.stringify(sortedNotifs));
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
       if (!isQuota) {
         console.error('Error fetching notifications:', error);
       } else {
-        console.warn('Firestore Quota Exceeded for notifications.');
+        console.warn('Firestore Quota Exceeded for notifications. Using cache if available.');
+        // If we have nothing in state, double check cache
+        if (notifications.length === 0) {
+          const lastResort = localStorage.getItem(cacheKey);
+          if (lastResort) {
+            try { setNotifications(JSON.parse(lastResort)); } catch (e) {}
+          }
+        }
       }
-      setNotifications([]);
     });
 
     return () => unsubscribe();

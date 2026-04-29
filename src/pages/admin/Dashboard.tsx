@@ -17,8 +17,24 @@ export const Dashboard: React.FC = () => {
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
+    // Load initial data from cache
+    const configCacheKey = 'admin_config_cache';
+    const ordersCacheKey = 'admin_orders_cache';
+    
+    const cachedConfig = localStorage.getItem(configCacheKey);
+    const cachedOrders = localStorage.getItem(ordersCacheKey);
+    
+    if (cachedConfig) try { setConfig(JSON.parse(cachedConfig)); } catch (e) {}
+    if (cachedOrders) {
+      try { 
+        setRecentOrders(JSON.parse(cachedOrders)); 
+        setLoadingOrders(false);
+      } catch (e) {}
+    }
+
     const unsubscribeConfig = appConfigService.subscribeToConfig((data) => {
       setConfig(data);
+      localStorage.setItem(configCacheKey, JSON.stringify(data));
     });
 
     const q = query(collection(db, 'orders'));
@@ -45,13 +61,20 @@ export const Dashboard: React.FC = () => {
         .slice(0, 10);
 
       setRecentOrders(sortedOrders);
+      localStorage.setItem(ordersCacheKey, JSON.stringify(sortedOrders));
       setLoadingOrders(false);
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
       if (!isQuota) {
         handleFirestoreError(error, OperationType.GET, 'orders');
       } else {
-        console.warn('Firestore Quota Exceeded in Dashboard. Showing empty orders state.');
+        console.warn('Firestore Quota Exceeded in Dashboard. Using cache.');
+        if (recentOrders.length === 0) {
+          const lastResort = localStorage.getItem(ordersCacheKey);
+          if (lastResort) {
+            try { setRecentOrders(JSON.parse(lastResort)); } catch (e) {}
+          }
+        }
       }
       setLoadingOrders(false);
     });
