@@ -56,7 +56,9 @@ export const Orders: React.FC = () => {
         if (!order.createdAt || order.status !== 'pending') return false;
         const d = (typeof (order.createdAt as any).toDate === 'function')
           ? (order.createdAt as any).toDate()
-          : new Date((order.createdAt as any).seconds * 1000);
+          : ((order.createdAt as any).seconds 
+              ? new Date((order.createdAt as any).seconds * 1000) 
+              : new Date(order.createdAt as any));
         return d.getTime() < oneHourAgoTs;
       });
 
@@ -74,10 +76,11 @@ export const Orders: React.FC = () => {
       const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
       
       const last24hOrders = actionableOrders.filter(o => {
-        const d = o.createdAt 
-          ? (typeof (o.createdAt as any).toDate === 'function' 
-              ? (o.createdAt as any).toDate() 
-              : new Date((o.createdAt as any).seconds * 1000))
+        const ca = o.createdAt;
+        const d = ca 
+          ? (typeof (ca as any).toDate === 'function' 
+              ? (ca as any).toDate() 
+              : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
           : null;
         return d && d.getTime() >= twentyFourHoursAgo;
       });
@@ -111,10 +114,11 @@ export const Orders: React.FC = () => {
     
     let matchesDate = true;
     if (startDate || endDate) {
-      const orderDate = order.createdAt 
-        ? (typeof (order.createdAt as any).toDate === 'function' 
-            ? (order.createdAt as any).toDate() 
-            : new Date((order.createdAt as any).seconds * 1000))
+      const ca = order.createdAt;
+      const orderDate = ca 
+        ? (typeof (ca as any).toDate === 'function' 
+            ? (ca as any).toDate() 
+            : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
         : null;
       if (orderDate) {
         if (startDate) {
@@ -148,10 +152,11 @@ export const Orders: React.FC = () => {
     };
 
     const rows = filteredOrders.map(order => {
-      const orderDate = order.createdAt 
-        ? (typeof (order.createdAt as any).toDate === 'function' 
-            ? (order.createdAt as any).toDate() 
-            : new Date((order.createdAt as any).seconds * 1000))
+      const ca = order.createdAt;
+      const orderDate = ca 
+        ? (typeof (ca as any).toDate === 'function' 
+            ? (ca as any).toDate() 
+            : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
         : null;
 
       return [

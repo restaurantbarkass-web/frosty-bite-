@@ -10,9 +10,11 @@ interface KOTPrintProps {
 
 export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
   const date = order.createdAt 
-    ? (typeof (order.createdAt as any).toDate === 'function' 
+    ? ((typeof (order.createdAt as any).toDate === 'function') 
         ? (order.createdAt as any).toDate() 
-        : new Date((order.createdAt as any).seconds * 1000))
+        : ((order.createdAt as any).seconds 
+            ? new Date((order.createdAt as any).seconds * 1000) 
+            : new Date(order.createdAt as any)))
     : new Date();
 
   const handlePrint = () => {

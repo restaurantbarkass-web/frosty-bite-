@@ -90,7 +90,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Existing notification listener
     const cacheKey = `notifications_cache_${user.uid}`;
-    // ... rest of existing listener
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
