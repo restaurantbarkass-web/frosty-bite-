@@ -44,15 +44,8 @@ export const Dashboard: React.FC = () => {
         ...doc.data()
       })) as Order[];
       
-      // Client-side sort, filter and limit
+      // Client-side sort and limit (show all orders including pending UPI)
       const sortedOrders = ordersData
-        .filter(o => {
-          // Hide UPI/Online orders that haven't submitted a UTR yet
-          if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
-            return false;
-          }
-          return true;
-        })
         .sort((a, b) => {
           const timeA = a.createdAt?.seconds || 0;
           const timeB = b.createdAt?.seconds || 0;

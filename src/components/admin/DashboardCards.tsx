@@ -98,13 +98,8 @@ export const DashboardCards: React.FC = () => {
     const unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
       const allOrders = snapshot.docs.map(doc => doc.data());
       
-      // Filter out UPI/Online orders that haven't submitted a UTR yet
-      const actionableOrders = allOrders.filter(o => {
-        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
-          return false;
-        }
-        return true;
-      });
+      // Use all orders for stats
+      const actionableOrders = allOrders;
 
       processOrders(actionableOrders);
       localStorage.setItem(ordersCacheKey, JSON.stringify(actionableOrders));

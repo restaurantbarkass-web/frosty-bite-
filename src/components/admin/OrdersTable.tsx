@@ -608,7 +608,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     <div className="flex items-center gap-2">
                       {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
                         <div className="flex items-center gap-2 mr-2">
-                          {order.utr && (
+                          {order.utr ? (
                             <>
                               <button 
                                 onClick={() => verifyPayment(order.id)}
@@ -625,6 +625,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                                 Reject
                               </button>
                             </>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => updateStatus(order.id, 'confirmed')}
+                                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                              >
+                                Accept Manually
+                              </button>
+                              <button 
+                                onClick={() => updateStatus(order.id, 'cancelled')}
+                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                              >
+                                Reject
+                              </button>
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -707,24 +722,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                               { id: 'delivered', label: 'Delivered' },
                               { id: 'cancelled', label: 'Cancelled' }
                             ].map((s) => {
-                              const isUnpaidUPI = (order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid';
-                              // Only allow cancelling unpaid UPI orders
-                              const isDisabled = isUnpaidUPI && s.id !== 'cancelled';
-                              
                               return (
                                 <button
                                   key={s.id}
-                                  disabled={isDisabled}
                                   onClick={() => {
                                     updateStatus(order.id, s.id as Order['status']);
                                     setSelectedOrder(null);
                                   }}
-                                  className={`w-full text-left px-4 py-3 text-xs font-semibold transition-all ${
-                                    isDisabled 
-                                      ? "text-gray-700 cursor-not-allowed bg-black/10" 
-                                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                                  }`}
-                                  title={isDisabled ? "Payment verification required" : ""}
+                                  className="w-full text-left px-4 py-3 text-xs font-semibold transition-all text-gray-400 hover:text-white hover:bg-white/5"
                                 >
                                   Mark as {s.label}
                                 </button>
@@ -866,22 +871,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       { id: 'delivered', label: 'Delivered', color: 'bg-emerald-500' },
                       { id: 'cancelled', label: 'Cancel', color: 'bg-red-500' }
                     ].map((s) => {
-                      const isUnpaidUPI = (order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid';
-                      const isDisabled = isUnpaidUPI && s.id !== 'cancelled';
-                      
                       return (
                         <button
                           key={s.id}
-                          disabled={isDisabled}
                           onClick={() => {
                             updateStatus(order.id, s.id as Order['status']);
                             setSelectedOrder(null);
                           }}
-                          className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all ${
-                            isDisabled 
-                              ? "bg-zinc-800 text-zinc-600 cursor-not-allowed" 
-                              : `${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`
-                          }`}
+                          className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all ${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`}
                         >
                           {s.label}
                         </button>
@@ -908,7 +905,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
             
             {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
               <div className="pt-2 space-y-2">
-                {order.utr && (
+                {order.utr ? (
                   <>
                     <button 
                       onClick={() => verifyPayment(order.id)}
@@ -925,6 +922,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       Reject Order
                     </button>
                   </>
+                ) : (
+                  <div className="flex grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={() => updateStatus(order.id, 'confirmed')}
+                      className="py-3 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                    >
+                      Accept Manual
+                    </button>
+                    <button 
+                      onClick={() => updateStatus(order.id, 'cancelled')}
+                      className="py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                    >
+                      Reject Order
+                    </button>
+                  </div>
                 )}
               </div>
             ) : (

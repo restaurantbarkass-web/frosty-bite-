@@ -31,13 +31,8 @@ export const Orders: React.FC = () => {
         ...doc.data()
       })) as Order[];
       
-      // Filter out UPI/Online orders that haven't submitted a UTR yet
-      const actionableOrders = ordersData.filter(o => {
-        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
-          return false;
-        }
-        return true;
-      });
+      // Show all orders including pending UPI
+      const actionableOrders = ordersData;
 
       // Client-side sort
       const sortedOrders = actionableOrders.sort((a, b) => {
@@ -300,14 +295,10 @@ export const Orders: React.FC = () => {
       <OrdersTable 
         orders={filteredOrders.filter(o => {
           if (activeTab === 'verification') {
-            return o.paymentStatus === 'pending_verification';
+            return o.paymentStatus === 'pending_verification' || (o.utr && o.paymentStatus !== 'paid');
           }
-          // Only show in active if it's NOT awaiting verification 
-          // AND if it's UPI, it should either be paid or we allow seeing pending ones?
-          // User said "before that dont show", so let's hide non-verified UPI orders from active list.
-          if (o.paymentMethod === 'upi' && (o.paymentStatus === 'pending' || o.paymentStatus === 'pending_verification')) {
-            return false;
-          }
+          // In Active tab, show everything except those currently in "verification" status
+          if (o.paymentStatus === 'pending_verification') return false;
           return true;
         })} 
         loading={loading} 
