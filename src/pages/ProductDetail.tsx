@@ -267,8 +267,30 @@ const ProductDetail: React.FC = () => {
           }
         });
       }
-    } catch (error) {
-      toast.error('Failed to update wishlist');
+    } catch (error: any) {
+      let isQuota = false;
+      try {
+        const errData = JSON.parse(error.message);
+        if (errData.error === "DATABASE_QUOTA_EXCEEDED") isQuota = true;
+      } catch (e) {
+        if (error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded')) {
+          isQuota = true;
+        }
+      }
+
+      if (isQuota) {
+        toast.error('Database limit reached! Your wishlist will sync later.', {
+          duration: 4000,
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        });
+      } else {
+        toast.error('Failed to update wishlist');
+      }
     } finally {
       setIsWishlisting(false);
     }
