@@ -353,7 +353,7 @@ const ProductDetail: React.FC = () => {
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-16">
         {/* Product Image Section */}
-        <div className="relative h-[60vh] lg:h-screen lg:sticky lg:top-0 overflow-hidden">
+        <div className="relative aspect-square md:h-screen lg:sticky lg:top-0 overflow-hidden">
           <ImageZoom
             src={product.image}
             alt={product.name}

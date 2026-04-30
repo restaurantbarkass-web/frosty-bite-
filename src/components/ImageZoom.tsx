@@ -15,6 +15,7 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
   const [isOpen, setIsOpen] = useState(false);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
+  const [lastPinchDistance, setLastPinchDistance] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Motion values for smooth panning
@@ -26,8 +27,10 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
   const smoothX = useSpring(x, springConfig);
   const smoothY = useSpring(y, springConfig);
 
-  const toggleZoom = (e: React.MouseEvent) => {
+  const toggleZoom = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
+    // Prevent default to avoid side effects on touch
+    if (e.cancelable && 'preventDefault' in e) e.preventDefault();
     setIsOpen(!isOpen);
     resetState();
   };
@@ -36,6 +39,7 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
     setScale(1);
     x.set(0);
     y.set(0);
+    setLastPinchDistance(null);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -52,8 +56,41 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const distance = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      setLastPinchDistance(distance);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastPinchDistance !== null) {
+      const distance = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      
+      const delta = (distance - lastPinchDistance) / 100;
+      const newScale = Math.min(Math.max(1, scale + delta), 5);
+      setScale(newScale);
+      setLastPinchDistance(distance);
+      
+      if (newScale === 1) {
+        x.set(0);
+        y.set(0);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setLastPinchDistance(null);
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (e.cancelable) e.preventDefault();
     if (scale > 1) {
       resetState();
     } else {
@@ -178,8 +215,11 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
             {/* Image Container */}
             <div 
               ref={containerRef}
-              className="w-full h-full flex items-center justify-center p-4 relative"
+              className="w-full h-full flex items-center justify-center p-0 sm:p-4 relative"
               onWheel={handleWheel}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               <motion.div
                 style={{ 
@@ -193,14 +233,14 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={() => setIsDragging(false)}
                 onDoubleClick={handleDoubleClick}
-                className="relative max-w-full max-h-full flex items-center justify-center"
+                className="relative w-full h-full flex items-center justify-center p-4"
               >
                 <motion.img
                   src={src}
                   alt={alt}
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="max-w-[90vw] max-h-[85vh] object-contain shadow-2xl rounded-2xl select-none"
+                  className="max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[85vh] object-contain shadow-2xl sm:rounded-2xl select-none"
                   referrerPolicy="no-referrer"
                   draggable={false}
                 />
@@ -212,18 +252,18 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="absolute bottom-8 left-1/2 -translate-x-1/2 px-8 py-3 bg-white/5 backdrop-blur-xl rounded-full border border-white/10 pointer-events-none"
+              className="absolute bottom-8 left-1/2 -translate-x-1/2 px-6 sm:px-8 py-3 bg-white/5 backdrop-blur-xl rounded-full border border-white/10 pointer-events-none hidden xs:block"
             >
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3 sm:gap-6">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">
-                    {scale > 1 ? 'Drag to Pan' : 'Scroll to Zoom'}
+                    {scale > 1 ? 'Drag to Pan' : (window.innerWidth < 640 ? 'Pinch to Zoom' : 'Scroll to Zoom')}
                   </p>
                 </div>
-                <div className="w-px h-3 bg-white/10" />
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">
-                  Double Click to Toggle
+                <div className="w-px h-3 bg-white/10 hidden sm:block" />
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] hidden sm:block">
+                  Double Tap to Toggle
                 </p>
                 <div className="w-px h-3 bg-white/10" />
                 <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">
