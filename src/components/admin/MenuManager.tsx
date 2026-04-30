@@ -15,6 +15,8 @@ interface MenuItem {
   stockQuantity: number;
 }
 
+import { ImageZoom } from '../ImageZoom';
+
 export const MenuManager: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -236,11 +238,11 @@ export const MenuManager: React.FC = () => {
               className="group bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden hover:border-orange-500/30 transition-all"
             >
               <div className="relative h-48 overflow-hidden">
-                <img 
+                <ImageZoom 
                   src={item.image} 
                   alt={item.name} 
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
+                  triggerClassName="w-full h-full"
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 

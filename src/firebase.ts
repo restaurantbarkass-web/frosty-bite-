@@ -13,8 +13,7 @@ import {
   setDoc, 
   serverTimestamp, 
   getDocFromServer,
-  persistentLocalCache,
-  persistentMultipleTabManager
+  memoryLocalCache
 } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -24,12 +23,10 @@ import { getRoleFromEmail } from './constants';
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore with experimental settings or local cache
+// Initialize Firestore with memory cache to resolve "future timestamp" sync issues
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
+  localCache: memoryLocalCache({})
 }, firebaseConfig.firestoreDatabaseId);
 
 export const messaging = typeof window !== 'undefined' ? (() => {

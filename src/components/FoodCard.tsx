@@ -12,6 +12,8 @@ import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useAppConfig } from '../hooks/useAppConfig';
 
+import { ImageZoom } from './ImageZoom';
+
 interface FoodCardProps {
   item: FoodItem;
 }
@@ -127,12 +129,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
       </AnimatePresence>
 
       <div className="relative aspect-[4/3] overflow-hidden">
-        <img
+        <ImageZoom
           src={item.image}
           alt={item.name}
-          loading="lazy"
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          referrerPolicy="no-referrer"
+          triggerClassName="w-full h-full"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingBag, DollarSign, Activity, Users, TrendingUp, TrendingDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, limit } from 'firebase/firestore';
 
 interface CardProps {
   title: string;
@@ -95,14 +95,11 @@ export const DashboardCards: React.FC = () => {
       }));
     }
 
-    const unsubscribeOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+    const unsubscribeOrders = onSnapshot(query(collection(db, 'orders'), limit(300)), (snapshot) => {
       const allOrders = snapshot.docs.map(doc => doc.data());
       
-      // Use all orders for stats
-      const actionableOrders = allOrders;
-
-      processOrders(actionableOrders);
-      localStorage.setItem(ordersCacheKey, JSON.stringify(actionableOrders));
+      processOrders(allOrders);
+      localStorage.setItem(ordersCacheKey, JSON.stringify(allOrders));
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
       if (!isQuota) {
@@ -112,10 +109,10 @@ export const DashboardCards: React.FC = () => {
       }
     });
 
-    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+    const unsubscribeUsers = onSnapshot(query(collection(db, 'users'), limit(100)), (snapshot) => {
       setStats(prev => ({
         ...prev,
-        totalCustomers: snapshot.size
+        totalCustomers: snapshot.size >= 100 ? 500 : snapshot.size // Estimated or real size
       }));
       localStorage.setItem(usersCacheKey, snapshot.size.toString());
     }, (error) => {

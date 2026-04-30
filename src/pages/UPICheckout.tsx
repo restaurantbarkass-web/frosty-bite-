@@ -12,7 +12,10 @@ import {
   Loader2,
   Lock,
   QrCode,
-  CreditCard
+  CreditCard,
+  Image as ImageIcon,
+  Camera,
+  Trash2
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -52,6 +55,7 @@ export const UPICheckout: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(PAYMENT_EXPIRY_SECONDS);
   const expiryTimeRef = useRef<number>(Date.now() + PAYMENT_EXPIRY_SECONDS * 1000);
   const [utr, setUtr] = useState('');
+  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
@@ -86,6 +90,22 @@ export const UPICheckout: React.FC = () => {
       clearInterval(timer);
     };
   }, [state, navigate]);
+  
+  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64
+        toast.error('File too large. Please upload an image under 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshot(reader.result as string);
+        toast.success('Screenshot uploaded!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -122,6 +142,7 @@ export const UPICheckout: React.FC = () => {
       try {
         await updateDoc(orderRef, {
           utr: utr,
+          paymentScreenshot: screenshot,
           status: 'pending', 
           paymentStatus: 'pending_verification', // Require admin to check UTR manually
           updatedAt: serverTimestamp()
@@ -288,23 +309,67 @@ export const UPICheckout: React.FC = () => {
                 </div>
               </div>
 
-              {/* UTR Input Section */}
-              <div id="utr-section" className="space-y-6 pt-4 border-t border-white/5">
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-sm text-zinc-400 font-medium">
-                      Enter your UTR below
-                    </p>
-                    <button 
-                      onClick={() => document.getElementById('qr-section')?.scrollIntoView({ behavior: 'smooth' })}
-                      className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:underline"
-                    >
-                      <QrCode size={10} /> View QR Code
-                    </button>
+              {/* Screenshot & UTR Input Section */}
+              <div id="utr-section" className="space-y-8 pt-6 border-t border-white/5">
+                {/* Screenshot Upload Row */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        <Camera size={12} className="text-primary" /> Upload Payment Screenshot
+                      </label>
+                      <button 
+                        onClick={() => document.getElementById('qr-section')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:underline"
+                      >
+                        <QrCode size={10} /> View QR Code
+                      </button>
+                    </div>
+                    <div className="flex gap-4">
+                      <label className={cn(
+                        "flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer group",
+                        screenshot 
+                          ? "border-emerald-500/50 bg-emerald-500/5" 
+                          : "border-white/10 bg-white/5 hover:border-primary/50 hover:bg-white/10"
+                      )}>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleScreenshotUpload}
+                        />
+                        {screenshot ? (
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-xl overflow-hidden border border-emerald-500/30 shadow-lg">
+                              <img src={screenshot} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs font-black text-emerald-500 uppercase tracking-tight">Screenshot Attached!</p>
+                              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none mt-1">Tap to change image</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <ImageIcon size={20} className="text-zinc-500 mb-1 group-hover:text-primary transition-colors" />
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest group-hover:text-primary transition-colors italic">Attach screenshot (Recommended)</p>
+                          </>
+                        )}
+                      </label>
+                      {screenshot && (
+                        <button 
+                          onClick={() => setScreenshot(null)}
+                          className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-lg active:scale-95"
+                          title="Remove Screenshot"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center justify-center gap-2">
-                    <QrCode size={12} className="text-primary" /> Enter 12-Digit UTR Number
-                  </label>
+
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
+                      <QrCode size={12} className="text-primary" /> Enter 12-Digit UTR Number
+                    </label>
                   <div className="relative">
                     <input
                       ref={utrInputRef}

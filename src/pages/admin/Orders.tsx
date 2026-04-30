@@ -4,7 +4,7 @@ import { Filter, Search, Download, Calendar, Clock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 
 import { Order } from '../../types';
 
@@ -24,20 +24,22 @@ export const Orders: React.FC = () => {
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'orders'));
+    // Fetch all for local processing (respecting quota limit)
+    const q = query(
+      collection(db, 'orders'),
+      limit(150) // Increased slightly for better history
+    );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Order[];
       
-      // Show all orders including pending UPI
-      const actionableOrders = ordersData;
-
-      // Client-side sort
-      const sortedOrders = actionableOrders.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
+      // Sort in memory to ensure orders missing createdAt still show up (at the end)
+      const sortedOrders = ordersData.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
+        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
         return timeB - timeA;
       });
 
@@ -70,7 +72,7 @@ export const Orders: React.FC = () => {
       const now = new Date().getTime();
       const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
       
-      const last24hOrders = actionableOrders.filter(o => {
+      const last24hOrders = ordersData.filter(o => {
         const ca = o.createdAt;
         const d = ca 
           ? (typeof (ca as any).toDate === 'function' 

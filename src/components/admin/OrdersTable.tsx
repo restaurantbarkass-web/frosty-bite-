@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 
 import { Order, Rider } from '../../types';
+import { ImageZoom } from '../ImageZoom';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, paymentStatus, paymentMethod } = order;
@@ -647,17 +648,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <td className="px-8 py-6">
                     <div className="flex items-center gap-2">
                       {order.status === 'pending' ? (
-                        <div className="flex items-center gap-2 mr-2">
+                        <div className="flex flex-col gap-4 mr-2">
                           {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
-                            <>
+                            <div className="flex flex-col gap-3">
+                              {order.paymentScreenshot && (
+                                <div className="space-y-2">
+                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
+                                  <ImageZoom 
+                                    src={order.paymentScreenshot} 
+                                    alt={`Ref: ${order.utr || order.id}`} 
+                                    className="w-24 h-24 object-cover rounded-xl border border-white/10 shadow-lg"
+                                    triggerClassName="w-24 h-24"
+                                  />
+                                </div>
+                              )}
                               {order.utr ? (
-                                <>
+                                <div className="flex items-center gap-2">
                                   <button 
                                     onClick={() => verifyPayment(order.id)}
-                                    className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                                    className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 whitespace-nowrap"
                                   >
                                     <CheckCircle2 size={12} />
-                                    Accept (Verify UTR: {order.utr})
+                                    Accept (UTR: {order.utr})
                                   </button>
                                   <button 
                                     onClick={() => rejectPayment(order.id)}
@@ -666,7 +678,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                                     <X size={12} />
                                     Reject
                                   </button>
-                                </>
+                                </div>
                               ) : (
                                 <div className="flex items-center gap-2">
                                   <button 
@@ -683,7 +695,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                                   </button>
                                 </div>
                               )}
-                            </>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-2">
                               <button 
@@ -945,11 +957,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
             </AnimatePresence>
             
             {order.status === 'pending' && (
-              <div className="pt-2 space-y-2">
+              <div className="pt-2 space-y-4">
                 {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
-                  <>
+                  <div className="space-y-4">
+                    {order.paymentScreenshot && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
+                        <ImageZoom 
+                          src={order.paymentScreenshot} 
+                          alt={`Proof: ${order.utr || order.id}`} 
+                          className="w-full h-40 object-cover rounded-2xl border border-white/10"
+                          triggerClassName="w-full h-40"
+                        />
+                      </div>
+                    )}
                     {order.utr ? (
-                      <>
+                      <div className="space-y-2">
                         <button 
                           onClick={() => verifyPayment(order.id)}
                           className="w-full py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
@@ -964,7 +987,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                           <X size={16} />
                           Reject Order
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <div className="flex grid grid-cols-2 gap-2">
                         <button 
@@ -981,7 +1004,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                         </button>
                       </div>
                     )}
-                  </>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <button 

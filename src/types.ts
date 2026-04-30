@@ -38,6 +38,7 @@ export interface Order {
   paymentMethod?: 'cash' | 'online' | 'upi' | 'cod';
   paymentStatus?: 'pending' | 'paid' | 'pending_verification';
   utr?: string;
+  paymentScreenshot?: string;
   discount?: number;
   couponCode?: string | null;
   deliveryCharge?: number;

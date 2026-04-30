@@ -12,7 +12,7 @@ import {
   Cell
 } from 'recharts';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
 import { TrendingUp, DollarSign, ShoppingBag, Clock, Download, FileText, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from '../../types';
@@ -40,12 +40,20 @@ export const Analytics: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'orders'), orderBy('createdAt', 'asc'));
+    // Add limit and handle sorting locally for reliability
+    const q = query(collection(db, 'orders'), limit(300));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Order[];
+
+      // Sort by date manually
+      ordersData.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
+        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
+        return timeA - timeB; // Ascending for charts
+      });
 
       // Filter out UPI/Online orders that haven't submitted a UTR yet
       const actionableOrders = ordersData.filter(o => {

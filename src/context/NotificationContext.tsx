@@ -99,7 +99,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const q = query(
       collection(db, 'notifications'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

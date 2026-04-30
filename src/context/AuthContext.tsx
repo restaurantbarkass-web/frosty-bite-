@@ -58,7 +58,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             setLoading(false);
           }, (error) => {
-            console.warn('Error fetching user role, falling back to email whitelist:', error);
+            const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
+            if (isQuota) {
+              console.warn('Firestore Quota Exceeded for user role. Falling back to email whitelist.');
+            } else {
+              console.warn('Error fetching user role, falling back to email whitelist:', error);
+            }
             setRole(getRoleFromEmail(currentUser.email));
             setLoading(false);
           });

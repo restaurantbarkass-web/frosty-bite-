@@ -18,6 +18,8 @@ import { useAppConfig } from '../hooks/useAppConfig';
 
 import { CartSidebar } from '../components/CartSidebar';
 
+import { ImageZoom } from '../components/ImageZoom';
+
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -330,14 +332,11 @@ const ProductDetail: React.FC = () => {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-16">
         {/* Product Image Section */}
         <div className="relative h-[60vh] lg:h-screen lg:sticky lg:top-0 overflow-hidden">
-          <motion.img
-            initial={{ scale: 1.2, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.8 }}
+          <ImageZoom
             src={product.image}
             alt={product.name}
             className={cn("w-full h-full object-cover", product.available === false && "grayscale opacity-50")}
-            referrerPolicy="no-referrer"
+            triggerClassName="w-full h-full"
           />
           {product.available === false && (
             <motion.div 

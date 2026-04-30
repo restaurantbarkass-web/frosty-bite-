@@ -37,24 +37,25 @@ export const Dashboard: React.FC = () => {
       localStorage.setItem(configCacheKey, JSON.stringify(data));
     });
 
-    const q = query(collection(db, 'orders'));
+    const q = query(
+      collection(db, 'orders'),
+      limit(50)
+    );
+    
     const unsubscribeOrders = onSnapshot(q, (snapshot) => {
       const ordersData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Order[];
       
-      // Client-side sort and limit (show all orders including pending UPI)
-      const sortedOrders = ordersData
-        .sort((a, b) => {
-          const timeA = a.createdAt?.seconds || 0;
-          const timeB = b.createdAt?.seconds || 0;
-          return timeB - timeA;
-        })
-        .slice(0, 10);
+      const sorted = ordersData.sort((a, b) => {
+        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
+        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
+        return timeB - timeA;
+      }).slice(0, 20);
 
-      setRecentOrders(sortedOrders);
-      localStorage.setItem(ordersCacheKey, JSON.stringify(sortedOrders));
+      setRecentOrders(sorted);
+      localStorage.setItem(ordersCacheKey, JSON.stringify(sorted));
       setLoadingOrders(false);
     }, (error) => {
       const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
