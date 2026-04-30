@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -209,12 +209,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   }, [orders, isMuted]);
 
   const verifyPayment = async (orderId: string) => {
+    console.log(`[OrderAction] Attempting to VERIFY payment for ${orderId}`);
     const loadingToast = toast.loading('Verifying payment...');
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
+      const updateData = {
         paymentStatus: 'paid',
-        status: 'confirmed' // Auto-confirm after admin verifies payment
-      });
+        status: 'confirmed', // Auto-confirm after admin verifies payment
+        updatedAt: serverTimestamp()
+      };
+      
+      console.log(`[OrderAction] Sending verify updateData:`, updateData);
+      await updateDoc(doc(db, 'orders', orderId), updateData);
+      console.log(`[OrderAction] Verify SUCCESS for ${orderId}`);
 
       const order = orders.find(o => o.id === orderId);
       if (order && order.userId !== 'guest') {
@@ -229,24 +235,37 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
 
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
     } catch (error: any) {
-      console.error('Verify payment error:', error);
+      console.error('[OrderAction] Verify payment ERROR:', error);
+      let errorMessage = 'Verification failed';
       try {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      } catch (e: any) {
-        toast.error(`Verification failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+        if (error.message && error.message.startsWith('{')) {
+          const errInfo = JSON.parse(error.message);
+          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
+        } else {
+          errorMessage = error.message || 'Permission Denied';
+        }
+      } catch (e) {
+        errorMessage = 'Permission Denied';
       }
+      toast.error(errorMessage, { id: loadingToast });
     }
   };
 
   const rejectPayment = async (orderId: string) => {
+    console.log(`[OrderAction] Attempting to REJECT payment for ${orderId}`);
     const loadingToast = toast.loading('Rejecting payment proof...');
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
+      const updateData = {
         paymentStatus: 'pending', // Reset payment status
         status: 'cancelled', // Cancel the order as proof was invalid
         utr: null, // Clear UTR so they can resubmit if needed
-        notes: "Admin rejected payment proof (UTR). Please contact support or re-order."
-      });
+        notes: "Admin rejected payment proof (UTR). Please contact support or re-order.",
+        updatedAt: serverTimestamp()
+      };
+      
+      console.log(`[OrderAction] Sending reject updateData:`, updateData);
+      await updateDoc(doc(db, 'orders', orderId), updateData);
+      console.log(`[OrderAction] Reject SUCCESS for ${orderId}`);
 
       const order = orders.find(o => o.id === orderId);
       if (order && order.userId !== 'guest') {
@@ -261,23 +280,35 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
 
       toast.success('Payment rejected & Order cancelled', { id: loadingToast });
     } catch (error: any) {
-      console.error('Reject payment error:', error);
+      console.error('[OrderAction] Reject payment ERROR:', error);
+      let errorMessage = 'Rejection failed';
       try {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      } catch (e: any) {
-        toast.error(`Rejection failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+        if (error.message && error.message.startsWith('{')) {
+          const errInfo = JSON.parse(error.message);
+          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
+        } else {
+          errorMessage = error.message || 'Permission Denied';
+        }
+      } catch (e) {
+        errorMessage = 'Permission Denied';
       }
+      toast.error(errorMessage, { id: loadingToast });
     }
   };
 
   const updateStatus = async (id: string, newStatus: Order['status']) => {
+    console.log(`[OrderAction] Attempting update to ${newStatus} for order ${id}`);
+    console.log(`[OrderAction] Current User:`, auth.currentUser?.email, auth.currentUser?.uid);
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = orders.find(o => o.id === id);
-      const updateData: any = { status: newStatus };
+      const updateData: any = { 
+        status: newStatus,
+        updatedAt: serverTimestamp() 
+      };
       
-      // Auto-set payment status to paid if admin accepts a UPI order with UTR
-      if (newStatus === 'confirmed' && order?.utr) {
+      // Auto-set payment status to paid if admin accepts a pending order
+      if (newStatus === 'confirmed') {
         updateData.paymentStatus = 'paid';
       }
       
@@ -286,7 +317,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
         updateData.estimatedDeliveryTime = 30; // Default 30 mins
       }
 
+      console.log(`[OrderAction] Sending updateData:`, updateData);
       await updateDoc(doc(db, 'orders', id), updateData);
+      console.log(`[OrderAction] Update SUCCESS for ${id}`);
 
       if (order && order.userId !== 'guest') {
         const statusMessages: Record<string, string> = {
@@ -308,12 +341,19 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
     } catch (error: any) {
-      console.error('Update status error:', error);
+      console.error('[OrderAction] Update status ERROR:', error);
+      let errorMessage = 'Update failed';
       try {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${id}`);
-      } catch (e: any) {
-        toast.error(`Update failed: ${e.message.includes('QUOTA') ? 'Database Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
+        if (error.message && error.message.startsWith('{')) {
+          const errInfo = JSON.parse(error.message);
+          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
+        } else {
+          errorMessage = error.message || 'Permission Denied';
+        }
+      } catch (e) {
+        errorMessage = 'Permission Denied';
       }
+      toast.error(errorMessage, { id: loadingToast });
     }
   };
 
@@ -606,46 +646,46 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 </td>
                 <td className="px-8 py-6">
                     <div className="flex items-center gap-2">
-                      {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
+                      {order.status === 'pending' ? (
                         <div className="flex items-center gap-2 mr-2">
-                          {order.utr ? (
+                          {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
                             <>
-                              <button 
-                                onClick={() => verifyPayment(order.id)}
-                                className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
-                              >
-                                <CheckCircle2 size={12} />
-                                Accept (Verify UTR: {order.utr})
-                              </button>
-                              <button 
-                                onClick={() => rejectPayment(order.id)}
-                                className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 flex items-center gap-2"
-                              >
-                                <X size={12} />
-                                Reject
-                              </button>
+                              {order.utr ? (
+                                <>
+                                  <button 
+                                    onClick={() => verifyPayment(order.id)}
+                                    className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+                                  >
+                                    <CheckCircle2 size={12} />
+                                    Accept (Verify UTR: {order.utr})
+                                  </button>
+                                  <button 
+                                    onClick={() => rejectPayment(order.id)}
+                                    className="px-4 py-2 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 flex items-center gap-2"
+                                  >
+                                    <X size={12} />
+                                    Reject
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <button 
+                                    onClick={() => updateStatus(order.id, 'confirmed')}
+                                    className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                                  >
+                                    Accept Manually
+                                  </button>
+                                  <button 
+                                    onClick={() => updateStatus(order.id, 'cancelled')}
+                                    className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              )}
                             </>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => updateStatus(order.id, 'confirmed')}
-                                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                              >
-                                Accept Manually
-                              </button>
-                              <button 
-                                onClick={() => updateStatus(order.id, 'cancelled')}
-                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {order.status === 'pending' && (
-                            <div className="flex items-center gap-2 mr-2">
                               <button 
                                 onClick={() => updateStatus(order.id, 'confirmed')}
                                 className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
@@ -660,8 +700,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                               </button>
                             </div>
                           )}
-                        </>
-                      )}
+                        </div>
+                      ) : null}
+                      
                       {order.status === 'confirmed' && (
                         <div className="flex items-center gap-2 mr-2">
                           <button 
@@ -903,45 +944,45 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
               )}
             </AnimatePresence>
             
-            {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) && order.paymentStatus !== 'paid' && order.status !== 'cancelled' ? (
+            {order.status === 'pending' && (
               <div className="pt-2 space-y-2">
-                {order.utr ? (
+                {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
                   <>
-                    <button 
-                      onClick={() => verifyPayment(order.id)}
-                      className="w-full py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 size={16} />
-                      Accept Order (UTR: {order.utr})
-                    </button>
-                    <button 
-                      onClick={() => rejectPayment(order.id)}
-                      className="w-full py-4 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <X size={16} />
-                      Reject Order
-                    </button>
+                    {order.utr ? (
+                      <>
+                        <button 
+                          onClick={() => verifyPayment(order.id)}
+                          className="w-full py-4 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle2 size={16} />
+                          Accept Order (UTR: {order.utr})
+                        </button>
+                        <button 
+                          onClick={() => rejectPayment(order.id)}
+                          className="w-full py-4 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <X size={16} />
+                          Reject Order
+                        </button>
+                      </>
+                    ) : (
+                      <div className="flex grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => updateStatus(order.id, 'confirmed')}
+                          className="py-3 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                        >
+                          Accept Manual
+                        </button>
+                        <button 
+                          onClick={() => updateStatus(order.id, 'cancelled')}
+                          className="py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
+                        >
+                          Reject Order
+                        </button>
+                      </div>
+                    )}
                   </>
                 ) : (
-                  <div className="flex grid grid-cols-2 gap-2">
-                    <button 
-                      onClick={() => updateStatus(order.id, 'confirmed')}
-                      className="py-3 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
-                    >
-                      Accept Manual
-                    </button>
-                    <button 
-                      onClick={() => updateStatus(order.id, 'cancelled')}
-                      className="py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg"
-                    >
-                      Reject Order
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                {order.status === 'pending' && selectedOrder !== order.id && (
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <button 
                       onClick={() => updateStatus(order.id, 'confirmed')}
@@ -957,7 +998,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
             
             {order.status === 'confirmed' && selectedOrder !== order.id && (

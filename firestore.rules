@@ -32,7 +32,8 @@ service cloud.firestore {
     // Admin check logic
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com"] ||
+        ("email" in request.auth.token && 
+         request.auth.token.email.lower() in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com"]) ||
         exists(/databases/$(database)/documents/admins/$(request.auth.uid))
       );
     }
@@ -169,32 +170,25 @@ service cloud.firestore {
       
       allow create: if isOrderingOpen() && isValidOrder(incoming());
       
-      allow update: if (isSignedIn() || existing().userId == 'guest') && (
-        // Admin action: Trusted update
-        isAdmin() ||
-        // User/Guest action: Cancel if pending
-        ((isOwner(existing().userId) || existing().userId == 'guest') && 
-         incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
-         existing().status == 'pending' &&
-         incoming().status == 'cancelled') ||
-        // User/Guest action: Submit UTR for Admin Verification
-        ((isOwner(existing().userId) || existing().userId == 'guest') &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'paymentStatus', 'updatedAt']) &&
-         existing().status == 'pending' &&
-         incoming().status == 'pending' &&
-         incoming().paymentStatus == 'pending_verification' &&
-         incoming().utr is string && incoming().utr.size() >= 10) ||
-        // Legacy/Direct: Confirm with UTR (kept for safety if app logic varies)
-        ((isOwner(existing().userId) || existing().userId == 'guest') &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'paymentStatus', 'updatedAt']) &&
-         existing().status == 'pending' &&
-         incoming().status == 'confirmed' &&
-         incoming().paymentStatus == 'paid' &&
-         incoming().utr is string && incoming().utr.size() >= 10) ||
-        // Rider action: Update delivery status
-        (existing().keys().hasAll(['riderId']) && existing().riderId == request.auth.uid &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
-         incoming().status in ['out_for_delivery', 'delivered'])
+      allow update: if isAdmin() || (
+        (isSignedIn() || existing().userId == 'guest') && (
+          // User/Guest action: Cancel if pending
+          ((isOwner(existing().userId) || existing().userId == 'guest') && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+           existing().status == 'pending' &&
+           incoming().status == 'cancelled') ||
+          // User/Guest action: Submit UTR for Admin Verification
+          ((isOwner(existing().userId) || existing().userId == 'guest') &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'paymentStatus', 'updatedAt']) &&
+           existing().status == 'pending' &&
+           incoming().status == 'pending' &&
+           incoming().paymentStatus == 'pending_verification' &&
+           incoming().utr is string && incoming().utr.size() >= 10) ||
+          // Rider action: Update delivery status
+          (existing().keys().hasAll(['riderId']) && existing().riderId == request.auth.uid &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+           incoming().status in ['out_for_delivery', 'delivered'])
+        )
       );
 
       allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().userId) && existing().status == 'pending' && (request.time > existing().createdAt + duration.value(60, 'm')));
