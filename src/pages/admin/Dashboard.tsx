@@ -50,7 +50,7 @@ export const Dashboard: React.FC = () => {
 
     const q = query(
       collection(db, 'orders'),
-      orderBy('createdAt', 'desc'),
+      orderBy('created_at', 'desc'),
       limit(20)
     );
 

@@ -147,8 +147,8 @@ export const MenuManager: React.FC = () => {
   }
 
   const filteredMenu = menuItems.filter(item => 
-    item.name.toLowerCase().includes(search.toLowerCase()) || 
-    item.category.toLowerCase().includes(search.toLowerCase())
+    (item.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (item.category || '').toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {
