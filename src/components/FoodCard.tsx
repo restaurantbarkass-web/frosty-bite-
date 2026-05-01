@@ -169,7 +169,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
 
       <div className={cn(
         "transition-all duration-500", 
-        (item.available === false || !isOrderingOpen) && "opacity-40 grayscale-[0.5]",
+        !isOrderingOpen && "opacity-60",
         variant === 'compact' ? "p-4" : "p-6"
       )}>
         <div className="flex justify-between items-start mb-3">

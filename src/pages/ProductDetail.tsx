@@ -341,7 +341,7 @@ const ProductDetail: React.FC = () => {
           <ImageZoom
             src={product.image}
             alt={product.name}
-            className={cn("w-full h-full object-cover", product.available === false && "grayscale opacity-50")}
+            className={cn("w-full h-full object-cover", product.available === false && "grayscale")}
             triggerClassName="w-full h-full"
           />
           {product.available === false && (
@@ -359,7 +359,7 @@ const ProductDetail: React.FC = () => {
         </div>
 
         {/* Product Details Section */}
-        <div className={cn("px-6 py-12 lg:py-32 space-y-10", product.available === false && "opacity-60")}>
+        <div className="px-6 py-12 lg:py-32 space-y-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

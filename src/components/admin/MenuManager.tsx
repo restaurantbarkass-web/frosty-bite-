@@ -95,7 +95,7 @@ export const MenuManager: React.FC = () => {
         image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`,
         available: formData.available,
         description: formData.description,
-        updatedAt: serverTimestamp()
+        updated_at: serverTimestamp()
       };
 
       if (editingItem) {
@@ -103,7 +103,7 @@ export const MenuManager: React.FC = () => {
       } else {
         await addDoc(collection(db, 'menu'), {
           ...data,
-          createdAt: serverTimestamp()
+          created_at: serverTimestamp()
         });
       }
       
@@ -128,7 +128,7 @@ export const MenuManager: React.FC = () => {
     try {
       await updateDoc(doc(db, 'menu', item.id), { 
         available: !item.available,
-        updatedAt: serverTimestamp()
+        updated_at: serverTimestamp()
       });
     } catch (error) {
       console.error('Error toggling availability:', error);
@@ -140,7 +140,7 @@ export const MenuManager: React.FC = () => {
       const newStock = Math.max(0, (item.stock_quantity || 0) + delta);
       await updateDoc(doc(db, 'menu', item.id), { 
         stock_quantity: newStock,
-        updatedAt: serverTimestamp()
+        updated_at: serverTimestamp()
       });
     } catch (error) {
       console.error('Error updating stock:', error);

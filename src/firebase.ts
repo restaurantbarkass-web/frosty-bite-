@@ -17,7 +17,6 @@ export const auth = getAuth(app);
 
 // Use initializeFirestore with settings to improve connectivity in AIS environment
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
   ignoreUndefinedProperties: true,
 }, firebaseConfig.firestoreDatabaseId);
 
