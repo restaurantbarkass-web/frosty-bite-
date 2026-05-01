@@ -13,8 +13,14 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
 
   useEffect(() => {
     const timer = setTimeout(() => setShowContent(true), 1500);
+    // Auto-complete after 5 seconds
+    const autoTimer = setTimeout(() => {
+      onComplete();
+    }, 5000);
+
     return () => {
       clearTimeout(timer);
+      clearTimeout(autoTimer);
     };
   }, [onComplete]);
 

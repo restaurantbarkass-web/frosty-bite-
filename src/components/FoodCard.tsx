@@ -101,9 +101,9 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
       whileHover={{ y: -10, scale: 1.02 }}
       className={cn(
         "group relative bg-[#111]/80 backdrop-blur-xl overflow-hidden border border-white/5 hover:border-orange-500/30 transition-all duration-500 shadow-2xl cursor-pointer",

@@ -10,15 +10,13 @@ import {
 import { getMessaging } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
-import { initializeFirestore } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Use initializeFirestore with settings to improve connectivity in AIS environment
-export const db = initializeFirestore(app, {
-  ignoreUndefinedProperties: true,
-}, firebaseConfig.firestoreDatabaseId);
+// Use getFirestore with databaseId
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 // Add listener to check connection
 import { doc, getDocFromServer } from 'firebase/firestore';

@@ -89,6 +89,7 @@ export const Home: React.FC = () => {
     const unsubscribeMenu = safeFirestore.listen(
       collection(db, 'menu'),
       (items: FoodItem[]) => {
+        console.log(`Loaded ${items?.length || 0} items from menu collection in firestore`);
         setFirestoreMenu(items || []);
       },
       'menu_cache'
@@ -237,8 +238,10 @@ export const Home: React.FC = () => {
 
   const filteredItems = React.useMemo(() => {
     return displayItems.filter(item => {
-      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || (item.category && item.category === selectedCategory);
+      const nameMatch = (item.name || '').toLowerCase();
+      const searchMatch = (searchQuery || '').toLowerCase();
+      const matchesSearch = nameMatch.includes(searchMatch);
       return matchesCategory && matchesSearch;
     });
   }, [displayItems, selectedCategory, searchQuery]);
