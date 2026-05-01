@@ -44,10 +44,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
         const userRef = doc(db, 'users', firebaseUser.uid);
+        
+        // Determine role from email if not already set or needing update
+        const determinedRole = getRoleFromEmail(firebaseUser.email);
+        
         await setDoc(userRef, {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: firebaseUser.displayName || '',
+          role: determinedRole,
           updated_at: serverTimestamp(),
         }, { merge: true });
       } catch (err) {
