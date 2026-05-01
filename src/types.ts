@@ -22,7 +22,6 @@ export interface Order {
   items: any[];
   total: number;
   status: 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
-  assigned_rider_id?: string;
   rider_id?: string;
   rider_name?: string;
   delivery_location?: {
@@ -51,7 +50,7 @@ export interface Order {
 export interface Rider {
   id: string;
   name: string;
-  status: 'online' | 'offline' | 'busy';
+  status: 'online' | 'offline' | 'busy' | 'on-delivery';
   location: {
     lat: number;
     lng: number;
@@ -61,8 +60,9 @@ export interface Rider {
 }
 
 export interface User {
-  id: string;
-  name: string;
+  uid: string;
+  full_name: string;
   email: string;
   address: string;
+  role: 'customer' | 'admin' | 'rider';
 }

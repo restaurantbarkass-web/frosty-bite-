@@ -64,7 +64,7 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
 
     // Update Order
     await updateDoc(doc(db, 'orders', orderId), {
-      assigned_rider_id: bestRider.id,
+      rider_id: bestRider.id,
       status: 'assigned'
     });
 

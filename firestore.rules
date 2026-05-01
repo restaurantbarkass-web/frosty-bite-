@@ -55,11 +55,13 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
 
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role']) &&
-             data.keys().size() >= 3 &&
+      return data.keys().hasAll(['uid', 'email', 'role', 'full_name', 'updated_at']) &&
+             data.keys().size() == 5 &&
              data.uid == request.auth.uid &&
              data.email is string && data.email.size() <= 256 &&
-             data.role in ['customer', 'admin', 'rider'];
+             data.full_name is string && data.full_name.size() <= 100 &&
+             data.role in ['customer', 'admin', 'rider'] &&
+             (data.updated_at == request.time || data.updated_at is string);
     }
 
     function isValidMenuItem(data) {
@@ -107,8 +109,10 @@ service cloud.firestore {
 
     function isValidRider(data) {
       return data.keys().hasAll(['uid', 'name', 'status']) &&
-             data.uid is string && data.name is string && data.name.size() <= 100 &&
-             data.status in ['online', 'busy', 'offline'];
+             data.keys().size() == 3 &&
+             data.uid is string && 
+             data.name is string && data.name.size() <= 100 &&
+             data.status in ['online', 'busy', 'offline', 'on-delivery'];
     }
 
     function isValidAppConfig(data) {

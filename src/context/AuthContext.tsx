@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await setDoc(userRef, {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          name: firebaseUser.displayName || '',
+          full_name: firebaseUser.displayName || '',
           role: determinedRole,
           updated_at: serverTimestamp(),
         }, { merge: true });

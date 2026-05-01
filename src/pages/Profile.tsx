@@ -103,7 +103,7 @@ export const Profile: React.FC = () => {
         // Recent orders
         const qOrders = query(
           collection(db, 'orders'),
-          where('userId', '==', authUser.uid),
+          where('user_id', '==', authUser.uid),
           orderBy('created_at', 'desc'),
           limit(5)
         );
@@ -162,7 +162,7 @@ export const Profile: React.FC = () => {
 
     const qOrdersRealtime = query(
       collection(db, 'orders'),
-      where('userId', '==', authUser.uid),
+      where('user_id', '==', authUser.uid),
       orderBy('created_at', 'desc'),
       limit(5)
     );

@@ -143,7 +143,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           title: 'New Order Received',
           message: `${order.customer_name} placed an order for ₹${order.total}`,
           type: 'order',
-          userId: user?.uid || '',
+          user_id: user?.uid || '',
           link: '/admin'
         });
 
@@ -244,7 +244,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           title: 'Payment Verified',
           message: `Your payment for order #${orderId.slice(-6).toUpperCase()} has been verified.`,
           type: 'order',
-          userId: order.user_id,
+          user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
@@ -273,7 +273,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           title: 'Payment Rejected',
           message: `Payment proof for order #${orderId.slice(-6).toUpperCase()} was rejected.`,
           type: 'order',
-          userId: order.user_id,
+          user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
@@ -317,7 +317,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           title: `Order ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
           message: statusMessages[newStatus] || `Your order status is now: ${newStatus}`,
           type: 'order',
-          userId: order.user_id,
+          user_id: order.user_id,
           link: `/order-tracking/${id}`
         });
       }
@@ -390,7 +390,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           title: 'Rider Assigned',
           message: `${rider.name} has been assigned to your order.`,
           type: 'rider',
-          userId: order.user_id,
+          user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }

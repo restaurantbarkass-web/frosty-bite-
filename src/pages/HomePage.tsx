@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
-import { CATEGORIES } from '../constants';
+import { CATEGORIES, MENU_ITEMS } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { getFoodRecommendations } from '../services/geminiService';
 import { db } from '../firebase';
@@ -23,11 +23,19 @@ export const Home: React.FC = () => {
   const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
   const { isOrderingOpen } = useAppConfig();
   
+  // Use static MENU_ITEMS as fallback if firestore is empty
+  const displayItems = React.useMemo(() => {
+    if (!firestoreMenu || firestoreMenu.length === 0) {
+      return MENU_ITEMS;
+    }
+    return firestoreMenu;
+  }, [firestoreMenu]);
+
   // Dynamic categories based on menu items
   const menuCategories = React.useMemo(() => {
-    const cats = firestoreMenu.map(item => item.category);
+    const cats = displayItems.map(item => item.category);
     return ['All', ...Array.from(new Set(cats))].filter(Boolean);
-  }, [firestoreMenu]);
+  }, [displayItems]);
 
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -132,8 +140,8 @@ export const Home: React.FC = () => {
     const fetchPreviousPurchases = () => {
       const q = query(
         collection(db, 'orders'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc'),
+        where('user_id', '==', user.uid),
+        orderBy('created_at', 'desc'),
         limit(20)
       );
 
@@ -164,11 +172,6 @@ export const Home: React.FC = () => {
       unsubscribeOrders();
     };
   }, [user]);
-
-  // Only show menu items entered in Admin Panel (Firestore)
-  const displayItems = React.useMemo(() => {
-    return firestoreMenu || [];
-  }, [firestoreMenu]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {

@@ -107,7 +107,7 @@ export const Checkout: React.FC = () => {
       const couponData = couponDoc.data();
       
       // Validate expiry
-      const expiryDateValue = new Date(couponData.expiryDate);
+      const expiryDateValue = new Date(couponData.expiry_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (expiryDateValue < today) {
@@ -117,14 +117,14 @@ export const Checkout: React.FC = () => {
       }
 
       // Validate min order
-      if (subtotal < (couponData.minOrder || 0)) {
-        toast.error(`Minimum order ₹${couponData.minOrder} required for this coupon`);
+      if (subtotal < (couponData.min_order || 0)) {
+        toast.error(`Minimum order ₹${couponData.min_order} required for this coupon`);
         setIsApplyingCoupon(false);
         return;
       }
 
       // Validate usage limit
-      if ((couponData.usageLimit || 0) > 0 && (couponData.usageCount || 0) >= couponData.usageLimit) {
+      if ((couponData.usage_limit || 0) > 0 && (couponData.usage_count || 0) >= couponData.usage_limit) {
         toast.error('This coupon has reached its usage limit');
         setIsApplyingCoupon(false);
         return;
@@ -257,7 +257,7 @@ export const Checkout: React.FC = () => {
       if (appliedCoupon?.id) {
         try {
           await updateDoc(doc(db, 'coupons', appliedCoupon.id), {
-            usageCount: increment(1)
+            usage_count: increment(1)
           });
         } catch (err) {
           console.error('Failed to increment coupon usage:', err);
@@ -270,7 +270,7 @@ export const Checkout: React.FC = () => {
             title: 'Order Placed (UPI)',
             message: `Order #${orderId.slice(-6).toUpperCase()} placed. Please complete payment.`,
             type: 'order',
-            userId: user.uid,
+            user_id: user.uid,
             link: `/upi-checkout/${orderId}`
           });
         }
@@ -295,7 +295,7 @@ export const Checkout: React.FC = () => {
             title: 'Order Placed (COD)',
             message: `Order #${orderId.slice(-6).toUpperCase()} placed successfully via COD.`,
             type: 'order',
-            userId: user.uid,
+            user_id: user.uid,
             link: '/orders'
           });
         }

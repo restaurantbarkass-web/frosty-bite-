@@ -33,13 +33,13 @@ interface Coupon {
   code: string;
   type: 'percentage' | 'fixed';
   value: number;
-  minOrder: number;
-  expiryDate: string;
-  usageLimit: number;
-  usageCount: number;
+  min_order: number;
+  expiry_date: string;
+  usage_limit: number;
+  usage_count: number;
   status: 'active' | 'expired' | 'disabled';
-  isFirstOrderOnly?: boolean;
-  createdAt: string;
+  is_first_order_only?: boolean;
+  created_at: string;
 }
 
 export const Coupons: React.FC = () => {
@@ -54,15 +54,15 @@ export const Coupons: React.FC = () => {
     code: '',
     type: 'percentage' as 'percentage' | 'fixed',
     value: 0,
-    minOrder: 0,
-    expiryDate: '',
-    usageLimit: 100,
-    isFirstOrderOnly: false
+    min_order: 0,
+    expiry_date: '',
+    usage_limit: 100,
+    is_first_order_only: false
   });
 
   const fetchCoupons = async () => {
     try {
-      const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'coupons'), orderBy('created_at', 'desc'));
       const data = await safeFirestore.getCollection<Coupon>(q, 'coupons_cache');
       setCoupons(data);
     } catch (error) {
@@ -73,7 +73,7 @@ export const Coupons: React.FC = () => {
   useEffect(() => {
     fetchCoupons();
 
-    const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'coupons'), orderBy('created_at', 'desc'));
     const unsubscribe = safeFirestore.listen(q, (data: Coupon[]) => {
       setCoupons(data);
     }, 'coupons_cache');
@@ -88,9 +88,9 @@ export const Coupons: React.FC = () => {
       await addDoc(collection(db, 'coupons'), {
         ...newCoupon,
         code: newCoupon.code.toUpperCase(),
-        usageCount: 0,
+        usage_count: 0,
         status: 'active',
-        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
       });
       
@@ -99,10 +99,10 @@ export const Coupons: React.FC = () => {
         code: '',
         type: 'percentage',
         value: 0,
-        minOrder: 0,
-        expiryDate: '',
-        usageLimit: 100,
-        isFirstOrderOnly: false
+        min_order: 0,
+        expiry_date: '',
+        usage_limit: 100,
+        is_first_order_only: false
       });
     } catch (error) {
       console.error('Error creating coupon:', error);
@@ -122,13 +122,13 @@ export const Coupons: React.FC = () => {
         code: 'FIRSTORDER',
         type: 'percentage',
         value: 20,
-        minOrder: 0,
-        expiryDate: expiryStr,
-        usageLimit: 100,
-        usageCount: 0,
+        min_order: 0,
+        expiry_date: expiryStr,
+        usage_limit: 100,
+        usage_count: 0,
         status: 'active',
-        isFirstOrderOnly: true,
-        createdAt: new Date().toISOString(),
+        is_first_order_only: true,
+        created_at: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
       });
       
@@ -251,7 +251,7 @@ export const Coupons: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Redemptions</p>
-                    <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + (curr.usageCount || 0), 0)}</h3>
+                    <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + (curr.usage_count || 0), 0)}</h3>
                   </div>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export const Coupons: React.FC = () => {
                       </div>
                       <div className="flex flex-col">
                         <span className="font-black text-white tracking-wider">{coupon.code}</span>
-                        {coupon.isFirstOrderOnly && (
+                        {coupon.is_first_order_only && (
                           <span className="text-[8px] text-orange-500 font-black uppercase tracking-widest">First Order Only</span>
                         )}
                       </div>
@@ -322,21 +322,21 @@ export const Coupons: React.FC = () => {
                       {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">₹{coupon.minOrder}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">₹{coupon.min_order}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
                       <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                        <span>{coupon.usageCount} / {coupon.usageLimit}</span>
+                        <span>{coupon.usage_count} / {coupon.usage_limit}</span>
                       </div>
                       <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-orange-500" 
-                          style={{ width: `${((coupon.usageCount || 0) / (coupon.usageLimit || 1)) * 100}%` }}
+                          style={{ width: `${((coupon.usage_count || 0) / (coupon.usage_limit || 1)) * 100}%` }}
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">{coupon.expiryDate}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-400">{coupon.expiry_date}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       coupon.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
@@ -388,7 +388,7 @@ export const Coupons: React.FC = () => {
                     <p className="text-sm font-black text-white">
                       {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
                     </p>
-                    <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.minOrder}</p>
+                    <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.min_order}</p>
                   </div>
                 </div>
   
@@ -396,18 +396,18 @@ export const Coupons: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex justify-between text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-1">
                       <span>Usage</span>
-                      <span>{coupon.usageCount}/{coupon.usageLimit}</span>
+                      <span>{coupon.usage_count}/{coupon.usage_limit}</span>
                     </div>
                     <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-orange-500" 
-                        style={{ width: `${((coupon.usageCount || 0) / (coupon.usageLimit || 1)) * 100}%` }}
+                        style={{ width: `${((coupon.usage_count || 0) / (coupon.usage_limit || 1)) * 100}%` }}
                       />
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">Expires</p>
-                    <p className="text-[10px] text-white font-bold">{coupon.expiryDate}</p>
+                    <p className="text-[10px] text-white font-bold">{coupon.expiry_date}</p>
                   </div>
                 </div>
 
@@ -498,8 +498,8 @@ export const Coupons: React.FC = () => {
                     <input 
                       type="number" 
                       required
-                      value={newCoupon.minOrder}
-                      onChange={(e) => setNewCoupon({...newCoupon, minOrder: Number(e.target.value)})}
+                      value={newCoupon.min_order}
+                      onChange={(e) => setNewCoupon({...newCoupon, min_order: Number(e.target.value)})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
                     />
                   </div>
@@ -508,8 +508,8 @@ export const Coupons: React.FC = () => {
                     <input 
                       type="number" 
                       required
-                      value={newCoupon.usageLimit}
-                      onChange={(e) => setNewCoupon({...newCoupon, usageLimit: Number(e.target.value)})}
+                      value={newCoupon.usage_limit}
+                      onChange={(e) => setNewCoupon({...newCoupon, usage_limit: Number(e.target.value)})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
                     />
                   </div>
@@ -518,8 +518,8 @@ export const Coupons: React.FC = () => {
                     <input 
                       type="date" 
                       required
-                      value={newCoupon.expiryDate}
-                      onChange={(e) => setNewCoupon({...newCoupon, expiryDate: e.target.value})}
+                      value={newCoupon.expiry_date}
+                      onChange={(e) => setNewCoupon({...newCoupon, expiry_date: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
                     />
                   </div>
@@ -529,11 +529,11 @@ export const Coupons: React.FC = () => {
                         <input 
                           type="checkbox" 
                           className="sr-only"
-                          checked={newCoupon.isFirstOrderOnly}
-                          onChange={(e) => setNewCoupon({...newCoupon, isFirstOrderOnly: e.target.checked})}
+                          checked={newCoupon.is_first_order_only}
+                          onChange={(e) => setNewCoupon({...newCoupon, is_first_order_only: e.target.checked})}
                         />
-                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.isFirstOrderOnly ? 'bg-orange-500' : 'bg-zinc-800'}`}>
-                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.isFirstOrderOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_first_order_only ? 'bg-orange-500' : 'bg-zinc-800'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.is_first_order_only ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
                       </div>
                       <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">First Order Only</span>

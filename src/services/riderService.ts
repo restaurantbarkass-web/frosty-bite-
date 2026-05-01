@@ -8,7 +8,7 @@ export const riderService = {
   subscribeToAssignedOrders: (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
       collection(db, 'orders'),
-      where('assigned_rider_id', '==', riderId),
+      where('rider_id', '==', riderId),
       where('status', 'in', ['assigned', 'preparing', 'out_for_delivery'])
     );
 

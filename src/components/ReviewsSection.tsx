@@ -8,10 +8,10 @@ import { cn } from '../lib/utils';
 
 interface Review {
   id: string;
-  customerName: string;
+  customer_name: string;
   rating: number;
   comment: string;
-  createdAt: any;
+  created_at: any;
 }
 
 export const ReviewsSection: React.FC = () => {
@@ -21,7 +21,7 @@ export const ReviewsSection: React.FC = () => {
   useEffect(() => {
     const q = query(
       collection(db, 'reviews'),
-      orderBy('createdAt', 'desc'),
+      orderBy('created_at', 'desc'),
       limit(6)
     );
 
@@ -106,10 +106,10 @@ export const ReviewsSection: React.FC = () => {
 
                 <div className="flex items-center gap-4 mt-auto pt-6 border-t border-white/5">
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black uppercase text-xl">
-                    {review.customerName[0]}
+                    {review.customer_name[0]}
                   </div>
                   <div>
-                    <h4 className="text-white font-black uppercase tracking-tight leading-none mb-1">{review.customerName}</h4>
+                    <h4 className="text-white font-black uppercase tracking-tight leading-none mb-1">{review.customer_name}</h4>
                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Verified Baker Lover</p>
                   </div>
                 </div>

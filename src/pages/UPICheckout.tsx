@@ -177,7 +177,7 @@ export const UPICheckout: React.FC = () => {
           title: 'Payment Submitted',
           message: `UTR for order #${state!.orderId.slice(-6).toUpperCase()} submitted for verification.`,
           type: 'order',
-          userId: user.uid,
+          user_id: user.uid,
           link: `/order-tracking/${state!.orderId}`
         });
       }

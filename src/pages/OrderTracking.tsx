@@ -128,7 +128,7 @@ export const OrderTracking: React.FC = () => {
       try {
         const q = query(
           collection(db, 'reviews'),
-          where('orderId', '==', orderId),
+          where('order_id', '==', orderId),
           limit(1)
         );
         const snapshot = await getDocs(q);
@@ -145,13 +145,13 @@ export const OrderTracking: React.FC = () => {
         setOrder(orderData as Order);
         
         // Fetch rider if assigned
-        if (orderData.assigned_rider_id) {
+        if (orderData.rider_id) {
           unsubscribeRider();
-          unsubscribeRider = safeFirestore.listen(doc(db, 'riders', orderData.assigned_rider_id), (riderData) => {
+          unsubscribeRider = safeFirestore.listen(doc(db, 'riders', orderData.rider_id), (riderData) => {
             if (riderData) {
               setRider(riderData as Rider);
             }
-          }, `rider_${orderData.assigned_rider_id}`);
+          }, `rider_${orderData.rider_id}`);
         }
         setLoading(false);
       } else {

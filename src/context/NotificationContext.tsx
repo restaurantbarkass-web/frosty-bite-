@@ -12,7 +12,7 @@ export interface Notification {
   type: 'order' | 'system' | 'rider';
   read: boolean;
   created_at: string;
-  userId: string;
+  user_id: string;
   link?: string;
 }
 
@@ -50,7 +50,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Notifications listener
     const qNotif = query(
       collection(db, 'notifications'),
-      where('userId', '==', user.uid),
+      where('user_id', '==', user.uid),
       orderBy('created_at', 'desc'),
       limit(50)
     );
@@ -119,7 +119,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const q = query(
         collection(db, 'notifications'),
-        where('userId', '==', user.uid),
+        where('user_id', '==', user.uid),
         where('read', '==', false)
       );
       const querySnapshot = await getDocs(q);
