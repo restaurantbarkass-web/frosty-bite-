@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           name: firebaseUser.displayName || '',
-          updatedAt: serverTimestamp(),
+          updated_at: serverTimestamp(),
         }, { merge: true });
       } catch (err) {
         console.error('Failed to sync user with Firestore:', err);

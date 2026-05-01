@@ -63,10 +63,10 @@ service cloud.firestore {
     }
 
     function isValidMenuItem(data) {
-      return data.keys().hasAll(['name', 'price', 'category', 'available', 'stockQuantity']) &&
+      return data.keys().hasAll(['name', 'price', 'category', 'available', 'stock_quantity']) &&
              data.name is string && data.name.size() <= 100 &&
              data.price is number && data.price >= 0 &&
-             data.stockQuantity is number && data.stockQuantity >= 0 &&
+             data.stock_quantity is number && data.stock_quantity >= 0 &&
              data.category is string &&
              data.available is bool &&
              (!('image' in data) || (data.image is string && data.image.size() <= 2000000)) &&
@@ -74,34 +74,35 @@ service cloud.firestore {
     }
 
     function isValidOrderSchema(data) {
-      return data.keys().hasAll(['userId', 'customerName', 'phone', 'items', 'total', 'status', 'address', 'paymentMethod', 'createdAt']) &&
-             data.customerName is string && data.customerName.size() <= 100 &&
+      return data.keys().hasAll(['user_id', 'customer_name', 'phone', 'items', 'total', 'status', 'address', 'payment_method', 'created_at']) &&
+             data.customer_name is string && data.customer_name.size() <= 100 &&
              data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 15 &&
              data.items is list && data.items.size() > 0 && data.items.size() <= 100 &&
              data.total is number && data.total >= 0 &&
              data.status in ['pending', 'confirmed', 'assigned', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'] &&
              data.address is string && data.address.size() <= 1000 &&
-             data.paymentMethod in ['upi', 'cod', 'card', 'cash', 'online'] &&
-             data.userId is string && 
-             // Allow both timestamp and string for legacy/migration if needed, but prefer timestamp
-             (data.createdAt is timestamp || data.createdAt is string) &&
+             data.payment_method in ['upi', 'cod', 'card', 'cash', 'online'] &&
+             data.user_id is string && 
+             // Handled ISO strings or Timestamps (safeFirestore normalizes to ISO)
+             (data.created_at is timestamp || data.created_at is string) &&
              (!('subtotal' in data) || (data.subtotal is number)) &&
              (!('discount' in data) || (data.discount is number)) &&
-             (!('couponCode' in data) || (data.couponCode is string || data.couponCode == null)) &&
+             (!('coupon_code' in data) || (data.coupon_code is string || data.coupon_code == null)) &&
              (!('utr' in data) || (data.utr is string && data.utr.size() <= 128)) &&
-             (!('paymentStatus' in data) || (data.paymentStatus is string)) &&
-             (!('orderId' in data) || (data.orderId is string)) &&
-             (!('riderId' in data) || (data.riderId is string)) &&
-             (!('riderName' in data) || (data.riderName is string)) &&
-             (!('estimatedDeliveryTime' in data) || (data.estimatedDeliveryTime is number)) &&
-             (!('updatedAt' in data) || (data.updatedAt is timestamp || data.updatedAt is string)) &&
+             (!('payment_status' in data) || (data.payment_status is string)) &&
+             (!('order_id' in data) || (data.order_id is string)) &&
+             (!('rider_id' in data) || (data.rider_id is string)) &&
+             (!('rider_name' in data) || (data.rider_name is string)) &&
+             (!('estimated_delivery_time' in data) || (data.estimated_delivery_time is number)) &&
+             (!('updated_at' in data) || (data.updated_at is timestamp || data.updated_at is string)) &&
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000));
     }
 
     function isValidOrder(data) {
       return isValidOrderSchema(data) &&
-             (data.userId == request.auth.uid || data.userId == 'guest') &&
-             data.createdAt == request.time;
+             (data.user_id == request.auth.uid || data.user_id == 'guest') &&
+             // Handle both serverTimestamp (timestamp) and ISO string (string) fallback
+             (data.created_at == request.time || data.created_at is string);
     }
 
     function isValidRider(data) {
@@ -116,28 +117,27 @@ service cloud.firestore {
     }
 
     function isValidCoupon(data) {
-      return data.keys().hasAll(['code', 'type', 'value', 'minOrder', 'expiryDate', 'usageLimit', 'usageCount', 'status']) &&
+      return data.keys().hasAll(['code', 'type', 'value', 'min_order', 'expiry_date', 'usage_limit', 'usage_count', 'status']) &&
              data.code is string && data.code.size() <= 50 &&
              data.type in ['percentage', 'fixed'] &&
              data.value is number && data.value >= 0 &&
-             data.minOrder is number && data.minOrder >= 0 &&
-             data.expiryDate is string &&
-             data.usageLimit is number && data.usageLimit >= 0 &&
-             data.usageCount is number && data.usageCount >= 0 &&
+             data.min_order is number && data.min_order >= 0 &&
+             data.expiry_date is string &&
+             data.usage_limit is number && data.usage_limit >= 0 &&
+             data.usage_count is number && data.usage_count >= 0 &&
              data.status in ['active', 'expired', 'disabled'] &&
-             (!('isFirstOrderOnly' in data) || data.isFirstOrderOnly is bool) &&
-             (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt is string)) &&
-             (!('serverCreatedAt' in data) || data.serverCreatedAt is timestamp);
+             (!('is_first_order_only' in data) || data.is_first_order_only is bool) &&
+             (!('created_at' in data) || (data.created_at is timestamp || data.created_at is string));
     }
 
     function isValidReview(data) {
-      return data.keys().hasAll(['orderId', 'userId', 'customerName', 'rating', 'comment', 'createdAt']) &&
-             data.orderId is string &&
-             data.userId == request.auth.uid &&
-             data.customerName is string &&
+      return data.keys().hasAll(['order_id', 'user_id', 'customer_name', 'rating', 'comment', 'created_at']) &&
+             data.order_id is string &&
+             data.user_id == request.auth.uid &&
+             data.customer_name is string &&
              data.rating is number && data.rating >= 1 && data.rating <= 5 &&
              data.comment is string && data.comment.size() <= 1000 &&
-             data.createdAt == request.time;
+             (data.created_at == request.time || data.created_at is string);
     }
 
     // -------------------------------------------------------------------------
@@ -168,33 +168,33 @@ service cloud.firestore {
 
     // ORDERS
     match /orders/{orderId} {
-      allow get: if isSignedIn() || resource.data.userId == 'guest' || isAdmin();
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin() || (resource.data.keys().hasAll(['riderId']) && resource.data.riderId == request.auth.uid));
+      allow get: if isSignedIn() || resource.data.user_id == 'guest' || isAdmin();
+      allow list: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin() || (resource.data.keys().hasAll(['rider_id']) && resource.data.rider_id == request.auth.uid));
       
       allow create: if isOrderingOpen() && isValidOrder(incoming());
       
       allow update: if isAdmin() || (
-        (isSignedIn() || existing().userId == 'guest') && (
+        (isSignedIn() || existing().user_id == 'guest') && (
           // User/Guest action: Cancel if pending
-          ((isOwner(existing().userId) || existing().userId == 'guest') && 
+          ((isOwner(existing().user_id) || existing().user_id == 'guest') && 
            incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
            existing().status == 'pending' &&
            incoming().status == 'cancelled') ||
-          // User/Guest action: Submit UTR for Admin Verification
-          ((isOwner(existing().userId) || existing().userId == 'guest') &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'paymentStatus', 'updatedAt']) &&
+          // User/Guest action: Submit utr for Admin Verification
+          ((isOwner(existing().user_id) || existing().user_id == 'guest') &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'payment_status', 'updated_at']) &&
            existing().status == 'pending' &&
            incoming().status == 'pending' &&
-           incoming().paymentStatus == 'pending_verification' &&
+           incoming().payment_status == 'pending_verification' &&
            incoming().utr is string && incoming().utr.size() >= 10) ||
           // Rider action: Update delivery status
-          (existing().keys().hasAll(['riderId']) && existing().riderId == request.auth.uid &&
+          (existing().keys().hasAll(['rider_id']) && existing().rider_id == request.auth.uid &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
            incoming().status in ['out_for_delivery', 'delivered'])
         )
       );
 
-      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().userId) && existing().status == 'pending' && (request.time > existing().createdAt + duration.value(60, 'm')));
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().user_id) && existing().status == 'pending' && (request.time > existing().created_at + duration.value(60, 'm')));
     }
 
     // RIDERS
@@ -218,11 +218,11 @@ service cloud.firestore {
     
     // NOTIFICATIONS
     match /notifications/{notificationId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isAdmin() || isOwner(incoming().userId);
-      allow update: if isOwner(resource.data.userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
-      allow delete: if isOwner(resource.data.userId);
+      allow get: if isOwner(resource.data.user_id);
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isAdmin() || isOwner(incoming().user_id);
+      allow update: if isOwner(resource.data.user_id) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(resource.data.user_id);
     }
 
     // COUPONS
@@ -232,8 +232,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if isAdmin() || (
         isSignedIn() && 
-        incoming().diff(existing()).affectedKeys().hasOnly(['usageCount']) &&
-        incoming().usageCount == existing().usageCount + 1
+        incoming().diff(existing()).affectedKeys().hasOnly(['usage_count']) &&
+        incoming().usage_count == existing().usage_count + 1
       );
     }
 
@@ -241,9 +241,9 @@ service cloud.firestore {
     match /reviews/{reviewId} {
       allow read: if true;
       allow create: if isSignedIn() && isValidReview(incoming()) &&
-                    get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.userId == request.auth.uid &&
-                    get(/databases/$(database)/documents/orders/$(incoming().orderId)).data.status == 'delivered';
-      allow update, delete: if isAdmin() || isOwner(resource.data.userId);
+                    get(/databases/$(database)/documents/orders/$(incoming().order_id)).data.user_id == request.auth.uid &&
+                    get(/databases/$(database)/documents/orders/$(incoming().order_id)).data.status == 'delivered';
+      allow update, delete: if isAdmin() || isOwner(resource.data.user_id);
     }
   }
 }

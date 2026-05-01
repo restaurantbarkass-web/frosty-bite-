@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { safeFirestore } from '../../services/firestoreService';
 import { CATEGORIES } from '../../constants';
+import { cn } from '../../lib/utils';
 
 interface MenuItem {
   id: string;

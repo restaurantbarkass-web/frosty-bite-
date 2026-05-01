@@ -9,7 +9,7 @@
         "email": { "type": "string" },
         "name": { "type": "string" },
         "role": { "type": "string", "enum": ["customer", "admin", "rider"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },
@@ -24,29 +24,30 @@
         "image": { "type": "string" },
         "available": { "type": "boolean" },
         "description": { "type": "string" },
-        "stockQuantity": { "type": "number" }
+        "stock_quantity": { "type": "number" }
       },
-      "required": ["name", "price", "category", "available", "stockQuantity"]
+      "required": ["name", "price", "category", "available", "stock_quantity"]
     },
     "Order": {
       "title": "Customer Order",
       "description": "Details of a customer purchase.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "customerName": { "type": "string" },
+        "user_id": { "type": "string" },
+        "customer_name": { "type": "string" },
         "phone": { "type": "string" },
         "items": { "type": "array" },
         "total": { "type": "number" },
-        "status": { "type": "string", "enum": ["pending", "confirmed", "out-for-delivery", "delivered", "cancelled"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "assigned", "preparing", "out_for_delivery", "delivered", "cancelled"] },
         "address": { "type": "string" },
-        "paymentMethod": { "type": "string" },
+        "payment_method": { "type": "string" },
         "utr": { "type": "string" },
-        "paymentStatus": { "type": "string" },
-        "orderId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "payment_status": { "type": "string" },
+        "order_id": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "customerName", "phone", "items", "total", "status", "address"]
+      "required": ["user_id", "customer_name", "phone", "items", "total", "status", "address"]
     },
     "Rider": {
       "title": "Delivery Rider",
@@ -56,8 +57,8 @@
         "uid": { "type": "string" },
         "name": { "type": "string" },
         "phone": { "type": "string" },
-        "status": { "type": "string", "enum": ["available", "busy", "offline"] },
-        "currentOrderId": { "type": "string" }
+        "status": { "type": "string", "enum": ["online", "busy", "offline"] },
+        "current_order_id": { "type": "string" }
       },
       "required": ["uid", "name", "status"]
     },
@@ -67,7 +68,7 @@
       "type": "object",
       "properties": {
         "isOrderingOpen": { "type": "boolean" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "updated_at": { "type": "string", "format": "date-time" }
       },
       "required": ["isOrderingOpen"]
     },
@@ -98,29 +99,29 @@
         "code": { "type": "string" },
         "type": { "type": "string", "enum": ["percentage", "fixed"] },
         "value": { "type": "number" },
-        "minOrder": { "type": "number" },
-        "expiryDate": { "type": "string", "format": "date" },
-        "usageLimit": { "type": "number" },
-        "usageCount": { "type": "number" },
+        "min_order": { "type": "number" },
+        "expiry_date": { "type": "string", "format": "date" },
+        "usage_limit": { "type": "number" },
+        "usage_count": { "type": "number" },
         "status": { "type": "string", "enum": ["active", "expired", "disabled"] },
-        "isFirstOrderOnly": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "is_first_order_only": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["code", "type", "value", "minOrder", "expiryDate", "usageLimit", "usageCount", "status"]
+      "required": ["code", "type", "value", "min_order", "expiry_date", "usage_limit", "usage_count", "status"]
     },
     "Review": {
       "title": "Order Review",
       "description": "Feedback from a customer about their order.",
       "type": "object",
       "properties": {
-        "orderId": { "type": "string" },
-        "userId": { "type": "string" },
-        "customerName": { "type": "string" },
+        "order_id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "customer_name": { "type": "string" },
         "rating": { "type": "number" },
         "comment": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "created_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["orderId", "userId", "customerName", "rating", "comment", "createdAt"]
+      "required": ["order_id", "user_id", "customer_name", "rating", "comment", "created_at"]
     }
   },
   "firestore": {

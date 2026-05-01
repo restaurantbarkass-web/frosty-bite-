@@ -19,7 +19,18 @@ export const safeFirestore = {
   getCollection: async <T>(q: Query<DocumentData>, cacheKey: string): Promise<T[]> => {
     try {
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[];
+      const data = snapshot.docs.map(doc => {
+        const docData = doc.data();
+        const processed: any = { id: doc.id };
+        for (const key in docData) {
+          if (docData[key] && typeof docData[key].toDate === 'function') {
+            processed[key] = docData[key].toDate().toISOString();
+          } else {
+            processed[key] = docData[key];
+          }
+        }
+        return processed;
+      }) as T[];
       localStorage.setItem(cacheKey, JSON.stringify({
         data,
         timestamp: Date.now()
@@ -46,12 +57,20 @@ export const safeFirestore = {
     try {
       const snapshot = await getDoc(docRef);
       if (snapshot.exists()) {
-        const data = { id: snapshot.id, ...snapshot.data() } as T;
+        const docData = snapshot.data();
+        const data: any = { id: snapshot.id };
+        for (const key in docData) {
+          if (docData[key] && typeof docData[key].toDate === 'function') {
+            data[key] = docData[key].toDate().toISOString();
+          } else {
+            data[key] = docData[key];
+          }
+        }
         localStorage.setItem(cacheKey, JSON.stringify({
           data,
           timestamp: Date.now()
         }));
-        return data;
+        return data as T;
       }
       return null;
     } catch (error: any) {
@@ -80,9 +99,33 @@ export const safeFirestore = {
       let data: any;
       
       if (isCollection) {
-        data = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() })) || [];
+        data = snapshot.docs.map((d: any) => {
+          const docData = d.data();
+          // Normalize Firestore Timestamps to ISO strings for easier handling in frontend components
+          const processed: any = { id: d.id };
+          for (const key in docData) {
+            if (docData[key] && typeof docData[key].toDate === 'function') {
+              processed[key] = docData[key].toDate().toISOString();
+            } else {
+              processed[key] = docData[key];
+            }
+          }
+          return processed;
+        }) || [];
       } else {
-        data = snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+        if (snapshot.exists()) {
+          const docData = snapshot.data();
+          data = { id: snapshot.id };
+          for (const key in docData) {
+            if (docData[key] && typeof docData[key].toDate === 'function') {
+              data[key] = docData[key].toDate().toISOString();
+            } else {
+              data[key] = docData[key];
+            }
+          }
+        } else {
+          data = null;
+        }
       }
 
       if (cacheKey && data) {
@@ -92,15 +135,21 @@ export const safeFirestore = {
     }, (error: FirestoreError) => {
       console.warn(`Firestore listener error for ${cacheKey || 'unknown'}:`, error.message);
       
+      let hasCalled = false;
       if (cacheKey) {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
             onData(parsed.data || parsed);
-            return;
+            hasCalled = true;
           } catch (e) {}
         }
+      }
+      
+      if (!hasCalled) {
+        // Ensure the loading state is resolved even if there's no cache
+        onData([]);
       }
       console.debug('Firestore hits issue, maintaining offline state.');
     });

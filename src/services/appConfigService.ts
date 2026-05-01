@@ -8,7 +8,7 @@ import { safeFirestore } from './firestoreService';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
-  updatedAt?: any;
+  updated_at?: any;
 }
 
 const CONFIG_DOC_PATH = 'settings/appConfig';
@@ -31,9 +31,9 @@ export const appConfigService = {
     if (!unsubscribe) {
       unsubscribe = safeFirestore.listen(doc(db, CONFIG_DOC_PATH), (data) => {
         if (data) {
-          const config = {
+          const config: AppConfig = {
             isOrderingOpen: data.isOrderingOpen ?? true,
-            updatedAt: data.updatedAt
+            updated_at: data.updated_at
           };
           currentConfig = config;
           listeners.forEach(l => l(config));
@@ -57,11 +57,11 @@ export const appConfigService = {
     try {
       await setDoc(doc(db, CONFIG_DOC_PATH), {
         isOrderingOpen: newStatus,
-        updatedAt: serverTimestamp()
+        updated_at: serverTimestamp()
       }, { merge: true });
     } catch (error) {
       console.warn('Error toggling status in Firestore:', error);
-      const config = { isOrderingOpen: newStatus, updatedAt: new Date().toISOString() };
+      const config: AppConfig = { isOrderingOpen: newStatus, updated_at: new Date().toISOString() };
       currentConfig = config;
       listeners.forEach(l => l(config));
     }
@@ -76,7 +76,7 @@ export const appConfigService = {
       if (data) {
         return {
           isOrderingOpen: data.isOrderingOpen,
-          updatedAt: data.updatedAt
+          updated_at: data.updated_at
         };
       }
     } catch (error) {
