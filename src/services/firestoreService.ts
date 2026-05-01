@@ -26,19 +26,16 @@ export const safeFirestore = {
       }));
       return data;
     } catch (error: any) {
-      const isQuota = error.code === 'resource-exhausted' || error.message?.includes('Quota');
+      console.warn(`Firestore fetch failed for ${cacheKey}, checking cache.`, error.message);
       
-      if (isQuota) {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            return (parsed.data || parsed) as T[];
-          } catch (e) {}
-        }
-        return []; // Return empty instead of throwing if we have issues but want to keep UI alive
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          return (parsed.data || parsed) as T[];
+        } catch (e) {}
       }
-      throw error;
+      return []; 
     }
   },
 
@@ -58,16 +55,13 @@ export const safeFirestore = {
       }
       return null;
     } catch (error: any) {
-      const isQuota = error.code === 'resource-exhausted' || error.message?.includes('Quota');
-      
-      if (isQuota) {
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            return (parsed.data || parsed) as T;
-          } catch (e) {}
-        }
+      console.warn(`Firestore document fetch failed for ${cacheKey}, checking cache.`, error.message);
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          return (parsed.data || parsed) as T;
+        } catch (e) {}
       }
       return null;
     }
@@ -96,23 +90,19 @@ export const safeFirestore = {
       }
       onData(data);
     }, (error: FirestoreError) => {
-      const isQuota = error.code === 'resource-exhausted' || error.message?.includes('Quota');
+      console.warn(`Firestore listener error for ${cacheKey || 'unknown'}:`, error.message);
       
-      if (isQuota) {
-        if (cacheKey) {
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const parsed = JSON.parse(cached);
-              onData(parsed.data || parsed);
-              return;
-            } catch (e) {}
-          }
+      if (cacheKey) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            onData(parsed.data || parsed);
+            return;
+          } catch (e) {}
         }
-        console.debug('Firestore hits quota, maintaining offline state.');
-        return;
       }
-      console.error('Firestore non-quota error:', error);
+      console.debug('Firestore hits issue, maintaining offline state.');
     });
   }
 };

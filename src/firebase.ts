@@ -17,8 +17,22 @@ export const auth = getAuth(app);
 
 // Use initializeFirestore with settings to improve connectivity in AIS environment
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  experimentalForceLongPolling: true,
+  ignoreUndefinedProperties: true,
 }, firebaseConfig.firestoreDatabaseId);
+
+// Add listener to check connection
+import { doc, getDocFromServer } from 'firebase/firestore';
+const testConnection = async () => {
+  try {
+    await getDocFromServer(doc(db, '_connection_test_', 'ping'));
+  } catch (error: any) {
+    if (error.message?.includes('offline')) {
+      console.warn('Firestore is operating in offline mode.');
+    }
+  }
+};
+testConnection();
 
 export const messaging = typeof window !== 'undefined' ? (() => {
   try {

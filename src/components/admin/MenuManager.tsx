@@ -210,19 +210,33 @@ export const MenuManager: React.FC = () => {
           <h2 className="text-3xl font-bold text-white tracking-tight">Menu Management</h2>
           <p className="text-gray-500 font-medium">Add, edit, or remove items from your restaurant menu</p>
         </div>
-        <motion.button 
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={() => {
-            setEditingItem(null);
-            setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
-            setIsAdding(true);
-          }}
-          className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
-        >
-          <Plus size={20} />
-          Add New Item
-        </motion.button>
+        <div className="flex flex-wrap items-center gap-4">
+          <button 
+            onClick={() => {
+              setLoading(true);
+              fetchMenu();
+            }}
+            className="flex items-center gap-3 px-6 py-4 bg-[#111]/80 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all group"
+          >
+            <div className={cn("transition-transform duration-700", loading && "animate-spin")}>
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </div>
+            Refresh
+          </button>
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              setEditingItem(null);
+              setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
+              setIsAdding(true);
+            }}
+            className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex-1 md:flex-none justify-center"
+          >
+            <Plus size={20} />
+            Add New Item
+          </motion.button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4">
@@ -339,6 +353,27 @@ export const MenuManager: React.FC = () => {
               </div>
             </motion.div>
           ))}
+          {filteredMenu.length === 0 && !loading && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 bg-white/5 border border-dashed border-white/10 rounded-3xl"
+            >
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-gray-500">
+                <Search size={32} />
+              </div>
+              <div>
+                <p className="text-white font-bold text-lg">No menu items found</p>
+                <p className="text-gray-500">Try adjusting your search or add a new food item.</p>
+              </div>
+              <button 
+                onClick={() => fetchMenu()}
+                className="text-orange-500 font-bold hover:underline"
+              >
+                Try refreshing
+              </button>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
 
