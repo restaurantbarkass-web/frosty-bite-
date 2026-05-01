@@ -100,7 +100,7 @@ const ProductDetail: React.FC = () => {
 
           try {
             // Fetch related items from Firestore
-            const q = query(collection(db, 'menu'), where('available', '==', true));
+            const q = collection(db, 'menu');
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {

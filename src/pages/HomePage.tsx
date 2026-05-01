@@ -19,13 +19,21 @@ export const Home: React.FC = () => {
   const location = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
+  
+  const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
+  const { isOrderingOpen } = useAppConfig();
+  
+  // Dynamic categories based on menu items
+  const menuCategories = React.useMemo(() => {
+    const cats = firestoreMenu.map(item => item.category);
+    return ['All', ...Array.from(new Set(cats))].filter(Boolean);
+  }, [firestoreMenu]);
+
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-  const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
-  const { isOrderingOpen } = useAppConfig();
 
   useEffect(() => {
     // Notify App component about search state to hide/show navigation
@@ -214,7 +222,7 @@ export const Home: React.FC = () => {
       .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .map(item => item.name);
 
-    const categorySuggestions = CATEGORIES
+    const categorySuggestions = menuCategories
       .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const combined = Array.from(new Set([...itemSuggestions, ...categorySuggestions]))
@@ -436,16 +444,7 @@ export const Home: React.FC = () => {
 
         {/* Categories */}
         <div className="flex space-x-4 overflow-x-auto pb-8 scrollbar-hide">
-          <button
-            onClick={() => setSelectedCategory('All')}
-            className={cn(
-              "whitespace-nowrap px-6 py-3 rounded-2xl font-bold transition-all",
-              selectedCategory === 'All' ? "bg-primary text-white shadow-lg shadow-primary/20" : "glass-dark text-muted hover:text-white"
-            )}
-          >
-            All Items
-          </button>
-          {CATEGORIES.map((cat) => (
+          {menuCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -454,7 +453,7 @@ export const Home: React.FC = () => {
                 selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "glass-dark text-muted hover:text-white"
               )}
             >
-              {cat}
+              {cat === 'All' ? 'All Items' : cat}
             </button>
           ))}
         </div>
