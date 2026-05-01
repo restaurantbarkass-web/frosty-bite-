@@ -1,12 +1,10 @@
+import { db } from '../firebase';
 import { 
   doc, 
-  onSnapshot, 
-  updateDoc, 
-  serverTimestamp,
-  getDoc,
-  setDoc
+  setDoc, 
+  serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { safeFirestore } from './firestoreService';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
@@ -15,39 +13,58 @@ export interface AppConfig {
 
 const CONFIG_DOC_PATH = 'settings/appConfig';
 
+let unsubscribe: any = null;
+let listeners: ((config: AppConfig) => void)[] = [];
+let currentConfig: AppConfig | null = null;
+
 export const appConfigService = {
   /**
    * Subscribes to application configuration changes.
    */
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
-    const docRef = doc(db, CONFIG_DOC_PATH);
+    listeners.push(callback);
     
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      if (snapshot.exists()) {
-        callback(snapshot.data() as AppConfig);
-      } else {
-        const initialConfig: AppConfig = { isOrderingOpen: true };
-        callback(initialConfig);
-      }
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Error in subscribeToConfig:', error);
-      }
-      callback({ isOrderingOpen: true });
-    });
-    return unsubscribe;
+    if (currentConfig) {
+      callback(currentConfig);
+    }
+
+    if (!unsubscribe) {
+      unsubscribe = safeFirestore.listen(doc(db, CONFIG_DOC_PATH), (data) => {
+        if (data) {
+          const config = {
+            isOrderingOpen: data.isOrderingOpen ?? true,
+            updatedAt: data.updatedAt
+          };
+          currentConfig = config;
+          listeners.forEach(l => l(config));
+        }
+      }, 'app_config_cache');
+    }
+
+    return () => {
+      listeners = listeners.filter(l => l !== callback);
+      // We keep the snapshot listener running as a singleton
+    };
   },
 
   /**
    * Toggles the ordering status.
    */
   toggleOrderingStatus: async (currentStatus: boolean) => {
-    const docRef = doc(db, CONFIG_DOC_PATH);
-    await updateDoc(docRef, {
-      isOrderingOpen: !currentStatus,
-      updatedAt: serverTimestamp()
-    });
+    const newStatus = !currentStatus;
+    localStorage.setItem('ordering_status_fallback', String(newStatus));
+    
+    try {
+      await setDoc(doc(db, CONFIG_DOC_PATH), {
+        isOrderingOpen: newStatus,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.warn('Error toggling status in Firestore:', error);
+      const config = { isOrderingOpen: newStatus, updatedAt: new Date().toISOString() };
+      currentConfig = config;
+      listeners.forEach(l => l(config));
+    }
   },
 
   /**
@@ -55,16 +72,15 @@ export const appConfigService = {
    */
   getConfig: async (): Promise<AppConfig> => {
     try {
-      const docRef = doc(db, CONFIG_DOC_PATH);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        return snap.data() as AppConfig;
+      const data = await safeFirestore.getDocument<any>(doc(db, CONFIG_DOC_PATH), 'app_config_cache');
+      if (data) {
+        return {
+          isOrderingOpen: data.isOrderingOpen,
+          updatedAt: data.updatedAt
+        };
       }
-    } catch (error: any) {
-      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Error in getConfig:', error);
-      }
+    } catch (error) {
+      console.error('Error in getConfig:', error);
     }
     return { isOrderingOpen: true };
   }

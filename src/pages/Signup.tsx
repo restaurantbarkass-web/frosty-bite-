@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
-import { syncUserWithFirestore } from '../firebase';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
@@ -48,31 +47,8 @@ const Signup: React.FC = () => {
     setIsLoading(true);
     try {
       if (method === 'password') {
-        const result = await authService.handleSignup(email, password);
-        const newUser = result.user;
-        
-        // Sync with Firestore
-        try {
-          await syncUserWithFirestore({
-            ...newUser,
-            displayName: name
-          });
-        } catch (syncErr: any) {
-          console.error('Firestore sync error during signup:', syncErr);
-          // We still consider signup successful if auth worked, but warn the user
-          setSuccess('Account created but profile sync failed. Please try logging in.');
-          setTimeout(() => navigate('/'), 2000);
-          return;
-        }
-        
+        await authService.handleSignup(email, password, name);
         setSuccess('Account created! Please check your email to verify your account.');
-        
-        // Send verification email
-        try {
-          await authService.sendVerificationEmail();
-        } catch (verifyErr) {
-          console.error('Error sending verification email:', verifyErr);
-        }
       } else {
         await authService.sendSignInLink(email);
         setLinkSent(true);
@@ -84,13 +60,7 @@ const Signup: React.FC = () => {
       }, 2500);
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain not authorized. Add your URL to "Authorized domains" in Firebase Console.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Email Link sign-in is not enabled. Please enable it in Firebase Console.');
-      } else {
-        setError(err.message || 'Failed to create account. Please try again.');
-      }
+      setError(err.message || 'Failed to create account. Please try again.');
     } finally {
       setIsLoading(false);
     }

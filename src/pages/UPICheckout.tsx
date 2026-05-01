@@ -22,8 +22,8 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
 import { motion } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -123,12 +123,14 @@ export const UPICheckout: React.FC = () => {
 
     setIsVerifying(true);
     try {
-      // Check for duplicate UTR
-      const q = query(collection(db, 'orders'), where('utr', '==', utr));
+      // Check for duplicate UTR in Firestore
+      const q = query(
+        collection(db, 'orders'),
+        where('utr', '==', utr)
+      );
       const querySnapshot = await getDocs(q);
       
-      // Filter out the current order itself if it already had the UTR saved (e.g. on refresh)
-      const duplicateOrders = querySnapshot.docs.filter(doc => doc.id !== state!.orderId);
+      const duplicateOrders = querySnapshot.docs.filter(dock => dock.id !== state!.orderId);
       
       if (duplicateOrders.length > 0) {
         const dupOrder = duplicateOrders[0].data();
@@ -137,19 +139,15 @@ export const UPICheckout: React.FC = () => {
         return;
       }
 
-      // Real Firestore update
-      const orderRef = doc(db, 'orders', state!.orderId);
-      try {
-        await updateDoc(orderRef, {
-          utr: utr,
-          paymentScreenshot: screenshot,
-          status: 'pending', 
-          paymentStatus: 'pending_verification', // Require admin to check UTR manually
-          updatedAt: serverTimestamp()
-        });
-      } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `orders/${state!.orderId}`);
-      }
+      // Firestore update
+      const orderDocRef = doc(db, 'orders', state!.orderId);
+      await updateDoc(orderDocRef, {
+        utr: utr,
+        payment_screenshot: screenshot,
+        status: 'pending', 
+        payment_status: 'pending_verification', // Require admin to check UTR manually
+        updated_at: new Date().toISOString()
+      });
       
       const orderSummary = {
         orderId: state!.orderId,
@@ -188,6 +186,7 @@ export const UPICheckout: React.FC = () => {
       clearCart();
       toast.success('Payment Submitted for Verification! 🍰');
     } catch (error) {
+      console.error('Verification failed:', error);
       toast.error('Verification failed. Please check UTR.');
     } finally {
       setIsVerifying(false);

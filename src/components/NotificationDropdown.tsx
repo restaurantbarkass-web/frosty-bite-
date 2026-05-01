@@ -97,16 +97,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                             {notif.message}
                           </p>
                           <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">
-                            {notif.createdAt ? (
-                              (() => {
-                                const ca = notif.createdAt;
-                                let date: Date;
-                                if (typeof ca.toDate === 'function') date = ca.toDate();
-                                else if (ca.seconds) date = new Date(ca.seconds * 1000);
-                                else date = new Date(ca);
-                                return formatDistanceToNow(date, { addSuffix: true });
-                              })()
-                            ) : 'Just now'}
+                            {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : 'Just now'}
                           </p>
                         </div>
                       </div>

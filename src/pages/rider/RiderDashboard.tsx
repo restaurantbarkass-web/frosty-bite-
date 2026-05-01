@@ -28,8 +28,9 @@ import { StatusToggle } from '../../components/rider/StatusToggle';
 import { EarningsCard } from '../../components/rider/EarningsCard';
 import { OrderCard } from '../../components/rider/OrderCard';
 import { MapView } from '../../components/rider/MapView';
-import { logout } from '../../firebase';
+import { logout } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { db } from '../../firebase';
 
 export const RiderDashboard: React.FC = () => {
   const { user, role } = useAuth();
@@ -63,11 +64,11 @@ export const RiderDashboard: React.FC = () => {
 
     // Fetch stats
     const fetchStats = async () => {
-      const stats = await riderService.getRiderStats(user.uid);
+      const stats = await riderService.getRiderStats(user.uid) as any;
       if (stats) {
         setRiderStats({
-          todayEarnings: stats.todayEarnings || 0,
-          totalDeliveries: stats.totalDeliveries || 0
+          todayEarnings: stats.today_earnings || 0,
+          totalDeliveries: stats.total_deliveries || 0
         });
         setIsOnline(stats.status === 'online' || stats.status === 'busy');
       }

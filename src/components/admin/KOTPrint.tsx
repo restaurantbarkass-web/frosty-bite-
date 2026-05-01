@@ -9,13 +9,7 @@ interface KOTPrintProps {
 }
 
 export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
-  const date = order.createdAt 
-    ? ((typeof (order.createdAt as any).toDate === 'function') 
-        ? (order.createdAt as any).toDate() 
-        : ((order.createdAt as any).seconds 
-            ? new Date((order.createdAt as any).seconds * 1000) 
-            : new Date(order.createdAt as any)))
-    : new Date();
+  const date = order.created_at ? new Date(order.created_at) : new Date();
 
   const handlePrint = () => {
     window.print();
@@ -76,7 +70,7 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
             <p className="font-black uppercase mb-1">Customer Details:</p>
             <div className="grid grid-cols-[80px_1fr] gap-y-0.5">
               <span className="text-gray-600">Name:</span>
-              <span className="font-bold">{order.customerName}</span>
+              <span className="font-bold">{order.customer_name}</span>
               <span className="text-gray-600">Phone:</span>
               <span className="font-bold">{order.phone}</span>
               <span className="text-gray-600">Address:</span>
@@ -127,10 +121,10 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
                 <span>₹{order.gst.toFixed(2)}</span>
               </div>
             )}
-            {order.deliveryCharge !== undefined && (
+            {order.delivery_charge !== undefined && (
               <div className="flex justify-between text-[11px]">
                 <span>Delivery Charge:</span>
-                <span>{order.deliveryCharge === 0 ? 'FREE' : `₹${order.deliveryCharge.toFixed(2)}`}</span>
+                <span>{order.delivery_charge === 0 ? 'FREE' : `₹${order.delivery_charge.toFixed(2)}`}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-black mt-2 pt-2 border-t border-black/10">
@@ -143,12 +137,12 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
           <div className="bg-gray-100 p-2 rounded mb-4 text-[11px] print:bg-transparent print:p-0 print:border print:border-black/10">
             <div className="flex justify-between">
               <span className="font-bold">Payment Method:</span>
-              <span className="uppercase">{order.paymentMethod || 'N/A'}</span>
+              <span className="uppercase">{order.payment_method || 'N/A'}</span>
             </div>
             <div className="flex justify-between mt-0.5">
               <span className="font-bold">Payment Status:</span>
-              <span className={`uppercase font-black ${order.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                {order.paymentStatus || 'PENDING'}
+              <span className={`uppercase font-black ${order.payment_status === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
+                {order.payment_status || 'PENDING'}
               </span>
             </div>
           </div>

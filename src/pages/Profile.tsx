@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { logout, db, handleFirestoreError, OperationType } from '../firebase';
+import { logout } from '../services/authService';
+import { db } from '../firebase';
+import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, updateDoc } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
-import { doc, onSnapshot, updateDoc, collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
@@ -52,10 +54,11 @@ export const Profile: React.FC = () => {
 
     if (cachedProfile) {
       try {
-        const data = JSON.parse(cachedProfile);
+        const parsed = JSON.parse(cachedProfile);
+        const data = parsed.data || parsed;
         setUserData(data);
         setFormData({
-          name: data.name || authUser.displayName || '',
+          name: data.full_name || '',
           phone: data.phone || '',
           address: data.address || ''
         });
@@ -63,80 +66,113 @@ export const Profile: React.FC = () => {
         setLoading(false);
       } catch (e) {}
     }
-    if (cachedOrders) try { setRecentOrders(JSON.parse(cachedOrders)); } catch (e) {}
-    if (cachedWishlist) try { setWishlist(JSON.parse(cachedWishlist)); } catch (e) {}
+    if (cachedOrders) {
+      try {
+        const parsed = JSON.parse(cachedOrders);
+        setRecentOrders(parsed.data || parsed);
+      } catch (e) {}
+    }
+    if (cachedWishlist) {
+      try {
+        const parsed = JSON.parse(cachedWishlist);
+        setWishlist(parsed.data || parsed);
+      } catch (e) {}
+    }
 
-    // Real-time user data
-    const userUnsubscribe = onSnapshot(doc(db, 'users', authUser.uid), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
+    const fetchData = async () => {
+      try {
+        // User data
+        const docRef = doc(db, 'users', authUser.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+          const userDataObj = docSnap.data();
+          setUserData(userDataObj);
+          localStorage.setItem(profileCacheKey, JSON.stringify({
+            data: userDataObj,
+            timestamp: Date.now()
+          }));
+          setFormData({
+            name: userDataObj.full_name || '',
+            phone: userDataObj.phone || '',
+            address: userDataObj.address || ''
+          });
+          if (userDataObj.settings) setSettingsData(userDataObj.settings);
+        }
+
+        // Recent orders
+        const qOrders = query(
+          collection(db, 'orders'),
+          where('userId', '==', authUser.uid),
+          orderBy('created_at', 'desc'),
+          limit(5)
+        );
+        const ordersSnap = await getDocs(qOrders);
+
+        if (!ordersSnap.empty) {
+          const ordersData = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Order[];
+          setRecentOrders(ordersData);
+          localStorage.setItem(ordersCacheKey, JSON.stringify({
+            data: ordersData,
+            timestamp: Date.now()
+          }));
+        }
+
+        // Wishlist
+        const qWishlist = query(
+          collection(db, 'wishlist'),
+          where('user_id', '==', authUser.uid)
+        );
+        const wishlistSnap = await getDocs(qWishlist);
+
+        if (!wishlistSnap.empty) {
+          // We assume food_items join equivalent logic: 
+          // In Firestore, wishlist docs usually contain the full item data or we fetch them
+          // Looking at Supabase logic, it was doing a join.
+          // For simplicity in Firestore migration, we assume wishlist documents store the item data or we'd have to fetch them one by one.
+          // Based on previous wishlist service, it seems we store the item in wishlist collection.
+          const items = wishlistSnap.docs.map(d => d.data().item).filter(Boolean);
+          setWishlist(items as FoodItem[]);
+          localStorage.setItem(wishlistCacheKey, JSON.stringify({
+            data: items,
+            timestamp: Date.now()
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching profile data:", err);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+
+    // Real-time subscriptions
+    const unsubUser = safeFirestore.listen(doc(db, 'users', authUser.uid), (data: any) => {
+      if (data) {
         setUserData(data);
-        localStorage.setItem(profileCacheKey, JSON.stringify(data));
         setFormData({
-          name: data.name || authUser.displayName || '',
+          name: data.full_name || '',
           phone: data.phone || '',
           address: data.address || ''
         });
-        if (data.settings) {
-          setSettingsData(data.settings);
-        }
+        if (data.settings) setSettingsData(data.settings);
       }
-      setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, `users/${authUser.uid}`);
-      } else {
-        console.warn('Firestore Quota Exceeded in Profile. Using cache.');
-      }
-      setLoading(false);
-    });
+    }, `profile_user_${authUser.uid}`);
 
-    // Real-time recent orders
-    const ordersQuery = query(
+    const qOrdersRealtime = query(
       collection(db, 'orders'),
       where('userId', '==', authUser.uid),
-      orderBy('createdAt', 'desc'),
+      orderBy('created_at', 'desc'),
       limit(5)
     );
-
-    const ordersUnsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
-      setRecentOrders(ordersData);
-      localStorage.setItem(ordersCacheKey, JSON.stringify(ordersData));
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error("Orders fetching error:", error);
-      } else {
-        console.warn('Orders Quota Exceeded in Profile');
-      }
-    });
-
-    // Real-time wishlist
-    const wishlistUnsubscribe = onSnapshot(collection(db, 'users', authUser.uid, 'wishlist'), (snapshot) => {
-      const wishlistData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FoodItem[];
-      setWishlist(wishlistData);
-      localStorage.setItem(wishlistCacheKey, JSON.stringify(wishlistData));
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error("Wishlist fetching error:", error);
-      } else {
-        console.warn('Wishlist Quota Exceeded in Profile');
-      }
-    });
+    const unsubOrders = safeFirestore.listen(qOrdersRealtime, (data: Order[]) => {
+      setRecentOrders(data);
+    }, `profile_orders_${authUser.uid}`);
 
     return () => {
-      userUnsubscribe();
-      ordersUnsubscribe();
-      wishlistUnsubscribe();
+      unsubUser();
+      unsubOrders();
     };
   }, [authUser]);
 
@@ -150,20 +186,32 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
 
     try {
-      await updateDoc(doc(db, 'users', authUser.uid), formData);
+      const userDocRef = doc(db, 'users', authUser.uid);
+      await updateDoc(userDocRef, {
+        full_name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        updated_at: new Date().toISOString()
+      });
+      
       setIsEditing(false);
     } catch (error) {
-      handleFirestoreError(error as any, OperationType.UPDATE, `users/${authUser.uid}`);
+      console.error('Error updating profile:', error);
     }
   };
 
   const handleUpdateSettings = async (newSettings: any) => {
     if (!authUser) return;
     try {
-      await updateDoc(doc(db, 'users', authUser.uid), { settings: newSettings });
+      const userDocRef = doc(db, 'users', authUser.uid);
+      await updateDoc(userDocRef, { 
+        settings: newSettings,
+        updated_at: new Date().toISOString()
+      });
+      
       setSettingsData(newSettings);
     } catch (error) {
-      handleFirestoreError(error as any, OperationType.UPDATE, `settings/${authUser.uid}`);
+      console.error('Error updating settings:', error);
     }
   };
 
@@ -187,13 +235,13 @@ export const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
       try {
-        // In a real app we would delete from Auth too, but here we'll just clear Firestore and logout
-        // Deleting from Auth in Firebase usually requires a recent login
-        await updateDoc(doc(db, 'users', authUser?.uid!), { 
+        const userDocRef = doc(db, 'users', authUser?.uid!);
+        await updateDoc(userDocRef, { 
           deleted: true,
-          deletedAt: new Date().toISOString(),
+          deleted_at: new Date().toISOString(),
           status: 'deactivated'
         });
+        
         alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
         await handleLogout();
       } catch (error) {
@@ -203,11 +251,11 @@ export const Profile: React.FC = () => {
   };
 
   const user = {
-    name: userData?.name || authUser?.displayName || 'User',
+    name: userData?.full_name || authUser?.displayName || 'User',
     email: authUser?.email || 'No email provided',
     phone: userData?.phone || 'Not provided',
     address: userData?.address || 'No address saved',
-    avatar: authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
+    avatar: authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
   };
 
   const getStatusColor = (status: string) => {
@@ -222,10 +270,10 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'N/A';
+  const formatDate = (dateStr: any) => {
+    if (!dateStr) return 'N/A';
     try {
-      const date = (timestamp && typeof timestamp.toDate === 'function') ? timestamp.toDate() : (timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
+      const date = new Date(dateStr);
       return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     } catch (e) {
       return 'N/A';
@@ -418,7 +466,7 @@ export const Profile: React.FC = () => {
                         <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-widest">
                           <div className="flex items-center gap-1">
                             <Clock size={10} />
-                            {formatDate(order.createdAt)}
+                            {formatDate(order.created_at)}
                           </div>
                           <span>•</span>
                           <span>{order.items.length} Items</span>

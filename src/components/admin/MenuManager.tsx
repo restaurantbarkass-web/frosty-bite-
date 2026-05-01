@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  setDoc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 import { CATEGORIES } from '../../constants';
 
 interface MenuItem {
@@ -12,7 +23,8 @@ interface MenuItem {
   category: string;
   image: string;
   available: boolean;
-  stockQuantity: number;
+  stock_quantity: number;
+  description: string;
 }
 
 import { ImageZoom } from '../ImageZoom';
@@ -29,7 +41,7 @@ export const MenuManager: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    stockQuantity: '0',
+    stock_quantity: '0',
     category: CATEGORIES[0],
     image: '',
     available: true,
@@ -47,44 +59,26 @@ export const MenuManager: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
-    
-    // Initial load from cache
-    const cachedMenu = localStorage.getItem('menu_cache');
-    if (cachedMenu) {
-      try {
-        setMenuItems(JSON.parse(cachedMenu));
-        setLoading(false);
-      } catch (e) {}
-    }
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const menuData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as MenuItem[];
-      setMenuItems(menuData);
-      localStorage.setItem('menu_cache', JSON.stringify(menuData));
+  const fetchMenu = async () => {
+    try {
+      const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
+      const items = await safeFirestore.getCollection<MenuItem>(q, 'menu_cache');
+      setMenuItems(items);
       setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'menu');
-      } else {
-        console.warn('Firestore Quota Exceeded in MenuManager. Showing cached items.');
-        // If we don't have items, try one more time from cache
-        if (menuItems.length === 0) {
-          const lastResort = localStorage.getItem('menu_cache');
-          if (lastResort) {
-            try {
-              setMenuItems(JSON.parse(lastResort));
-            } catch (e) {}
-          }
-        }
-        setLoading(false);
-      }
-    });
+    } catch (error) {
+      console.error('Menu fetch failed:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenu();
+
+    const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
+    const unsubscribe = safeFirestore.listen(q, (items: MenuItem[]) => {
+      setMenuItems(items);
+      setLoading(false);
+    }, 'menu_cache');
 
     return () => unsubscribe();
   }, []);
@@ -93,23 +87,30 @@ export const MenuManager: React.FC = () => {
     e.preventDefault();
     try {
       const data = {
-        ...formData,
+        name: formData.name,
         price: Number(formData.price),
-        stockQuantity: Number(formData.stockQuantity),
-        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`
+        stock_quantity: Number(formData.stock_quantity),
+        category: formData.category,
+        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`,
+        available: formData.available,
+        description: formData.description,
+        updatedAt: serverTimestamp()
       };
 
       if (editingItem) {
         await updateDoc(doc(db, 'menu', editingItem.id), data);
       } else {
-        await addDoc(collection(db, 'menu'), data);
+        await addDoc(collection(db, 'menu'), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
       }
       
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', price: '', stockQuantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
+      setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'menu');
+      console.error('Error saving menu item:', error);
     }
   };
 
@@ -118,17 +119,32 @@ export const MenuManager: React.FC = () => {
       await deleteDoc(doc(db, 'menu', id));
       setDeletingId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `menu/${id}`);
+      console.error('Error deleting menu item:', error);
     }
   };
 
   const toggleAvailability = async (item: MenuItem) => {
     try {
-      await updateDoc(doc(db, 'menu', item.id), { available: !item.available });
+      await updateDoc(doc(db, 'menu', item.id), { 
+        available: !item.available,
+        updatedAt: serverTimestamp()
+      });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `menu/${item.id}`);
+      console.error('Error toggling availability:', error);
     }
   };
+
+  const updateStock = async (item: MenuItem, delta: number) => {
+    try {
+      const newStock = Math.max(0, (item.stock_quantity || 0) + delta);
+      await updateDoc(doc(db, 'menu', item.id), { 
+        stock_quantity: newStock,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating stock:', error);
+    }
+  }
 
   const filteredMenu = menuItems.filter(item => 
     item.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -199,7 +215,7 @@ export const MenuManager: React.FC = () => {
           whileTap={{ scale: 0.98 }}
           onClick={() => {
             setEditingItem(null);
-            setFormData({ name: '', price: '', stockQuantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
+            setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
             setIsAdding(true);
           }}
           className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
@@ -251,11 +267,11 @@ export const MenuManager: React.FC = () => {
                       setFormData({
                         name: item.name,
                         price: item.price.toString(),
-                        stockQuantity: (item.stockQuantity || 0).toString(),
+                        stock_quantity: (item.stock_quantity || 0).toString(),
                         category: item.category,
                         image: item.image,
                         available: item.available,
-                        description: (item as any).description || ''
+                        description: item.description || ''
                       });
                       setIsAdding(true);
                     }}
@@ -287,21 +303,19 @@ export const MenuManager: React.FC = () => {
                         <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Stock:</span>
                         <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-0.5 border border-white/10">
                           <button 
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              const newStock = Math.max(0, (item.stockQuantity || 0) - 1);
-                              await updateDoc(doc(db, 'menu', item.id), { stockQuantity: newStock });
+                              updateStock(item, -1);
                             }}
                             className="text-zinc-500 hover:text-orange-500 transition-colors"
                           >
                             <Minus size={10} />
                           </button>
-                          <span className="text-xs font-bold text-white min-w-[20px] text-center">{item.stockQuantity || 0}</span>
+                          <span className="text-xs font-bold text-white min-w-[20px] text-center">{item.stock_quantity || 0}</span>
                           <button 
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              const newStock = (item.stockQuantity || 0) + 1;
-                              await updateDoc(doc(db, 'menu', item.id), { stockQuantity: newStock });
+                              updateStock(item, 1);
                             }}
                             className="text-zinc-500 hover:text-orange-500 transition-colors"
                           >
@@ -385,8 +399,8 @@ export const MenuManager: React.FC = () => {
                     <input 
                       type="number" 
                       required
-                      value={formData.stockQuantity}
-                      onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})}
+                      value={formData.stock_quantity}
+                      onChange={(e) => setFormData({...formData, stock_quantity: e.target.value})}
                       placeholder="e.g. 50" 
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
                     />

@@ -1,14 +1,6 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  updateDoc, 
-  doc, 
-  getDoc,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../firebase';
+import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { safeFirestore } from './firestoreService';
 import { sendOTP } from '../utils/whatsapp';
 
 export const riderService = {
@@ -16,69 +8,56 @@ export const riderService = {
   subscribeToAssignedOrders: (riderId: string, callback: (orders: any[]) => void) => {
     const q = query(
       collection(db, 'orders'),
-      where('assignedRiderId', '==', riderId),
+      where('assigned_rider_id', '==', riderId),
       where('status', 'in', ['assigned', 'preparing', 'out_for_delivery'])
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return safeFirestore.listen(q, (orders: any[]) => {
       callback(orders);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'orders');
-    });
+    }, `rider_orders_${riderId}`);
   },
 
   // Update order status
   updateOrderStatus: async (orderId: string, status: string) => {
-    const orderRef = doc(db, 'orders', orderId);
     const updateData: any = { 
       status,
-      updatedAt: serverTimestamp()
+      updated_at: new Date().toISOString()
     };
 
     // If status is "out_for_delivery", generate and send OTP
     if (status === 'out_for_delivery') {
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
-      updateData.deliveryOtp = otp;
+      updateData.delivery_otp = otp;
 
       // Fetch order to get customer phone
-      const orderSnap = await getDoc(orderRef);
-      if (orderSnap.exists()) {
-        const order = orderSnap.data();
-        if (order.phone) {
-          sendOTP(order.phone, otp);
-        }
+      const orderData = await safeFirestore.getDocument<any>(doc(db, 'orders', orderId), `order_${orderId}`);
+      
+      if (orderData?.phone) {
+        sendOTP(orderData.phone, otp);
       }
     }
 
-    await updateDoc(orderRef, updateData);
+    await updateDoc(doc(db, 'orders', orderId), updateData);
   },
 
   // Update rider status
   updateRiderStatus: async (riderId: string, status: 'online' | 'offline' | 'busy') => {
-    const riderRef = doc(db, 'riders', riderId);
-    await updateDoc(riderRef, { 
+    await updateDoc(doc(db, 'riders', riderId), { 
       status,
-      lastActive: serverTimestamp()
+      last_active: new Date().toISOString()
     });
   },
 
   // Update rider location
   updateRiderLocation: async (riderId: string, lat: number, lng: number) => {
-    const riderRef = doc(db, 'riders', riderId);
-    await updateDoc(riderRef, { 
+    await updateDoc(doc(db, 'riders', riderId), { 
       location: { lat, lng },
-      lastLocationUpdate: serverTimestamp()
+      last_location_update: new Date().toISOString()
     });
   },
 
   // Fetch rider earnings/stats
   getRiderStats: async (riderId: string) => {
-    const riderRef = doc(db, 'riders', riderId);
-    const snap = await getDoc(riderRef);
-    if (snap.exists()) {
-      return snap.data();
-    }
-    return null;
+    return await safeFirestore.getDocument<any>(doc(db, 'riders', riderId), `rider_stats_${riderId}`);
   }
 };

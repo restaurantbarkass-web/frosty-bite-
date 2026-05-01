@@ -124,7 +124,9 @@ service cloud.firestore {
              data.expiryDate is string &&
              data.usageLimit is number && data.usageLimit >= 0 &&
              data.usageCount is number && data.usageCount >= 0 &&
-             data.status in ['active', 'expired', 'disabled'];
+             data.status in ['active', 'expired', 'disabled'] &&
+             (!('isFirstOrderOnly' in data) || data.isFirstOrderOnly is bool) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt is string));
     }
 
     function isValidReview(data) {

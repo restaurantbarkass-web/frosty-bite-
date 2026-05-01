@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
-import { User, Mail, Phone, Calendar, Search, MapPin, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { User, Search, Mail, Phone, Calendar, MapPin, ExternalLink } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 
 interface Customer {
   id: string;
-  displayName: string;
+  full_name: string;
   email: string;
   phone?: string;
   address?: string;
   role: string;
-  createdAt?: any;
-  lastLogin?: any;
+  created_at?: string;
+  last_login?: string;
 }
 
 export const Customers: React.FC = () => {
@@ -21,46 +22,30 @@ export const Customers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    // Limit and local sort for quota safety
-    const q = query(collection(db, 'users'), limit(500));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Customer[];
-      
-      // Sort in memory by createdAt desc
-      usersData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      });
+    const q = query(
+      collection(db, 'users'),
+      orderBy('created_at', 'desc'),
+      limit(500)
+    );
 
-      setCustomers(usersData);
+    const unsubscribe = safeFirestore.listen(q, (data: Customer[]) => {
+      setCustomers(data);
       setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'users');
-      } else {
-        console.warn('Firestore Quota Exceeded for users in Customers');
-        setLoading(false);
-      }
-    });
+    }, 'admin_customers_cache');
 
     return () => unsubscribe();
   }, []);
 
   const filteredCustomers = customers.filter(c => 
-    (c.displayName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (c.full_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (c.email?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (c.phone || '').includes(searchQuery)
   );
 
-  const formatDate = (timestamp: any) => {
-    if (!timestamp) return 'N/A';
+  const formatDate = (dateString: any) => {
+    if (!dateString) return 'N/A';
     try {
-      const date = (timestamp && typeof timestamp.toDate === 'function') ? timestamp.toDate() : (timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
+      const date = new Date(dateString);
       return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch (e) {
       return 'N/A';
@@ -122,10 +107,10 @@ export const Customers: React.FC = () => {
               <div className="flex items-start justify-between relative z-10">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-primary text-2xl font-black">
-                    {customer.displayName ? customer.displayName[0].toUpperCase() : '?'}
+                    {customer.full_name ? customer.full_name[0].toUpperCase() : '?'}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-white capitalize leading-tight">{customer.displayName || 'Guest User'}</h3>
+                    <h3 className="text-xl font-bold text-white capitalize leading-tight">{customer.full_name || 'Guest User'}</h3>
                     <span className="inline-block px-2 py-0.5 mt-1 rounded-md bg-white/5 text-[10px] font-black text-gray-500 uppercase tracking-widest border border-white/5">
                       {customer.role || 'customer'}
                     </span>
@@ -146,7 +131,7 @@ export const Customers: React.FC = () => {
                 )}
                 <div className="flex items-center gap-3 text-sm text-gray-400">
                   <Calendar className="shrink-0 text-primary" size={16} />
-                  <span>Joined: {formatDate(customer.createdAt)}</span>
+                  <span>Joined: {formatDate(customer.created_at)}</span>
                 </div>
                 {customer.address && (
                   <div className="flex items-start gap-3 text-sm text-gray-400">

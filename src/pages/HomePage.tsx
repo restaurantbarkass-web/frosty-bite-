@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Search, MapPin, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
-import { MENU_ITEMS, CATEGORIES } from '../constants';
+import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
+import { CATEGORIES } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { getFoodRecommendations } from '../services/geminiService';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { FoodItem } from '../types';
-import { appConfigService, AppConfig } from '../services/appConfigService';
+import { safeFirestore } from '../services/firestoreService';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { useAuth } from '../context/AuthContext';
 
 // Home Page Component
 export const Home: React.FC = () => {
@@ -43,9 +44,9 @@ export const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const query = new URLSearchParams(location.search).get('search');
-    if (query) {
-      setSearchQuery(query);
+    const queryStr = new URLSearchParams(location.search).get('search');
+    if (queryStr) {
+      setSearchQuery(queryStr);
       setTimeout(() => {
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
@@ -54,43 +55,33 @@ export const Home: React.FC = () => {
   }, [location.search]);
 
   useEffect(() => {
-    const q = collection(db, 'menu');
-    
-    // Initial load from cache to show something immediately
+    // Initial load from cache
     const cachedMenu = localStorage.getItem('menu_cache');
     if (cachedMenu) {
       try {
-        setFirestoreMenu(JSON.parse(cachedMenu));
+        const parsed = JSON.parse(cachedMenu);
+        const data = parsed.data || parsed;
+        if (Array.isArray(data)) {
+          setFirestoreMenu(data);
+        }
       } catch (e) {
         console.error('Failed to parse menu cache', e);
       }
     }
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as FoodItem[];
-      setFirestoreMenu(items);
-      localStorage.setItem('menu_cache', JSON.stringify(items));
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'menu');
-      } else {
-        console.warn('Firestore Quota Exceeded for menu. Showing last known items from cache.');
-        // If firestoreMenu is still empty, try one last time from cache
-        if (firestoreMenu.length === 0) {
-          const lastResort = localStorage.getItem('menu_cache');
-          if (lastResort) {
-            try {
-              setFirestoreMenu(JSON.parse(lastResort));
-            } catch (e) {}
-          }
-        }
-      }
-    });
-    return () => unsubscribe();
+    // Use listener with cacheKey which handles initial load and quota errors
+    const unsubscribeMenu = safeFirestore.listen(
+      collection(db, 'menu'),
+      (items: FoodItem[]) => {
+        if (!items || items.length === 0) return;
+        setFirestoreMenu(items);
+      },
+      'menu_cache'
+    );
+
+    return () => {
+      unsubscribeMenu();
+    };
   }, []);
 
   useEffect(() => {
@@ -122,7 +113,55 @@ export const Home: React.FC = () => {
     fetchRecs();
   }, []);
 
-  const displayItems = firestoreMenu.length > 0 ? firestoreMenu : MENU_ITEMS;
+  const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) {
+      setPreviousPurchases([]);
+      return;
+    }
+
+    const fetchPreviousPurchases = () => {
+      const q = query(
+        collection(db, 'orders'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+
+      return safeFirestore.listen(q, (orders: any[]) => {
+        if (!orders || !Array.isArray(orders)) return;
+        const purchasedItems = new Map<string, FoodItem>();
+        
+        orders.forEach(order => {
+          if (order && order.items && Array.isArray(order.items)) {
+            order.items.forEach((item: any) => {
+              if (item && item.id && !purchasedItems.has(item.id)) {
+                purchasedItems.set(item.id, {
+                  ...item,
+                  id: item.id
+                });
+              }
+            });
+          }
+        });
+        
+        setPreviousPurchases(Array.from(purchasedItems.values()).slice(0, 8));
+      }, `prev_purchases_${user.uid}`);
+    };
+
+    const unsubscribeOrders = fetchPreviousPurchases();
+
+    return () => {
+      unsubscribeOrders();
+    };
+  }, [user]);
+
+  // Only show menu items entered in Admin Panel (Firestore)
+  const displayItems = React.useMemo(() => {
+    return firestoreMenu || [];
+  }, [firestoreMenu]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -186,11 +225,13 @@ export const Home: React.FC = () => {
     setActiveIndex(-1);
   }, [searchQuery, displayItems]);
 
-  const filteredItems = displayItems.filter(item => {
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const filteredItems = React.useMemo(() => {
+    return displayItems.filter(item => {
+      const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [displayItems, selectedCategory, searchQuery]);
 
   return (
     <div className="min-h-screen pb-20">
@@ -452,6 +493,32 @@ export const Home: React.FC = () => {
             )}
           </div>
         </motion.section>
+
+        {/* Buy It Again / Previous Products */}
+        {previousPurchases.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-16"
+          >
+            <div className="flex items-end justify-between mb-8">
+              <div className="space-y-1">
+                <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Previous Favorites</h2>
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">{previousPurchases.length} Items you've enjoyed before</p>
+              </div>
+              <Link to="/orders" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View All Orders</Link>
+            </div>
+            
+            <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+              {previousPurchases.map((item) => (
+                <div key={`prev-${item.id}`} className="w-64 shrink-0">
+                  <FoodCard item={item} variant="compact" />
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
 
         {/* Food Grid */}
         <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">

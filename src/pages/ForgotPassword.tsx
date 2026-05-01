@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, ArrowLeft, Mail, Loader2, CheckCircle2 } from 'lucide-react';
-import { auth } from '../firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { authService } from '../services/authService';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
@@ -22,17 +21,11 @@ const ForgotPassword = () => {
     setError(null);
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await authService.forgotPassword(email);
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email address.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Please enter a valid email address.');
-      } else {
-        setError('Something went wrong. Please try again later.');
-      }
+      setError(err.message || 'Something went wrong. Please try again later.');
     } finally {
       setLoading(false);
     }

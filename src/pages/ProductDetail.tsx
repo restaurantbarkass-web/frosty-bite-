@@ -5,7 +5,6 @@ import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { MENU_ITEMS } from '../constants';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { FoodItem } from '../types';
@@ -57,7 +56,6 @@ const ProductDetail: React.FC = () => {
       
       setIsLoading(true);
       try {
-        // First check Firestore
         let currentProduct: FoodItem | null = null;
         
         try {
@@ -68,35 +66,25 @@ const ProductDetail: React.FC = () => {
             currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
           }
         } catch (dbError: any) {
-          const isQuota = dbError?.message?.toLowerCase().includes('quota') || dbError?.message?.toLowerCase().includes('limit exceeded');
-          if (!isQuota) {
-            console.error("Database error in fetchProduct:", dbError);
-          } else {
-            console.warn("Firestore Quota Exceeded in fetchProduct. Using local cache fallback.");
-            
-            // Try to find in localStorage cache
-            const cachedMenu = localStorage.getItem('menu_cache');
-            if (cachedMenu) {
-              try {
-                const menuItems = JSON.parse(cachedMenu) as FoodItem[];
-                const found = menuItems.find(item => item.id === id);
-                if (found) {
-                  currentProduct = found;
-                }
-              } catch (e) {}
-            }
+          console.error("Firestore error in fetchProduct:", dbError);
+          // Try to find in localStorage cache
+          const cachedMenu = localStorage.getItem('menu_cache');
+          if (cachedMenu) {
+            try {
+              const parsed = JSON.parse(cachedMenu);
+              const menuItems = (parsed.data || parsed) as FoodItem[];
+              const found = menuItems.find(item => item.id === id);
+              if (found) {
+                currentProduct = found;
+              }
+            } catch (e) {}
           }
         }
 
-        // If still not found, check constants as last resort
+        // If still not found, return null (it will show Product Not Found)
         if (!currentProduct) {
-          const localProduct = MENU_ITEMS.find(item => item.id === id);
-          if (localProduct) {
-            currentProduct = localProduct;
-          }
-        }
-
-        if (currentProduct) {
+          setProduct(null);
+        } else {
           setProduct(currentProduct);
           
           let firestoreItems: FoodItem[] = [];
@@ -105,35 +93,31 @@ const ProductDetail: React.FC = () => {
           const cachedMenu = localStorage.getItem('menu_cache');
           if (cachedMenu) {
             try {
-              firestoreItems = JSON.parse(cachedMenu);
+              const parsed = JSON.parse(cachedMenu);
+              firestoreItems = parsed.data || parsed;
             } catch (e) {}
           }
 
           try {
             // Fetch related items from Firestore
-            const menuRef = collection(db, 'menu');
-            const q = query(menuRef, where('available', '==', true));
+            const q = query(collection(db, 'menu'), where('available', '==', true));
             const querySnapshot = await getDocs(q);
-            const freshItems = querySnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })) as FoodItem[];
             
-            if (freshItems.length > 0) {
+            if (!querySnapshot.empty) {
+              const freshItems = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FoodItem[];
               firestoreItems = freshItems;
               // Update cache while we're here
-              localStorage.setItem('menu_cache', JSON.stringify(firestoreItems));
+              localStorage.setItem('menu_cache', JSON.stringify({
+                data: firestoreItems,
+                timestamp: Date.now()
+              }));
             }
           } catch (listError: any) {
-             const isQuota = listError?.message?.toLowerCase().includes('quota') || listError?.message?.toLowerCase().includes('limit exceeded');
-             if (isQuota) {
-               console.warn("Firestore Quota Exceeded for related items. Using current cache.");
-               // if firestoreItems is already set from cache, we're good
-             }
+             console.error("Firestore error for related items:", listError);
           }
 
-          // Use firestore items (or cached) if they exist, otherwise fallback to MENU_ITEMS
-          const sourceItems = firestoreItems.length > 0 ? firestoreItems : MENU_ITEMS;
+          // Use firestore items (or cached) if they exist
+          const sourceItems = firestoreItems;
 
           const related = sourceItems
             .filter(item => item.category === currentProduct?.category && item.id !== currentProduct?.id)

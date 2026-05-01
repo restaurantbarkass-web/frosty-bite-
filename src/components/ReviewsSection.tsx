@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { Star, MessageCircle, Quote } from 'lucide-react';
+import { db } from '../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
+import { Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -24,22 +25,12 @@ export const ReviewsSection: React.FC = () => {
       limit(6)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const reviewsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Review[];
-      setReviews(reviewsData);
-      setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'reviews');
-      } else {
-        console.warn('Firestore Quota Exceeded for reviews.');
+    const unsubscribe = safeFirestore.listen(q, (data: any[]) => {
+      if (data && data.length > 0) {
+        setReviews(data);
       }
       setLoading(false);
-    });
+    }, 'reviews_cache');
 
     return () => unsubscribe();
   }, []);

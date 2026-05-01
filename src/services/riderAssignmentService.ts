@@ -1,14 +1,5 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  runTransaction,
-  Timestamp
-} from 'firebase/firestore';
 import { db } from '../firebase';
+import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { Order, Rider } from '../types';
 
 /**
@@ -33,26 +24,19 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 export const assignRider = async (orderId: string, deliveryLocation: { lat: number, lng: number }) => {
   try {
     // 1. Fetch available riders (online)
-    const ridersRef = collection(db, 'riders');
-    const q = query(ridersRef, where('status', '==', 'online'));
-    const querySnapshot = await getDocs(q);
+    const q = query(collection(db, 'riders'), where('status', '==', 'online'));
+    const snapshot = await getDocs(q);
+    const availableRiders = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
     
-    const availableRiders: Rider[] = [];
-    querySnapshot.forEach((doc) => {
-      availableRiders.push({ id: doc.id, ...doc.data() } as Rider);
-    });
-
     if (availableRiders.length === 0) {
       console.log('No riders available for order:', orderId);
       // Update order status to pending if not already
-      await updateDoc(doc(db, 'orders', orderId), {
-        status: 'pending'
-      });
+      await updateDoc(doc(db, 'orders', orderId), { status: 'pending' });
       return null;
     }
 
     // 2. Calculate distances and find the nearest rider
-    let bestRider: Rider | null = null;
+    let bestRider: any = null;
     let minDistance = Infinity;
 
     availableRiders.forEach((rider) => {
@@ -71,37 +55,27 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
 
     if (!bestRider) return null;
 
-    // 3. Assign rider using a transaction to ensure atomicity
-    const orderRef = doc(db, 'orders', orderId);
-    const riderRef = doc(db, 'riders', (bestRider as Rider).id);
+    // 3. Assign rider
+    const riderDoc = await getDoc(doc(db, 'riders', bestRider.id));
+    if (riderDoc.data()?.status !== 'online') {
+      console.warn('Rider is no longer online, retrying assignment...');
+      return assignRider(orderId, deliveryLocation); // Simple recursion for retry
+    }
 
-    await runTransaction(db, async (transaction) => {
-      const riderDoc = await transaction.get(riderRef);
-      if (!riderDoc.exists()) throw new Error("Rider does not exist!");
-      
-      const riderData = riderDoc.data() as Rider;
-      if (riderData.status !== 'online') {
-        throw new Error("Rider is no longer available!");
-      }
-
-      // Update Order
-      transaction.update(orderRef, {
-        assignedRiderId: (bestRider as Rider).id,
-        status: 'assigned'
-      });
-
-      // Update Rider
-      transaction.update(riderRef, {
-        status: 'busy'
-      });
+    // Update Order
+    await updateDoc(doc(db, 'orders', orderId), {
+      assigned_rider_id: bestRider.id,
+      status: 'assigned'
     });
 
-    console.log(`Successfully assigned rider ${(bestRider as Rider).name} to order ${orderId}`);
+    // Update Rider
+    await updateDoc(doc(db, 'riders', bestRider.id), { status: 'busy' });
+
+    console.log(`Successfully assigned rider ${bestRider.name} to order ${orderId}`);
     return bestRider;
 
   } catch (error) {
     console.error('Error assigning rider:', error);
-    // If it's a "no longer available" error, we could potentially retry once
     return null;
   }
 };

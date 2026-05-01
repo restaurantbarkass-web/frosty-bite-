@@ -1,6 +1,6 @@
-import { messaging, db, auth } from '../firebase';
+import { messaging, auth, db } from '../firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
 export const requestForToken = async () => {
@@ -14,11 +14,12 @@ export const requestForToken = async () => {
     if (currentToken) {
       console.log('Current token for client: ', currentToken);
       
-      // Save token to user document
+      // Save token to user document in Firestore
       if (auth.currentUser) {
-        const userRef = doc(db, 'users', auth.currentUser.uid);
-        await updateDoc(userRef, {
-          fcmTokens: arrayUnion(currentToken)
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        await updateDoc(userDocRef, {
+          fcm_tokens: arrayUnion(currentToken),
+          updated_at: new Date().toISOString()
         });
       }
       

@@ -25,8 +25,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, doc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, increment, limit } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -51,7 +51,7 @@ export const Checkout: React.FC = () => {
   const addressRef = useRef<HTMLTextAreaElement>(null);
 
   const [formData, setFormData] = useState({
-    name: user?.displayName || '',
+    name: user?.displayName || user?.email?.split('@')[0] || '',
     phone: '',
     address: '',
     notes: '',
@@ -84,50 +84,47 @@ export const Checkout: React.FC = () => {
     }
     
     setIsApplyingCoupon(true);
-    // Artificial delay for professional feel
     await new Promise(resolve => setTimeout(resolve, 800));
 
     try {
       const code = trimmedCode.toUpperCase();
       
-      const couponsRef = collection(db, 'coupons');
       const q = query(
-        couponsRef, 
+        collection(db, 'coupons'),
         where('code', '==', code),
         where('status', '==', 'active'),
         limit(1)
       );
+      const snapshot = await getDocs(q);
       
-      const querySnapshot = await getDocs(q);
-      
-      if (querySnapshot.empty) {
+      if (snapshot.empty) {
         toast.error('Invalid or expired coupon code');
         setIsApplyingCoupon(false);
         return;
       }
 
-      const couponDoc = querySnapshot.docs[0];
+      const couponDoc = snapshot.docs[0];
       const couponData = couponDoc.data();
       
       // Validate expiry
-      const expiryDate = new Date(couponData.expiryDate);
+      const expiryDateValue = new Date(couponData.expiryDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (expiryDate < today) {
+      if (expiryDateValue < today) {
         toast.error('This coupon has expired');
         setIsApplyingCoupon(false);
         return;
       }
 
       // Validate min order
-      if (subtotal < couponData.minOrder) {
+      if (subtotal < (couponData.minOrder || 0)) {
         toast.error(`Minimum order ₹${couponData.minOrder} required for this coupon`);
         setIsApplyingCoupon(false);
         return;
       }
 
       // Validate usage limit
-      if (couponData.usageLimit > 0 && couponData.usageCount >= couponData.usageLimit) {
+      if ((couponData.usageLimit || 0) > 0 && (couponData.usageCount || 0) >= couponData.usageLimit) {
         toast.error('This coupon has reached its usage limit');
         setIsApplyingCoupon(false);
         return;
@@ -153,14 +150,8 @@ export const Checkout: React.FC = () => {
       
       setCouponCode('');
     } catch (error: any) {
-      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Error applying coupon:', error);
-        handleFirestoreError(error, OperationType.GET, 'coupons');
-      } else {
-        console.warn('Firestore Quota Exceeded in handleApplyCoupon');
-      }
-      toast.error(isQuota ? 'Service temporarily unavailable' : 'Failed to validate coupon');
+      console.error('Error applying coupon:', error);
+      toast.error('Failed to validate coupon');
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -172,7 +163,6 @@ export const Checkout: React.FC = () => {
     toast.success('Coupon removed');
   };
 
-  // Handle smooth scroll if coming from Buy Now
   useEffect(() => {
     if (location.state?.fromBuyNow && deliverySectionRef.current) {
       const timer = setTimeout(() => {
@@ -238,7 +228,7 @@ export const Checkout: React.FC = () => {
     setIsOrdering(true);
     try {
       const orderData = {
-        userId: user?.uid || 'guest',
+        user_id: user?.uid || 'guest',
         items: cart.map(item => ({
           id: item.id,
           name: item.name,
@@ -248,52 +238,46 @@ export const Checkout: React.FC = () => {
         })),
         subtotal: subtotal,
         discount: discountAmount,
-        couponCode: appliedCoupon?.code || null,
+        coupon_code: appliedCoupon?.code || null,
         total: finalPrice,
         status: 'pending',
-        paymentMethod: formData.paymentMethod,
-        paymentStatus: formData.paymentMethod === 'upi' ? 'pending_verification' : 'pending',
+        payment_method: formData.paymentMethod,
+        payment_status: formData.paymentMethod === 'upi' ? 'pending_verification' : 'pending',
         address: formData.address,
         phone: formData.phone,
-        customerName: formData.name,
+        customer_name: formData.name,
         notes: formData.notes,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
       };
 
-      let docRef;
-      try {
-        docRef = await addDoc(collection(db, 'orders'), orderData);
-        
-        // Increment coupon usage count if applied
-        if (appliedCoupon?.id) {
-          try {
-            const couponRef = doc(db, 'coupons', appliedCoupon.id);
-            await updateDoc(couponRef, {
-              usageCount: increment(1)
-            });
-          } catch (err) {
-            console.error('Failed to increment coupon usage:', err);
-            // Non-blocking for the order itself
-          }
+      const docRef = await addDoc(collection(db, 'orders'), orderData);
+      const orderId = docRef.id;
+
+      // Increment coupon usage count if applied
+      if (appliedCoupon?.id) {
+        try {
+          await updateDoc(doc(db, 'coupons', appliedCoupon.id), {
+            usageCount: increment(1)
+          });
+        } catch (err) {
+          console.error('Failed to increment coupon usage:', err);
         }
-      } catch (err) {
-        handleFirestoreError(err, OperationType.CREATE, 'orders');
       }
       
-      if (formData.paymentMethod === 'upi' && docRef) {
+      if (formData.paymentMethod === 'upi') {
         if (user) {
           addNotification({
             title: 'Order Placed (UPI)',
-            message: `Order #${docRef.id.slice(-6).toUpperCase()} placed. Please complete payment.`,
+            message: `Order #${orderId.slice(-6).toUpperCase()} placed. Please complete payment.`,
             type: 'order',
             userId: user.uid,
-            link: `/upi-checkout/${docRef.id}`
+            link: `/upi-checkout/${orderId}`
           });
         }
 
-        navigate(`/upi-checkout/${docRef.id}`, { 
+        navigate(`/upi-checkout/${orderId}`, { 
           state: { 
-            orderId: docRef.id,
+            orderId: orderId,
             totalPrice: finalPrice,
             name: formData.name,
             phone: formData.phone,
@@ -309,7 +293,7 @@ export const Checkout: React.FC = () => {
         if (user) {
           addNotification({
             title: 'Order Placed (COD)',
-            message: `Order #${docRef.id.slice(-6).toUpperCase()} placed successfully via COD.`,
+            message: `Order #${orderId.slice(-6).toUpperCase()} placed successfully via COD.`,
             type: 'order',
             userId: user.uid,
             link: '/orders'
@@ -317,7 +301,7 @@ export const Checkout: React.FC = () => {
         }
 
         const orderSummary = {
-          orderId: docRef.id,
+          orderId: orderId,
           customerName: formData.name,
           phone: formData.phone,
           address: formData.address,
@@ -342,14 +326,8 @@ export const Checkout: React.FC = () => {
         clearCart();
       }
     } catch (error: any) {
-      const isQuota = error?.message?.toLowerCase().includes('quota') || error?.message?.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Order failed:', error);
-        toast.error('Failed to place order. Please try again.');
-      } else {
-        console.warn('Firestore Quota Exceeded in handlePlaceOrder');
-        toast.error('Service temporarily busy. Please try again in a few minutes.');
-      }
+      console.error('Order failed:', error);
+      toast.error('Failed to place order. Please try again.');
     } finally {
       setIsOrdering(false);
     }

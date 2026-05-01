@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
+import { collection, addDoc } from 'firebase/firestore';
 import { Star, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -26,17 +26,19 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
     setSubmitting(true);
     try {
       await addDoc(collection(db, 'reviews'), {
-        orderId,
-        userId: user.uid,
-        customerName: user.displayName || user.email?.split('@')[0] || 'Customer',
+        order_id: orderId,
+        user_id: user.uid,
+        customer_name: user.displayName || user.email?.split('@')[0] || 'Customer',
         rating,
         comment,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
       });
+
       setSubmitted(true);
       setTimeout(onSuccess, 2000);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'reviews');
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review. Please try again.');
     } finally {
       setSubmitting(false);
     }

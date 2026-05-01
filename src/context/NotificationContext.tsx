@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, onSnapshot, query, where, orderBy, limit, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, addDoc, updateDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 
@@ -10,7 +11,7 @@ export interface Notification {
   message: string;
   type: 'order' | 'system' | 'rider';
   read: boolean;
-  createdAt: any;
+  created_at: string;
   userId: string;
   link?: string;
 }
@@ -20,7 +21,7 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -28,6 +29,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, role, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const lastOrderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -35,113 +37,68 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       return;
     }
 
-    // NEW: For admins, listen to all NEW orders to show global toasts/notifications
-    let unsubscribeOrders: (() => void) | null = null;
-    
-    if (isAdmin || role === 'admin' || user.email === 'restaurantbarkass@gmail.com') {
-      const ordersQuery = query(
-        collection(db, 'orders'),
-        orderBy('createdAt', 'desc'),
-        limit(5)
-      );
-
-      const knownOrderIds = new Set<string>();
-      let isInitialLoad = true;
-
-      unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-        if (isInitialLoad) {
-          snapshot.docs.forEach(doc => knownOrderIds.add(doc.id));
-          isInitialLoad = false;
-          return;
-        }
-
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const order = { id: change.doc.id, ...change.doc.data() } as any;
-            if (!knownOrderIds.has(order.id)) {
-              knownOrderIds.add(order.id);
-              
-              // Show toast
-              toast.success(`New Order #${order.id.slice(-6).toUpperCase()} received!`, {
-                duration: 8000,
-                icon: '🍕'
-              });
-
-              // Play sound (if not on orders page which has its own alarm)
-              if (!window.location.pathname.includes('/admin')) {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.play().catch(() => {});
-              }
-
-              // Browser notification
-              if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('New Order Received!', {
-                  body: `${order.customerName} placed an order for ₹${order.total}`,
-                  icon: '/logo.png'
-                });
-              }
-            }
-          }
-        });
-      }, (error) => {
-        console.warn('Admin orders listener error:', error.message);
-      });
-    }
-
-    // Existing notification listener
-    const cacheKey = `notifications_cache_${user.uid}`;
+    // Initial load from cache
+    const cacheKey = `user_notifications_${user.uid}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setNotifications(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setNotifications(parsed.data || parsed);
       } catch (e) {}
     }
 
-    const q = query(
+    // Notifications listener
+    const qNotif = query(
       collection(db, 'notifications'),
       where('userId', '==', user.uid),
+      orderBy('created_at', 'desc'),
       limit(50)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Notification[];
-      
-      // Client-side sort and limit
-      const sortedNotifs = notifs.sort((a, b) => {
-        const getTime = (notif: Notification) => {
-          if (!notif.createdAt) return Date.now();
-          if (typeof notif.createdAt.toDate === 'function') return notif.createdAt.toDate().getTime();
-          if (notif.createdAt.seconds) return notif.createdAt.seconds * 1000;
-          if (typeof notif.createdAt === 'string') return new Date(notif.createdAt).getTime();
-          return Date.now();
-        };
-        return getTime(b) - getTime(a);
-      }).slice(0, 50); // Show more notifications
+    const unsubNotif = safeFirestore.listen(qNotif, (data: Notification[]) => {
+      setNotifications(data);
+    }, cacheKey);
 
-      setNotifications(sortedNotifs);
-      localStorage.setItem(cacheKey, JSON.stringify(sortedNotifs));
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Error fetching notifications:', error);
-      } else {
-        console.warn('Firestore Quota Exceeded for notifications. Using cache if available.');
-        // If we have nothing in state, double check cache
-        if (notifications.length === 0) {
-          const lastResort = localStorage.getItem(cacheKey);
-          if (lastResort) {
-            try { setNotifications(JSON.parse(lastResort)); } catch (e) {}
+    // Admin new order monitor
+    let unsubAdminOrders: (() => void) | null = null;
+    if (isAdmin || role === 'admin') {
+      const qOrders = query(
+        collection(db, 'orders'),
+        orderBy('created_at', 'desc'),
+        limit(1)
+      );
+
+      unsubAdminOrders = safeFirestore.listen(qOrders, (orders: any[]) => {
+        if (orders.length > 0) {
+          const latestOrder = orders[0];
+          
+          if (lastOrderIdRef.current && lastOrderIdRef.current !== latestOrder.id) {
+            // New order received!
+            toast.success(`New Order #${latestOrder.id.slice(-6).toUpperCase()} received!`, {
+              duration: 8000,
+              icon: '🍕'
+            });
+
+            if (!window.location.pathname.includes('/admin')) {
+              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+              audio.play().catch(() => {});
+            }
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('New Order Received!', {
+                body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
+                icon: '/logo.png'
+              });
+            }
           }
+          lastOrderIdRef.current = latestOrder.id;
         }
-      }
-    });
+      }, 'admin_global_monitor');
+    }
 
     return () => {
-      unsubscribe();
-      if (unsubscribeOrders) unsubscribeOrders();
+      unsubNotif();
+      if (unsubAdminOrders) unsubAdminOrders();
     };
   }, [user, role, isAdmin]);
 
@@ -149,27 +106,42 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAsRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, 'notifications', id), { read: true });
+      const notifRef = doc(db, 'notifications', id);
+      await updateDoc(notifRef, { read: true });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
   };
 
   const markAllAsRead = async () => {
+    if (!user) return;
     try {
-      const unread = notifications.filter(n => !n.read);
-      await Promise.all(unread.map(n => updateDoc(doc(db, 'notifications', n.id), { read: true })));
+      const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', user.uid),
+        where('read', '==', false)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const batch = writeBatch(db);
+      querySnapshot.docs.forEach((d) => {
+        batch.update(d.ref, { read: true });
+      });
+      await batch.commit();
+      
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
   };
 
-  const addNotification = async (notif: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
+  const addNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     try {
       await addDoc(collection(db, 'notifications'), {
         ...notif,
         read: false,
-        createdAt: serverTimestamp()
+        created_at: new Date().toISOString()
       });
     } catch (error) {
       console.error('Error adding notification:', error);

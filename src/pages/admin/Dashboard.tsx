@@ -5,9 +5,11 @@ import { OrdersTable } from '../../components/admin/OrdersTable';
 import { motion } from 'motion/react';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
+import { db } from '../../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
@@ -24,11 +26,20 @@ export const Dashboard: React.FC = () => {
     const cachedConfig = localStorage.getItem(configCacheKey);
     const cachedOrders = localStorage.getItem(ordersCacheKey);
     
-    if (cachedConfig) try { setConfig(JSON.parse(cachedConfig)); } catch (e) {}
+    if (cachedConfig) {
+      try { 
+        const parsed = JSON.parse(cachedConfig);
+        setConfig(parsed.data || parsed); 
+      } catch (e) {}
+    }
     if (cachedOrders) {
       try { 
-        setRecentOrders(JSON.parse(cachedOrders)); 
-        setLoadingOrders(false);
+        const parsed = JSON.parse(cachedOrders);
+        const data = parsed.data || parsed;
+        if (Array.isArray(data)) {
+          setRecentOrders(data); 
+          setLoadingOrders(false);
+        }
       } catch (e) {}
     }
 
@@ -39,39 +50,14 @@ export const Dashboard: React.FC = () => {
 
     const q = query(
       collection(db, 'orders'),
-      limit(50)
+      orderBy('createdAt', 'desc'),
+      limit(20)
     );
-    
-    const unsubscribeOrders = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
-      
-      const sorted = ordersData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
-        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
-        return timeB - timeA;
-      }).slice(0, 20);
 
-      setRecentOrders(sorted);
-      localStorage.setItem(ordersCacheKey, JSON.stringify(sorted));
+    const unsubscribeOrders = safeFirestore.listen(q, (orders: Order[]) => {
+      setRecentOrders(orders);
       setLoadingOrders(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      } else {
-        console.warn('Firestore Quota Exceeded in Dashboard. Using cache.');
-        if (recentOrders.length === 0) {
-          const lastResort = localStorage.getItem(ordersCacheKey);
-          if (lastResort) {
-            try { setRecentOrders(JSON.parse(lastResort)); } catch (e) {}
-          }
-        }
-      }
-      setLoadingOrders(false);
-    });
+    }, ordersCacheKey);
 
     return () => {
       unsubscribeConfig();
@@ -82,10 +68,13 @@ export const Dashboard: React.FC = () => {
   const handleToggleOrdering = async () => {
     if (!config) return;
     setIsToggling(true);
+    const newStatus = !config.isOrderingOpen;
     try {
       await appConfigService.toggleOrderingStatus(config.isOrderingOpen);
+      toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
     } catch (error) {
       console.error('Error toggling ordering status:', error);
+      toast.error('Failed to update status');
     } finally {
       setIsToggling(false);
     }
@@ -106,19 +95,15 @@ export const Dashboard: React.FC = () => {
 
     const rows = recentOrders.map(order => [
       order.id,
-      order.customerName,
+      order.customer_name,
       order.items?.map((i: any) => {
         if (typeof i === 'string') return i;
         return `${i.name || 'Unknown'} (x${i.quantity || 1})`;
       }).join('; ') || 'No items',
       order.total || 0,
       order.status,
-      order.createdAt 
-        ? (typeof (order.createdAt as any).toDate === 'function' 
-            ? (order.createdAt as any).toDate().toLocaleString() 
-            : ((order.createdAt as any).seconds 
-                ? new Date((order.createdAt as any).seconds * 1000).toLocaleString() 
-                : new Date(order.createdAt as any).toLocaleString()))
+      order.created_at 
+        ? new Date(order.created_at).toLocaleString()
         : 'N/A'
     ].map(escapeCSV));
 

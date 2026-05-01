@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Bike, Phone, MapPin, Star, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { collection, query } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 
 interface Rider {
   id: string;
@@ -10,9 +11,9 @@ interface Rider {
   status: 'online' | 'offline' | 'on-delivery';
   phone?: string;
   rating?: number;
-  totalDeliveries?: number;
-  currentOrderId?: string;
-  currentOrderNumber?: string;
+  total_deliveries?: number;
+  current_order_id?: string;
+  current_order_number?: string;
 }
 
 export const RiderPanel: React.FC = () => {
@@ -20,16 +21,11 @@ export const RiderPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'riders'), (snapshot) => {
-      const ridersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Rider[];
-      setRiders(ridersData);
+    const q = query(collection(db, 'riders'));
+    const unsubscribe = safeFirestore.listen(q, (data: Rider[]) => {
+      setRiders(data);
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'riders');
-    });
+    }, 'riders_panel_cache');
 
     return () => unsubscribe();
   }, []);
@@ -94,7 +90,7 @@ export const RiderPanel: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Star className="text-orange-500 fill-orange-500" size={14} />
                       <span className="text-sm font-bold text-white">{rider.rating || '5.0'}</span>
-                      <span className="text-xs text-gray-500 font-medium">({rider.totalDeliveries || 0} deliveries)</span>
+                      <span className="text-xs text-gray-500 font-medium">({rider.total_deliveries || 0} deliveries)</span>
                     </div>
                   </div>
                 </div>
@@ -116,7 +112,7 @@ export const RiderPanel: React.FC = () => {
                   <MapPin size={16} className="text-orange-500" />
                   <span className="text-sm font-medium">Live Tracking Active</span>
                 </div>
-                {rider.currentOrderId && (
+                {rider.current_order_id && (
                   <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
@@ -124,7 +120,7 @@ export const RiderPanel: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">Active Order</p>
-                        <p className="text-sm font-bold text-white">#{rider.currentOrderNumber || rider.currentOrderId.slice(-6).toUpperCase()}</p>
+                        <p className="text-sm font-bold text-white">#{rider.current_order_number || rider.current_order_id.slice(-6).toUpperCase()}</p>
                       </div>
                     </div>
                     <button className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">

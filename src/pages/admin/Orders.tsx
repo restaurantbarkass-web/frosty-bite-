@@ -3,8 +3,9 @@ import { OrdersTable } from '../../components/admin/OrdersTable';
 import { Filter, Search, Download, Calendar, Clock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 
 import { Order } from '../../types';
 
@@ -24,81 +25,34 @@ export const Orders: React.FC = () => {
   });
 
   useEffect(() => {
-    // Fetch all for local processing (respecting quota limit)
     const q = query(
       collection(db, 'orders'),
-      limit(150) // Increased slightly for better history
+      orderBy('created_at', 'desc'),
+      limit(200)
     );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
-      
-      // Sort in memory to ensure orders missing createdAt still show up (at the end)
-      const sortedOrders = ordersData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
-        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
-        return timeB - timeA;
-      });
 
-      setAllOrders(sortedOrders);
+    const unsubscribe = safeFirestore.listen(q, (ordersData: Order[]) => {
+      if (ordersData) {
+        setAllOrders(ordersData);
+        
+        const nowTs = new Date().getTime();
+        const twentyFourHoursAgo = nowTs - (24 * 60 * 60 * 1000);
+        const last24hOrders = ordersData.filter(o => {
+          const ca = o.created_at;
+          const d = ca ? new Date(ca) : null;
+          return d && d.getTime() >= twentyFourHoursAgo;
+        });
 
-      // Cleanup: Auto-delete pending orders older than 1 hour
-      const nowTs = new Date().getTime();
-      const oneHourAgoTs = nowTs - (60 * 60 * 1000);
-      
-      const staleOrders = sortedOrders.filter(order => {
-        if (!order.createdAt || order.status !== 'pending') return false;
-        const d = (typeof (order.createdAt as any).toDate === 'function')
-          ? (order.createdAt as any).toDate()
-          : ((order.createdAt as any).seconds 
-              ? new Date((order.createdAt as any).seconds * 1000) 
-              : new Date(order.createdAt as any));
-        return d.getTime() < oneHourAgoTs;
-      });
-
-      if (staleOrders.length > 0) {
-        import('firebase/firestore').then(({ doc, deleteDoc }) => {
-          staleOrders.forEach(order => {
-            if (order.id) {
-              deleteDoc(doc(db, 'orders', order.id)).catch(err => console.error('Admin auto-delete stale order failed:', err));
-            }
-          });
+        setStats({
+          pending: last24hOrders.filter(o => o.status === 'pending').length,
+          confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
+          preparing: last24hOrders.filter(o => o.status === 'preparing').length,
+          out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
+          delivered: last24hOrders.filter(o => o.status === 'delivered').length,
         });
       }
-      
-      const now = new Date().getTime();
-      const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
-      
-      const last24hOrders = ordersData.filter(o => {
-        const ca = o.createdAt;
-        const d = ca 
-          ? (typeof (ca as any).toDate === 'function' 
-              ? (ca as any).toDate() 
-              : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
-          : null;
-        return d && d.getTime() >= twentyFourHoursAgo;
-      });
-
-      setStats({
-        pending: last24hOrders.filter(o => o.status === 'pending').length,
-        confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
-        preparing: last24hOrders.filter(o => o.status === 'preparing').length,
-        out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
-        delivered: last24hOrders.filter(o => o.status === 'delivered').length,
-      });
       setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      } else {
-        console.warn('Firestore Quota Exceeded in Orders Page');
-        setLoading(false);
-      }
-    });
+    }, 'admin_orders_cache');
 
     return () => unsubscribe();
   }, []);
@@ -106,17 +60,12 @@ export const Orders: React.FC = () => {
   const filteredOrders = allOrders.filter(order => {
     const matchesSearch = 
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (order.phone && order.phone.includes(searchQuery));
     
     let matchesDate = true;
     if (startDate || endDate) {
-      const ca = order.createdAt;
-      const orderDate = ca 
-        ? (typeof (ca as any).toDate === 'function' 
-            ? (ca as any).toDate() 
-            : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
-        : null;
+      const orderDate = order.created_at ? new Date(order.created_at) : null;
       if (orderDate) {
         if (startDate) {
           const start = new Date(startDate);
@@ -149,22 +98,15 @@ export const Orders: React.FC = () => {
     };
 
     const rows = filteredOrders.map(order => {
-      const ca = order.createdAt;
-      const orderDate = ca 
-        ? (typeof (ca as any).toDate === 'function' 
-            ? (ca as any).toDate() 
-            : (ca.seconds ? new Date(ca.seconds * 1000) : new Date(ca as any)))
-        : null;
-
       return [
         order.id,
-        order.customerName,
+        order.customer_name,
         order.phone || 'N/A',
         order.address || 'N/A',
         order.items.map((i: any) => typeof i === 'string' ? i : i.name).join('; '),
         order.total,
         order.status,
-        orderDate ? orderDate.toLocaleString() : 'N/A'
+        order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'
       ].map(escapeCSV);
     });
 
@@ -277,7 +219,7 @@ export const Orders: React.FC = () => {
             )}
           >
             Payment Verification
-            {allOrders.filter(o => o.paymentStatus === 'pending_verification').length > 0 && (
+            {allOrders.filter(o => o.payment_status === 'pending_verification').length > 0 && (
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             )}
           </button>
@@ -297,10 +239,10 @@ export const Orders: React.FC = () => {
       <OrdersTable 
         orders={filteredOrders.filter(o => {
           if (activeTab === 'verification') {
-            return o.paymentStatus === 'pending_verification' || (o.utr && o.paymentStatus !== 'paid');
+            return o.payment_status === 'pending_verification' || (o.utr && o.payment_status !== 'paid');
           }
           // In Active tab, show everything except those currently in "verification" status
-          if (o.paymentStatus === 'pending_verification') return false;
+          if (o.payment_status === 'pending_verification') return false;
           return true;
         })} 
         loading={loading} 

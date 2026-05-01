@@ -94,7 +94,7 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
     if (scale > 1) {
       resetState();
     } else {
-      setScale(2.5);
+      setScale(window.innerWidth < 640 ? 3.5 : 2.5);
     }
   };
 
@@ -166,11 +166,11 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -20, opacity: 0 }}
-              className="absolute top-0 inset-x-0 p-6 flex items-center justify-between z-10 pointer-events-none"
-            >
-              <div className="bg-white/5 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10">
-                <p className="text-xs font-black text-white/60 uppercase tracking-[0.2em]">{alt || 'Image Preview'}</p>
-              </div>
+      className="absolute top-0 inset-x-0 p-4 sm:p-6 flex items-center justify-between z-10 pointer-events-none"
+    >
+      <div className="bg-white/5 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-white/10 hidden sm:block">
+        <p className="text-xs font-black text-white/60 uppercase tracking-[0.2em]">{alt || 'Image Preview'}</p>
+      </div>
 
               <div className="flex gap-2 pointer-events-auto">
                 <button 
@@ -233,14 +233,14 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
                 onDragStart={() => setIsDragging(true)}
                 onDragEnd={() => setIsDragging(false)}
                 onDoubleClick={handleDoubleClick}
-                className="relative w-full h-full flex items-center justify-center p-4"
+                className="relative w-full h-full flex items-center justify-center p-0 sm:p-4"
               >
                 <motion.img
                   src={src}
                   alt={alt}
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[85vh] object-contain shadow-2xl sm:rounded-2xl select-none"
+                  className="w-full h-full max-w-full max-h-full sm:max-w-[90vw] sm:max-h-[85vh] object-contain shadow-2xl sm:rounded-2xl select-none"
                   referrerPolicy="no-referrer"
                   draggable={false}
                 />

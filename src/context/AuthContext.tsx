@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
 
@@ -24,61 +23,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribeRole: (() => void) | null = null;
-
-    // Safety timeout to prevent infinite loading/black screen
-    // Increased to 15s for slower dev environments
     const timeoutId = setTimeout(() => {
-      setLoading((currentLoading) => {
-        if (currentLoading) {
-          console.warn('Auth loading taking longer than expected. Proceeding with current state.');
-          return false;
-        }
-        return false;
-      });
+      setLoading(false);
     }, 15000);
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      // Clear any existing role listener
-      if (unsubscribeRole) {
-        unsubscribeRole();
-        unsubscribeRole = null;
-      }
-
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       if (currentUser) {
-        const startSnapshot = () => {
-          unsubscribeRole = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-            if (docSnap.exists()) {
-              const userData = docSnap.data();
-              setRole(userData.role as UserRole);
-            } else {
-              setRole(getRoleFromEmail(currentUser.email));
-            }
-            setLoading(false);
-          }, (error) => {
-            const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-            if (isQuota) {
-              console.warn('Firestore Quota Exceeded for user role. Falling back to email whitelist.');
-            } else {
-              console.warn('Error fetching user role, falling back to email whitelist:', error);
-            }
-            setRole(getRoleFromEmail(currentUser.email));
-            setLoading(false);
-          });
-        };
-
-        startSnapshot();
+        // Sync with Firestore (the primary data source)
+        await syncUserWithFirestore(currentUser);
+        await fetchRole(currentUser);
       } else {
         setRole('customer');
         setLoading(false);
       }
     });
 
+    const syncUserWithFirestore = async (firebaseUser: User) => {
+      try {
+        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        await setDoc(userRef, {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: firebaseUser.displayName || '',
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      } catch (err) {
+        console.error('Failed to sync user with Firestore:', err);
+      }
+    };
+
+    const fetchRole = async (currentUser: User) => {
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.role) {
+            setRole(userData.role as UserRole);
+          } else {
+            setRole(getRoleFromEmail(currentUser.email) as UserRole);
+          }
+        } else {
+          setRole(getRoleFromEmail(currentUser.email) as UserRole);
+        }
+      } catch (error) {
+        console.warn('Error fetching user role from Firestore, falling back to email whitelist:', error);
+        setRole(getRoleFromEmail(currentUser.email) as UserRole);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeRole) unsubscribeRole();
+      unsubscribe();
       clearTimeout(timeoutId);
     };
   }, []);

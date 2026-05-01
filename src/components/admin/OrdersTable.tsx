@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, auth, handleFirestoreError, OperationType } from '../../firebase';
+import { db, auth } from '../../firebase';
+import { collection, updateDoc, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
-import { collection, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -12,13 +13,13 @@ import { Order, Rider } from '../../types';
 import { ImageZoom } from '../ImageZoom';
 
 const StatusBadge = ({ order }: { order: Order }) => {
-  const { status, paymentStatus, paymentMethod } = order;
+  const { status, payment_status, payment_method } = order;
   
-  if ((paymentMethod === 'upi' || paymentMethod === 'online') && order.utr && paymentStatus !== 'paid') {
+  if ((payment_method === 'upi' || payment_method === 'online') && order.utr && payment_status !== 'paid') {
     return (
       <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-500 border-amber-500/20">
         <Clock size={14} />
-        {paymentStatus === 'pending_verification' ? 'Awaiting Verification' : 'Awaiting Payment'}
+        {payment_status === 'pending_verification' ? 'Awaiting Verification' : 'Awaiting Payment'}
       </div>
     );
   }
@@ -64,7 +65,8 @@ interface OrdersTableProps {
   loading?: boolean;
 }
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: externalLoading }) => {
+export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loading: externalLoading }) => {
+  const orders = Array.isArray(rawOrders) ? rawOrders : [];
   const [riders, setRiders] = useState<Rider[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -83,11 +85,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
   const [editFormData, setEditFormData] = useState({
-    customerName: '',
+    customer_name: '',
     phone: '',
     address: '',
     notes: '',
-    estimatedDeliveryTime: 30
+    estimated_delivery_time: 30
   });
 
   useEffect(() => {
@@ -96,26 +98,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
       setNotificationPermission(Notification.permission);
     }
 
-    const unsubscribeRiders = onSnapshot(collection(db, 'riders'), (snapshot) => {
-      const ridersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Rider[];
-      setRiders(ridersData);
+    const q = query(collection(db, 'riders'), orderBy('name'));
+    const unsubscribe = safeFirestore.listen(q, (data: Rider[]) => {
+      setRiders(data);
       setInternalLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'riders');
-      } else {
-        console.warn('Firestore Quota Exceeded for riders in OrdersTable');
-        setInternalLoading(false);
-      }
-    });
+    }, 'riders_cache');
 
-    return () => {
-      unsubscribeRiders();
-    };
+    return () => unsubscribe();
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -144,32 +133,63 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     const newOrders = orders.filter(o => !knownOrderIdsRef.current.has(o.id));
     
     if (newOrders.length > 0) {
-      newOrders.forEach(order => {
+      // Mark as known immediately to avoid duplicate notifications during re-renders
+      newOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+
+      newOrders.forEach(async (order) => {
         // Save to notifications collection
+        const user = auth.currentUser;
         addNotification({
           title: 'New Order Received',
-          message: `${order.customerName} placed an order for ₹${order.total}`,
+          message: `${order.customer_name} placed an order for ₹${order.total}`,
           type: 'order',
-          userId: auth.currentUser?.uid || '',
+          userId: user?.uid || '',
           link: '/admin'
         });
 
-        // Show Toast
-        toast.success(`New Order #${order.id.slice(-6).toUpperCase()} from ${order.customerName}!`, {
+        // Show Styled Toast
+        toast((t) => (
+          <div className="flex items-center gap-3 bg-[#18181b] p-2 pr-4 rounded-2xl border border-white/10 shadow-2xl">
+            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+              <Bell size={18} />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-white text-xs font-bold leading-tight">
+                New Order #{order.id.slice(-6).toUpperCase()}
+              </p>
+              <p className="text-zinc-500 text-[10px]">
+                From {order.customer_name}
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                toast.dismiss(t.id);
+                const el = document.getElementById(`order-${order.id}`);
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="ml-2 px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-accent transition-all active:scale-95"
+            >
+              VIEW
+            </button>
+            <button 
+              onClick={() => toast.dismiss(t.id)}
+              className="p-1 text-zinc-600 hover:text-white transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ), { 
           duration: 10000,
-          icon: '🍕',
+          position: 'top-right'
         });
 
         // Show Browser Notification
         if (Notification.permission === 'granted') {
           new Notification('New Order Received!', {
-            body: `${order.customerName} placed an order for ₹${order.total}`,
+            body: `${order.customer_name} placed an order for ₹${order.total}`,
             icon: '/logo.png' 
           });
         }
-
-        // Add to known IDs
-        knownOrderIdsRef.current.add(order.id);
       });
 
       // Auto-print newest if enabled
@@ -210,119 +230,81 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
   }, [orders, isMuted]);
 
   const verifyPayment = async (orderId: string) => {
-    console.log(`[OrderAction] Attempting to VERIFY payment for ${orderId}`);
     const loadingToast = toast.loading('Verifying payment...');
     try {
-      const updateData = {
-        paymentStatus: 'paid',
-        status: 'confirmed', // Auto-confirm after admin verifies payment
-        updatedAt: serverTimestamp()
-      };
-      
-      console.log(`[OrderAction] Sending verify updateData:`, updateData);
-      await updateDoc(doc(db, 'orders', orderId), updateData);
-      console.log(`[OrderAction] Verify SUCCESS for ${orderId}`);
+      await updateDoc(doc(db, 'orders', orderId), {
+        payment_status: 'paid',
+        status: 'confirmed',
+        updated_at: new Date().toISOString()
+      });
 
       const order = orders.find(o => o.id === orderId);
-      if (order && order.userId !== 'guest') {
+      if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Payment Verified',
           message: `Your payment for order #${orderId.slice(-6).toUpperCase()} has been verified.`,
           type: 'order',
-          userId: order.userId,
+          userId: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
 
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
     } catch (error: any) {
-      console.error('[OrderAction] Verify payment ERROR:', error);
-      let errorMessage = 'Verification failed';
-      try {
-        if (error.message && error.message.startsWith('{')) {
-          const errInfo = JSON.parse(error.message);
-          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
-        } else {
-          errorMessage = error.message || 'Permission Denied';
-        }
-      } catch (e) {
-        errorMessage = 'Permission Denied';
-      }
-      toast.error(errorMessage, { id: loadingToast });
+      console.error('Verify payment error:', error);
+      toast.error(error.message || 'Verification failed', { id: loadingToast });
     }
   };
 
   const rejectPayment = async (orderId: string) => {
-    console.log(`[OrderAction] Attempting to REJECT payment for ${orderId}`);
     const loadingToast = toast.loading('Rejecting payment proof...');
     try {
-      const updateData = {
-        paymentStatus: 'pending', // Reset payment status
-        status: 'cancelled', // Cancel the order as proof was invalid
-        utr: null, // Clear UTR so they can resubmit if needed
+      await updateDoc(doc(db, 'orders', orderId), {
+        payment_status: 'pending',
+        status: 'cancelled',
+        utr: null,
         notes: "Admin rejected payment proof (UTR). Please contact support or re-order.",
-        updatedAt: serverTimestamp()
-      };
-      
-      console.log(`[OrderAction] Sending reject updateData:`, updateData);
-      await updateDoc(doc(db, 'orders', orderId), updateData);
-      console.log(`[OrderAction] Reject SUCCESS for ${orderId}`);
+        updated_at: new Date().toISOString()
+      });
 
       const order = orders.find(o => o.id === orderId);
-      if (order && order.userId !== 'guest') {
+      if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Payment Rejected',
           message: `Payment proof for order #${orderId.slice(-6).toUpperCase()} was rejected.`,
           type: 'order',
-          userId: order.userId,
+          userId: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
 
       toast.success('Payment rejected & Order cancelled', { id: loadingToast });
     } catch (error: any) {
-      console.error('[OrderAction] Reject payment ERROR:', error);
-      let errorMessage = 'Rejection failed';
-      try {
-        if (error.message && error.message.startsWith('{')) {
-          const errInfo = JSON.parse(error.message);
-          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
-        } else {
-          errorMessage = error.message || 'Permission Denied';
-        }
-      } catch (e) {
-        errorMessage = 'Permission Denied';
-      }
-      toast.error(errorMessage, { id: loadingToast });
+      console.error('Reject payment error:', error);
+      toast.error(error.message || 'Rejection failed', { id: loadingToast });
     }
   };
 
   const updateStatus = async (id: string, newStatus: Order['status']) => {
-    console.log(`[OrderAction] Attempting update to ${newStatus} for order ${id}`);
-    console.log(`[OrderAction] Current User:`, auth.currentUser?.email, auth.currentUser?.uid);
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = orders.find(o => o.id === id);
       const updateData: any = { 
         status: newStatus,
-        updatedAt: serverTimestamp() 
+        updated_at: new Date().toISOString() 
       };
       
-      // Auto-set payment status to paid if admin accepts a pending order
       if (newStatus === 'confirmed') {
-        updateData.paymentStatus = 'paid';
+        updateData.payment_status = 'paid';
       }
       
-      // Add default estimate if not present
-      if (order && !order.estimatedDeliveryTime) {
-        updateData.estimatedDeliveryTime = 30; // Default 30 mins
+      if (order && !order.estimated_delivery_time) {
+        updateData.estimated_delivery_time = 30;
       }
 
-      console.log(`[OrderAction] Sending updateData:`, updateData);
       await updateDoc(doc(db, 'orders', id), updateData);
-      console.log(`[OrderAction] Update SUCCESS for ${id}`);
 
-      if (order && order.userId !== 'guest') {
+      if (order && order.user_id !== 'guest' && order.user_id) {
         const statusMessages: Record<string, string> = {
           'confirmed': 'Your order has been accepted and is being processed.',
           'preparing': 'Your meal is being prepared by our chefs.',
@@ -335,26 +317,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
           title: `Order ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
           message: statusMessages[newStatus] || `Your order status is now: ${newStatus}`,
           type: 'order',
-          userId: order.userId,
+          userId: order.user_id,
           link: `/order-tracking/${id}`
         });
       }
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
     } catch (error: any) {
-      console.error('[OrderAction] Update status ERROR:', error);
-      let errorMessage = 'Update failed';
-      try {
-        if (error.message && error.message.startsWith('{')) {
-          const errInfo = JSON.parse(error.message);
-          errorMessage = errInfo.error === 'DATABASE_QUOTA_EXCEEDED' ? 'Quota Exceeded' : (errInfo.error.toLowerCase().includes('permission') ? 'Permission Denied' : errInfo.error);
-        } else {
-          errorMessage = error.message || 'Permission Denied';
-        }
-      } catch (e) {
-        errorMessage = 'Permission Denied';
-      }
-      toast.error(errorMessage, { id: loadingToast });
+      console.error('Update status error:', error);
+      toast.error(error.message || 'Update failed', { id: loadingToast });
     }
   };
 
@@ -365,18 +336,19 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
 
     try {
       await updateDoc(doc(db, 'orders', editingOrder.id), {
-        ...editFormData,
-        estimatedDeliveryTime: Number(editFormData.estimatedDeliveryTime)
+        customer_name: editFormData.customer_name,
+        phone: editFormData.phone,
+        address: editFormData.address,
+        notes: editFormData.notes,
+        estimated_delivery_time: Number(editFormData.estimated_delivery_time),
+        updated_at: new Date().toISOString()
       });
+      
       setEditingOrder(null);
       toast.success('Changes saved!', { id: loadingToast });
     } catch (error: any) {
       console.error('Edit submit error:', error);
-      try {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${editingOrder.id}`);
-      } catch (e: any) {
-        toast.error(`Failed to save: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
-      }
+      toast.error(error.message || 'Failed to save', { id: loadingToast });
     }
   };
 
@@ -384,15 +356,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     const loadingToast = toast.loading('Deleting order...');
     try {
       await deleteDoc(doc(db, 'orders', id));
+      
       setDeletingId(null);
       toast.success('Order deleted', { id: loadingToast });
     } catch (error: any) {
       console.error('Delete error:', error);
-      try {
-        handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
-      } catch (e: any) {
-        toast.error(`Failed to delete: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
-      }
+      toast.error(error.message || 'Failed to delete', { id: loadingToast });
     }
   };
 
@@ -404,24 +373,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
     try {
       const order = orders.find(o => o.id === orderId);
       const updateData: any = { 
-        riderId: rider.id,
-        riderName: rider.name,
-        status: 'preparing'
+        rider_id: rider.id,
+        rider_name: rider.name,
+        status: 'preparing',
+        updated_at: new Date().toISOString()
       };
 
-      // Add default estimate if not present
-      if (order && !order.estimatedDeliveryTime) {
-        updateData.estimatedDeliveryTime = 30;
+      if (order && !order.estimated_delivery_time) {
+        updateData.estimated_delivery_time = 30;
       }
 
       await updateDoc(doc(db, 'orders', orderId), updateData);
 
-      if (order && order.userId !== 'guest') {
+      if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Rider Assigned',
           message: `${rider.name} has been assigned to your order.`,
           type: 'rider',
-          userId: order.userId,
+          userId: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
@@ -429,11 +398,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
       toast.success(`Assigned to ${rider.name}`, { id: loadingToast });
     } catch (error: any) {
       console.error('Assign rider error:', error);
-      try {
-        handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      } catch (e: any) {
-        toast.error(`Assignment failed: ${e.message.includes('QUOTA') ? 'Quota Exceeded' : 'Permission Denied'}`, { id: loadingToast });
-      }
+      toast.error(error.message || 'Assignment failed', { id: loadingToast });
     }
   };
 
@@ -573,10 +538,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       <User size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-200">{order.customerName}</span>
+                      <span className="text-sm font-semibold text-gray-200">{order.customer_name}</span>
                       {order.phone && (
                         <button 
-                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customerName}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
+                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
                           className="flex items-center gap-1 text-[10px] text-emerald-500 hover:text-emerald-400 font-bold"
                         >
                           <MessageCircle size={10} />
@@ -625,7 +590,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     <span className="text-sm font-bold text-white">₹{order.total}</span>
                     {order.discount && order.discount > 0 && (
                       <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
-                        -₹{order.discount} ({order.couponCode})
+                        -₹{order.discount} ({order.coupon_code})
                       </span>
                     )}
                   </div>
@@ -636,7 +601,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <td className="px-8 py-6">
                   <select 
                     className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-300 focus:outline-none focus:border-primary/50 transition-all cursor-pointer"
-                    value={order.riderId || ""}
+                    value={order.rider_id || ""}
                     onChange={(e) => assignRider(order.id, e.target.value)}
                   >
                     <option value="" disabled>Assign Rider</option>
@@ -649,13 +614,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     <div className="flex items-center gap-2">
                       {order.status === 'pending' ? (
                         <div className="flex flex-col gap-4 mr-2">
-                          {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
+                          {(order.payment_method === 'upi' || order.payment_method === 'online' || order.utr) ? (
                             <div className="flex flex-col gap-3">
-                              {order.paymentScreenshot && (
+                              {order.payment_screenshot && (
                                 <div className="space-y-2">
                                   <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
                                   <ImageZoom 
-                                    src={order.paymentScreenshot} 
+                                    src={order.payment_screenshot} 
                                     alt={`Ref: ${order.utr || order.id}`} 
                                     className="w-24 h-24 object-cover rounded-xl border border-white/10 shadow-lg"
                                     triggerClassName="w-24 h-24"
@@ -736,11 +701,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       onClick={() => {
                         setEditingOrder(order);
                         setEditFormData({
-                          customerName: order.customerName,
+                          customer_name: order.customer_name,
                           phone: order.phone || '',
                           address: order.address || '',
                           notes: order.notes || '',
-                          estimatedDeliveryTime: order.estimatedDeliveryTime || 30
+                          estimated_delivery_time: order.estimated_delivery_time || 30
                         });
                       }}
                       className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-primary hover:bg-white/10 transition-all"
@@ -821,7 +786,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <User size={18} />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-black text-white">{order.customerName}</span>
+                <span className="text-sm font-black text-white">{order.customer_name}</span>
                 <span className="text-xs text-gray-500">{order.phone}</span>
                 {order.utr && (
                   <div className="mt-1 flex flex-col gap-1">
@@ -861,7 +826,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                 <span className="text-lg font-black text-white">₹{order.total}</span>
                 {order.discount && order.discount > 0 && (
                   <span className="text-[10px] text-primary font-black uppercase tracking-widest">
-                    -₹{order.discount} ({order.couponCode})
+                    -₹{order.discount} ({order.coupon_code})
                   </span>
                 )}
               </div>
@@ -877,11 +842,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                       onClick={() => {
                         setEditingOrder(order);
                         setEditFormData({
-                          customerName: order.customerName,
+                          customer_name: order.customer_name,
                           phone: order.phone || '',
                           address: order.address || '',
                           notes: order.notes || '',
-                          estimatedDeliveryTime: order.estimatedDeliveryTime || 30
+                          estimated_delivery_time: order.estimated_delivery_time || 30
                         });
                       }}
                   className="p-3 rounded-xl bg-white/10 text-white"
@@ -943,7 +908,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Assign Rider</label>
                     <select 
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50 transition-all font-bold"
-                      value={order.riderId || ""}
+                      value={order.rider_id || ""}
                       onChange={(e) => assignRider(order.id, e.target.value)}
                     >
                       <option value="" disabled>Choose Rider</option>
@@ -958,13 +923,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
             
             {order.status === 'pending' && (
               <div className="pt-2 space-y-4">
-                {(order.paymentMethod === 'upi' || order.paymentMethod === 'online' || order.utr) ? (
+                {(order.payment_method === 'upi' || order.payment_method === 'online' || order.utr) ? (
                   <div className="space-y-4">
-                    {order.paymentScreenshot && (
+                    {order.payment_screenshot && (
                       <div className="space-y-2">
                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
                         <ImageZoom 
-                          src={order.paymentScreenshot} 
+                          src={order.payment_screenshot} 
                           alt={`Proof: ${order.utr || order.id}`} 
                           className="w-full h-40 object-cover rounded-2xl border border-white/10"
                           triggerClassName="w-full h-40"
@@ -1068,8 +1033,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                     <input 
                       type="text" 
                       required
-                      value={editFormData.customerName}
-                      onChange={(e) => setEditFormData({...editFormData, customerName: e.target.value})}
+                      value={editFormData.customer_name}
+                      onChange={(e) => setEditFormData({...editFormData, customer_name: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
                     />
                   </div>
@@ -1112,8 +1077,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading: exter
                         required
                         min="1"
                         max="180"
-                        value={editFormData.estimatedDeliveryTime}
-                        onChange={(e) => setEditFormData({...editFormData, estimatedDeliveryTime: Number(e.target.value)})}
+                        value={editFormData.estimated_delivery_time}
+                        onChange={(e) => setEditFormData({...editFormData, estimated_delivery_time: Number(e.target.value)})}
                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
                       />
                       <Clock size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-500" />

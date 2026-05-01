@@ -52,17 +52,11 @@ const Login: React.FC = () => {
       } else {
         await authService.sendSignInLink(email);
         setLinkSent(true);
-        setSuccess('Sign-in link sent! Please check your email inbox (and spam folder).');
+        setSuccess('Sign-in link sent! Please check your email inbox.');
       }
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/unauthorized-domain') {
-        setError('Domain not authorized. Add your URL to "Authorized domains" in Firebase Console.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Email Link login is not enabled. Enable "Email link (passwordless sign-in)" in Firebase Console.');
-      } else {
-        setError(err.message || 'Failed to send link. Please try again.');
-      }
+      setError(err.message || 'Failed to login. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -72,17 +66,9 @@ const Login: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const userResult = await authService.loginWithGoogle();
-      if (!userResult) {
-        // User cancelled the popup, no error needed
-        return;
-      }
+      await authService.loginWithGoogle();
     } catch (err: any) {
-      if (err.code === 'auth/popup-blocked') {
-        setError('Google sign-in popup was blocked. Please enable popups for this site and try again.');
-      } else {
-        setError('Google sign-in failed. Please try again.');
-      }
+      setError(err.message || 'Google sign-in failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

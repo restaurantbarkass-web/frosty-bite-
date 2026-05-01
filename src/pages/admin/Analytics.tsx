@@ -11,10 +11,12 @@ import {
   Bar,
   Cell
 } from 'recharts';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
-import { TrendingUp, DollarSign, ShoppingBag, Clock, Download, FileText, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Calendar, Download, FileText, DollarSign, TrendingUp, ShoppingBag } from 'lucide-react';
+import { db } from '../../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
+
 import { Order } from '../../types';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -40,41 +42,27 @@ export const Analytics: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    // Add limit and handle sorting locally for reliability
-    const q = query(collection(db, 'orders'), limit(300));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
+    const q = query(
+      collection(db, 'orders'),
+      orderBy('created_at', 'asc'),
+      limit(500)
+    );
 
-      // Sort by date manually
-      ordersData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || (typeof a.createdAt === 'number' ? a.createdAt / 1000 : 0);
-        const timeB = b.createdAt?.seconds || (typeof b.createdAt === 'number' ? b.createdAt / 1000 : 0);
-        return timeA - timeB; // Ascending for charts
-      });
+    const unsubscribe = safeFirestore.listen(q, (data: Order[]) => {
+      if (data) {
+        // Filter out UPI/Online orders that haven't submitted a UTR yet and haven't been paid
+        const actionableOrders = data.filter(o => {
+          if ((o.payment_method === 'upi' || o.payment_method === 'online') && !o.utr && o.payment_status !== 'paid') {
+            return false;
+          }
+          return true;
+        });
 
-      // Filter out UPI/Online orders that haven't submitted a UTR yet
-      const actionableOrders = ordersData.filter(o => {
-        if ((o.paymentMethod === 'upi' || o.paymentMethod === 'online') && !o.utr && o.paymentStatus !== 'paid') {
-          return false;
-        }
-        return true;
-      });
-
-      setOrders(actionableOrders);
-      setFilteredOrders(actionableOrders);
-      setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      } else {
-        console.warn('Firestore Quota Exceeded in Analytics. Using current state.');
-        setLoading(false);
+        setOrders(actionableOrders);
+        setFilteredOrders(actionableOrders);
       }
-    });
+      setLoading(false);
+    }, 'admin_analytics_cache');
 
     return () => unsubscribe();
   }, []);
@@ -86,9 +74,8 @@ export const Analytics: React.FC = () => {
     }
 
     const filtered = orders.filter(order => {
-      if (!order.createdAt) return false;
-      const ca = order.createdAt as any;
-      const orderDate = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
+      if (!order.created_at) return false;
+      const orderDate = new Date(order.created_at);
       const start = startDate ? new Date(startDate) : null;
       const end = endDate ? new Date(endDate) : null;
 
@@ -112,9 +99,8 @@ export const Analytics: React.FC = () => {
   
   // Group by date for chart
   const revenueByDate = filteredOrders.reduce((acc: any, curr: any) => {
-    if (!curr.createdAt) return acc;
-    const ca = curr.createdAt;
-    const dateObj = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
+    if (!curr.created_at) return acc;
+    const dateObj = new Date(curr.created_at);
     const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     acc[date] = (acc[date] || 0) + (curr.total || 0);
     return acc;
@@ -143,20 +129,14 @@ export const Analytics: React.FC = () => {
 
     const rows = filteredOrders.map(order => [
       order.id,
-      order.customerName || 'N/A',
+      order.customer_name || 'N/A',
       order.items?.map((i: any) => {
         if (typeof i === 'string') return i;
         return `${i.name || 'Unknown'} (x${i.quantity || 1})`;
       }).join('; ') || 'No items',
       order.total || 0,
       order.status,
-      order.createdAt 
-        ? (typeof (order.createdAt as any).toDate === 'function' 
-            ? (order.createdAt as any).toDate().toLocaleString() 
-            : ((order.createdAt as any).seconds 
-                ? new Date((order.createdAt as any).seconds * 1000).toLocaleString() 
-                : new Date(order.createdAt as any).toLocaleString()))
-        : 'N/A'
+      order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'
     ].map(escapeCSV));
 
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
@@ -297,15 +277,16 @@ export const Analytics: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px]">
+        <div className="lg:col-span-2 bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
           <div className="flex items-center justify-between mb-10">
             <div>
               <h3 className="text-2xl font-bold text-white tracking-tight">Revenue Growth</h3>
               <p className="text-sm text-gray-500">Total revenue generated over time</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height="80%">
-            <AreaChart data={chartData}>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#7dd3fc" stopOpacity={0.3}/>
@@ -339,12 +320,14 @@ export const Analytics: React.FC = () => {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      </div>
 
-        <div className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px]">
+        <div className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
           <h3 className="text-2xl font-bold text-white tracking-tight mb-2">Order Distribution</h3>
           <p className="text-sm text-gray-500 mb-10">Breakdown by category</p>
-          <ResponsiveContainer width="100%" height="80%">
-            <BarChart data={popularItemsData}>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <BarChart data={popularItemsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
               <XAxis 
                 dataKey="name" 
@@ -363,6 +346,7 @@ export const Analytics: React.FC = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
       </div>
     </div>
   );

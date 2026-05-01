@@ -15,8 +15,18 @@ import {
   DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 
 interface Coupon {
   id: string;
@@ -29,7 +39,7 @@ interface Coupon {
   usageCount: number;
   status: 'active' | 'expired' | 'disabled';
   isFirstOrderOnly?: boolean;
-  createdAt: any;
+  createdAt: string;
 }
 
 export const Coupons: React.FC = () => {
@@ -47,19 +57,26 @@ export const Coupons: React.FC = () => {
     minOrder: 0,
     expiryDate: '',
     usageLimit: 100,
+    isFirstOrderOnly: false
   });
 
+  const fetchCoupons = async () => {
+    try {
+      const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
+      const data = await safeFirestore.getCollection<Coupon>(q, 'coupons_cache');
+      setCoupons(data);
+    } catch (error) {
+      console.error('Error fetching coupons:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchCoupons();
+
     const q = query(collection(db, 'coupons'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const couponData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Coupon[];
-      setCoupons(couponData);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'coupons');
-    });
+    const unsubscribe = safeFirestore.listen(q, (data: Coupon[]) => {
+      setCoupons(data);
+    }, 'coupons_cache');
 
     return () => unsubscribe();
   }, []);
@@ -73,8 +90,10 @@ export const Coupons: React.FC = () => {
         code: newCoupon.code.toUpperCase(),
         usageCount: 0,
         status: 'active',
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
+        serverCreatedAt: serverTimestamp(),
       });
+      
       setIsModalOpen(false);
       setNewCoupon({
         code: '',
@@ -83,9 +102,10 @@ export const Coupons: React.FC = () => {
         minOrder: 0,
         expiryDate: '',
         usageLimit: 100,
+        isFirstOrderOnly: false
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'coupons');
+      console.error('Error creating coupon:', error);
     } finally {
       setIsLoading(false);
     }
@@ -108,11 +128,13 @@ export const Coupons: React.FC = () => {
         usageCount: 0,
         status: 'active',
         isFirstOrderOnly: true,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
+        serverCreatedAt: serverTimestamp(),
       });
+      
       alert('FIRSTORDER coupon generated successfully!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'coupons');
+      console.error('Error generating FIRSTORDER coupon:', error);
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +145,7 @@ export const Coupons: React.FC = () => {
       await deleteDoc(doc(db, 'coupons', id));
       setDeletingId(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `coupons/${id}`);
+      console.error('Error deleting coupon:', error);
     }
   };
 
@@ -132,7 +154,7 @@ export const Coupons: React.FC = () => {
       const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
       await updateDoc(doc(db, 'coupons', id), { status: newStatus });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `coupons/${id}`);
+      console.error('Error toggling coupon status:', error);
     }
   };
 
@@ -222,17 +244,17 @@ export const Coupons: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="glass-dark p-6 rounded-3xl border border-white/5">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
-              <CheckCircle size={24} />
-            </div>
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Redemptions</p>
-              <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + curr.usageCount, 0)}</h3>
-            </div>
-          </div>
-        </div>
+              <div className="glass-dark p-6 rounded-3xl border border-white/5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                    <CheckCircle size={24} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Redemptions</p>
+                    <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + (curr.usageCount || 0), 0)}</h3>
+                  </div>
+                </div>
+              </div>
         <div className="glass-dark p-6 rounded-3xl border border-white/5">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-500">
@@ -309,7 +331,7 @@ export const Coupons: React.FC = () => {
                       <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-orange-500" 
-                          style={{ width: `${(coupon.usageCount / coupon.usageLimit) * 100}%` }}
+                          style={{ width: `${((coupon.usageCount || 0) / (coupon.usageLimit || 1)) * 100}%` }}
                         />
                       </div>
                     </div>
@@ -362,32 +384,32 @@ export const Coupons: React.FC = () => {
                     }`}>{coupon.status}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-white">
-                    {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
-                  </p>
-                  <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.minOrder}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex justify-between text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-1">
-                    <span>Usage</span>
-                    <span>{coupon.usageCount}/{coupon.usageLimit}</span>
-                  </div>
-                  <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-orange-500" 
-                      style={{ width: `${(coupon.usageCount / coupon.usageLimit) * 100}%` }}
-                    />
+                  <div className="text-right">
+                    <p className="text-sm font-black text-white">
+                      {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.minOrder}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">Expires</p>
-                  <p className="text-[10px] text-white font-bold">{coupon.expiryDate}</p>
+  
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex justify-between text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-1">
+                      <span>Usage</span>
+                      <span>{coupon.usageCount}/{coupon.usageLimit}</span>
+                    </div>
+                    <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-orange-500" 
+                        style={{ width: `${((coupon.usageCount || 0) / (coupon.usageLimit || 1)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">Expires</p>
+                    <p className="text-[10px] text-white font-bold">{coupon.expiryDate}</p>
+                  </div>
                 </div>
-              </div>
 
               <div className="flex items-center gap-2">
                 <button 
@@ -500,6 +522,22 @@ export const Coupons: React.FC = () => {
                       onChange={(e) => setNewCoupon({...newCoupon, expiryDate: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
                     />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only"
+                          checked={newCoupon.isFirstOrderOnly}
+                          onChange={(e) => setNewCoupon({...newCoupon, isFirstOrderOnly: e.target.checked})}
+                        />
+                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.isFirstOrderOnly ? 'bg-orange-500' : 'bg-zinc-800'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.isFirstOrderOnly ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">First Order Only</span>
+                    </label>
                   </div>
                 </div>
 

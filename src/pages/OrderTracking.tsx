@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../firebase';
+import { doc, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
-import { doc, onSnapshot, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { Order, Rider } from '../types';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
@@ -114,95 +115,65 @@ export const OrderTracking: React.FC = () => {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setOrder(JSON.parse(cached));
-        setLoading(false);
+        const parsed = JSON.parse(cached);
+        const data = parsed.data || parsed;
+        if (data && !Array.isArray(data)) {
+          setOrder(data);
+          setLoading(false);
+        }
       } catch (e) {}
     }
 
     const checkReview = async () => {
       try {
-        const q = query(collection(db, 'reviews'), where('orderId', '==', orderId));
-        const snap = await getDocs(q);
-        setHasReviewed(!snap.empty);
+        const q = query(
+          collection(db, 'reviews'),
+          where('orderId', '==', orderId),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+        setHasReviewed(!snapshot.empty);
       } catch (e: any) {
-        const isQuota = e?.message?.toLowerCase().includes('quota') || e?.message?.toLowerCase().includes('limit exceeded');
-        if (!isQuota) {
-          console.error('Error checking review:', e);
-        }
+        console.error('Error checking review in Firestore:', e);
       }
     };
 
-    const orderRef = doc(db, 'orders', orderId);
-    checkReview();
+    let unsubscribeRider: () => void = () => {};
 
-    const unsubscribe = onSnapshot(orderRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const orderData = { id: snapshot.id, ...snapshot.data() } as Order;
-        setOrder(orderData);
-        localStorage.setItem(cacheKey, JSON.stringify(orderData));
+    const unsubscribeOrder = safeFirestore.listen(doc(db, 'orders', orderId), (orderData) => {
+      if (orderData) {
+        setOrder(orderData as Order);
         
         // Fetch rider if assigned
-        if (orderData.assignedRiderId && typeof orderData.assignedRiderId === 'string' && orderData.assignedRiderId.trim() !== '') {
-          getDoc(doc(db, 'riders', orderData.assignedRiderId))
-            .then(riderSnap => {
-              if (riderSnap.exists()) {
-                setRider({ id: riderSnap.id, ...riderSnap.data() } as Rider);
-              }
-            })
-            .catch(e => {
-              const isQuota = e?.message?.toLowerCase().includes('quota') || e?.message?.toLowerCase().includes('limit exceeded');
-              if (!isQuota) {
-                console.error('Error fetching rider:', e);
-              }
-            });
+        if (orderData.assigned_rider_id) {
+          unsubscribeRider();
+          unsubscribeRider = safeFirestore.listen(doc(db, 'riders', orderData.assigned_rider_id), (riderData) => {
+            if (riderData) {
+              setRider(riderData as Rider);
+            }
+          }, `rider_${orderData.assigned_rider_id}`);
         }
         setLoading(false);
       } else {
-        // Give it a small 2-second grace period for latency
-        setTimeout(() => {
-          setLoading((prevLoading) => {
-            if (prevLoading) {
-               console.error('Order not found after grace period');
-               setOrder(null);
-               return false;
-            }
-            return false;
-          });
-        }, 2000);
+        setLoading(false);
       }
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        console.error('Snapshot error:', error);
-        try {
-          handleFirestoreError(error, OperationType.GET, `orders/${orderId}`);
-        } catch (e) {}
-      } else {
-        console.warn('Firestore Quota Exceeded in OrderTracking snapshot. Using cache.');
-        if (!order) {
-           const lastResort = localStorage.getItem(cacheKey);
-           if (lastResort) {
-             try { setOrder(JSON.parse(lastResort)); } catch (e) {}
-           }
-        }
-      }
-      setLoading(false);
-    });
+    }, cacheKey);
 
-    return () => unsubscribe();
+    checkReview();
+
+    return () => {
+      unsubscribeOrder();
+      unsubscribeRider();
+    };
   }, [orderId]);
 
   // Use a ref-like approach for getRemainingTime to avoid it changing on every render
   const getRemainingTime = React.useCallback(() => {
-    if (!order || !order.createdAt || !order.estimatedDeliveryTime) return null;
+    if (!order || !order.created_at || !order.estimated_delivery_time) return null;
     
     try {
-      const createdAt = order.createdAt as any;
-      const seconds = createdAt.seconds || createdAt._seconds;
-      if (!seconds) return null;
-
-      const startTime = seconds * 1000;
-      const estimatedEndTime = startTime + (order.estimatedDeliveryTime * 60 * 1000);
+      const startTime = new Date(order.created_at).getTime();
+      const estimatedEndTime = startTime + (order.estimated_delivery_time * 60 * 1000);
       const now = Date.now();
       const diff = estimatedEndTime - now;
       
@@ -363,7 +334,7 @@ export const OrderTracking: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-primary" />
               <span className="text-xl font-black text-white tabular-nums">
-                {countdown || (order.estimatedDeliveryTime ? `${order.estimatedDeliveryTime} mins` : 'Calculating...')}
+                {countdown || (order.estimated_delivery_time ? `${order.estimated_delivery_time} mins` : 'Calculating...')}
               </span>
             </div>
           </div>
@@ -435,7 +406,7 @@ export const OrderTracking: React.FC = () => {
           </div>
 
           {/* Delivery OTP Section */}
-          {order.status === 'out_for_delivery' && order.deliveryOtp && (
+          {order.status === 'out_for_delivery' && order.delivery_otp && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -449,7 +420,7 @@ export const OrderTracking: React.FC = () => {
                 <p className="text-zinc-500 text-sm">Share this code with the rider to confirm delivery</p>
               </div>
               <div className="flex justify-center gap-3">
-                {String(order.deliveryOtp || '').split('').map((digit, i) => (
+                {String(order.delivery_otp || '').split('').map((digit, i) => (
                   <div key={i} className="w-12 h-16 bg-zinc-900 border border-white/10 rounded-xl flex items-center justify-center text-3xl font-black text-primary shadow-xl">
                     {digit}
                   </div>

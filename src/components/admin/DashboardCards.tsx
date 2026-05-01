@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, DollarSign, Activity, Users, TrendingUp, TrendingDown } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db, handleFirestoreError, OperationType } from '../../firebase';
-import { collection, onSnapshot, query, limit } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { safeFirestore } from '../../services/firestoreService';
 
 interface CardProps {
   title: string;
@@ -51,78 +52,61 @@ export const DashboardCards: React.FC = () => {
     totalCustomers: 0
   });
 
+  const processOrders = (orders: any[]) => {
+    const now = new Date();
+    const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    
+    const totalOrdersLast24h = orders.filter(o => {
+      const ts = o.created_at ? new Date(o.created_at).getTime() : 0;
+      return ts >= twentyFourHoursAgo;
+    }).length;
+    
+    const revenueToday = orders
+      .filter(o => {
+        const ts = o.created_at ? new Date(o.created_at).getTime() : 0;
+        return ts >= today;
+      })
+      .reduce((acc, curr) => acc + (curr.total || 0), 0);
+    
+    const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
+    
+    setStats(prev => ({
+      ...prev,
+      totalOrders: totalOrdersLast24h,
+      revenueToday,
+      activeOrders
+    }));
+  };
+
   useEffect(() => {
-    const ordersCacheKey = 'dashboard_stats_orders_cache';
-    const usersCacheKey = 'dashboard_stats_users_cache';
-    
-    // Initial fetch from cache
-    const cachedOrders = localStorage.getItem(ordersCacheKey);
-    const cachedUsersCount = localStorage.getItem(usersCacheKey);
-    
-    if (cachedOrders) {
-      try { processOrders(JSON.parse(cachedOrders)); } catch (e) {}
-    }
-    if (cachedUsersCount) {
-      setStats(prev => ({ ...prev, totalCustomers: parseInt(cachedUsersCount) || 0 }));
-    }
+    // Listen to orders
+    const qOrders = query(
+      collection(db, 'orders'),
+      orderBy('created_at', 'desc'),
+      limit(1000)
+    );
 
-    function processOrders(orders: any[]) {
-      const now = new Date();
-      const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-      
-      const totalOrdersLast24h = orders.filter(o => {
-        const ca = o.createdAt;
-        const ts = (ca && typeof ca.toDate === 'function') ? ca.toDate().getTime() : (ca?.seconds ? ca.seconds * 1000 : new Date(ca).getTime());
-        return ts >= twentyFourHoursAgo;
-      }).length;
-      
-      const revenueToday = orders
-        .filter(o => {
-          const ca = o.createdAt;
-          const ts = (ca && typeof ca.toDate === 'function') ? ca.toDate().getTime() : (ca?.seconds ? ca.seconds * 1000 : new Date(ca).getTime());
-          return ts >= today;
-        })
-        .reduce((acc, curr) => acc + (curr.total || 0), 0);
-      
-      const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
-      
-      setStats(prev => ({
-        ...prev,
-        totalOrders: totalOrdersLast24h,
-        revenueToday,
-        activeOrders
-      }));
-    }
+    const unsubscribeOrders = safeFirestore.listen(
+      qOrders,
+      (orders: any[]) => {
+        if (orders) {
+          processOrders(orders);
+        }
+      },
+      'dashboard_stats_orders_cache'
+    );
 
-    const unsubscribeOrders = onSnapshot(query(collection(db, 'orders'), limit(300)), (snapshot) => {
-      const allOrders = snapshot.docs.map(doc => doc.data());
-      
-      processOrders(allOrders);
-      localStorage.setItem(ordersCacheKey, JSON.stringify(allOrders));
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      } else {
-        console.warn('DashboardCards: Orders quota exceeded. Using cache.');
-      }
-    });
-
-    const unsubscribeUsers = onSnapshot(query(collection(db, 'users'), limit(100)), (snapshot) => {
-      setStats(prev => ({
-        ...prev,
-        totalCustomers: snapshot.size >= 100 ? 500 : snapshot.size // Estimated or real size
-      }));
-      localStorage.setItem(usersCacheKey, snapshot.size.toString());
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'users');
-      } else {
-        console.warn('DashboardCards: Users quota exceeded. Using cache.');
-      }
-    });
+    // Listen to users/customers
+    const unsubscribeUsers = safeFirestore.listen(
+      collection(db, 'users'),
+      (users: any[]) => {
+        if (users) {
+          setStats(prev => ({ ...prev, totalCustomers: users.length }));
+        }
+      },
+      'dashboard_stats_users_cache'
+    );
 
     return () => {
       unsubscribeOrders();

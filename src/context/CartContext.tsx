@@ -22,7 +22,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         // Respect stock if defined
-        if (item.stockQuantity !== undefined && existing.quantity >= item.stockQuantity) {
+        if (item.stock_quantity !== undefined && existing.quantity >= item.stock_quantity) {
           return prev;
         }
         return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
@@ -40,7 +40,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (i.id === id) {
         const newQty = i.quantity + delta;
         // Respect stock if defined
-        if (delta > 0 && i.stockQuantity !== undefined && newQty > i.stockQuantity) {
+        if (delta > 0 && i.stock_quantity !== undefined && newQty > i.stock_quantity) {
           return i;
         }
         return { ...i, quantity: Math.max(0, newQty) };

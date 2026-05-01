@@ -16,9 +16,10 @@ import { ImageZoom } from './ImageZoom';
 
 interface FoodCardProps {
   item: FoodItem;
+  variant?: 'default' | 'compact';
 }
 
-export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
+export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'default' }) => {
   const { addToCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -104,7 +105,10 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       whileHover={{ y: -10, scale: 1.02 }}
-      className="group relative bg-[#111]/80 backdrop-blur-xl rounded-[2.5rem] overflow-hidden border border-white/5 hover:border-orange-500/30 transition-all duration-500 shadow-2xl cursor-pointer"
+      className={cn(
+        "group relative bg-[#111]/80 backdrop-blur-xl overflow-hidden border border-white/5 hover:border-orange-500/30 transition-all duration-500 shadow-2xl cursor-pointer",
+        variant === 'compact' ? "rounded-3xl" : "rounded-[2.5rem]"
+      )}
       onClick={() => navigate(`/product/${item.id}`)}
     >
       {/* Flying Animation Element */}
@@ -163,25 +167,40 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
         )}
       </div>
 
-      <div className={cn("p-6 transition-all duration-500", (item.available === false || !isOrderingOpen) && "opacity-40 grayscale-[0.5]")}>
+      <div className={cn(
+        "transition-all duration-500", 
+        (item.available === false || !isOrderingOpen) && "opacity-40 grayscale-[0.5]",
+        variant === 'compact' ? "p-4" : "p-6"
+      )}>
         <div className="flex justify-between items-start mb-3">
-          <h3 className="font-black text-xl leading-tight text-white group-hover:text-orange-500 transition-colors tracking-tight">
+          <h3 className={cn(
+            "font-black leading-tight text-white group-hover:text-orange-500 transition-colors tracking-tight uppercase italic",
+            variant === 'compact' ? "text-sm text-primary" : "text-xl"
+          )}>
             {item.name}
           </h3>
           <div className="flex flex-col items-end">
-            <span className="text-orange-500 font-black text-lg italic">₹{item.price}</span>
+            <span className={cn(
+              "text-orange-500 font-black italic",
+              variant === 'compact' ? "text-sm" : "text-lg"
+            )}>₹{item.price}</span>
           </div>
         </div>
         
-        <p className="text-gray-500 text-xs font-medium line-clamp-2 mb-6 leading-relaxed">
-          {item.description}
-        </p>
+        {variant !== 'compact' && (
+          <p className="text-gray-500 text-xs font-medium line-clamp-2 mb-6 leading-relaxed">
+            {item.description}
+          </p>
+        )}
 
-        <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={handleAddToCart}
-            disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
-            className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden"
+            disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
+            className={cn(
+              "flex-1 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden",
+              variant === 'compact' ? "py-2.5" : "py-4 rounded-2xl"
+            )}
             title={!isOrderingOpen ? "Orders are currently closed" : "Add to Cart"}
           >
             <AnimatePresence mode="wait">
@@ -224,8 +243,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item }) => {
           
           <button
             onClick={handleBuyNow}
-            disabled={item.available === false || !isOrderingOpen || (item.stockQuantity !== undefined && item.stockQuantity <= 0)}
-            className="flex-[2] py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
+            className={cn(
+              "flex-[2] bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed",
+              variant === 'compact' ? "py-2.5" : "py-4 rounded-2xl"
+            )}
             title={!isOrderingOpen ? "Orders are currently closed" : "Buy Now"}
           >
             <Zap size={16} fill="currentColor" />

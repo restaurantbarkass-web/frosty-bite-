@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { collection, query, where, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,69 +27,40 @@ const Orders: React.FC = () => {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setOrders(JSON.parse(cached));
-        setLoading(false);
+        const parsed = JSON.parse(cached);
+        const data = parsed.data || parsed;
+        if (Array.isArray(data)) {
+          setOrders(data);
+          setLoading(false);
+        }
       } catch (e) {}
     }
 
     const q = query(
       collection(db, 'orders'),
-      where('userId', '==', user.uid)
+      where('user_id', '==', user.uid),
+      orderBy('created_at', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Order[];
+    const unsubscribe = safeFirestore.listen(q, (ordersData: Order[]) => {
+      if (!ordersData) return;
+      setOrders(ordersData);
       
-      // Sort client-side to avoid index requirement
-      const sortedOrders = ordersData.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      });
-      
-      localStorage.setItem(cacheKey, JSON.stringify(sortedOrders));
-
       // Cleanup: Auto-delete pending orders older than 1 hour
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
       
-      const staleOrders = sortedOrders.filter(order => {
-        if (!order.createdAt || order.status !== 'pending') return false;
-        const ca = order.createdAt as any;
-        const createdAt = (ca && typeof ca.toDate === 'function') ? ca.toDate() : (ca?.seconds ? new Date(ca.seconds * 1000) : new Date(ca));
-        return createdAt < oneHourAgo;
-      });
-
-      if (staleOrders.length > 0) {
-        import('firebase/firestore').then(({ doc, deleteDoc }) => {
-          staleOrders.forEach(order => {
-            if (order.id) {
-              deleteDoc(doc(db, 'orders', order.id)).catch(err => console.error('Failed to auto-delete stale order:', err));
-            }
-          });
-        });
-      }
-
-      setOrders(sortedOrders);
-      setLoading(false);
-    }, (error) => {
-      const isQuota = error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded');
-      if (!isQuota) {
-        handleFirestoreError(error, OperationType.GET, 'orders');
-      } else {
-        console.warn('Firestore Quota Exceeded in Customer Orders History. Using cache.');
-        if (orders.length === 0) {
-           const lastResort = localStorage.getItem(cacheKey);
-           if (lastResort) {
-             try { setOrders(JSON.parse(lastResort)); } catch (e) {}
-           }
+      ordersData.forEach(order => {
+        if (order.created_at && order.status === 'pending') {
+          const createdAt = new Date(order.created_at);
+          if (createdAt < oneHourAgo) {
+             deleteDoc(doc(db, 'orders', order.id)).catch(err => console.error('Failed to auto-delete stale order:', err));
+          }
         }
-      }
+      });
+      
       setLoading(false);
-    });
+    }, cacheKey);
 
     return () => unsubscribe();
   }, [user]);
@@ -106,7 +78,7 @@ const Orders: React.FC = () => {
       description: item.description || '',
       category: item.category || 'General',
       rating: item.rating || 5,
-      stockQuantity: item.stockQuantity || 100,
+      stock_quantity: item.stock_quantity || 100,
       available: true
     };
 
@@ -136,7 +108,7 @@ const Orders: React.FC = () => {
         description: item.description || '',
         category: item.category || 'General',
         rating: item.rating || 5,
-        stockQuantity: item.stockQuantity || 100,
+        stock_quantity: item.stock_quantity || 100,
         available: true
       };
       
@@ -174,7 +146,7 @@ const Orders: React.FC = () => {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     try {
-      const date = (timestamp && typeof timestamp.toDate === 'function') ? timestamp.toDate() : (timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp));
+      const date = new Date(timestamp);
       return date.toLocaleDateString('en-IN', { 
         day: 'numeric', 
         month: 'short', 
@@ -262,7 +234,7 @@ const Orders: React.FC = () => {
                                 : (order.status || 'pending').replace(/-/g, ' ')}
                             </span>
                           </div>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Planted on {formatDate(order.createdAt)}</p>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Planted on {formatDate(order.created_at)}</p>
                           {order.status === 'cancelled' && order.notes && (
                             <p className="text-[10px] text-red-500 font-bold bg-red-500/5 px-2 py-1 rounded-lg border border-red-500/10 mt-2 italic">
                               Reason: {order.notes}

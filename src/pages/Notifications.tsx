@@ -98,20 +98,7 @@ export const Notifications: React.FC = () => {
                     </p>
                     <div className="flex items-center gap-4">
                       <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
-                        {notif.createdAt ? (
-                          (() => {
-                            try {
-                              const ca = notif.createdAt;
-                              let date: Date;
-                              if (typeof ca.toDate === 'function') date = ca.toDate();
-                              else if (ca.seconds) date = new Date(ca.seconds * 1000);
-                              else date = new Date(ca);
-                              return formatDistanceToNow(date, { addSuffix: true });
-                            } catch (e) {
-                              return 'Recently';
-                            }
-                          })()
-                        ) : 'Just now'}
+                        {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : 'Just now'}
                       </p>
                       {notif.read && (
                         <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-700">
