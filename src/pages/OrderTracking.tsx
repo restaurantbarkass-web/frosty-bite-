@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { db } from '../firebase';
-import { doc, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { safeFirestore } from '../services/firestoreService';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order, Rider } from '../types';
@@ -131,8 +131,8 @@ export const OrderTracking: React.FC = () => {
           where('order_id', '==', orderId),
           limit(1)
         );
-        const snapshot = await getDocs(q);
-        setHasReviewed(!snapshot.empty);
+        const reviews = await safeFirestore.getCollection<any>(q, `review_check_${orderId}`, 'reviews');
+        setHasReviewed(reviews && reviews.length > 0);
       } catch (e: any) {
         console.error('Error checking review in Firestore:', e);
       }
@@ -151,13 +151,13 @@ export const OrderTracking: React.FC = () => {
             if (riderData) {
               setRider(riderData as Rider);
             }
-          }, `rider_${orderData.rider_id}`);
+          }, `rider_${orderData.rider_id}`, `riders/${orderData.rider_id}`);
         }
         setLoading(false);
       } else {
         setLoading(false);
       }
-    }, cacheKey);
+    }, cacheKey, `orders/${orderId}`);
 
     checkReview();
 

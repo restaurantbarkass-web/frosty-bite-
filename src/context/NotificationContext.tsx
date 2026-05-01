@@ -122,7 +122,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         where('user_id', '==', user.uid),
         where('read', '==', false)
       );
-      const querySnapshot = await getDocs(q);
+      
+      let querySnapshot;
+      try {
+        querySnapshot = await getDocs(q);
+      } catch (err: any) {
+        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
+          console.warn('Notification update restricted due to database quota');
+          return;
+        }
+        throw err;
+      }
       
       const batch = writeBatch(db);
       querySnapshot.docs.forEach((d) => {

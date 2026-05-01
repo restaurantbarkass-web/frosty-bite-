@@ -1,6 +1,7 @@
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { Order, Rider } from '../types';
+import { safeFirestore } from './firestoreService';
 
 /**
  * Calculates the distance between two points using the Haversine formula.
@@ -25,10 +26,9 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
   try {
     // 1. Fetch available riders (online)
     const q = query(collection(db, 'riders'), where('status', '==', 'online'));
-    const snapshot = await getDocs(q);
-    const availableRiders = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+    const availableRiders = await safeFirestore.getCollection<any>(q, 'online_riders_cache', 'riders');
     
-    if (availableRiders.length === 0) {
+    if (!availableRiders || availableRiders.length === 0) {
       console.log('No riders available for order:', orderId);
       // Update order status to pending if not already
       await updateDoc(doc(db, 'orders', orderId), { status: 'pending' });
@@ -56,8 +56,10 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
     if (!bestRider) return null;
 
     // 3. Assign rider
-    const riderDoc = await getDoc(doc(db, 'riders', bestRider.id));
-    if (riderDoc.data()?.status !== 'online') {
+    const riderId = bestRider.id;
+    const riderData = await safeFirestore.getDocument<any>(doc(db, 'riders', riderId), `rider_${riderId}`, `riders/${riderId}`);
+    
+    if (!riderData || riderData.status !== 'online') {
       console.warn('Rider is no longer online, retrying assignment...');
       return assignRider(orderId, deliveryLocation); // Simple recursion for retry
     }

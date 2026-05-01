@@ -82,16 +82,14 @@ export const Profile: React.FC = () => {
     const fetchData = async () => {
       try {
         // User data
-        const docRef = doc(db, 'users', authUser.uid);
-        const docSnap = await getDoc(docRef);
+        const userDataObj = await safeFirestore.getDocument<any>(
+          doc(db, 'users', authUser.uid), 
+          profileCacheKey,
+          `users/${authUser.uid}`
+        );
         
-        if (docSnap.exists()) {
-          const userDataObj = docSnap.data();
+        if (userDataObj) {
           setUserData(userDataObj);
-          localStorage.setItem(profileCacheKey, JSON.stringify({
-            data: userDataObj,
-            timestamp: Date.now()
-          }));
           setFormData({
             name: userDataObj.full_name || '',
             phone: userDataObj.phone || '',
@@ -107,15 +105,10 @@ export const Profile: React.FC = () => {
           orderBy('created_at', 'desc'),
           limit(5)
         );
-        const ordersSnap = await getDocs(qOrders);
+        const ordersData = await safeFirestore.getCollection<Order>(qOrders, ordersCacheKey, 'orders');
 
-        if (!ordersSnap.empty) {
-          const ordersData = ordersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Order[];
+        if (ordersData && ordersData.length > 0) {
           setRecentOrders(ordersData);
-          localStorage.setItem(ordersCacheKey, JSON.stringify({
-            data: ordersData,
-            timestamp: Date.now()
-          }));
         }
 
         // Wishlist
@@ -123,20 +116,11 @@ export const Profile: React.FC = () => {
           collection(db, 'wishlist'),
           where('user_id', '==', authUser.uid)
         );
-        const wishlistSnap = await getDocs(qWishlist);
+        const wishlistDocs = await safeFirestore.getCollection<any>(qWishlist, wishlistCacheKey, 'wishlist');
 
-        if (!wishlistSnap.empty) {
-          // We assume food_items join equivalent logic: 
-          // In Firestore, wishlist docs usually contain the full item data or we fetch them
-          // Looking at Supabase logic, it was doing a join.
-          // For simplicity in Firestore migration, we assume wishlist documents store the item data or we'd have to fetch them one by one.
-          // Based on previous wishlist service, it seems we store the item in wishlist collection.
-          const items = wishlistSnap.docs.map(d => d.data().item).filter(Boolean);
+        if (wishlistDocs && wishlistDocs.length > 0) {
+          const items = wishlistDocs.map(d => d.item).filter(Boolean);
           setWishlist(items as FoodItem[]);
-          localStorage.setItem(wishlistCacheKey, JSON.stringify({
-            data: items,
-            timestamp: Date.now()
-          }));
         }
       } catch (err) {
         console.error("Error fetching profile data:", err);

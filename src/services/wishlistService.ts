@@ -1,10 +1,11 @@
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, limit } from 'firebase/firestore';
+import { collection, query, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { FoodItem } from '../types';
-import { handleFirestoreError, OperationType } from './firestoreService';
+import { handleFirestoreError, OperationType, safeFirestore } from './firestoreService';
 
 export const toggleWishlist = async (userId: string, item: FoodItem) => {
   const cacheKey = `wishlist_cache_${userId}`;
+  const docCacheKey = `wishlist_doc_${userId}_${item.id}`;
   
   // Get current local items
   const cached = localStorage.getItem(cacheKey);
@@ -12,6 +13,10 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
   if (cached) {
     try {
       localData = JSON.parse(cached);
+      if (!Array.isArray(localData)) {
+        // Handle cases where data might be wrapped in {data: [...]}
+        localData = (localData as any).data || [];
+      }
     } catch (e) {}
   }
 
@@ -19,15 +24,16 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
     // Check if exists
     const wishlistId = `${userId}_${item.id}`;
     const docRef = doc(db, 'wishlist', wishlistId);
-    const docSnap = await getDoc(docRef);
+    const exists = await safeFirestore.getDocument<any>(docRef, docCacheKey, `wishlist/${wishlistId}`);
 
-    if (docSnap.exists()) {
+    if (exists) {
       // Remove
       await deleteDoc(docRef);
       
       // Update local cache
       const updatedLocal = localData.filter(i => i.id !== item.id);
       localStorage.setItem(cacheKey, JSON.stringify(updatedLocal));
+      localStorage.removeItem(docCacheKey);
       return false; // Removed
     } else {
       // Add
@@ -41,39 +47,33 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
       // Update local cache
       const updatedLocal = [...localData, item];
       localStorage.setItem(cacheKey, JSON.stringify(updatedLocal));
+      localStorage.setItem(docCacheKey, JSON.stringify({ user_id: userId, item_id: item.id }));
       return true; // Added
     }
   } catch (error: any) {
     console.error('Firestore error in toggleWishlist:', error);
+    const isQuotaError = error.code === 'resource-exhausted' || error.message?.includes('Quota');
     if (error.code === 'permission-denied') {
       handleFirestoreError(error, OperationType.WRITE, `wishlist/${userId}_${item.id}`);
+    } else if (isQuotaError) {
+       // Logged by safeFirestore or handleFirestoreError usually, 
+       // but toggleWishlist calls setDoc/deleteDoc directly which don't have wrappers yet
+       console.error('Database limit reached during wishlist toggle');
     }
     return false;
   }
 };
 
 export const checkIfWishlisted = async (userId: string, itemId: string) => {
-  const cacheKey = `wishlist_cache_${userId}`;
+  const docCacheKey = `wishlist_doc_${userId}_${itemId}`;
   
-  // Quick local check
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    try {
-      const items = JSON.parse(cached) as FoodItem[];
-      if (items.some(i => i.id === itemId)) return true;
-    } catch (e) {}
-  }
-
   try {
     const wishlistId = `${userId}_${itemId}`;
     const docRef = doc(db, 'wishlist', wishlistId);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists();
+    const exists = await safeFirestore.getDocument<any>(docRef, docCacheKey, `wishlist/${wishlistId}`);
+    return !!exists;
   } catch (error: any) {
     console.warn('Error checking wishlist status in Firestore:', error);
-    if (error.code === 'permission-denied') {
-      handleFirestoreError(error, OperationType.GET, `wishlist/${userId}_${itemId}`);
-    }
     return false;
   }
 };
@@ -83,20 +83,15 @@ export const getUserWishlist = async (userId: string) => {
   
   try {
     const q = query(collection(db, 'wishlist'), where('user_id', '==', userId));
-    const snapshot = await getDocs(q);
+    const wishlistDocs = await safeFirestore.getCollection<any>(q, cacheKey, 'wishlist');
     
-    const items = snapshot.docs.map(d => d.data().item_details as FoodItem);
-    localStorage.setItem(cacheKey, JSON.stringify(items));
-    return items;
+    if (wishlistDocs) {
+      const items = wishlistDocs.map(d => d.item_details as FoodItem).filter(Boolean);
+      return items;
+    }
+    return [];
   } catch (error: any) {
     console.error('Firestore error in getUserWishlist:', error);
-    if (error.code === 'permission-denied') {
-      handleFirestoreError(error, OperationType.LIST, 'wishlist');
-    }
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      try { return JSON.parse(cached) as FoodItem[]; } catch (e) {}
-    }
     return [];
   }
 };

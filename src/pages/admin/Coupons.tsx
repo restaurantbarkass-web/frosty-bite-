@@ -85,7 +85,7 @@ export const Coupons: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await addDoc(collection(db, 'coupons'), {
+      const docRef = await addDoc(collection(db, 'coupons'), {
         ...newCoupon,
         code: newCoupon.code.toUpperCase(),
         usage_count: 0,
@@ -93,6 +93,12 @@ export const Coupons: React.FC = () => {
         created_at: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
       });
+      
+      // Proactively update local cache
+      const newItem = { id: docRef.id, ...newCoupon, code: newCoupon.code.toUpperCase(), usage_count: 0, status: 'active', created_at: new Date().toISOString() } as Coupon;
+      const updatedLocal = [newItem, ...coupons];
+      setCoupons(updatedLocal);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
       
       setIsModalOpen(false);
       setNewCoupon({
@@ -118,7 +124,7 @@ export const Coupons: React.FC = () => {
       expiryDate.setDate(expiryDate.getDate() + 30);
       const expiryStr = expiryDate.toISOString().split('T')[0];
 
-      await addDoc(collection(db, 'coupons'), {
+      const docRef = await addDoc(collection(db, 'coupons'), {
         code: 'FIRSTORDER',
         type: 'percentage',
         value: 20,
@@ -132,6 +138,24 @@ export const Coupons: React.FC = () => {
         serverCreatedAt: serverTimestamp(),
       });
       
+      // Proactively update local cache
+      const newItem = { 
+        id: docRef.id, 
+        code: 'FIRSTORDER', 
+        type: 'percentage', 
+        value: 20, 
+        min_order: 0, 
+        expiry_date: expiryStr, 
+        usage_limit: 100, 
+        usage_count: 0, 
+        status: 'active', 
+        is_first_order_only: true,
+        created_at: new Date().toISOString()
+      } as Coupon;
+      const updatedLocal = [newItem, ...coupons];
+      setCoupons(updatedLocal);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+
       alert('FIRSTORDER coupon generated successfully!');
     } catch (error) {
       console.error('Error generating FIRSTORDER coupon:', error);
@@ -143,6 +167,12 @@ export const Coupons: React.FC = () => {
   const handleDeleteCoupon = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'coupons', id));
+      
+      // Proactively update local cache
+      const updatedLocal = coupons.filter(c => c.id !== id);
+      setCoupons(updatedLocal);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      
       setDeletingId(null);
     } catch (error) {
       console.error('Error deleting coupon:', error);
@@ -151,8 +181,13 @@ export const Coupons: React.FC = () => {
 
   const toggleCouponStatus = async (id: string, currentStatus: string) => {
     try {
-      const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+      const newStatus = currentStatus === 'active' ? 'disabled' : 'active' as any;
       await updateDoc(doc(db, 'coupons', id), { status: newStatus });
+      
+      // Proactively update local cache
+      const updatedLocal = coupons.map(c => c.id === id ? { ...c, status: newStatus } : c);
+      setCoupons(updatedLocal);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
     } catch (error) {
       console.error('Error toggling coupon status:', error);
     }

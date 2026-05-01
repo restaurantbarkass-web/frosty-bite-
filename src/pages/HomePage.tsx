@@ -95,8 +95,23 @@ export const Home: React.FC = () => {
       'menu_cache'
     );
 
+    // Listen for storage changes from other tabs (specifically for admin updates)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'menu_cache' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const data = parsed.data || parsed;
+          if (Array.isArray(data)) {
+            setFirestoreMenu(data);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       unsubscribeMenu();
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 

@@ -100,11 +100,20 @@ export const MenuManager: React.FC = () => {
 
       if (editingItem) {
         await updateDoc(doc(db, 'menu', editingItem.id), data);
+        // Proactively update local cache
+        const updatedLocal = menuItems.map(item => item.id === editingItem.id ? { ...item, ...data } : item);
+        setMenuItems(updatedLocal);
+        localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
       } else {
-        await addDoc(collection(db, 'menu'), {
+        const docRef = await addDoc(collection(db, 'menu'), {
           ...data,
           created_at: serverTimestamp()
         });
+        // Proactively update local state for immediate feedback
+        const newItem = { id: docRef.id, ...data } as MenuItem;
+        const updatedLocal = [...menuItems, newItem].sort((a, b) => a.name.localeCompare(b.name));
+        setMenuItems(updatedLocal);
+        localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
       }
       
       setIsAdding(false);
@@ -118,6 +127,10 @@ export const MenuManager: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'menu', id));
+      // Proactively update local cache
+      const updatedLocal = menuItems.filter(item => item.id !== id);
+      setMenuItems(updatedLocal);
+      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
       setDeletingId(null);
     } catch (error) {
       console.error('Error deleting menu item:', error);
@@ -126,10 +139,15 @@ export const MenuManager: React.FC = () => {
 
   const toggleAvailability = async (item: MenuItem) => {
     try {
+      const newStatus = !item.available;
       await updateDoc(doc(db, 'menu', item.id), { 
-        available: !item.available,
+        available: newStatus,
         updated_at: serverTimestamp()
       });
+      // Proactively update local cache
+      const updatedLocal = menuItems.map(i => i.id === item.id ? { ...i, available: newStatus } : i);
+      setMenuItems(updatedLocal);
+      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
     } catch (error) {
       console.error('Error toggling availability:', error);
     }
@@ -142,6 +160,10 @@ export const MenuManager: React.FC = () => {
         stock_quantity: newStock,
         updated_at: serverTimestamp()
       });
+      // Proactively update local cache
+      const updatedLocal = menuItems.map(i => i.id === item.id ? { ...i, stock_quantity: newStock } : i);
+      setMenuItems(updatedLocal);
+      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
     } catch (error) {
       console.error('Error updating stock:', error);
     }

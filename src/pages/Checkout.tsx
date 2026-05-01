@@ -96,7 +96,17 @@ export const Checkout: React.FC = () => {
         where('status', '==', 'active'),
         limit(1)
       );
-      const snapshot = await getDocs(q);
+      let snapshot;
+      try {
+        snapshot = await getDocs(q);
+      } catch (err: any) {
+        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
+          toast.error('Database limit reached. Coupons are temporarily unavailable.');
+          setIsApplyingCoupon(false);
+          return;
+        }
+        throw err;
+      }
       
       if (snapshot.empty) {
         toast.error('Invalid or expired coupon code');
@@ -251,7 +261,17 @@ export const Checkout: React.FC = () => {
         created_at: new Date().toISOString(),
       };
 
-      const docRef = await addDoc(collection(db, 'orders'), orderData);
+      let docRef;
+      try {
+        docRef = await addDoc(collection(db, 'orders'), orderData);
+      } catch (err: any) {
+        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
+          toast.error('Database limit reached. We are currently unable to accept new orders.');
+          setIsOrdering(false);
+          return;
+        }
+        throw err;
+      }
       const orderId = docRef.id;
 
       // Increment coupon usage count if applied

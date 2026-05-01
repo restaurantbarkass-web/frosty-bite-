@@ -41,6 +41,7 @@ const PageLoader = () => <LoadingScreen fullScreen={false} />;
 function AppContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash only once per session
     try {
@@ -59,8 +60,15 @@ function AppContent() {
     const handleSearchState = (e: any) => {
       setIsSearching(e.detail);
     };
+    const handleQuotaExceeded = () => {
+      setQuotaExceeded(true);
+    };
     window.addEventListener('is-searching', handleSearchState);
-    return () => window.removeEventListener('is-searching', handleSearchState);
+    window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+    return () => {
+      window.removeEventListener('is-searching', handleSearchState);
+      window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+    };
   }, []);
 
   const isAdminPage = location.pathname.startsWith('/admin');
@@ -77,6 +85,16 @@ function AppContent() {
     <div className="min-h-screen bg-background text-foreground font-sans">
       <Toaster position="top-right" />
       <AnimatePresence>
+        {quotaExceeded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-amber-500 text-black px-4 py-2 text-center text-[10px] font-black uppercase tracking-widest relative z-[100]"
+          >
+            ⚠️ Database limit reached! Showing cached menu. New orders may be limited.
+            <button onClick={() => setQuotaExceeded(false)} className="ml-4 underline">Close</button>
+          </motion.div>
+        )}
         {showSplash && location.pathname === '/' && (
           <IntroSplash onComplete={handleSplashComplete} />
         )}

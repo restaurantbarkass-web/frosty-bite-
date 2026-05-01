@@ -124,12 +124,22 @@ export const UPICheckout: React.FC = () => {
 
     setIsVerifying(true);
     try {
-      // Check for duplicate UTR in Firestore
+      // Check for duplicate UTR in Firestore with handled quota
       const q = query(
         collection(db, 'orders'),
         where('utr', '==', utr)
       );
-      const querySnapshot = await getDocs(q);
+      let querySnapshot;
+      try {
+        querySnapshot = await getDocs(q);
+      } catch (err: any) {
+        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
+          toast.error('Database limit reached. Verification is currently unavailable.');
+          setIsVerifying(false);
+          return;
+        }
+        throw err;
+      }
       
       const duplicateOrders = querySnapshot.docs.filter(dock => dock.id !== state!.orderId);
       

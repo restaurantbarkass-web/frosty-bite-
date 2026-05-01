@@ -6,11 +6,12 @@ import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
+import { safeFirestore } from '../services/firestoreService';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 import toast from 'react-hot-toast';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -58,26 +59,30 @@ const ProductDetail: React.FC = () => {
       try {
         let currentProduct: FoodItem | null = null;
         
-        try {
-          const docRef = doc(db, 'menu', id);
-          const docSnap = await getDoc(docRef);
+        // 1. Try to find in cache first to save a read operation
+        const cachedMenu = localStorage.getItem('menu_cache');
+        if (cachedMenu) {
+          try {
+            const parsed = JSON.parse(cachedMenu);
+            const menuItems = (parsed.data || parsed) as FoodItem[];
+            const found = menuItems.find(item => item.id === id);
+            if (found) {
+              currentProduct = found;
+            }
+          } catch (e) {}
+        }
 
-          if (docSnap.exists()) {
-            currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
-          }
-        } catch (dbError: any) {
-          console.error("Firestore error in fetchProduct:", dbError);
-          // Try to find in localStorage cache
-          const cachedMenu = localStorage.getItem('menu_cache');
-          if (cachedMenu) {
-            try {
-              const parsed = JSON.parse(cachedMenu);
-              const menuItems = (parsed.data || parsed) as FoodItem[];
-              const found = menuItems.find(item => item.id === id);
-              if (found) {
-                currentProduct = found;
-              }
-            } catch (e) {}
+        // 2. If not in cache, fetch from Firestore
+        if (!currentProduct) {
+          try {
+            const docRef = doc(db, 'menu', id);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+              currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
+            }
+          } catch (dbError: any) {
+            console.error("Firestore error in fetchProduct:", dbError);
           }
         }
 
@@ -99,18 +104,21 @@ const ProductDetail: React.FC = () => {
           }
 
           try {
-            // Fetch related items from Firestore
-            const q = collection(db, 'menu');
-            const querySnapshot = await getDocs(q);
+            // Fetch related items from Firestore with a targeted query
+            const relatedQuery = query(
+              collection(db, 'menu'),
+              where('category', '==', currentProduct.category),
+              limit(10)
+            );
             
-            if (!querySnapshot.empty) {
-              const freshItems = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as FoodItem[];
+            const freshItems = await safeFirestore.getCollection<FoodItem>(
+              relatedQuery, 
+              `related_cache_${currentProduct.category}`,
+              'menu'
+            );
+            
+            if (freshItems && freshItems.length > 0) {
               firestoreItems = freshItems;
-              // Update cache while we're here
-              localStorage.setItem('menu_cache', JSON.stringify({
-                data: firestoreItems,
-                timestamp: Date.now()
-              }));
             }
           } catch (listError: any) {
              console.error("Firestore error for related items:", listError);

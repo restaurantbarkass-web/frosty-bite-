@@ -10,18 +10,31 @@ import {
 import { getMessaging } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Use getFirestore with databaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Use initializeFirestore with settings to improve stability
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true,
+}, firebaseConfig.firestoreDatabaseId);
+
+// Enable persistence synchronously to ensure it runs before any other Firestore operations
+if (typeof window !== 'undefined') {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Firestore persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Firestore persistence failed: Browser not supported');
+    }
+  });
+}
 
 // Add listener to check connection
-import { doc, getDocFromServer } from 'firebase/firestore';
 const testConnection = async () => {
   try {
+    // Only check if not already known to be in quota exceeded state
     await getDocFromServer(doc(db, '_connection_test_', 'ping'));
   } catch (error: any) {
     if (error.message?.includes('offline')) {
