@@ -1,6 +1,7 @@
 import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, getDoc, limit } from 'firebase/firestore';
 import { FoodItem } from '../types';
+import { handleFirestoreError, OperationType } from './firestoreService';
 
 export const toggleWishlist = async (userId: string, item: FoodItem) => {
   const cacheKey = `wishlist_cache_${userId}`;
@@ -44,6 +45,9 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
     }
   } catch (error: any) {
     console.error('Firestore error in toggleWishlist:', error);
+    if (error.code === 'permission-denied') {
+      handleFirestoreError(error, OperationType.WRITE, `wishlist/${userId}_${item.id}`);
+    }
     return false;
   }
 };
@@ -65,8 +69,11 @@ export const checkIfWishlisted = async (userId: string, itemId: string) => {
     const docRef = doc(db, 'wishlist', wishlistId);
     const docSnap = await getDoc(docRef);
     return docSnap.exists();
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Error checking wishlist status in Firestore:', error);
+    if (error.code === 'permission-denied') {
+      handleFirestoreError(error, OperationType.GET, `wishlist/${userId}_${itemId}`);
+    }
     return false;
   }
 };
@@ -81,8 +88,11 @@ export const getUserWishlist = async (userId: string) => {
     const items = snapshot.docs.map(d => d.data().item_details as FoodItem);
     localStorage.setItem(cacheKey, JSON.stringify(items));
     return items;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Firestore error in getUserWishlist:', error);
+    if (error.code === 'permission-denied') {
+      handleFirestoreError(error, OperationType.LIST, 'wishlist');
+    }
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try { return JSON.parse(cached) as FoodItem[]; } catch (e) {}

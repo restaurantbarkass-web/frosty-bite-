@@ -96,6 +96,7 @@ service cloud.firestore {
              (!('rider_id' in data) || (data.rider_id is string)) &&
              (!('rider_name' in data) || (data.rider_name is string)) &&
              (!('estimated_delivery_time' in data) || (data.estimated_delivery_time is number)) &&
+             (!('payment_screenshot' in data) || (data.payment_screenshot is string && data.payment_screenshot.size() <= 2000000)) &&
              (!('updated_at' in data) || (data.updated_at is timestamp || data.updated_at is string)) &&
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000));
     }
@@ -186,7 +187,7 @@ service cloud.firestore {
            incoming().status == 'cancelled') ||
           // User/Guest action: Submit utr for Admin Verification
           ((isOwner(existing().user_id) || existing().user_id == 'guest') &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'payment_status', 'updated_at']) &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'utr', 'payment_status', 'payment_screenshot', 'updated_at']) &&
            existing().status == 'pending' &&
            incoming().status == 'pending' &&
            incoming().payment_status == 'pending_verification' &&

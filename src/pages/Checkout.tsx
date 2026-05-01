@@ -33,6 +33,7 @@ import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useNotifications } from '../context/NotificationContext';
+import { handleFirestoreError, OperationType } from '../services/firestoreService';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -259,8 +260,11 @@ export const Checkout: React.FC = () => {
           await updateDoc(doc(db, 'coupons', appliedCoupon.id), {
             usage_count: increment(1)
           });
-        } catch (err) {
+        } catch (err: any) {
           console.error('Failed to increment coupon usage:', err);
+          if (err.code === 'permission-denied') {
+            handleFirestoreError(err, OperationType.WRITE, `coupons/${appliedCoupon.id}`);
+          }
         }
       }
       
@@ -327,6 +331,9 @@ export const Checkout: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Order failed:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.CREATE, 'orders');
+      }
       toast.error('Failed to place order. Please try again.');
     } finally {
       setIsOrdering(false);

@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from './firestoreService';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -67,14 +68,17 @@ export const authService = {
   async syncUserWithFirestore(user: any, name?: string) {
     try {
       await setDoc(doc(db, 'users', user.uid), {
-        id: user.uid,
+        uid: user.uid,
         email: user.email,
         full_name: name || user.displayName || '',
+        role: 'customer', // Default role
         updated_at: new Date().toISOString(),
-        server_updated_at: serverTimestamp(),
       }, { merge: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error syncing user with Firestore:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+      }
     }
   },
 

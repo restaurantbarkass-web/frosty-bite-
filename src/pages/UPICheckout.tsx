@@ -29,6 +29,7 @@ import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useNotifications } from '../context/NotificationContext';
+import { handleFirestoreError, OperationType } from '../services/firestoreService';
 
 const PAYMENT_EXPIRY_SECONDS = 600;
 const UPI_ID = "7735800239@ibl";
@@ -185,8 +186,11 @@ export const UPICheckout: React.FC = () => {
       openWhatsAppOrder(orderSummary);
       clearCart();
       toast.success('Payment Submitted for Verification! 🍰');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Verification failed:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `orders/${state!.orderId}`);
+      }
       toast.error('Verification failed. Please check UTR.');
     } finally {
       setIsVerifying(false);

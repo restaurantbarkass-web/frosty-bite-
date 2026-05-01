@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, updateDoc } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
+import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
@@ -195,8 +195,11 @@ export const Profile: React.FC = () => {
       });
       
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+      }
     }
   };
 
@@ -210,8 +213,11 @@ export const Profile: React.FC = () => {
       });
       
       setSettingsData(newSettings);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating settings:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+      }
     }
   };
 
@@ -244,8 +250,11 @@ export const Profile: React.FC = () => {
         
         alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
         await handleLogout();
-      } catch (error) {
+      } catch (error: any) {
         console.error("Account deletion failed:", error);
+        if (error.code === 'permission-denied') {
+          handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
+        }
       }
     }
   };
