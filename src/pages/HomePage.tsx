@@ -73,8 +73,7 @@ export const Home: React.FC = () => {
     const unsubscribeMenu = safeFirestore.listen(
       collection(db, 'menu'),
       (items: FoodItem[]) => {
-        if (!items || items.length === 0) return;
-        setFirestoreMenu(items);
+        setFirestoreMenu(items || []);
       },
       'menu_cache'
     );

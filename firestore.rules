@@ -126,7 +126,8 @@ service cloud.firestore {
              data.usageCount is number && data.usageCount >= 0 &&
              data.status in ['active', 'expired', 'disabled'] &&
              (!('isFirstOrderOnly' in data) || data.isFirstOrderOnly is bool) &&
-             (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt is string));
+             (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt is string)) &&
+             (!('serverCreatedAt' in data) || data.serverCreatedAt is timestamp);
     }
 
     function isValidReview(data) {
