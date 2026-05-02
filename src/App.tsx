@@ -127,8 +127,8 @@ function AppContent() {
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       
       <main className={cn(
-        "transition-all",
-        !hideNavFooter && "pb-40 md:pb-0" // Add bottom padding on mobile to clear BottomNav
+        "transition-all flex-1 flex flex-col min-h-svh",
+        !hideNavFooter && "pb-40 md:pb-0"
       )}>
         <Suspense fallback={<PageLoader />}>
           <Routes location={location}>

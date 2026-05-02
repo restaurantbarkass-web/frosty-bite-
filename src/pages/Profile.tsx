@@ -284,7 +284,7 @@ export const Profile: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8">
+    <div className="min-h-svh flex flex-col max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-32">
       {/* Profile Card */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -553,33 +553,35 @@ export const Profile: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] p-10 shadow-2xl"
+              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h3 className="text-3xl font-black text-white tracking-tighter">Edit Identity</h3>
-                  <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
+                  <div>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Identity</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsEditing(false)} 
+                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsEditing(false)} 
-                  className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
 
-              <form onSubmit={handleUpdateProfile} className="space-y-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Full Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="Enter your name"
-                    className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold" 
-                  />
-                </div>
+                <form onSubmit={handleUpdateProfile} className="flex flex-col flex-1 min-h-0">
+                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-8 scrollbar-hide pb-32 md:pb-6">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Full Name</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="Enter your name"
+                        className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold" 
+                      />
+                    </div>
 
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Direct Contact</label>
@@ -604,15 +606,18 @@ export const Profile: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all">
-                    Dismiss
-                  </button>
-                  <button type="submit" className="flex-2 py-5 rounded-[1.5rem] bg-primary text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-                    Commit Changes
-                  </button>
-                </div>
-              </form>
+                  </div>
+ 
+                  <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+                    <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95">
+                      Dismiss
+                    </button>
+                    <button type="submit" className="flex-2 py-5 rounded-[1.5rem] bg-primary text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                      Commit Changes
+                    </button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
           </div>
         )}
@@ -633,22 +638,23 @@ export const Profile: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh]"
+              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
-                  <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-6">
+                  <div>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsSettingsOpen(false)} 
+                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
                 </div>
-                <button 
-                  onClick={() => setIsSettingsOpen(false)} 
-                  className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
 
-              <div className="space-y-10">
+                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 scrollbar-hide pb-32 md:pb-6">
                 {/* Notifications Section skipped */}
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
@@ -730,6 +736,16 @@ export const Profile: React.FC = () => {
                   >
                     Permanently Delete Account
                     <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+                  <button 
+                    onClick={() => setIsSettingsOpen(false)} 
+                    className="w-full py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95"
+                  >
+                    Done
                   </button>
                 </div>
               </div>

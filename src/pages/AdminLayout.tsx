@@ -77,9 +77,9 @@ export const AdminLayout: React.FC = () => {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-svh">
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar pb-[calc(2rem+env(safe-area-inset-bottom))]">
           <AnimatePresence mode="wait">
             <Suspense fallback={
               <div className="flex items-center justify-center min-h-[60vh]">

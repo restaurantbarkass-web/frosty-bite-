@@ -403,7 +403,7 @@ export const Checkout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-svh flex flex-col bg-background">
       <AnimatePresence>
         {isOrdering && (
           <motion.div 
@@ -468,7 +468,7 @@ export const Checkout: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+      <div className="flex-1 overflow-y-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 pb-40 lg:pb-20">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div className="space-y-4">
             <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-400 hover:text-primary transition-colors font-black uppercase tracking-widest text-[10px]">
@@ -846,6 +846,46 @@ export const Checkout: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Sticky Bottom Bar for Mobile Checkout */}
+      {cart.length > 0 && !showConfirmation && !isOrdering && (
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="flex justify-between items-center px-2">
+               <div>
+                 <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total Payable</p>
+                 <p className="text-2xl font-black text-white italic tracking-tighter">₹{finalPrice}</p>
+               </div>
+               <div className="text-right">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">Secure</p>
+                  <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Checkout</p>
+               </div>
+            </div>
+            
+            <button
+              onClick={handlePlaceOrder}
+              disabled={isOrdering || !isOrderingOpen}
+              className={cn(
+                "w-full h-14 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-primary/20",
+                (!isOrderingOpen || isOrdering) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
+              )}
+            >
+              {isOrdering ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : !isOrderingOpen ? (
+                'Orders Closed'
+              ) : (
+                <>
+                  <span>
+                    {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR & Pay'}
+                  </span>
+                  <ChevronRight size={18} />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

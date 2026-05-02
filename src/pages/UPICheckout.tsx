@@ -231,7 +231,7 @@ export const UPICheckout: React.FC = () => {
   if (!state) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-svh flex flex-col bg-background">
       <AnimatePresence>
         {isVerifying && (
           <motion.div 
@@ -290,7 +290,7 @@ export const UPICheckout: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 py-8 md:py-16 space-y-8">
+      <div className="flex-1 overflow-y-auto max-w-2xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-40">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-3 bg-white/5 rounded-2xl text-zinc-400 hover:text-primary transition-colors">
             <ChevronLeft size={24} />
@@ -513,6 +513,31 @@ export const UPICheckout: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Sticky Bottom Bar for Mobile Verification */}
+      {!showConfirmation && !isVerifying && (
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+          <div className="max-w-md mx-auto">
+            <button
+              onClick={handleVerify}
+              disabled={isVerifying}
+              className={cn(
+                "w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-105 shadow-xl shadow-emerald-500/20",
+                isVerifying && "opacity-50 pointer-events-none"
+              )}
+            >
+              {isVerifying ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <>
+                  <ShieldCheck size={18} />
+                  <span>Verify Payment</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

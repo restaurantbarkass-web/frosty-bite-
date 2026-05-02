@@ -47,7 +47,7 @@ export const CartSidebar: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-hide overscroll-contain">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scrollbar-hide overscroll-contain pb-32">
               {!isOrderingOpen && (
                 <div className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-4 text-red-500">
                   <AlertTriangle className="shrink-0" size={18} />
@@ -160,7 +160,7 @@ export const CartSidebar: React.FC = () => {
             </div>
 
             {cart.length > 0 && (
-              <div className="p-4 sm:p-6 border-t border-border bg-secondary/10 space-y-4 pb-8 sm:pb-6">
+              <div className="p-4 sm:p-6 border-t border-border bg-background/95 backdrop-blur-md space-y-4 sticky bottom-0 z-20 pb-[calc(16px+env(safe-area-inset-bottom))]">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <span>Subtotal</span>
