@@ -61,7 +61,6 @@ function AppContent() {
     if (showSplash) {
       const timer = setTimeout(() => {
         if (showSplash) {
-          console.warn('Splash failsafe triggered after 6 seconds');
           setShowSplash(false);
         }
       }, 6000);
