@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Truck, MapPin, Navigation, CheckCircle, Phone, Power } from 'lucide-react';
+import { Truck, MapPin, Navigation, CheckCircle, Phone, Power, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { requestForToken, onMessageListener } from '../utils/messaging';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
 import toast from 'react-hot-toast';
 
 const AVAILABLE_ORDERS = [
@@ -107,9 +108,12 @@ export const RiderPanel: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <button className="py-4 bg-secondary text-white rounded-2xl font-bold flex items-center justify-center space-x-2">
-                  <Phone size={20} />
-                  <span>Call Customer</span>
+                <button 
+                  onClick={() => activeOrder.customer_phone && sendWhatsAppMessage(activeOrder.customer_phone, `Hi, I'm the rider for your Frosty Bite order #${activeOrder.id}. I'm on my way!`)}
+                  className="py-4 bg-emerald-500/10 text-emerald-500 rounded-2xl font-bold flex items-center justify-center space-x-2 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                >
+                  <MessageCircle size={20} />
+                  <span>WhatsApp</span>
                 </button>
                 <button
                   onClick={() => setActiveOrder(null)}

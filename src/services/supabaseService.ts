@@ -3,9 +3,9 @@ import { supabase } from '../supabase';
 export const supabaseService = {
   // Improved error handler
   handleError(error: any) {
-    if (error.code === 'PGRST205' || error.code === '42703' || (error.message && error.message.includes('schema cache'))) {
-      console.error('SUPABASE CONFIG ERROR: Database table or column not found. Did you run the SQL script in your Supabase Dashboard?', error);
-    }
+      if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.code === '42703' || (error.message && error.message.includes('schema cache'))) {
+        console.error("SUPABASE CONFIG ERROR: Database table or column not found. You likely added a new feature (like Coupons) but haven't updated your Supabase SQL yet.", error);
+      }
     if (error.code === '22P02' && error.message.includes('uuid')) {
       console.error('SUPABASE TYPE ERROR: Expected UUID but got a different string format. Your database user_id column likely needs to be changed from UUID to TEXT to support Firebase UIDs.', error);
     }
@@ -13,7 +13,10 @@ export const supabaseService = {
       console.error('SUPABASE TYPE MISMATCH: You are trying to compare a Text UID with a UUID column. Please run the SQL migration to change ID columns to TEXT.', error);
     }
     if (error.code === '42501') {
-      console.error('SUPABASE RLS ERROR: Row Level Security violation. You need to add a Policy in your Supabase Dashboard to allow this operation on the table.', error);
+      console.error('SUPABASE RLS ERROR: Row Level Security violation. You likely need to enable INSERT/UPDATE policies for the table in your Supabase Dashboard.', error);
+    }
+    if (error.code === '23503') {
+      console.error('SUPABASE FOREIGN KEY ERROR: You are trying to insert a record that references a non-existent parent. Check if the user exists in the users table.', error);
     }
     return error;
   },
@@ -27,6 +30,16 @@ export const supabaseService = {
     const { data, error } = await q;
     if (error) throw this.handleError(error);
     return data as T[];
+  },
+
+  // Generic Insert
+  async insertData<T>(table: string, data: any) {
+    const { data: result, error } = await supabase
+      .from(table)
+      .insert(data)
+      .select();
+    if (error) throw this.handleError(error);
+    return (result && result[0]) as T;
   },
 
   // Generic Get Single

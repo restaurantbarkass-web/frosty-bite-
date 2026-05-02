@@ -24,6 +24,7 @@ import { jsPDF } from 'jspdf';
 import { motion } from 'motion/react';
 import { db } from '../firebase';
 import { supabase } from '../supabase';
+import { supabaseService } from '../services/supabaseService';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
@@ -144,18 +145,15 @@ export const UPICheckout: React.FC = () => {
       }
 
       // Supabase update
-      const { error: supabaseError } = await supabase
-        .from('orders')
-        .update({
+      try {
+        await supabaseService.updateData('orders', state!.orderId, {
           utr: utr,
           payment_screenshot: screenshot,
           status: 'pending',
           payment_status: 'pending_verification',
           updated_at: new Date().toISOString()
-        })
-        .eq('id', state!.orderId);
-
-      if (supabaseError) {
+        });
+      } catch (supabaseError: any) {
         console.error('Supabase order update failed:', supabaseError);
         throw new Error('Failed to update order in Supabase');
       }

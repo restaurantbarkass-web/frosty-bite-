@@ -28,6 +28,7 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, serverTimestamp, query, where, getDocs, doc, updateDoc, increment, limit } from 'firebase/firestore';
 import { supabase } from '../supabase';
+import { supabaseService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -253,13 +254,13 @@ export const Checkout: React.FC = () => {
       };
 
       // Save to Supabase
-      const { error: supabaseError } = await supabase
-        .from('orders')
-        .insert(orderData);
-
-      if (supabaseError) {
+      try {
+        await supabaseService.insertData('orders', orderData);
+      } catch (supabaseError: any) {
         console.error('Supabase order creation failed:', supabaseError);
-        throw new Error('Failed to create order in Supabase');
+        // Extract specific message if possible
+        const errorMsg = supabaseError.message || 'Database error occurred';
+        throw new Error(`Order insertion failed: ${errorMsg}`);
       }
 
       // Increment coupon usage count if applied

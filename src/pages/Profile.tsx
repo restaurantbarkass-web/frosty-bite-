@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette } from 'lucide-react';
+import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
@@ -11,6 +11,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
+import { RESTAURANT_WHATSAPP } from '../constants';
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -393,6 +394,35 @@ export const Profile: React.FC = () => {
                   <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Orders</p>
                   <p className="text-2xl font-black text-white">{recentOrders.length}</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="glass-dark rounded-[2.5rem] border border-white/5 p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                  <MessageCircle size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Help & Support</h3>
+                  <p className="text-xs text-zinc-500 font-medium">Need help with an order or have a question?</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                  onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')}
+                  className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
+                >
+                  <MessageCircle size={16} />
+                  Chat on WhatsApp
+                </button>
+                <button 
+                  onClick={() => window.location.href = `tel:${RESTAURANT_WHATSAPP}`}
+                  className="flex-1 py-4 bg-white/5 border border-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <Phone size={16} />
+                  Call Us
+                </button>
               </div>
             </div>
 

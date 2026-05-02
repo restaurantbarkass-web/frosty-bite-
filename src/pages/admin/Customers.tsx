@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Search, Mail, Phone, Calendar, MapPin, ExternalLink } from 'lucide-react';
+import { User, Search, Mail, Phone, Calendar, MapPin, ExternalLink, MessageCircle } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { sendWhatsAppMessage } from '../../utils/whatsapp';
 
 interface Customer {
   id: string;
@@ -162,6 +163,15 @@ export const Customers: React.FC = () => {
                   <ExternalLink size={14} />
                   View Activity
                 </button>
+                {customer.phone && (
+                  <button 
+                    onClick={() => sendWhatsAppMessage(customer.phone!, `Hello ${customer.full_name || 'Customer'}, this is Frosty Bite Support.`)}
+                    className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center"
+                    title="Message on WhatsApp"
+                  >
+                    <MessageCircle size={16} />
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}

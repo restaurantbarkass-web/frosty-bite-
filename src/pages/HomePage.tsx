@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
-import { CATEGORIES, MENU_ITEMS } from '../constants';
+import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { getFoodRecommendations } from '../services/geminiService';
 import { supabase } from '../supabase';
@@ -653,6 +653,29 @@ export const Home: React.FC = () => {
           </div>
 
           <div className="mt-16 pt-12 border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="max-w-2xl">
+              <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-4">
+                Bulk Orders & Catering
+              </h2>
+              <p className="text-gray-400 leading-relaxed">
+                Planning a party or a corporate event? We offer specialized bulk order packages and catering services. 
+                Contact us directly on WhatsApp to discuss your requirements and get a custom quote.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}?text=${encodeURIComponent("Hi! I'd like to inquire about a bulk order for an event.")}`, '_blank')}
+                className="px-8 py-4 bg-emerald-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-500/20 hover:scale-105 transition-all flex items-center justify-center gap-2"
+              >
+                <div className="w-5 h-5 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.012 2c-5.508 0-9.987 4.479-9.987 9.988 0 1.761.459 3.474 1.33 4.988l-1.412 5.163 5.283-1.387c1.446.787 3.076 1.202 4.786 1.202 5.508 0 9.988-4.479 9.988-9.988s-4.48-9.988-9.988-9.988zm0 18.288c-1.554 0-3.079-.415-4.417-1.196l-.317-.188-3.284.862.877-3.208-.207-.329c-.859-1.365-1.312-2.946-1.312-4.57 0-4.569 3.717-8.287 8.287-8.287s8.287 3.717 8.287 8.287-3.718 8.287-8.287 8.287z"/></svg>
+                </div>
+                WhatsApp Inquiry
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="max-w-2xl">
               <h2 className="text-2xl font-bold text-white uppercase italic tracking-tight mb-4">
                 Order Your Favorite Treats
