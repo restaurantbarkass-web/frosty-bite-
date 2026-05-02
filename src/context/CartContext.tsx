@@ -10,12 +10,15 @@ interface CartContextType {
   totalItems: number;
   totalPrice: number;
   subtotal: number;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const addToCart = (item: FoodItem) => {
     setCart(prev => {
@@ -29,6 +32,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [...prev, { ...item, quantity: 1 }];
     });
+    // Open cart when item is added
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (id: string) => {
@@ -66,7 +71,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       clearCart, 
       totalItems, 
       totalPrice,
-      subtotal
+      subtotal,
+      isCartOpen,
+      setIsCartOpen
     }}>
       {children}
     </CartContext.Provider>

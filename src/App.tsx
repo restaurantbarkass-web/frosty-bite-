@@ -38,8 +38,10 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
+import { useCart } from './context/CartContext';
+
 function AppContent() {
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { isCartOpen, setIsCartOpen } = useCart();
   const [isSearching, setIsSearching] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
@@ -86,6 +88,12 @@ function AppContent() {
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
+  
+  // Sidebar should be available on almost all pages
+  const showCartSidebar = !isAdminPage && !isAuthPage;
+  // Navbar should be available on home and others, but maybe not auth/admin
+  const showNavbar = !isAdminPage && !isAuthPage && !isProductPage;
+  // Bottom nav and footer have their own hiding rules
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage;
 
   const handleSplashComplete = useCallback(() => {
@@ -112,8 +120,8 @@ function AppContent() {
         )}
       </AnimatePresence>
 
-      {!hideNavFooter && <Navbar onCartClick={() => setIsCartOpen(true)} />}
-      {!hideNavFooter && <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />}
+      {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} />}
+      {showCartSidebar && <CartSidebar />}
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       
       <main className={cn(

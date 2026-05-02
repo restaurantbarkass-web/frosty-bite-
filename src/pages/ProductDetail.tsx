@@ -24,7 +24,7 @@ import { ImageZoom } from '../components/ImageZoom';
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addToCart, totalItems } = useCart();
+  const { addToCart, totalItems, setIsCartOpen } = useCart();
   const { user } = useAuth();
   const { isOrderingOpen } = useAppConfig();
   
@@ -35,7 +35,6 @@ const ProductDetail: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews' | 'ingredients'>('description');
-  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     const fetchWishlistStatus = async () => {
@@ -301,7 +300,6 @@ const ProductDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white pb-32">
-      <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       
       {/* Header Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex items-center justify-between pointer-events-none">
