@@ -33,10 +33,12 @@ async function startServer() {
     });
   } else {
     // In production, serve from dist directory
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = fs.existsSync(path.join(__dirname, 'index.html')) 
+      ? __dirname 
+      : path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     
-    // SPA Fallback for production: send index.html for any unknown routes
+    // SPA Fallback for production
     app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
