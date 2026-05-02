@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
@@ -48,20 +49,42 @@ export const Dashboard: React.FC = () => {
       localStorage.setItem(configCacheKey, JSON.stringify(data));
     });
 
-    const q = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'desc'),
-      limit(20)
-    );
+    const fetchRecentOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        if (error) throw error;
+        if (data) {
+          setRecentOrders(data as Order[]);
+          setLoadingOrders(false);
+          localStorage.setItem(ordersCacheKey, JSON.stringify(data));
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard orders:', err);
+      }
+    };
 
-    const unsubscribeOrders = safeFirestore.listen(q, (orders: Order[]) => {
-      setRecentOrders(orders);
-      setLoadingOrders(false);
-    }, ordersCacheKey);
+    fetchRecentOrders();
+
+    // Subscribe to new orders
+    const channel = supabase
+      .channel('dashboard_recent_orders')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders' 
+      }, () => {
+        fetchRecentOrders();
+      })
+      .subscribe();
 
     return () => {
       unsubscribeConfig();
-      unsubscribeOrders();
+      supabase.removeChannel(channel);
     };
   }, []);
 

@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { supabase } from '../../supabase';
 import { safeFirestore } from '../../services/firestoreService';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -35,27 +36,43 @@ export const OrdersChart: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'asc'),
-      limit(1000)
-    );
-
-    const unsubscribe = safeFirestore.listen(q, (orders: any[]) => {
-      if (orders) {
-        const ordersByDate = orders.reduce((acc: any, curr: any) => {
-          if (!curr.created_at) return acc;
-          const date = new Date(curr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {});
+    const fetchOrdersData = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('created_at')
+          .order('created_at', { ascending: true })
+          .limit(1000);
         
-        const chartData = Object.entries(ordersByDate).map(([name, orders]) => ({ name, orders }));
-        setData(chartData);
+        if (error) throw error;
+        if (orders) {
+          const ordersByDate = orders.reduce((acc: any, curr: any) => {
+            if (!curr.created_at) return acc;
+            const date = new Date(curr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            acc[date] = (acc[date] || 0) + 1;
+            return acc;
+          }, {});
+          
+          const chartData = Object.entries(ordersByDate).map(([name, orders]) => ({ name, orders }));
+          setData(chartData);
+        }
+      } catch (err) {
+        console.error('Error fetching orders chart data:', err);
       }
-    }, 'orders_chart_cache');
+    };
 
-    return () => unsubscribe();
+    fetchOrdersData();
+
+    const channel = supabase
+      .channel('orders_chart_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrdersData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (
@@ -116,34 +133,50 @@ export const PopularItemsChart: React.FC = () => {
   const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899'];
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      limit(500)
-    );
-
-    const unsubscribe = safeFirestore.listen(q, (orders: any[]) => {
-      if (orders) {
-        const itemCounts: any = {};
+    const fetchPopularData = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('items')
+          .limit(500);
         
-        orders.forEach((order: any) => {
-          if (order.items) {
-            order.items.forEach((item: any) => {
-              const name = typeof item === 'string' ? item : (item.name || 'Unknown');
-              itemCounts[name] = (itemCounts[name] || 0) + 1;
-            });
-          }
-        });
+        if (error) throw error;
+        if (orders) {
+          const itemCounts: any = {};
+          
+          orders.forEach((order: any) => {
+            if (order.items) {
+              order.items.forEach((item: any) => {
+                const name = typeof item === 'string' ? item : (item.name || 'Unknown');
+                itemCounts[name] = (itemCounts[name] || 0) + 1;
+              });
+            }
+          });
 
-        const popularItems = Object.entries(itemCounts)
-          .map(([name, sales]) => ({ name, sales: sales as number }))
-          .sort((a, b) => b.sales - a.sales)
-          .slice(0, 5);
-        
-        setData(popularItems);
+          const popularItems = Object.entries(itemCounts)
+            .map(([name, sales]) => ({ name, sales: sales as number }))
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 5);
+          
+          setData(popularItems);
+        }
+      } catch (err) {
+        console.error('Error fetching popular items data:', err);
       }
-    }, 'popular_items_chart_cache');
+    };
 
-    return () => unsubscribe();
+    fetchPopularData();
+
+    const channel = supabase
+      .channel('popular_items_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchPopularData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (
@@ -182,27 +215,43 @@ export const RevenueChart: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'asc'),
-      limit(1000)
-    );
-
-    const unsubscribe = safeFirestore.listen(q, (orders: any[]) => {
-      if (orders) {
-        const revenueByDate = orders.reduce((acc: any, curr: any) => {
-          if (!curr.created_at) return acc;
-          const date = new Date(curr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          acc[date] = (acc[date] || 0) + (curr.total || 0);
-          return acc;
-        }, {});
+    const fetchRevenueData = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('created_at, total')
+          .order('created_at', { ascending: true })
+          .limit(1000);
         
-        const chartData = Object.entries(revenueByDate).map(([name, revenue]) => ({ name, revenue }));
-        setData(chartData);
+        if (error) throw error;
+        if (orders) {
+          const revenueByDate = orders.reduce((acc: any, curr: any) => {
+            if (!curr.created_at) return acc;
+            const date = new Date(curr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            acc[date] = (acc[date] || 0) + (curr.total || 0);
+            return acc;
+          }, {});
+          
+          const chartData = Object.entries(revenueByDate).map(([name, revenue]) => ({ name, revenue }));
+          setData(chartData);
+        }
+      } catch (err) {
+        console.error('Error fetching revenue chart data:', err);
       }
-    }, 'revenue_chart_cache');
+    };
 
-    return () => unsubscribe();
+    fetchRevenueData();
+
+    const channel = supabase
+      .channel('revenue_chart_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchRevenueData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (

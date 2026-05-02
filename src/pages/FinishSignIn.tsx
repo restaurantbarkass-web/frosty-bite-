@@ -26,7 +26,7 @@ export const FinishSignIn: React.FC = () => {
             window.localStorage.removeItem('emailForSignIn');
             
             if (result.user) {
-              await authService.syncUserWithFirestore(result.user);
+              await authService.syncUserWithDatabase(result.user);
               setStatus('success');
               setTimeout(() => {
                 navigate('/', { replace: true });

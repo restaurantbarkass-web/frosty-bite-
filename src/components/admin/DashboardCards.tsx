@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 interface CardProps {
   title: string;
@@ -80,37 +81,45 @@ export const DashboardCards: React.FC = () => {
   };
 
   useEffect(() => {
-    // Listen to orders
-    const qOrders = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'desc'),
-      limit(1000)
-    );
+    const fetchDashboardStats = async () => {
+      try {
+        // Fetch orders for stats
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        
+        if (ordersError) throw ordersError;
+        if (orders) processOrders(orders);
 
-    const unsubscribeOrders = safeFirestore.listen(
-      qOrders,
-      (orders: any[]) => {
-        if (orders) {
-          processOrders(orders);
-        }
-      },
-      'dashboard_stats_orders_cache'
-    );
+        // Fetch users count
+        const { data: users, error: usersError } = await supabase
+          .from('users')
+          .select('id');
+        
+        if (usersError) throw usersError;
+        if (users) setStats(prev => ({ ...prev, totalCustomers: users.length }));
+      } catch (err) {
+        console.error('Error fetching dashboard stats from Supabase:', err);
+      }
+    };
 
-    // Listen to users/customers
-    const unsubscribeUsers = safeFirestore.listen(
-      collection(db, 'users'),
-      (users: any[]) => {
-        if (users) {
-          setStats(prev => ({ ...prev, totalCustomers: users.length }));
-        }
-      },
-      'dashboard_stats_users_cache'
-    );
+    fetchDashboardStats();
+
+    // Real-time updates
+    const ordersChannel = supabase
+      .channel('dashboard_stats_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchDashboardStats();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        fetchDashboardStats();
+      })
+      .subscribe();
 
     return () => {
-      unsubscribeOrders();
-      unsubscribeUsers();
+      supabase.removeChannel(ordersChannel);
     };
   }, []);
 

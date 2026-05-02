@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
-import { collection, query, where, orderBy, deleteDoc, doc } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
+import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,45 +22,53 @@ const Orders: React.FC = () => {
     if (!user) return;
 
     const cacheKey = `orders_cache_${user.uid}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
+    
+    const fetchOrders = async () => {
       try {
-        const parsed = JSON.parse(cached);
-        const data = parsed.data || parsed;
-        if (Array.isArray(data)) {
-          setOrders(data);
-          setLoading(false);
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', user.uid)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        if (data) {
+          setOrders(data as Order[]);
+          localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
         }
-      } catch (e) {}
-    }
-
-    const q = query(
-      collection(db, 'orders'),
-      where('user_id', '==', user.uid),
-      orderBy('created_at', 'desc')
-    );
-
-    const unsubscribe = safeFirestore.listen(q, (ordersData: Order[]) => {
-      if (!ordersData) return;
-      setOrders(ordersData);
-      
-      // Cleanup: Auto-delete pending orders older than 1 hour
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-      
-      ordersData.forEach(order => {
-        if (order.created_at && order.status === 'pending') {
-          const createdAt = new Date(order.created_at);
-          if (createdAt < oneHourAgo) {
-             deleteDoc(doc(db, 'orders', order.id)).catch(err => console.error('Failed to auto-delete stale order:', err));
-          }
+      } catch (error) {
+        console.error('Error fetching orders from Supabase:', error);
+        
+        // Fallback to cache
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setOrders(parsed.data || parsed);
         }
-      });
-      
-      setLoading(false);
-    }, cacheKey);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchOrders();
+
+    // Set up real-time subscription for order status updates
+    const channel = supabase
+      .channel(`user_orders_${user.uid}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `user_id=eq.${user.uid}`
+      }, (payload) => {
+        setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const handleReorderItem = (e: React.MouseEvent, item: any) => {

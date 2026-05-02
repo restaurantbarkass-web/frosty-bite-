@@ -26,7 +26,8 @@ import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, updateDoc, increment, limit } from 'firebase/firestore';
+import { collection, serverTimestamp, query, where, getDocs, doc, updateDoc, increment, limit } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -226,7 +227,9 @@ export const Checkout: React.FC = () => {
 
     setIsOrdering(true);
     try {
+      const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
       const orderData = {
+        id: orderId,
         user_id: user?.uid || 'guest',
         items: cart.map(item => ({
           id: item.id,
@@ -249,18 +252,15 @@ export const Checkout: React.FC = () => {
         created_at: new Date().toISOString(),
       };
 
-      let docRef;
-      try {
-        docRef = await addDoc(collection(db, 'orders'), orderData);
-      } catch (err: any) {
-        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
-          toast.error('Database limit reached. We are currently unable to accept new orders.');
-          setIsOrdering(false);
-          return;
-        }
-        throw err;
+      // Save to Supabase
+      const { error: supabaseError } = await supabase
+        .from('orders')
+        .insert(orderData);
+
+      if (supabaseError) {
+        console.error('Supabase order creation failed:', supabaseError);
+        throw new Error('Failed to create order in Supabase');
       }
-      const orderId = docRef.id;
 
       // Increment coupon usage count if applied
       if (appliedCoupon?.id) {

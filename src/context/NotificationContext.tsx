@@ -4,6 +4,7 @@ import { collection, query, where, orderBy, limit, addDoc, updateDoc, doc, getDo
 import { safeFirestore } from '../services/firestoreService';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
+import { supabase } from '../supabase';
 
 export interface Notification {
   id: string;
@@ -62,15 +63,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Admin new order monitor
     let unsubAdminOrders: (() => void) | null = null;
     if (isAdmin || role === 'admin') {
-      const qOrders = query(
-        collection(db, 'orders'),
-        orderBy('created_at', 'desc'),
-        limit(1)
-      );
-
-      unsubAdminOrders = safeFirestore.listen(qOrders, (orders: any[]) => {
-        if (orders.length > 0) {
-          const latestOrder = orders[0];
+      const channel = supabase
+        .channel('admin_order_monitor')
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'orders' 
+        }, (payload) => {
+          const latestOrder = payload.new as any;
           
           if (lastOrderIdRef.current && lastOrderIdRef.current !== latestOrder.id) {
             // New order received!
@@ -92,8 +92,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
           }
           lastOrderIdRef.current = latestOrder.id;
-        }
-      }, 'admin_global_monitor');
+        })
+        .subscribe();
+
+      unsubAdminOrders = () => {
+        supabase.removeChannel(channel);
+      };
+      
+      // Seed the initial lastOrderIdRef
+      supabase
+        .from('orders')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            lastOrderIdRef.current = data[0].id;
+          }
+        });
     }
 
     return () => {

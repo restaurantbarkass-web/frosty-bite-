@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bike, Phone, MapPin, Star, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db } from '../../firebase';
-import { collection, query } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 interface Rider {
   id: string;
@@ -21,13 +19,45 @@ export const RiderPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, 'riders'));
-    const unsubscribe = safeFirestore.listen(q, (data: Rider[]) => {
-      setRiders(data);
-      setLoading(false);
-    }, 'riders_panel_cache');
+    const fetchRiders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('riders')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        if (data) setRiders(data as Rider[]);
+      } catch (error) {
+        console.error('Error fetching riders from Supabase:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchRiders();
+
+    // Subscribe to rider changes
+    const channel = supabase
+      .channel('riders_panel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'riders' 
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setRiders(prev => [...prev, payload.new as Rider].sort((a, b) => a.name.localeCompare(b.name)));
+        } else if (payload.eventType === 'UPDATE') {
+          setRiders(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
+        } else if (payload.eventType === 'DELETE') {
+          setRiders(prev => prev.filter(r => r.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const onlineCount = riders.filter(r => r.status === 'online').length;

@@ -3,9 +3,7 @@ import { OrdersTable } from '../../components/admin/OrdersTable';
 import { Filter, Search, Download, Calendar, Clock, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 import { Order } from '../../types';
 
@@ -26,36 +24,68 @@ export const Orders: React.FC = () => {
   });
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'desc'),
-      limit(200)
-    );
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200);
 
-    const unsubscribe = safeFirestore.listen(q, (ordersData: Order[]) => {
-      if (ordersData) {
-        setAllOrders(ordersData);
+        if (error) throw error;
         
-        const nowTs = new Date().getTime();
-        const twentyFourHoursAgo = nowTs - (24 * 60 * 60 * 1000);
-        const last24hOrders = ordersData.filter(o => {
-          const ca = o.created_at;
-          const d = ca ? new Date(ca) : null;
-          return d && d.getTime() >= twentyFourHoursAgo;
-        });
-
-        setStats({
-          pending: last24hOrders.filter(o => o.status === 'pending').length,
-          confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
-          preparing: last24hOrders.filter(o => o.status === 'preparing').length,
-          out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
-          delivered: last24hOrders.filter(o => o.status === 'delivered').length,
-        });
+        if (data) {
+          setAllOrders(data as Order[]);
+          calculateStats(data as Order[]);
+        }
+      } catch (error) {
+        console.error('Error fetching admin orders from Supabase:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 'admin_orders_cache');
+    };
 
-    return () => unsubscribe();
+    const calculateStats = (ordersData: Order[]) => {
+      const nowTs = new Date().getTime();
+      const twentyFourHoursAgo = nowTs - (24 * 60 * 60 * 1000);
+      const last24hOrders = ordersData.filter(o => {
+        const ca = o.created_at;
+        const d = ca ? new Date(ca) : null;
+        return d && d.getTime() >= twentyFourHoursAgo;
+      });
+
+      setStats({
+        pending: last24hOrders.filter(o => o.status === 'pending').length,
+        confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
+        preparing: last24hOrders.filter(o => o.status === 'preparing').length,
+        out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
+        delivered: last24hOrders.filter(o => o.status === 'delivered').length,
+      });
+    };
+
+    fetchOrders();
+
+    // Set up real-time subscription for admin orders
+    const channel = supabase
+      .channel('admin_orders_all')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders' 
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setAllOrders(prev => [payload.new as Order, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setAllOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+        } else if (payload.eventType === 'DELETE') {
+          setAllOrders(prev => prev.filter(o => o.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredOrders = allOrders.filter(order => {

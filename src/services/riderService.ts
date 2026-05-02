@@ -1,20 +1,40 @@
-import { db } from '../firebase';
-import { collection, query, where, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { safeFirestore } from './firestoreService';
+import { supabase } from '../supabase';
 import { sendOTP } from '../utils/whatsapp';
 
 export const riderService = {
   // Listen for assigned orders
   subscribeToAssignedOrders: (riderId: string, callback: (orders: any[]) => void) => {
-    const q = query(
-      collection(db, 'orders'),
-      where('rider_id', '==', riderId),
-      where('status', 'in', ['assigned', 'preparing', 'out_for_delivery'])
-    );
+    // Initial fetch
+    supabase
+      .from('orders')
+      .select('*')
+      .eq('rider_id', riderId)
+      .in('status', ['assigned', 'preparing', 'out_for_delivery'])
+      .then(({ data }) => {
+        if (data) callback(data);
+      });
 
-    return safeFirestore.listen(q, (orders: any[]) => {
-      callback(orders);
-    }, `rider_orders_${riderId}`);
+    // Real-time subscribe
+    const channel = supabase
+      .channel(`rider_orders_${riderId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `rider_id=eq.${riderId}`
+      }, async () => {
+        const { data } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('rider_id', riderId)
+          .in('status', ['assigned', 'preparing', 'out_for_delivery']);
+        if (data) callback(data);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   },
 
   // Update order status
@@ -30,34 +50,60 @@ export const riderService = {
       updateData.delivery_otp = otp;
 
       // Fetch order to get customer phone
-      const orderData = await safeFirestore.getDocument<any>(doc(db, 'orders', orderId), `order_${orderId}`);
+      const { data: orderData } = await supabase
+        .from('orders')
+        .select('phone')
+        .eq('id', orderId)
+        .single();
       
       if (orderData?.phone) {
         sendOTP(orderData.phone, otp);
       }
     }
 
-    await updateDoc(doc(db, 'orders', orderId), updateData);
+    const { error } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId);
+    
+    if (error) throw error;
   },
 
   // Update rider status
   updateRiderStatus: async (riderId: string, status: 'online' | 'offline' | 'busy') => {
-    await updateDoc(doc(db, 'riders', riderId), { 
-      status,
-      last_active: new Date().toISOString()
-    });
+    const { error } = await supabase
+      .from('riders')
+      .update({ 
+        status,
+        last_active: new Date().toISOString()
+      })
+      .eq('id', riderId);
+    
+    if (error) throw error;
   },
 
   // Update rider location
   updateRiderLocation: async (riderId: string, lat: number, lng: number) => {
-    await updateDoc(doc(db, 'riders', riderId), { 
-      location: { lat, lng },
-      last_location_update: new Date().toISOString()
-    });
+    const { error } = await supabase
+      .from('riders')
+      .update({ 
+        location: { lat, lng },
+        last_location_update: new Date().toISOString()
+      })
+      .eq('id', riderId);
+    
+    if (error) throw error;
   },
 
   // Fetch rider earnings/stats
   getRiderStats: async (riderId: string) => {
-    return await safeFirestore.getDocument<any>(doc(db, 'riders', riderId), `rider_stats_${riderId}`);
+    const { data, error } = await supabase
+      .from('riders')
+      .select('*')
+      .eq('id', riderId)
+      .single();
+    
+    if (error) throw error;
+    return data;
   }
 };

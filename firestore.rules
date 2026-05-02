@@ -60,7 +60,7 @@ service cloud.firestore {
              data.email is string && data.email.size() <= 256 &&
              data.full_name is string && data.full_name.size() <= 100 &&
              data.role in ['customer', 'admin', 'rider'] &&
-             (data.updated_at == request.time || data.updated_at is string);
+             (data.updated_at == request.time || data.updated_at is timestamp || data.updated_at is string);
     }
 
     function isValidMenuItem(data) {

@@ -1,12 +1,9 @@
 import { FoodItem } from './types';
 
 export const ADMIN_EMAILS = [
-  "admin1@gmail.com",
-  "owner@frostybite.com",
-  "restaurantbarkass@gmail.com", // Keeping the original bootstrap admin
+  "sayedazainabali76@gmail.com", // Primary Admin
   "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
+  "restaurantbarkass@gmail.com"
 ];
 
 export const RIDER_EMAILS = [

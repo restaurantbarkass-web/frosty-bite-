@@ -5,6 +5,7 @@ import { CATEGORIES } from '../../constants';
 import { cn } from '../../lib/utils';
 import { uploadImage } from '../../utils/upload';
 import toast from 'react-hot-toast';
+import { supabase } from '../../supabase';
 
 interface MenuItem {
   id: string;
@@ -59,17 +60,15 @@ export const MenuManager: React.FC = () => {
 
   const fetchMenu = async () => {
     try {
-      const res = await fetch("https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?select=*", {
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
-        }
-      });
-      if (res.ok) {
-        const items = await res.json();
-        // Map fields to match our internal MenuItem interface
-        const mappedItems = items.map((item: any) => ({
-          id: item.id || String(Math.random()),
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) throw error;
+      
+      if (data) {
+        const mappedItems = data.map((item: any) => ({
+          id: item.id,
           name: item.name,
           price: item.price,
           image: item.image,
@@ -89,6 +88,18 @@ export const MenuManager: React.FC = () => {
 
   useEffect(() => {
     fetchMenu();
+
+    // Subscribe to menu changes
+    const channel = supabase
+      .channel('menu_mgr_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        fetchMenu();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,29 +134,17 @@ export const MenuManager: React.FC = () => {
         available: formData.available
       };
 
-      let url = "https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products";
-      let method = "POST";
-
       if (editingItem) {
-        url = `${url}?id=eq.${editingItem.id}`;
-        method = "PATCH";
-      }
-
-      // Save to Supabase
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Content-Type": "application/json",
-          "Prefer": "return=minimal"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Failed to save to Supabase');
+        const { error } = await supabase
+          .from('products')
+          .update(body)
+          .eq('id', editingItem.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('products')
+          .insert([body]);
+        if (error) throw error;
       }
 
       toast.success(editingItem ? "Product updated" : "Product added", { id: loadingToast });
@@ -164,17 +163,12 @@ export const MenuManager: React.FC = () => {
   const handleDelete = async (id: string) => {
     const loadingToast = toast.loading('Deleting product...');
     try {
-      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${id}`, {
-        method: "DELETE",
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
-        }
-      });
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
 
-      if (!res.ok) {
-        throw new Error('Failed to delete from Supabase');
-      }
+      if (error) throw error;
 
       toast.success('Product deleted', { id: loadingToast });
       fetchMenu();
@@ -188,17 +182,12 @@ export const MenuManager: React.FC = () => {
   const toggleAvailability = async (item: MenuItem) => {
     try {
       const newStatus = !item.available;
-      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${item.id}`, {
-        method: "PATCH",
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ available: newStatus })
-      });
+      const { error } = await supabase
+        .from('products')
+        .update({ available: newStatus })
+        .eq('id', item.id);
 
-      if (!res.ok) throw new Error();
+      if (error) throw error;
 
       // Proactively update local state
       setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, available: newStatus } : i));
@@ -212,17 +201,12 @@ export const MenuManager: React.FC = () => {
   const updateStock = async (item: MenuItem, delta: number) => {
     try {
       const newStock = Math.max(0, (item.stock_quantity || 0) + delta);
-      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${item.id}`, {
-        method: "PATCH",
-        headers: {
-          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ stock_quantity: newStock })
-      });
+      const { error } = await supabase
+        .from('products')
+        .update({ stock_quantity: newStock })
+        .eq('id', item.id);
 
-      if (!res.ok) throw new Error();
+      if (error) throw error;
 
       // Proactively update local state
       setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, stock_quantity: newStock } : i));

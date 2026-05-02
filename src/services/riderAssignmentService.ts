@@ -1,7 +1,5 @@
-import { db } from '../firebase';
-import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import { Order, Rider } from '../types';
-import { safeFirestore } from './firestoreService';
 
 /**
  * Calculates the distance between two points using the Haversine formula.
@@ -25,13 +23,20 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 export const assignRider = async (orderId: string, deliveryLocation: { lat: number, lng: number }) => {
   try {
     // 1. Fetch available riders (online)
-    const q = query(collection(db, 'riders'), where('status', '==', 'online'));
-    const availableRiders = await safeFirestore.getCollection<any>(q, 'online_riders_cache', 'riders');
+    const { data: availableRiders, error: fetchError } = await supabase
+      .from('riders')
+      .select('*')
+      .eq('status', 'online');
+    
+    if (fetchError) throw fetchError;
     
     if (!availableRiders || availableRiders.length === 0) {
       console.log('No riders available for order:', orderId);
       // Update order status to pending if not already
-      await updateDoc(doc(db, 'orders', orderId), { status: 'pending' });
+      await supabase
+        .from('orders')
+        .update({ status: 'pending' })
+        .eq('id', orderId);
       return null;
     }
 
@@ -40,16 +45,18 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
     let minDistance = Infinity;
 
     availableRiders.forEach((rider) => {
-      const distance = calculateDistance(
-        rider.location.lat, 
-        rider.location.lng, 
-        deliveryLocation.lat, 
-        deliveryLocation.lng
-      );
-      
-      if (distance < minDistance) {
-        minDistance = distance;
-        bestRider = rider;
+      if (rider.location) {
+        const distance = calculateDistance(
+          rider.location.lat, 
+          rider.location.lng, 
+          deliveryLocation.lat, 
+          deliveryLocation.lng
+        );
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          bestRider = rider;
+        }
       }
     });
 
@@ -57,7 +64,13 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
 
     // 3. Assign rider
     const riderId = bestRider.id;
-    const riderData = await safeFirestore.getDocument<any>(doc(db, 'riders', riderId), `rider_${riderId}`, `riders/${riderId}`);
+    const { data: riderData, error: riderError } = await supabase
+      .from('riders')
+      .select('*')
+      .eq('id', riderId)
+      .single();
+    
+    if (riderError) throw riderError;
     
     if (!riderData || riderData.status !== 'online') {
       console.warn('Rider is no longer online, retrying assignment...');
@@ -65,13 +78,23 @@ export const assignRider = async (orderId: string, deliveryLocation: { lat: numb
     }
 
     // Update Order
-    await updateDoc(doc(db, 'orders', orderId), {
-      rider_id: bestRider.id,
-      status: 'assigned'
-    });
+    const { error: orderUpdateError } = await supabase
+      .from('orders')
+      .update({
+        rider_id: bestRider.id,
+        status: 'assigned'
+      })
+      .eq('id', orderId);
+
+    if (orderUpdateError) throw orderUpdateError;
 
     // Update Rider
-    await updateDoc(doc(db, 'riders', bestRider.id), { status: 'busy' });
+    const { error: riderUpdateError } = await supabase
+      .from('riders')
+      .update({ status: 'busy' })
+      .eq('id', bestRider.id);
+
+    if (riderUpdateError) throw riderUpdateError;
 
     console.log(`Successfully assigned rider ${bestRider.name} to order ${orderId}`);
     return bestRider;

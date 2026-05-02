@@ -6,10 +6,8 @@ import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { getFoodRecommendations } from '../services/geminiService';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import { FoodItem } from '../types';
-import { safeFirestore } from '../services/firestoreService';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
@@ -87,24 +85,23 @@ export const Home: React.FC = () => {
 
     const fetchSupabaseProducts = async () => {
       try {
-        const res = await fetch("https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products", {
-          headers: {
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
-          }
-        });
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
         
-        if (res.ok) {
-          const items = await res.json();
-          const mappedItems = items.map((item: any) => ({
-            id: item.id || String(Math.random()),
+        if (error) throw error;
+        
+        if (data) {
+          const mappedItems = data.map((item: any) => ({
+            id: item.id,
             name: item.name,
             price: item.price,
             image: item.image,
             category: item.category || 'General',
             available: item.available !== undefined ? item.available : true,
             stock_quantity: item.stock_quantity || 0,
-            description: item.description || ''
+            description: item.description || '',
+            rating: item.rating || 5
           }));
           
           console.log(`Loaded ${mappedItems.length} items from Supabase`);
@@ -175,39 +172,57 @@ export const Home: React.FC = () => {
       return;
     }
 
-    const fetchPreviousPurchases = () => {
-      const q = query(
-        collection(db, 'orders'),
-        where('user_id', '==', user.uid),
-        orderBy('created_at', 'desc'),
-        limit(20)
-      );
-
-      return safeFirestore.listen(q, (orders: any[]) => {
-        if (!orders || !Array.isArray(orders)) return;
-        const purchasedItems = new Map<string, FoodItem>();
+    const fetchPreviousPurchases = async () => {
+      try {
+        const { data: orders, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', user.uid)
+          .order('created_at', { ascending: false })
+          .limit(20);
         
-        orders.forEach(order => {
-          if (order && order.items && Array.isArray(order.items)) {
-            order.items.forEach((item: any) => {
-              if (item && item.id && !purchasedItems.has(item.id)) {
-                purchasedItems.set(item.id, {
-                  ...item,
-                  id: item.id
-                });
-              }
-            });
-          }
-        });
+        if (error) throw error;
         
-        setPreviousPurchases(Array.from(purchasedItems.values()).slice(0, 8));
-      }, `prev_purchases_${user.uid}`);
+        if (orders && Array.isArray(orders)) {
+          const purchasedItems = new Map<string, FoodItem>();
+          
+          orders.forEach(order => {
+            if (order && order.items && Array.isArray(order.items)) {
+              order.items.forEach((item: any) => {
+                if (item && item.id && !purchasedItems.has(item.id)) {
+                  purchasedItems.set(item.id, {
+                    ...item,
+                    id: item.id
+                  });
+                }
+              });
+            }
+          });
+          
+          setPreviousPurchases(Array.from(purchasedItems.values()).slice(0, 8));
+        }
+      } catch (error) {
+        console.error('Error fetching previous purchases from Supabase:', error);
+      }
     };
 
-    const unsubscribeOrders = fetchPreviousPurchases();
+    fetchPreviousPurchases();
+    
+    // Subscribe to new orders to update previous favorites
+    const channel = supabase
+      .channel(`user_orders_home_${user.uid}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `user_id=eq.${user.uid}`
+      }, () => {
+        fetchPreviousPurchases();
+      })
+      .subscribe();
 
     return () => {
-      unsubscribeOrders();
+      supabase.removeChannel(channel);
     };
   }, [user]);
 

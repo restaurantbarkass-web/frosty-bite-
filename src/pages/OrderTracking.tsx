@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { db } from '../firebase';
 import { doc, collection, query, where, limit } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import { safeFirestore } from '../services/firestoreService';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order, Rider } from '../types';
@@ -110,20 +111,64 @@ export const OrderTracking: React.FC = () => {
   useEffect(() => {
     if (!orderId) return;
 
-    // Initial load from cache
-    const cacheKey = `order_tracking_cache_${orderId}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
+    const fetchOrderAndRider = async () => {
       try {
-        const parsed = JSON.parse(cached);
-        const data = parsed.data || parsed;
-        if (data && !Array.isArray(data)) {
-          setOrder(data);
-          setLoading(false);
-        }
-      } catch (e) {}
-    }
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
 
+        if (orderError) throw orderError;
+        if (orderData) {
+          setOrder(orderData as Order);
+          if (orderData.rider_id) {
+            const { data: riderData } = await supabase
+              .from('riders')
+              .select('*')
+              .eq('id', orderData.rider_id)
+              .single();
+            if (riderData) setRider(riderData as Rider);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching order/rider:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderAndRider();
+
+    // Subscribe to order changes
+    const orderChannel = supabase
+      .channel(`tracking_order_${orderId}`)
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `id=eq.${orderId}`
+      }, (payload) => {
+        const newOrder = payload.new as Order;
+        setOrder(newOrder);
+        
+        // If rider assigned/changed, we might need to subscribe to rider too
+        if (newOrder.rider_id) {
+          fetchRider(newOrder.rider_id);
+        }
+      })
+      .subscribe();
+
+    const fetchRider = async (riderId: string) => {
+      const { data } = await supabase
+        .from('riders')
+        .select('*')
+        .eq('id', riderId)
+        .single();
+      if (data) setRider(data as Rider);
+    };
+
+    // Review check - keep in Firestore for now or update if reviews moved
     const checkReview = async () => {
       try {
         const q = query(
@@ -134,38 +179,36 @@ export const OrderTracking: React.FC = () => {
         const reviews = await safeFirestore.getCollection<any>(q, `review_check_${orderId}`, 'reviews');
         setHasReviewed(reviews && reviews.length > 0);
       } catch (e: any) {
-        console.error('Error checking review in Firestore:', e);
+        console.error('Error checking review:', e);
       }
     };
-
-    let unsubscribeRider: () => void = () => {};
-
-    const unsubscribeOrder = safeFirestore.listen(doc(db, 'orders', orderId), (orderData) => {
-      if (orderData) {
-        setOrder(orderData as Order);
-        
-        // Fetch rider if assigned
-        if (orderData.rider_id) {
-          unsubscribeRider();
-          unsubscribeRider = safeFirestore.listen(doc(db, 'riders', orderData.rider_id), (riderData) => {
-            if (riderData) {
-              setRider(riderData as Rider);
-            }
-          }, `rider_${orderData.rider_id}`, `riders/${orderData.rider_id}`);
-        }
-        setLoading(false);
-      } else {
-        setLoading(false);
-      }
-    }, cacheKey, `orders/${orderId}`);
-
     checkReview();
 
     return () => {
-      unsubscribeOrder();
-      unsubscribeRider();
+      supabase.removeChannel(orderChannel);
     };
   }, [orderId]);
+
+  // Subscribe to rider location updates if rider exists
+  useEffect(() => {
+    if (!rider?.id) return;
+
+    const riderChannel = supabase
+      .channel(`tracking_rider_${rider.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'riders',
+        filter: `id=eq.${rider.id}`
+      }, (payload) => {
+        setRider(payload.new as Rider);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(riderChannel);
+    };
+  }, [rider?.id]);
 
   // Use a ref-like approach for getRemainingTime to avoid it changing on every render
   const getRemainingTime = React.useCallback(() => {

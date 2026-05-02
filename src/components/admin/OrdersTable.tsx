@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../firebase';
-import { collection, updateDoc, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { safeFirestore, handleFirestoreError, OperationType } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
+import { handleFirestoreError, OperationType } from '../../services/firestoreService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import toast from 'react-hot-toast';
@@ -100,13 +100,41 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       setNotificationPermission(Notification.permission);
     }
 
-    const q = query(collection(db, 'riders'), orderBy('name'));
-    const unsubscribe = safeFirestore.listen(q, (data: Rider[]) => {
-      setRiders(data);
-      setInternalLoading(false);
-    }, 'riders_cache');
+    const fetchRiders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('riders')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        if (data) setRiders(data as Rider[]);
+      } catch (error) {
+        console.error('Error fetching riders from Supabase:', error);
+      } finally {
+        setInternalLoading(false);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchRiders();
+
+    // Subscribe to rider changes
+    const channel = supabase
+      .channel('riders_active')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setRiders(prev => [...prev, payload.new as Rider].sort((a, b) => a.name.localeCompare(b.name)));
+        } else if (payload.eventType === 'UPDATE') {
+          setRiders(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
+        } else if (payload.eventType === 'DELETE') {
+          setRiders(prev => prev.filter(r => r.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -273,11 +301,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   const verifyPayment = async (orderId: string) => {
     const loadingToast = toast.loading('Verifying payment...');
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        payment_status: 'paid',
-        status: 'confirmed',
-        updated_at: new Date().toISOString()
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          payment_status: 'paid',
+          status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
 
       const order = orders.find(o => o.id === orderId);
       if (order && order.user_id !== 'guest' && order.user_id) {
@@ -303,13 +336,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   const rejectPayment = async (orderId: string) => {
     const loadingToast = toast.loading('Rejecting payment proof...');
     try {
-      await updateDoc(doc(db, 'orders', orderId), {
-        payment_status: 'pending',
-        status: 'cancelled',
-        utr: null,
-        notes: "Admin rejected payment proof (UTR). Please contact support or re-order.",
-        updated_at: new Date().toISOString()
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          payment_status: 'pending',
+          status: 'cancelled',
+          utr: null,
+          notes: "Admin rejected payment proof (UTR). Please contact support or re-order.",
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
 
       const order = orders.find(o => o.id === orderId);
       if (order && order.user_id !== 'guest' && order.user_id) {
@@ -349,7 +387,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         updateData.estimated_delivery_time = 30;
       }
 
-      await updateDoc(doc(db, 'orders', id), updateData);
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
 
       if (order && order.user_id !== 'guest' && order.user_id) {
         const statusMessages: Record<string, string> = {
@@ -385,14 +428,19 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     const loadingToast = toast.loading('Saving changes...');
 
     try {
-      await updateDoc(doc(db, 'orders', editingOrder.id), {
-        customer_name: editFormData.customer_name,
-        phone: editFormData.phone,
-        address: editFormData.address,
-        notes: editFormData.notes,
-        estimated_delivery_time: Number(editFormData.estimated_delivery_time),
-        updated_at: new Date().toISOString()
-      });
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          customer_name: editFormData.customer_name,
+          phone: editFormData.phone,
+          address: editFormData.address,
+          notes: editFormData.notes,
+          estimated_delivery_time: Number(editFormData.estimated_delivery_time),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingOrder.id);
+
+      if (error) throw error;
       
       setEditingOrder(null);
       toast.success('Changes saved!', { id: loadingToast });
@@ -408,7 +456,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   const deleteOrder = async (id: string) => {
     const loadingToast = toast.loading('Deleting order...');
     try {
-      await deleteDoc(doc(db, 'orders', id));
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       
       setDeletingId(null);
       toast.success('Order deleted', { id: loadingToast });
@@ -439,7 +492,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         updateData.estimated_delivery_time = 30;
       }
 
-      await updateDoc(doc(db, 'orders', orderId), updateData);
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId);
+
+      if (error) throw error;
 
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
