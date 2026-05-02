@@ -40,6 +40,7 @@ const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
 import { useCart } from './context/CartContext';
 
+// Forced rebuild for artifact detection
 function AppContent() {
   const { isCartOpen, setIsCartOpen } = useCart();
   const [isSearching, setIsSearching] = useState(false);
@@ -87,14 +88,15 @@ function AppContent() {
 
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
+  const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
   
   // Sidebar should be available on almost all pages
-  const showCartSidebar = !isAdminPage && !isAuthPage;
+  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
   // Navbar should be available on home and others, but maybe not auth/admin
-  const showNavbar = !isAdminPage && !isAuthPage && !isProductPage;
+  const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage;
   // Bottom nav and footer have their own hiding rules
-  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage;
 
   const handleSplashComplete = useCallback(() => {
     sessionStorage.setItem('splash_seen', 'true');
