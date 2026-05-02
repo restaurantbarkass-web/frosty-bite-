@@ -489,20 +489,20 @@ export const MenuManager: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#111] border border-white/10 rounded-[32px] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
+              className="relative w-full max-w-xl bg-[#111] border border-white/10 rounded-[32px] shadow-2xl flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
               
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
-                  <h3 className="text-2xl font-bold text-white">{editingItem ? 'Edit Menu Item' : 'Add New Food Item'}</h3>
+              <div className="relative z-10 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center justify-between p-6 md:p-10 shrink-0">
+                  <h3 className="text-2xl font-bold text-white tracking-tight">{editingItem ? 'Edit Menu Item' : 'Add New Food Item'}</h3>
                   <button onClick={() => setIsAdding(false)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-all">
                     <X size={24} />
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 pb-48 md:pb-10 custom-scrollbar">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 pb-40 md:pb-10">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Item Name</label>
@@ -554,33 +554,21 @@ export const MenuManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Description</label>
-                      <textarea 
-                        value={formData.description}
-                        onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        placeholder="Describe the item..." 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none font-medium placeholder:text-zinc-700" 
-                      />
-                    </div>
-
+                    {/* Image Section Moved Up for Better Accessibility */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">
-                          Visual Identity <span className="text-orange-500">*</span>
-                        </label>
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Visual Identity <span className="text-orange-500">*</span></label>
                         <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md">Required</span>
                       </div>
                       
                       <div className="flex flex-col gap-4">
-                        {/* URL Input */}
                         <div className="relative">
                           <input 
                             type="text" 
                             required
                             value={formData.image}
                             onChange={(e) => setFormData({...formData, image: e.target.value})}
-                            placeholder="Paste Image URL" 
+                            placeholder="Paste direct URL or Upload" 
                             className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
                           />
                           <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700">
@@ -588,9 +576,8 @@ export const MenuManager: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Upload Button */}
                         <label className={cn(
-                          "flex items-center justify-center gap-3 w-full py-5 border-2 border-dashed border-white/10 rounded-[1.5rem] bg-white/[0.02] cursor-pointer hover:bg-white/5 hover:border-orange-500/30 transition-all",
+                          "flex items-center justify-center gap-3 w-full py-5 border-2 border-dashed border-white/10 rounded-[1.5rem] bg-white/[0.02] cursor-pointer hover:bg-white/5 hover:border-orange-500/30 transition-all active:scale-95",
                           uploading && "opacity-50 cursor-not-allowed animate-pulse"
                         )}>
                           {uploading ? (
@@ -601,11 +588,11 @@ export const MenuManager: React.FC = () => {
                           ) : (
                             <>
                               <ImageIcon size={24} className="text-primary" />
-                              <span className="text-xs font-black text-white uppercase tracking-widest">Click to Upload New Image</span>
+                              <span className="text-xs font-black text-white uppercase tracking-widest">Upload New Food Image</span>
                             </>
                           )}
                           <input 
-                            id="image"
+                            id="image-upload-new"
                             type="file" 
                             accept="image/*"
                             onChange={handleImageUpload}
@@ -614,18 +601,17 @@ export const MenuManager: React.FC = () => {
                           />
                         </label>
 
-                        {/* Preview */}
                         {formData.image && (
-                          <div className="mt-2 flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                            <div className="h-20 w-20 rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
+                          <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <div className="h-20 w-20 rounded-xl overflow-hidden border border-white/10 shrink-0">
                               <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest truncate">{formData.image}</p>
+                               <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest truncate">{formData.image}</p>
                                <button 
                                  type="button"
                                  onClick={() => setFormData(p => ({ ...p, image: '' }))}
-                                 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 hover:text-rose-400 transition-colors"
+                                 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1"
                                >
                                  Remove
                                </button>
@@ -633,6 +619,16 @@ export const MenuManager: React.FC = () => {
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Description</label>
+                      <textarea 
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        placeholder="Describe the item..." 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none font-medium placeholder:text-zinc-700" 
+                      />
                     </div>
                   </div>
  
