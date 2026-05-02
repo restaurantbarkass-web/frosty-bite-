@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Search, Mail, Phone, Calendar, MapPin, ExternalLink } from 'lucide-react';
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 interface Customer {
   id: string;
@@ -22,18 +20,36 @@ export const Customers: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'users'),
-      orderBy('created_at', 'desc'),
-      limit(500)
-    );
+    const fetchCustomers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        
+        if (error) throw error;
+        if (data) setCustomers(data);
+      } catch (error) {
+        console.error('Error fetching customers from Supabase:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const unsubscribe = safeFirestore.listen(q, (data: Customer[]) => {
-      setCustomers(data);
-      setLoading(false);
-    }, 'admin_customers_cache');
+    fetchCustomers();
 
-    return () => unsubscribe();
+    // Subscribe to user changes
+    const channel = supabase
+      .channel('users_admin_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        fetchCustomers();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredCustomers = customers.filter(c => 

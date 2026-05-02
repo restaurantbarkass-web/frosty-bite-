@@ -13,9 +13,7 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 import { Calendar, Download, FileText, DollarSign, TrendingUp, ShoppingBag } from 'lucide-react';
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 import { Order } from '../../types';
 
@@ -42,29 +40,47 @@ export const Analytics: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'orders'),
-      orderBy('created_at', 'asc'),
-      limit(500)
-    );
+    const fetchOrders = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: true })
+          .limit(1000);
+        
+        if (error) throw error;
+        if (data) {
+          // Filter out UPI/Online orders that haven't submitted a UTR yet and haven't been paid
+          const actionableOrders = data.filter((o: Order) => {
+            if ((o.payment_method === 'upi' || o.payment_method === 'online') && !o.utr && o.payment_status !== 'paid') {
+              return false;
+            }
+            return true;
+          });
 
-    const unsubscribe = safeFirestore.listen(q, (data: Order[]) => {
-      if (data) {
-        // Filter out UPI/Online orders that haven't submitted a UTR yet and haven't been paid
-        const actionableOrders = data.filter(o => {
-          if ((o.payment_method === 'upi' || o.payment_method === 'online') && !o.utr && o.payment_status !== 'paid') {
-            return false;
-          }
-          return true;
-        });
-
-        setOrders(actionableOrders);
-        setFilteredOrders(actionableOrders);
+          setOrders(actionableOrders);
+          setFilteredOrders(actionableOrders);
+        }
+      } catch (error) {
+        console.error('Error fetching orders for analytics from Supabase:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 'admin_analytics_cache');
+    };
 
-    return () => unsubscribe();
+    fetchOrders();
+
+    // Subscribe to order changes for real-time analytics
+    const channel = supabase
+      .channel('analytics_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

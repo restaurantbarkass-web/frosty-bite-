@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
 import { motion } from 'motion/react';
 import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
@@ -142,13 +143,30 @@ export const UPICheckout: React.FC = () => {
         }
       }
 
-      // Firestore update
+      // Supabase update
+      const { error: supabaseError } = await supabase
+        .from('orders')
+        .update({
+          utr: utr,
+          payment_screenshot: screenshot,
+          status: 'pending',
+          payment_status: 'pending_verification',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', state!.orderId);
+
+      if (supabaseError) {
+        console.error('Supabase order update failed:', supabaseError);
+        throw new Error('Failed to update order in Supabase');
+      }
+
+      // Firestore update (for backward compatibility/consistency)
       const orderDocRef = doc(db, 'orders', state!.orderId);
       await updateDoc(orderDocRef, {
         utr: utr,
         payment_screenshot: screenshot,
         status: 'pending', 
-        payment_status: 'pending_verification', // Require admin to check UTR manually
+        payment_status: 'pending_verification', 
         updated_at: new Date().toISOString()
       });
       

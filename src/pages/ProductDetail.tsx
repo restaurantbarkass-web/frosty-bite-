@@ -13,6 +13,7 @@ import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
 import { safeFirestore } from '../services/firestoreService';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
+import { supabase } from '../supabase';
 import toast from 'react-hot-toast';
 import { useAppConfig } from '../hooks/useAppConfig';
 
@@ -60,29 +61,24 @@ const ProductDetail: React.FC = () => {
         let currentProduct: FoodItem | null = null;
         
         // 1. Try to fetch product from Supabase
-        const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${id}`, {
-          headers: {
-            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
-          }
-        });
+        const { data: items, error: supabaseError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id);
 
-        if (res.ok) {
-          const items = await res.json();
-          if (items && items.length > 0) {
-            const item = items[0];
-            currentProduct = {
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              image: item.image,
-              category: item.category || 'General',
-              available: item.available !== undefined ? item.available : true,
-              stock_quantity: item.stock_quantity || 0,
-              description: item.description || '',
-              rating: item.rating || 5
-            };
-          }
+        if (!supabaseError && items && items.length > 0) {
+          const item = items[0];
+          currentProduct = {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            category: item.category || 'General',
+            available: item.available !== undefined ? item.available : true,
+            stock_quantity: item.stock_quantity || 0,
+            description: item.description || '',
+            rating: item.rating || 5
+          };
         }
 
         // 2. Fallback to cache if Supabase fail or not found
@@ -107,15 +103,13 @@ const ProductDetail: React.FC = () => {
           
           // Fetch related items from Supabase
           try {
-            const relRes = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?category=eq.${currentProduct.category}&limit=10`, {
-              headers: {
-                "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
-                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
-              }
-            });
+            const { data: relItems, error: relError } = await supabase
+              .from('products')
+              .select('*')
+              .eq('category', currentProduct.category)
+              .limit(10);
 
-            if (relRes.ok) {
-              const relItems = await relRes.json();
+            if (!relError && relItems) {
               const mappedRel = relItems
                 .filter((item: any) => item.id !== id)
                 .map((item: any) => ({
@@ -126,7 +120,8 @@ const ProductDetail: React.FC = () => {
                   category: item.category || 'General',
                   available: item.available !== undefined ? item.available : true,
                   stock_quantity: item.stock_quantity || 0,
-                  description: item.description || ''
+                  description: item.description || '',
+                  rating: item.rating || 5
                 }))
                 .slice(0, 4);
               setRelatedItems(mappedRel);
