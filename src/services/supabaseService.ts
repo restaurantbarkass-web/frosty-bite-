@@ -3,8 +3,17 @@ import { supabase } from '../supabase';
 export const supabaseService = {
   // Improved error handler
   handleError(error: any) {
-    if (error.code === 'PGRST205') {
+    if (error.code === 'PGRST205' || error.code === '42703' || (error.message && error.message.includes('schema cache'))) {
       console.error('SUPABASE CONFIG ERROR: Database table or column not found. Did you run the SQL script in your Supabase Dashboard?', error);
+    }
+    if (error.code === '22P02' && error.message.includes('uuid')) {
+      console.error('SUPABASE TYPE ERROR: Expected UUID but got a different string format. Your database user_id column likely needs to be changed from UUID to TEXT to support Firebase UIDs.', error);
+    }
+    if (error.code === '42883') {
+      console.error('SUPABASE TYPE MISMATCH: You are trying to compare a Text UID with a UUID column. Please run the SQL migration to change ID columns to TEXT.', error);
+    }
+    if (error.code === '42501') {
+      console.error('SUPABASE RLS ERROR: Row Level Security violation. You need to add a Policy in your Supabase Dashboard to allow this operation on the table.', error);
     }
     return error;
   },

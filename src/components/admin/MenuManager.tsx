@@ -121,7 +121,8 @@ export const MenuManager: React.FC = () => {
       }
 
       if (!imageUrl) {
-        imageUrl = `https://picsum.photos/seed/${formData.name}/800/600`;
+        toast.error("Please provide an image URL or upload an image file.", { id: loadingToast });
+        return;
       }
 
       const body = {
@@ -535,14 +536,18 @@ export const MenuManager: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Image</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-between">
+                      <span>Image <span className="text-red-500">*</span></span>
+                      <span className="text-[10px] text-orange-500/80 font-medium">COMPULSORY FIELD</span>
+                    </label>
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <input 
                           type="text" 
+                          required
                           value={formData.image}
                           onChange={(e) => setFormData({...formData, image: e.target.value})}
-                          placeholder="Image URL or upload below" 
+                          placeholder="Paste Image URL here" 
                           className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
                         />
                       </div>

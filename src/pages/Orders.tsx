@@ -31,7 +31,14 @@ const Orders: React.FC = () => {
           .eq('user_id', user.uid)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === '22P02') {
+            console.warn('Supabase is expecting a UUID but received a Firebase UID. Please update your database schema.');
+            setLoading(false);
+            return;
+          }
+          throw error;
+        }
         
         if (data) {
           setOrders(data as Order[]);

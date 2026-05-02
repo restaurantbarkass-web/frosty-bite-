@@ -173,6 +173,9 @@ export const Home: React.FC = () => {
     }
 
     const fetchPreviousPurchases = async () => {
+      // If the database is misconfigured with UUID columns, sending a Firebase UID will crash the query.
+      // We skip the query if it's not a valid UUID format AND we suspect the DB might be using UUID types.
+      // However, it's better to just try and catch the specific format error.
       try {
         const { data: orders, error } = await supabase
           .from('orders')
@@ -181,7 +184,11 @@ export const Home: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(20);
         
-        if (error) throw error;
+        if (error) {
+          // Silent fail for UUID format errors to prevent console spam for users
+          if (error.code === '22P02') return;
+          throw error;
+        }
         
         if (orders && Array.isArray(orders)) {
           const purchasedItems = new Map<string, FoodItem>();
