@@ -59,30 +59,26 @@ const ProductDetail: React.FC = () => {
       try {
         let currentProduct: FoodItem | null = null;
         
-        // 1. Try to find in cache first to save a read operation
-        const cachedMenu = localStorage.getItem('menu_cache');
-        if (cachedMenu) {
-          try {
-            const parsed = JSON.parse(cachedMenu);
-            const menuItems = (parsed.data || parsed) as FoodItem[];
-            const found = menuItems.find(item => item.id === id);
-            if (found) {
-              currentProduct = found;
-            }
-          } catch (e) {}
-        }
+        // 1. Try to fetch product using safeFirestore which handles both cache and quota
+        currentProduct = await safeFirestore.getDocument<FoodItem>(
+          doc(db, 'menu', id),
+          `product_detail_${id}`,
+          `menu/${id}`
+        );
 
-        // 2. If not in cache, fetch from Firestore
+        // If not found in safeFirestore (which checks its own cache first), 
+        // try the main menu_cache as a secondary fallback
         if (!currentProduct) {
-          try {
-            const docRef = doc(db, 'menu', id);
-            const docSnap = await getDoc(docRef);
-
-            if (docSnap.exists()) {
-              currentProduct = { id: docSnap.id, ...docSnap.data() } as FoodItem;
-            }
-          } catch (dbError: any) {
-            console.error("Firestore error in fetchProduct:", dbError);
+          const cachedMenu = localStorage.getItem('menu_cache');
+          if (cachedMenu) {
+            try {
+              const parsed = JSON.parse(cachedMenu);
+              const menuItems = (parsed.data || parsed) as FoodItem[];
+              const found = menuItems.find(item => item.id === id);
+              if (found) {
+                currentProduct = found;
+              }
+            } catch (e) {}
           }
         }
 

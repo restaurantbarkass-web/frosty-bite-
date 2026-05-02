@@ -33,16 +33,32 @@ if (typeof window !== 'undefined') {
 
 // Add listener to check connection
 const testConnection = async () => {
+  if (typeof window !== 'undefined') {
+    const quotaStatus = localStorage.getItem('firestore_quota_status');
+    if (quotaStatus) {
+      try {
+        const { exceeded, time } = JSON.parse(quotaStatus);
+        if (exceeded && Date.now() - time < 1000 * 60 * 15) {
+          console.warn('Skipping connection test: Database quota exceeded.');
+          return;
+        }
+      } catch (e) {}
+    }
+  }
+
   try {
     // Only check if not already known to be in quota exceeded state
     await getDocFromServer(doc(db, '_connection_test_', 'ping'));
   } catch (error: any) {
-    if (error.message?.includes('offline')) {
+    if (error.code === 'resource-exhausted' || error.message?.includes('Quota')) {
+      console.warn('Connection test failed: Quota reached.');
+    } else if (error.message?.includes('offline')) {
       console.warn('Firestore is operating in offline mode.');
     }
   }
 };
-testConnection();
+// Delay connection test slightly to let persistence settle
+setTimeout(testConnection, 1000);
 
 export const messaging = typeof window !== 'undefined' ? (() => {
   try {

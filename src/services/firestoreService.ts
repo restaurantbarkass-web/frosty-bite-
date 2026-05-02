@@ -37,13 +37,31 @@ export interface FirestoreErrorInfo {
   }
 }
 
-export let isQuotaExceeded = false;
-let quotaExceededTime = 0;
-const QUOTA_COOLDOWN = 1000 * 60 * 15; // 15 minute cooldown before trying network again
+// Persistence for quota state to avoid repeated network failures across refreshes
+const QUOTA_STORAGE_KEY = 'firestore_quota_status';
+const QUOTA_COOLDOWN = 1000 * 60 * 15; // 15 minute cooldown
+
+const getPersistedQuota = () => {
+  try {
+    const stored = localStorage.getItem(QUOTA_STORAGE_KEY);
+    if (stored) {
+      const { exceeded, time } = JSON.parse(stored);
+      if (exceeded && Date.now() - time < QUOTA_COOLDOWN) {
+        return { exceeded: true, time };
+      }
+    }
+  } catch (e) {}
+  return { exceeded: false, time: 0 };
+};
+
+const persistedQuota = getPersistedQuota();
+export let isQuotaExceeded = persistedQuota.exceeded;
+let quotaExceededTime = persistedQuota.time;
 
 function checkQuotaState() {
   if (isQuotaExceeded && Date.now() - quotaExceededTime > QUOTA_COOLDOWN) {
     isQuotaExceeded = false;
+    localStorage.removeItem(QUOTA_STORAGE_KEY);
   }
   return isQuotaExceeded;
 }
@@ -55,6 +73,10 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   if (isQuotaError) {
     isQuotaExceeded = true;
     quotaExceededTime = Date.now();
+    localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ 
+      exceeded: true, 
+      time: quotaExceededTime 
+    }));
     window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
   }
 
@@ -145,8 +167,11 @@ export const safeFirestore = {
         handleFirestoreError(error, OperationType.LIST, path || cacheKey);
       } else if (isQuotaError) {
         isQuotaExceeded = true;
+        quotaExceededTime = Date.now();
+        localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ exceeded: true, time: quotaExceededTime }));
         window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
-        console.error('Firestore Quota Exceeded for Collection. Falling back to cache.');
+        // log as warn instead of error to reduce noise for expected fallback
+        console.warn('Firestore Quota Exceeded for Collection. Falling back to cache.');
       }
       
       console.warn(`Firestore fetch failed for ${cacheKey}, checking cache.`, error.message);
@@ -214,8 +239,11 @@ export const safeFirestore = {
         handleFirestoreError(error, OperationType.GET, path || cacheKey);
       } else if (isQuotaError) {
         isQuotaExceeded = true;
+        quotaExceededTime = Date.now();
+        localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ exceeded: true, time: quotaExceededTime }));
         window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
-        console.error('Firestore Quota Exceeded for Document. Falling back to cache.');
+        // log as warn instead of error to reduce noise for expected fallback
+        console.warn('Firestore Quota Exceeded for Document. Falling back to cache.');
       }
 
       console.warn(`Firestore document fetch failed for ${cacheKey}, checking cache.`, error.message);
@@ -302,8 +330,10 @@ export const safeFirestore = {
         } else if (isQuotaError) {
           isQuotaExceeded = true;
           quotaExceededTime = Date.now();
+          localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ exceeded: true, time: quotaExceededTime }));
           window.dispatchEvent(new CustomEvent('firestore-quota-exceeded'));
-          console.error('Firestore Quota Exceeded for Listener. Falling back to cache.');
+          // log as warn instead of error to reduce noise for expected fallback
+          console.warn('Firestore Quota Exceeded for Listener. Falling back to cache.');
         }
 
         console.warn(`Firestore listener error for ${cacheKey || 'unknown'}:`, error.message);

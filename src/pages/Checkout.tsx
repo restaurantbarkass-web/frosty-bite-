@@ -33,7 +33,7 @@ import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useNotifications } from '../context/NotificationContext';
-import { handleFirestoreError, OperationType } from '../services/firestoreService';
+import { handleFirestoreError, OperationType, safeFirestore } from '../services/firestoreService';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -96,26 +96,14 @@ export const Checkout: React.FC = () => {
         where('status', '==', 'active'),
         limit(1)
       );
-      let snapshot;
-      try {
-        snapshot = await getDocs(q);
-      } catch (err: any) {
-        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
-          toast.error('Database limit reached. Coupons are temporarily unavailable.');
-          setIsApplyingCoupon(false);
-          return;
-        }
-        throw err;
-      }
-      
-      if (snapshot.empty) {
+      const coupons = await safeFirestore.getCollection<any>(q, `coupon_check_${code}`, 'coupons');
+      if (coupons.length === 0) {
         toast.error('Invalid or expired coupon code');
         setIsApplyingCoupon(false);
         return;
       }
-
-      const couponDoc = snapshot.docs[0];
-      const couponData = couponDoc.data();
+      const couponData = coupons[0];
+      const couponId = couponData.id;
       
       // Validate expiry
       const expiryDateValue = new Date(couponData.expiry_date);
@@ -143,7 +131,7 @@ export const Checkout: React.FC = () => {
 
       // If all checks pass
       setAppliedCoupon({ 
-        id: couponDoc.id,
+        id: couponId,
         code: couponData.code, 
         value: couponData.value,
         type: couponData.type

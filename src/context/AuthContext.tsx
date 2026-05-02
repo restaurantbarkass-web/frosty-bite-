@@ -3,6 +3,7 @@ import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
+import { safeFirestore } from '../services/firestoreService';
 
 type UserRole = 'customer' | 'admin' | 'rider';
 
@@ -62,13 +63,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchRole = async (currentUser: User) => {
       try {
-        const { doc, getDoc } = await import('firebase/firestore');
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        const { doc } = await import('firebase/firestore');
+        const userDoc = await safeFirestore.getDocument<any>(
+          doc(db, 'users', currentUser.uid),
+          `user_role_${currentUser.uid}`,
+          `users/${currentUser.uid}`
+        );
         
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.role) {
-            setRole(userData.role as UserRole);
+        if (userDoc) {
+          if (userDoc.role) {
+            setRole(userDoc.role as UserRole);
           } else {
             setRole(getRoleFromEmail(currentUser.email) as UserRole);
           }

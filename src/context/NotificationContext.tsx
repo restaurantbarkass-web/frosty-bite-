@@ -123,20 +123,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         where('read', '==', false)
       );
       
-      let querySnapshot;
-      try {
-        querySnapshot = await getDocs(q);
-      } catch (err: any) {
-        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
-          console.warn('Notification update restricted due to database quota');
-          return;
-        }
-        throw err;
-      }
+      const unreadDocs = await safeFirestore.getCollection<Notification>(q, `unread_notifs_${user.uid}`, 'notifications');
+      
+      if (unreadDocs.length === 0) return;
       
       const batch = writeBatch(db);
-      querySnapshot.docs.forEach((d) => {
-        batch.update(d.ref, { read: true });
+      unreadDocs.forEach((d) => {
+        batch.update(doc(db, 'notifications', d.id), { read: true });
       });
       await batch.commit();
       

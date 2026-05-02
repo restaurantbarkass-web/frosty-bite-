@@ -29,7 +29,7 @@ import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useNotifications } from '../context/NotificationContext';
-import { handleFirestoreError, OperationType } from '../services/firestoreService';
+import { handleFirestoreError, OperationType, safeFirestore } from '../services/firestoreService';
 
 const PAYMENT_EXPIRY_SECONDS = 600;
 const UPI_ID = "7735800239@ibl";
@@ -129,25 +129,17 @@ export const UPICheckout: React.FC = () => {
         collection(db, 'orders'),
         where('utr', '==', utr)
       );
-      let querySnapshot;
-      try {
-        querySnapshot = await getDocs(q);
-      } catch (err: any) {
-        if (err.code === 'resource-exhausted' || err.message?.includes('Quota')) {
-          toast.error('Database limit reached. Verification is currently unavailable.');
+      
+      const duplicateOrders = await safeFirestore.getCollection<any>(q, `utr_check_${utr}`, 'orders');
+      
+      if (duplicateOrders.length > 0) {
+        const dupOrder = duplicateOrders[0];
+        // Only error if it's a DIFFERENT order than the current one
+        if (duplicateOrders.some(d => d.id !== state!.orderId)) {
+          toast.error(`This UTR has already been used for an order of ₹${dupOrder.total}. Please check again.`);
           setIsVerifying(false);
           return;
         }
-        throw err;
-      }
-      
-      const duplicateOrders = querySnapshot.docs.filter(dock => dock.id !== state!.orderId);
-      
-      if (duplicateOrders.length > 0) {
-        const dupOrder = duplicateOrders[0].data();
-        toast.error(`This UTR has already been used for an order of ₹${dupOrder.total}. Please check again.`);
-        setIsVerifying(false);
-        return;
       }
 
       // Firestore update
