@@ -21,7 +21,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
@@ -232,6 +232,64 @@ export const UPICheckout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <AnimatePresence>
+        {isVerifying && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-12"
+          >
+            <div className="relative">
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [360, 270, 180, 90, 0],
+                  borderRadius: ["20%", "50%", "20%"]
+                }}
+                transition={{ 
+                  duration: 3, 
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                className="w-32 h-32 bg-emerald-500/20 border-2 border-emerald-500/50"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <motion.div
+                  animate={{ 
+                    scale: [0.8, 1.2, 0.8],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <ShieldCheck size={48} className="text-emerald-500" />
+                </motion.div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none"
+              >
+                Verifying <br />
+                <span className="text-emerald-500 italic">Payment</span>
+              </motion.h2>
+              <motion.p 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]"
+              >
+                Validating Transaction Reference...
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-2xl mx-auto px-4 py-8 md:py-16 space-y-8">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-3 bg-white/5 rounded-2xl text-zinc-400 hover:text-primary transition-colors">

@@ -298,7 +298,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     };
   }, [orders, isMuted]);
 
+  const stopAlarm = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  };
+
   const verifyPayment = async (orderId: string) => {
+    stopAlarm();
     const loadingToast = toast.loading('Verifying payment...');
     try {
       const { error } = await supabase
@@ -326,15 +334,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
     } catch (error: any) {
       console.error('Verify payment error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${orderId}`);
-      }
       toast.error(error.message || 'Verification failed', { id: loadingToast });
     }
   };
 
   const rejectPayment = async (orderId: string) => {
-    const loadingToast = toast.loading('Rejecting payment proof...');
+    stopAlarm();
+    const loadingToast = toast.loading('Rejecting order...');
     try {
       const { error } = await supabase
         .from('orders')
@@ -352,25 +358,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       const order = orders.find(o => o.id === orderId);
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
-          title: 'Payment Rejected',
-          message: `Payment proof for order #${orderId.slice(-6).toUpperCase()} was rejected.`,
+          title: 'Order Rejected',
+          message: `Your order #${orderId.slice(-6).toUpperCase()} has been rejected.`,
           type: 'order',
           user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
 
-      toast.success('Payment rejected & Order cancelled', { id: loadingToast });
+      toast.success('Order rejected & cancelled', { id: loadingToast });
     } catch (error: any) {
       console.error('Reject payment error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${orderId}`);
-      }
       toast.error(error.message || 'Rejection failed', { id: loadingToast });
     }
   };
 
   const updateStatus = async (id: string, newStatus: Order['status']) => {
+    if (newStatus === 'confirmed' || newStatus === 'cancelled') {
+      stopAlarm();
+    }
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = orders.find(o => o.id === id);
@@ -415,9 +421,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
     } catch (error: any) {
       console.error('Update status error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${id}`);
-      }
       toast.error(error.message || 'Update failed', { id: loadingToast });
     }
   };
@@ -785,38 +788,47 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                     <div className="flex flex-col gap-2 min-w-[200px]">
                       {order.status === 'pending' && (
                         <div className="flex flex-col gap-2">
-                          {(order.payment_method === 'upi' || order.payment_method === 'online' || order.utr) ? (
+                          {(order.payment_method === 'upi' || order.payment_method === 'online') ? (
                             <div className="flex flex-col gap-2">
-                              {order.payment_screenshot && (
-                                <div className="flex items-center gap-2 mb-1">
-                                  <ImageZoom 
-                                    src={order.payment_screenshot} 
-                                    alt={`Proof: ${order.utr || order.id}`} 
-                                    className="w-12 h-12 object-cover rounded-lg border border-white/10 shadow-lg cursor-zoom-in"
-                                    triggerClassName="w-12 h-12"
-                                  />
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Payment Proof</span>
-                                    <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'Pending'}</span>
+                              {(order.utr || order.payment_screenshot) ? (
+                                <>
+                                  {order.payment_screenshot && (
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <ImageZoom 
+                                        src={order.payment_screenshot} 
+                                        alt={`Proof: ${order.utr || order.id}`} 
+                                        className="w-12 h-12 object-cover rounded-lg border border-white/10 shadow-lg cursor-zoom-in"
+                                        triggerClassName="w-12 h-12"
+                                      />
+                                      <div className="flex flex-col">
+                                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Payment Proof</span>
+                                        <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'Pending'}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <button 
+                                      onClick={() => verifyPayment(order.id)}
+                                      className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                    >
+                                      <CheckCircle2 size={12} />
+                                      Approve Payment
+                                    </button>
+                                    <button 
+                                      onClick={() => rejectPayment(order.id)}
+                                      className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                      title="Reject Payment"
+                                    >
+                                      <X size={12} />
+                                    </button>
                                   </div>
+                                </>
+                              ) : (
+                                <div className="px-4 py-2 bg-white/5 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2">
+                                  <Clock size={12} className="text-amber-500 animate-pulse" />
+                                  <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest italic">Awaiting Payment...</span>
                                 </div>
                               )}
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => verifyPayment(order.id)}
-                                  className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-                                >
-                                  <CheckCircle2 size={12} />
-                                  Approve Payment
-                                </button>
-                                <button 
-                                  onClick={() => rejectPayment(order.id)}
-                                  className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
-                                  title="Reject Payment"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </div>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
@@ -1138,37 +1150,51 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
             
             {order.status === 'pending' && (
               <div className="pt-2 space-y-3">
-                {(order.payment_method === 'upi' || order.payment_method === 'online' || order.utr) ? (
+                {(order.payment_method === 'upi' || order.payment_method === 'online') ? (
                   <div className="space-y-3">
-                    {order.payment_screenshot && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
-                          <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'N/A'}</span>
+                    {(order.utr || order.payment_screenshot) ? (
+                      <>
+                        {order.payment_screenshot && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
+                              <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'N/A'}</span>
+                            </div>
+                            <ImageZoom 
+                              src={order.payment_screenshot} 
+                              alt={`Proof: ${order.utr || order.id}`} 
+                              className="w-full h-48 object-cover rounded-2xl border border-white/10"
+                              triggerClassName="w-full h-48"
+                            />
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => verifyPayment(order.id)}
+                            className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                          >
+                            <CheckCircle2 size={16} />
+                            Approve Payment
+                          </button>
+                          <button 
+                            onClick={() => rejectPayment(order.id)}
+                            className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
+                          >
+                            <X size={20} />
+                          </button>
                         </div>
-                        <ImageZoom 
-                          src={order.payment_screenshot} 
-                          alt={`Proof: ${order.utr || order.id}`} 
-                          className="w-full h-48 object-cover rounded-2xl border border-white/10"
-                          triggerClassName="w-full h-48"
-                        />
+                      </>
+                    ) : (
+                      <div className="py-8 bg-white/5 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3">
+                         <div className="w-10 h-10 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 animate-pulse">
+                           <Clock size={20} />
+                         </div>
+                         <div className="text-center">
+                           <p className="text-xs font-black text-white uppercase tracking-widest">Awaiting Payment</p>
+                           <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1 italic">Waiting for customer proof</p>
+                         </div>
                       </div>
                     )}
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => verifyPayment(order.id)}
-                        className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                      >
-                        <CheckCircle2 size={16} />
-                        Approve Payment
-                      </button>
-                      <button 
-                        onClick={() => rejectPayment(order.id)}
-                        className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">

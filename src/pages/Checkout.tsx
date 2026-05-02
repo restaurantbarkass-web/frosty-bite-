@@ -404,6 +404,70 @@ export const Checkout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <AnimatePresence>
+        {isOrdering && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-12"
+          >
+            <div className="relative">
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 90, 180, 270, 360],
+                  borderRadius: ["20%", "50%", "20%"]
+                }}
+                transition={{ 
+                  duration: 3, 
+                  repeat: Infinity,
+                  ease: "linear"
+                }}
+                className="w-32 h-32 bg-primary/20 border-2 border-primary/50"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <motion.div
+                  animate={{ scale: [0.8, 1.2, 0.8] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <ShoppingBag size={48} className="text-primary" />
+                </motion.div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none"
+              >
+                Confirming <br />
+                <span className="text-primary italic">Your Cravings</span>
+              </motion.h2>
+              <motion.p 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]"
+              >
+                Connecting to Secure Kitchen...
+              </motion.p>
+            </div>
+            
+            <motion.div 
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 4 }}
+              className="w-64 h-1 bg-white/10 rounded-full overflow-hidden"
+            >
+              <div className="w-full h-full bg-primary origin-left animate-shimmer" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
           <div className="space-y-4">
