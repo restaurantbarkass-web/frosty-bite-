@@ -19,6 +19,7 @@ export interface Order {
   id: string;
   user_id: string;
   customer_name: string;
+  customerName?: string; // Add optional for backward compatibility / mixed casing
   items: any[];
   total: number;
   status: 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';

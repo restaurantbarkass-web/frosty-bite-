@@ -61,7 +61,7 @@ export const Orders: React.FC = () => {
   const filteredOrders = allOrders.filter(order => {
     const matchesSearch = 
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (order.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (order.customer_name || order.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (order.phone && order.phone.includes(searchQuery));
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
@@ -103,7 +103,7 @@ export const Orders: React.FC = () => {
     const rows = filteredOrders.map(order => {
       return [
         order.id,
-        order.customer_name || 'Guest Customer',
+        order.customer_name || order.customerName || 'Guest Customer',
         order.phone || 'N/A',
         order.address || 'N/A',
         order.items.map((i: any) => typeof i === 'string' ? i : i.name).join('; '),

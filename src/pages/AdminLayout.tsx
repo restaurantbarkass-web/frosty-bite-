@@ -11,6 +11,7 @@ const Menu = lazy(() => import('./admin/Menu').then(m => ({ default: m.Menu })))
 const Analytics = lazy(() => import('./admin/Analytics').then(m => ({ default: m.Analytics })));
 const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Coupons })));
 const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
+const Admins = lazy(() => import('./admin/Admins').then(m => ({ default: m.Admins })));
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -43,6 +44,7 @@ export const AdminLayout: React.FC = () => {
       case 'dashboard': return <Dashboard />;
       case 'orders': return <Orders />;
       case 'customers': return <Customers />;
+      case 'admins': return <Admins />;
       case 'menu': return <Menu />;
       case 'coupons': return <Coupons />;
       case 'riders': return (

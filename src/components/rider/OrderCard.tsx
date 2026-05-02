@@ -104,7 +104,7 @@ https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLocation.lat}
             </div>
             <div>
               <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Customer</p>
-              <p className="text-lg font-bold text-white">{order.customerName || 'Anonymous'}</p>
+              <p className="text-lg font-bold text-white">{order.customerName || order.customer_name || 'Anonymous'}</p>
             </div>
           </div>
 

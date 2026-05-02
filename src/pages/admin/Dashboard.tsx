@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DashboardCards } from '../../components/admin/DashboardCards';
-import { OrdersChart, PopularItemsChart } from '../../components/admin/Charts';
+import { OrdersChart, PopularItemsChart, RevenueChart } from '../../components/admin/Charts';
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { motion } from 'motion/react';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
@@ -95,7 +95,7 @@ export const Dashboard: React.FC = () => {
 
     const rows = recentOrders.map(order => [
       order.id,
-      order.customer_name || 'Guest Customer',
+      order.customer_name || order.customerName || 'Guest Customer',
       order.items?.map((i: any) => {
         if (typeof i === 'string') return i;
         return `${i.name || 'Unknown'} (x${i.quantity || 1})`;
@@ -171,7 +171,8 @@ export const Dashboard: React.FC = () => {
 
       <DashboardCards />
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+        <RevenueChart />
         <OrdersChart />
         <PopularItemsChart />
       </div>

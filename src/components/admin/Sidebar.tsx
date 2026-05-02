@@ -11,7 +11,8 @@ import {
   LogOut,
   Tag,
   Palette,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -29,6 +30,7 @@ const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
   { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'admins', label: 'Admins', icon: ShieldCheck },
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'riders', label: 'Riders', icon: Bike },

@@ -79,7 +79,8 @@ const ProductDetail: React.FC = () => {
               category: item.category || 'General',
               available: item.available !== undefined ? item.available : true,
               stock_quantity: item.stock_quantity || 0,
-              description: item.description || ''
+              description: item.description || '',
+              rating: item.rating || 5
             };
           }
         }

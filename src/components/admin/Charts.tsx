@@ -9,7 +9,9 @@ import {
   Bar, 
   Cell,
   AreaChart,
-  Area
+  Area,
+  LineChart,
+  Line
 } from 'recharts';
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
@@ -170,6 +172,81 @@ export const PopularItemsChart: React.FC = () => {
               ))}
             </Bar>
           </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+export const RevenueChart: React.FC = () => {
+  const [data, setData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'orders'),
+      orderBy('created_at', 'asc'),
+      limit(1000)
+    );
+
+    const unsubscribe = safeFirestore.listen(q, (orders: any[]) => {
+      if (orders) {
+        const revenueByDate = orders.reduce((acc: any, curr: any) => {
+          if (!curr.created_at) return acc;
+          const date = new Date(curr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          acc[date] = (acc[date] || 0) + (curr.total || 0);
+          return acc;
+        }, {});
+        
+        const chartData = Object.entries(revenueByDate).map(([name, revenue]) => ({ name, revenue }));
+        setData(chartData);
+      }
+    }, 'revenue_chart_cache');
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px] flex flex-col">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h3 className="text-xl font-bold text-white tracking-tight">Revenue Analysis</h3>
+          <p className="text-sm text-gray-500">Earnings from daily cakes & bakes</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-primary" />
+            <span className="text-xs text-gray-400 font-medium">Revenue (₹)</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 min-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              tickFormatter={(value) => `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Line 
+              type="monotone" 
+              dataKey="revenue" 
+              stroke="#f97316" 
+              strokeWidth={4}
+              dot={{ fill: '#f97316', strokeWidth: 2, r: 4, stroke: '#111' }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              animationDuration={2000}
+            />
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>

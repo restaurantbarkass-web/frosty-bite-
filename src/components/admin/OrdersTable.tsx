@@ -639,11 +639,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-gray-200">
-                        {order.customer_name || 'Guest Customer'}
+                        {order.customer_name || order.customerName || 'Guest Customer'}
                       </span>
                       {order.phone && (
                         <button 
-                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
+                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name || order.customerName}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
                           className="flex items-center gap-1 text-[10px] text-emerald-500 hover:text-emerald-400 font-bold"
                         >
                           <MessageCircle size={10} />
@@ -813,7 +813,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                       onClick={() => {
                         setEditingOrder(order);
                         setEditFormData({
-                          customer_name: order.customer_name,
+                          customer_name: order.customer_name || order.customerName || '',
                           phone: order.phone || '',
                           address: order.address || '',
                           notes: order.notes || '',
@@ -899,7 +899,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
               </div>
               <div className="flex flex-col">
                 <span className="text-sm font-black text-white">
-                  {order.customer_name || 'Guest Customer'}
+                  {order.customer_name || order.customerName || 'Guest Customer'}
                 </span>
                 <span className="text-xs text-gray-500">{order.phone}</span>
                 {order.utr && (
@@ -956,7 +956,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                       onClick={() => {
                         setEditingOrder(order);
                         setEditFormData({
-                          customer_name: order.customer_name,
+                          customer_name: order.customer_name || order.customerName || '',
                           phone: order.phone || '',
                           address: order.address || '',
                           notes: order.notes || '',

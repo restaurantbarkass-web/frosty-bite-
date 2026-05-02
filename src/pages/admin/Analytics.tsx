@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  AreaChart, 
-  Area, 
+  LineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -286,40 +286,34 @@ export const Analytics: React.FC = () => {
           </div>
           <div className="flex-1 min-h-[300px]">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
-              <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#7dd3fc" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#7dd3fc" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
-                dy={10}
-              />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
-                tickFormatter={(value) => `₹${value/1000}k`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#7dd3fc" 
-                strokeWidth={4}
-                fillOpacity={1} 
-                fill="url(#colorRevenue)" 
-                animationDuration={2000}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+                  tickFormatter={(value) => `₹${value/1000}k`}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#7dd3fc" 
+                  strokeWidth={4}
+                  dot={{ fill: '#7dd3fc', strokeWidth: 2, r: 4, stroke: '#111' }}
+                  activeDot={{ r: 6, strokeWidth: 0 }}
+                  animationDuration={2000}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
       </div>
 
         <div className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
