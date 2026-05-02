@@ -11,6 +11,12 @@ if (supabaseUrl) {
   supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/i, '');
   // Ensure no trailing slash
   supabaseUrl = supabaseUrl.replace(/\/$/, '');
+} else {
+  console.error("Supabase URL is missing! Check your environment variables.");
+}
+
+if (!supabaseAnonKey) {
+  console.error("Supabase Anon Key is missing! Check your environment variables.");
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

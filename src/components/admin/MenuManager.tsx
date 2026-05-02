@@ -59,6 +59,11 @@ export const MenuManager: React.FC = () => {
   };
 
   const fetchMenu = async () => {
+    if (!navigator.onLine) {
+      toast.error('No internet connection. Please check your network.');
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await supabase
         .from('products')
@@ -114,9 +119,17 @@ export const MenuManager: React.FC = () => {
       let imageUrl = formData.image;
       
       // Always favor new file upload if selected
-      if (file) {
+      if (file && !uploading) {
         setUploading(true);
-        imageUrl = await uploadImage(file);
+        try {
+          imageUrl = await uploadImage(file);
+          setFormData(prev => ({ ...prev, image: imageUrl }));
+        } catch (uploadErr: any) {
+          console.error('Image upload failed during submit:', uploadErr);
+          toast.error(uploadErr.message || 'Image upload failed', { id: loadingToast });
+          setUploading(false);
+          return;
+        }
         setUploading(false);
       }
 
@@ -135,17 +148,24 @@ export const MenuManager: React.FC = () => {
         available: formData.available
       };
 
+      let result;
       if (editingItem) {
-        const { error } = await supabase
+        result = await supabase
           .from('products')
           .update(body)
           .eq('id', editingItem.id);
-        if (error) throw error;
       } else {
-        const { error } = await supabase
+        result = await supabase
           .from('products')
           .insert([body]);
-        if (error) throw error;
+      }
+
+      if (result.error) {
+        console.error('Supabase DB error:', result.error);
+        if (result.error.message === 'Failed to fetch') {
+          throw new Error("Could not connect to database. Please check your internet connection.");
+        }
+        throw result.error;
       }
 
       toast.success(editingItem ? "Product updated" : "Product added", { id: loadingToast });
