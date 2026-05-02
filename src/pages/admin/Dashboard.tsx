@@ -18,6 +18,7 @@ export const Dashboard: React.FC = () => {
   const [isToggling, setIsToggling] = useState(false);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load initial data from cache
@@ -51,6 +52,7 @@ export const Dashboard: React.FC = () => {
 
     const fetchRecentOrders = async () => {
       try {
+        setSupabaseError(null);
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -63,8 +65,14 @@ export const Dashboard: React.FC = () => {
           setLoadingOrders(false);
           localStorage.setItem(ordersCacheKey, JSON.stringify(data));
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching dashboard orders:', err);
+        if (err.code === 'PGRST205' || (err.message && err.message.includes('schema cache'))) {
+          setSupabaseError('Database schema not found. Please go to your Supabase Dashboard -> SQL Editor and click "RUN" on your SQL script to create the tables.');
+        } else {
+          setSupabaseError(err.message || 'Failed to fetch orders from database.');
+        }
+        setLoadingOrders(false);
       }
     };
 
@@ -193,6 +201,36 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <DashboardCards />
+
+      {supabaseError && (
+        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl mb-8">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-red-500/20 rounded-2xl text-red-500">
+              <XCircle size={24} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white mb-2">Configuration Error</h3>
+              <p className="text-gray-400 font-medium leading-relaxed">{supabaseError}</p>
+              <div className="mt-4 flex gap-3">
+                <a 
+                  href="https://supabase.com/dashboard/project/_/editor" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition-colors"
+                >
+                  Go to Supabase Dashboard
+                </a>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-white/5 text-white rounded-xl font-bold text-sm hover:bg-white/10 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         <RevenueChart />
