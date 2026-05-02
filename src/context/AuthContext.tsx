@@ -24,9 +24,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 8-second safety timeout instead of 15
     const timeoutId = setTimeout(() => {
       setLoading(false);
-    }, 15000);
+      console.warn('Auth state loading timed out - assuming guest');
+    }, 8000);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);

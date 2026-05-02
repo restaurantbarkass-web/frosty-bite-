@@ -2,23 +2,24 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { supabase } from './supabase';
 
-// Hard test for Supabase SDK
-const test = async () => {
-  const { data, error } = await supabase.from('products').select('*');
+console.log('App mounting started...');
 
-  if (error) {
-    console.error("REAL ERROR:", error);
-  } else {
-    console.log("WORKING DATA:", data);
-  }
+// Catch unhandled rejections globally
+window.onunhandledrejection = (event) => {
+  console.error('Unhandled Rejection:', event.reason);
 };
 
-test();
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+try {
+  const root = document.getElementById('root');
+  if (!root) throw new Error('Root element not found');
+  
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+  console.log('App mounted successfully');
+} catch (error) {
+  console.error('Mounting failed:', error);
+}

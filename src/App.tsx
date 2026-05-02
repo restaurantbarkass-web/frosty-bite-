@@ -57,6 +57,19 @@ function AppContent() {
   const location = useLocation();
 
   useEffect(() => {
+    // Failsafe to unstick splash after 6 seconds
+    if (showSplash) {
+      const timer = setTimeout(() => {
+        if (showSplash) {
+          console.warn('Splash failsafe triggered after 6 seconds');
+          setShowSplash(false);
+        }
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSplash]);
+
+  useEffect(() => {
     const handleSearchState = (e: any) => {
       setIsSearching(e.detail);
     };
