@@ -60,6 +60,8 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
     }, 1500);
   };
 
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+
   const handleBuyNow = () => {
     if (!user) {
       toast.error('Please login to buy treats', {
@@ -83,20 +85,26 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
       });
       return;
     }
+    
+    setIsBuyingNow(true);
     addToCart(item);
-    toast.success('Proceeding to checkout...', {
-      duration: 1000,
-      icon: '🚀',
+    
+    toast.success('Instant Checkout!', {
+      duration: 1500,
+      icon: '⚡',
       style: {
         borderRadius: '16px',
-        background: '#18181b',
+        background: '#f97316',
         color: '#fff',
-        border: '1px solid rgba(255,255,255,0.1)'
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: '0.1em'
       }
     });
+
     setTimeout(() => {
       navigate('/checkout', { state: { fromBuyNow: true } });
-    }, 500);
+    }, 400);
   };
 
   return (
@@ -243,15 +251,41 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
           
           <button
             onClick={handleBuyNow}
-            disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
+            disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0) || isBuyingNow}
             className={cn(
-              "flex-[2] bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed",
+              "flex-[2] bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
               variant === 'compact' ? "py-2.5" : "py-4 rounded-2xl"
             )}
             title={!isOrderingOpen ? "Orders are currently closed" : "Buy Now"}
           >
-            <Zap size={16} fill="currentColor" />
-            <span className="text-xs font-black uppercase tracking-[0.15em]">Buy Now</span>
+            <AnimatePresence mode="wait">
+              {isBuyingNow ? (
+                <motion.div
+                  key="buying"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center space-x-2"
+                >
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Zap size={16} fill="currentColor" />
+                  </motion.div>
+                  <span className="text-[10px] font-black uppercase tracking-widest italic">Fast tracking...</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="default"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center space-x-2"
+                >
+                  <Zap size={16} fill="currentColor" className="group-hover:scale-125 transition-transform" />
+                  <span className="text-xs font-black uppercase tracking-[0.15em]">Buy Now</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
         </div>
       </div>

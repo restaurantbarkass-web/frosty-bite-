@@ -178,6 +178,8 @@ const ProductDetail: React.FC = () => {
     }
   };
 
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+
   const handleBuyNow = () => {
     if (!user) {
       toast.error('Please login to buy treats', {
@@ -202,24 +204,28 @@ const ProductDetail: React.FC = () => {
       return;
     }
     if (product) {
+      setIsBuyingNow(true);
       // Add based on selected quantity
       for (let i = 0; i < quantity; i++) {
         addToCart(product);
       }
       
-      // Small timeout for visual feedback before navigating
-      toast.success('Going to checkout...', {
-        duration: 800,
+      toast.success('Instant Checkout!', {
+        duration: 1500,
+        icon: '⚡',
         style: {
           borderRadius: '16px',
-          background: '#18181b',
+          background: '#f97316',
           color: '#fff',
+          fontWeight: '900',
+          textTransform: 'uppercase',
+          letterSpacing: '0.1em'
         }
       });
       
       setTimeout(() => {
         navigate('/checkout', { state: { fromBuyNow: true } });
-      }, 500);
+      }, 400);
     }
   };
 
@@ -551,13 +557,39 @@ const ProductDetail: React.FC = () => {
           
           <button
             onClick={handleBuyNow}
-            disabled={product.available === false}
-            className="flex-[1.8] py-5 bg-primary hover:bg-accent text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed"
+            disabled={product.available === false || isBuyingNow}
+            className="flex-[1.8] py-5 bg-primary hover:bg-accent text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden"
           >
-            <Zap size={20} fill="currentColor" />
-            <span className="text-xs font-black uppercase tracking-[0.2em]">
-              {product.available === false ? 'Currently Unavailable' : 'Buy Now'}
-            </span>
+            <AnimatePresence mode="wait">
+              {isBuyingNow ? (
+                <motion.div
+                  key="buying"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center space-x-3"
+                >
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Zap size={20} fill="currentColor" />
+                  </motion.div>
+                  <span className="text-xs font-black uppercase tracking-[0.2em] italic">Fast tracking...</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="default"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center justify-center space-x-3"
+                >
+                  <Zap size={20} fill="currentColor" className="group-hover:scale-125 transition-transform" />
+                  <span className="text-xs font-black uppercase tracking-[0.2em]">
+                    {product.available === false ? 'Currently Unavailable' : 'Buy Now'}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
         </div>
       </motion.div>
