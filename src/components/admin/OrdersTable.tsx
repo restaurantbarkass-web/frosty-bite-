@@ -1268,7 +1268,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 </div>
 
                 <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 scrollbar-hide pb-32 md:pb-6">
+                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 pb-48 md:pb-6">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Customer Name</label>
                       <input 

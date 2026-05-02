@@ -10,11 +10,6 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ""),
     },
-    build: {
-      outDir: 'dist',
-      emptyOutDir: true,
-      sourcemap: false
-    },
     server: {
       port: 3000,
       host: '0.0.0.0',

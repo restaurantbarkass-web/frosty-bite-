@@ -404,6 +404,13 @@ export const MenuManager: React.FC = () => {
                     <div className="flex flex-col items-start">
                       <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
                       <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
+                      
+                      {item.description && (
+                        <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 mt-2 mb-2 italic">
+                          {item.description}
+                        </p>
+                      )}
+
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Stock:</span>
                         <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-0.5 border border-white/10">
@@ -495,110 +502,138 @@ export const MenuManager: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 scrollbar-hide pb-32 md:pb-6">
+                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 pb-48 md:pb-10 custom-scrollbar">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Item Name</label>
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Item Name</label>
                         <input 
                           type="text" 
                           required
                           value={formData.name}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
                           placeholder="e.g. Artisan Sourdough" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Price (₹)</label>
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Category</label>
+                        <select 
+                          value={formData.category}
+                          onChange={(e) => setFormData({...formData, category: e.target.value})}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all appearance-none font-bold"
+                        >
+                          {CATEGORIES.map(cat => (
+                            <option key={cat} value={cat} className="bg-[#111]">{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Price (₹)</label>
                         <input 
                           type="number" 
                           required
                           value={formData.price}
                           onChange={(e) => setFormData({...formData, price: e.target.value})}
                           placeholder="e.g. 350" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
                         />
                       </div>
-                    </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Stock Quantity</label>
-                    <input 
-                      type="number" 
-                      required
-                      value={formData.stock_quantity}
-                      onChange={(e) => setFormData({...formData, stock_quantity: e.target.value})}
-                      placeholder="e.g. 50" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Description</label>
-                    <textarea 
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      placeholder="Describe the item..." 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Category</label>
-                    <select 
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all appearance-none"
-                    >
-                      {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat} className="bg-[#111]">{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center justify-between">
-                      <span>Image <span className="text-red-500">*</span></span>
-                      <span className="text-[10px] text-orange-500/80 font-medium">COMPULSORY FIELD</span>
-                    </label>
-                    <div className="flex gap-4">
-                      <div className="flex-1">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Stock Quantity</label>
                         <input 
-                          type="text" 
+                          type="number" 
                           required
-                          value={formData.image}
-                          onChange={(e) => setFormData({...formData, image: e.target.value})}
-                          placeholder="Paste Image URL here" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
+                          value={formData.stock_quantity}
+                          onChange={(e) => setFormData({...formData, stock_quantity: e.target.value})}
+                          placeholder="e.g. 50" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
                         />
                       </div>
-                      <label className={cn(
-                        "flex items-center justify-center px-6 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all",
-                        uploading && "opacity-50 cursor-not-allowed animate-pulse"
-                      )}>
-                        <ImageIcon size={20} className={cn("text-gray-400", uploading && "animate-bounce")} />
-                        <input 
-                          id="image"
-                          type="file" 
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden" 
-                          disabled={uploading}
-                        />
-                      </label>
                     </div>
-                    {formData.image && (
-                      <div className="mt-2 h-20 w-20 rounded-xl overflow-hidden border border-white/10 group relative">
-                        <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                        {uploading && (
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Description</label>
+                      <textarea 
+                        value={formData.description}
+                        onChange={(e) => setFormData({...formData, description: e.target.value})}
+                        placeholder="Describe the item..." 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none font-medium placeholder:text-zinc-700" 
+                      />
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">
+                          Visual Identity <span className="text-orange-500">*</span>
+                        </label>
+                        <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md">Required</span>
+                      </div>
+                      
+                      <div className="flex flex-col gap-4">
+                        {/* URL Input */}
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            required
+                            value={formData.image}
+                            onChange={(e) => setFormData({...formData, image: e.target.value})}
+                            placeholder="Paste Image URL" 
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700">
+                             <ImageIcon size={20} />
+                          </div>
+                        </div>
+
+                        {/* Upload Button */}
+                        <label className={cn(
+                          "flex items-center justify-center gap-3 w-full py-5 border-2 border-dashed border-white/10 rounded-[1.5rem] bg-white/[0.02] cursor-pointer hover:bg-white/5 hover:border-orange-500/30 transition-all",
+                          uploading && "opacity-50 cursor-not-allowed animate-pulse"
+                        )}>
+                          {uploading ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+                              <span className="text-xs font-black text-white uppercase tracking-widest">Uploading...</span>
+                            </div>
+                          ) : (
+                            <>
+                              <ImageIcon size={24} className="text-primary" />
+                              <span className="text-xs font-black text-white uppercase tracking-widest">Click to Upload New Image</span>
+                            </>
+                          )}
+                          <input 
+                            id="image"
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden" 
+                            disabled={uploading}
+                          />
+                        </label>
+
+                        {/* Preview */}
+                        {formData.image && (
+                          <div className="mt-2 flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <div className="h-20 w-20 rounded-xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
+                              <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest truncate">{formData.image}</p>
+                               <button 
+                                 type="button"
+                                 onClick={() => setFormData(p => ({ ...p, image: '' }))}
+                                 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1 hover:text-rose-400 transition-colors"
+                               >
+                                 Remove
+                               </button>
+                            </div>
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-
+                    </div>
                   </div>
  
                   <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#111]/95 backdrop-blur-xl border-t border-white/10 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
