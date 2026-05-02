@@ -15,6 +15,7 @@ export const Orders: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'active' | 'verification'>('active');
   const [stats, setStats] = useState({
     pending: 0,
@@ -60,8 +61,10 @@ export const Orders: React.FC = () => {
   const filteredOrders = allOrders.filter(order => {
     const matchesSearch = 
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (order.customer_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (order.phone && order.phone.includes(searchQuery));
+    
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     
     let matchesDate = true;
     if (startDate || endDate) {
@@ -82,7 +85,7 @@ export const Orders: React.FC = () => {
       }
     }
 
-    return matchesSearch && matchesDate;
+    return matchesSearch && matchesDate && matchesStatus;
   });
 
   const exportToCSV = () => {
@@ -100,7 +103,7 @@ export const Orders: React.FC = () => {
     const rows = filteredOrders.map(order => {
       return [
         order.id,
-        order.customer_name,
+        order.customer_name || 'Guest Customer',
         order.phone || 'N/A',
         order.address || 'N/A',
         order.items.map((i: any) => typeof i === 'string' ? i : i.name).join('; '),
@@ -131,6 +134,19 @@ export const Orders: React.FC = () => {
           <p className="text-gray-500 font-medium">Track and manage all customer orders in real-time.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full md:w-auto">
+          <select 
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 bg-[#111] border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-orange-500/50"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="preparing">Preparing</option>
+            <option value="out_for_delivery">Dispatch</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
           <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl text-orange-500 text-[10px] sm:text-xs font-bold whitespace-nowrap">
             <Clock size={14} />
             <span className="hidden xs:inline">Last 24 Hours</span>

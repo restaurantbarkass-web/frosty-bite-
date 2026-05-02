@@ -95,7 +95,7 @@ export const Dashboard: React.FC = () => {
 
     const rows = recentOrders.map(order => [
       order.id,
-      order.customer_name,
+      order.customer_name || 'Guest Customer',
       order.items?.map((i: any) => {
         if (typeof i === 'string') return i;
         return `${i.name || 'Unknown'} (x${i.quantity || 1})`;

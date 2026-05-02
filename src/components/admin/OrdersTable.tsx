@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, auth } from '../../firebase';
 import { collection, updateDoc, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
@@ -83,6 +83,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
   const { addNotification } = useNotifications();
   const loading = externalLoading !== undefined ? externalLoading : internalLoading;
+
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   const [editFormData, setEditFormData] = useState({
     customer_name: '',
@@ -201,7 +203,46 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     lastOrderCountRef.current = orders.length;
   }, [orders, autoPrint, loading]);
 
-  // Alarm logic
+  const sortedOrders = React.useMemo(() => {
+    let sortableOrders = [...orders];
+    if (sortConfig !== null) {
+      sortableOrders.sort((a, b) => {
+        let aValue: any = a[sortConfig.key as keyof Order];
+        let bValue: any = b[sortConfig.key as keyof Order];
+
+        if (sortConfig.key === 'customer_name') {
+          aValue = aValue || '';
+          bValue = bValue || '';
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableOrders;
+  }, [orders, sortConfig]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />;
+    }
+    return sortConfig.direction === 'asc' ? <ArrowUp size={14} className="text-primary" /> : <ArrowDown size={14} className="text-primary" />;
+  };
+
+  const alarmRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     const hasPending = orders.some(o => o.status === 'pending');
     
@@ -529,17 +570,58 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-white/[0.02] border-b border-white/5">
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Order ID</th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Customer</th>
+              <th 
+                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                onClick={() => requestSort('id')}
+              >
+                <div className="flex items-center gap-2">
+                  Order ID
+                  {getSortIcon('id')}
+                </div>
+              </th>
+              <th 
+                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                onClick={() => requestSort('customer_name')}
+              >
+                <div className="flex items-center gap-2">
+                  Customer
+                  {getSortIcon('customer_name')}
+                </div>
+              </th>
+              <th 
+                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                onClick={() => requestSort('created_at')}
+              >
+                <div className="flex items-center gap-2">
+                  Date
+                  {getSortIcon('created_at')}
+                </div>
+              </th>
               <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Items</th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Total</th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Status</th>
+              <th 
+                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                onClick={() => requestSort('total')}
+              >
+                <div className="flex items-center gap-2">
+                  Total
+                  {getSortIcon('total')}
+                </div>
+              </th>
+              <th 
+                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                onClick={() => requestSort('status')}
+              >
+                <div className="flex items-center gap-2">
+                  Status
+                  {getSortIcon('status')}
+                </div>
+              </th>
               <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Rider</th>
               <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {orders.map((order) => (
+            {sortedOrders.map((order) => (
               <motion.tr 
                 key={order.id}
                 initial={{ opacity: 0 }}
@@ -556,7 +638,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                       <User size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-200">{order.customer_name}</span>
+                      <span className="text-sm font-semibold text-gray-200">
+                        {order.customer_name || 'Guest Customer'}
+                      </span>
                       {order.phone && (
                         <button 
                           onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
@@ -592,6 +676,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                         </div>
                       )}
                     </div>
+                  </div>
+                </td>
+                <td className="px-8 py-6">
+                  <div className="flex flex-col">
+                    <span className="text-xs text-white">
+                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
                   </div>
                 </td>
                 <td className="px-8 py-6">
@@ -779,9 +873,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 </td>
               </motion.tr>
             ))}
-            {orders.length === 0 && (
+            {sortedOrders.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-8 py-20 text-center text-zinc-500 font-bold">
+                <td colSpan={8} className="px-8 py-20 text-center text-zinc-500 font-bold">
                   No orders found.
                 </td>
               </tr>
@@ -792,7 +886,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
       {/* Mobile Card View */}
       <div className="lg:hidden p-4 space-y-4">
-        {orders.map((order) => (
+        {sortedOrders.map((order) => (
           <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-primary uppercase font-mono">#{order.id.slice(-6)}</span>
@@ -804,7 +898,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 <User size={18} />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-black text-white">{order.customer_name}</span>
+                <span className="text-sm font-black text-white">
+                  {order.customer_name || 'Guest Customer'}
+                </span>
                 <span className="text-xs text-gray-500">{order.phone}</span>
                 {order.utr && (
                   <div className="mt-1 flex flex-col gap-1">

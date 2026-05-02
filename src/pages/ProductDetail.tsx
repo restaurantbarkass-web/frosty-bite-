@@ -59,15 +59,32 @@ const ProductDetail: React.FC = () => {
       try {
         let currentProduct: FoodItem | null = null;
         
-        // 1. Try to fetch product using safeFirestore which handles both cache and quota
-        currentProduct = await safeFirestore.getDocument<FoodItem>(
-          doc(db, 'menu', id),
-          `product_detail_${id}`,
-          `menu/${id}`
-        );
+        // 1. Try to fetch product from Supabase
+        const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${id}`, {
+          headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
+          }
+        });
 
-        // If not found in safeFirestore (which checks its own cache first), 
-        // try the main menu_cache as a secondary fallback
+        if (res.ok) {
+          const items = await res.json();
+          if (items && items.length > 0) {
+            const item = items[0];
+            currentProduct = {
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              image: item.image,
+              category: item.category || 'General',
+              available: item.available !== undefined ? item.available : true,
+              stock_quantity: item.stock_quantity || 0,
+              description: item.description || ''
+            };
+          }
+        }
+
+        // 2. Fallback to cache if Supabase fail or not found
         if (!currentProduct) {
           const cachedMenu = localStorage.getItem('menu_cache');
           if (cachedMenu) {
@@ -82,51 +99,40 @@ const ProductDetail: React.FC = () => {
           }
         }
 
-        // If still not found, return null (it will show Product Not Found)
         if (!currentProduct) {
           setProduct(null);
         } else {
           setProduct(currentProduct);
           
-          let firestoreItems: FoodItem[] = [];
-          
-          // Initial check from cache for speed
-          const cachedMenu = localStorage.getItem('menu_cache');
-          if (cachedMenu) {
-            try {
-              const parsed = JSON.parse(cachedMenu);
-              firestoreItems = parsed.data || parsed;
-            } catch (e) {}
-          }
-
+          // Fetch related items from Supabase
           try {
-            // Fetch related items from Firestore with a targeted query
-            const relatedQuery = query(
-              collection(db, 'menu'),
-              where('category', '==', currentProduct.category),
-              limit(10)
-            );
-            
-            const freshItems = await safeFirestore.getCollection<FoodItem>(
-              relatedQuery, 
-              `related_cache_${currentProduct.category}`,
-              'menu'
-            );
-            
-            if (freshItems && freshItems.length > 0) {
-              firestoreItems = freshItems;
+            const relRes = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?category=eq.${currentProduct.category}&limit=10`, {
+              headers: {
+                "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
+              }
+            });
+
+            if (relRes.ok) {
+              const relItems = await relRes.json();
+              const mappedRel = relItems
+                .filter((item: any) => item.id !== id)
+                .map((item: any) => ({
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  image: item.image,
+                  category: item.category || 'General',
+                  available: item.available !== undefined ? item.available : true,
+                  stock_quantity: item.stock_quantity || 0,
+                  description: item.description || ''
+                }))
+                .slice(0, 4);
+              setRelatedItems(mappedRel);
             }
-          } catch (listError: any) {
-             console.error("Firestore error for related items:", listError);
+          } catch (relError) {
+            console.error("Supabase error for related items:", relError);
           }
-
-          // Use firestore items (or cached) if they exist
-          const sourceItems = firestoreItems;
-
-          const related = sourceItems
-            .filter(item => item.category === currentProduct?.category && item.id !== currentProduct?.id)
-            .slice(0, 4);
-          setRelatedItems(related);
         }
       } catch (error) {
         console.error("Error in fetchProduct:", error);

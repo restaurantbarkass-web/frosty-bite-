@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../../firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  setDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
 import { CATEGORIES } from '../../constants';
 import { cn } from '../../lib/utils';
+import { uploadImage } from '../../utils/upload';
+import toast from 'react-hot-toast';
 
 interface MenuItem {
   id: string;
@@ -36,6 +25,7 @@ export const MenuManager: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form state
@@ -49,22 +39,47 @@ export const MenuManager: React.FC = () => {
     description: ''
   });
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      setUploading(true);
+      const toastId = toast.loading('Uploading image...');
+      try {
+        const url = await uploadImage(file);
+        setFormData({ ...formData, image: url });
+        toast.success('Image uploaded successfully!', { id: toastId });
+      } catch (error: any) {
+        console.error('Upload failed:', error);
+        toast.error(error.message || 'Failed to upload image', { id: toastId });
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
   const fetchMenu = async () => {
     try {
-      const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
-      const items = await safeFirestore.getCollection<MenuItem>(q, 'menu_cache');
-      setMenuItems(items);
+      const res = await fetch("https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?select=*", {
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
+        }
+      });
+      if (res.ok) {
+        const items = await res.json();
+        // Map fields to match our internal MenuItem interface
+        const mappedItems = items.map((item: any) => ({
+          id: item.id || String(Math.random()),
+          name: item.name,
+          price: item.price,
+          image: item.image,
+          category: item.category || 'General',
+          available: item.available !== undefined ? item.available : true,
+          stock_quantity: item.stock_quantity || 0,
+          description: item.description || ''
+        }));
+        setMenuItems(mappedItems);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Menu fetch failed:', error);
@@ -74,98 +89,146 @@ export const MenuManager: React.FC = () => {
 
   useEffect(() => {
     fetchMenu();
-
-    const q = query(collection(db, 'menu'), orderBy('name', 'asc'));
-    const unsubscribe = safeFirestore.listen(q, (items: MenuItem[]) => {
-      setMenuItems(items);
-      setLoading(false);
-    }, 'menu_cache');
-
-    return () => unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const loadingToast = toast.loading(editingItem ? 'Updating product...' : 'Adding product...');
+
     try {
-      const data = {
+      // Get file from input
+      const fileInput = document.getElementById("image") as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+      
+      let imageUrl = formData.image;
+      
+      // Always favor new file upload if selected
+      if (file) {
+        setUploading(true);
+        imageUrl = await uploadImage(file);
+        setUploading(false);
+      }
+
+      if (!imageUrl) {
+        imageUrl = `https://picsum.photos/seed/${formData.name}/800/600`;
+      }
+
+      const body = {
         name: formData.name,
         price: Number(formData.price),
-        stock_quantity: Number(formData.stock_quantity),
+        image: imageUrl,
         category: formData.category,
-        image: formData.image || `https://picsum.photos/seed/${formData.name}/800/600`,
-        available: formData.available,
         description: formData.description,
-        updated_at: serverTimestamp()
+        stock_quantity: Number(formData.stock_quantity),
+        available: formData.available
       };
 
+      let url = "https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products";
+      let method = "POST";
+
       if (editingItem) {
-        await updateDoc(doc(db, 'menu', editingItem.id), data);
-        // Proactively update local cache
-        const updatedLocal = menuItems.map(item => item.id === editingItem.id ? { ...item, ...data } : item);
-        setMenuItems(updatedLocal);
-        localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
-      } else {
-        const docRef = await addDoc(collection(db, 'menu'), {
-          ...data,
-          created_at: serverTimestamp()
-        });
-        // Proactively update local state for immediate feedback
-        const newItem = { id: docRef.id, ...data } as MenuItem;
-        const updatedLocal = [...menuItems, newItem].sort((a, b) => a.name.localeCompare(b.name));
-        setMenuItems(updatedLocal);
-        localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+        url = `${url}?id=eq.${editingItem.id}`;
+        method = "PATCH";
       }
+
+      // Save to Supabase
+      const res = await fetch(url, {
+        method: method,
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to save to Supabase');
+      }
+
+      toast.success(editingItem ? "Product updated" : "Product added", { id: loadingToast });
       
       setIsAdding(false);
       setEditingItem(null);
       setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
-    } catch (error) {
-      console.error('Error saving menu item:', error);
+      fetchMenu(); // Refresh list from Supabase
+    } catch (error: any) {
+      console.error('Error saving product:', error);
+      toast.error(error.message || 'Failed to save product', { id: loadingToast });
+      setUploading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    const loadingToast = toast.loading('Deleting product...');
     try {
-      await deleteDoc(doc(db, 'menu', id));
-      // Proactively update local cache
-      const updatedLocal = menuItems.filter(item => item.id !== id);
-      setMenuItems(updatedLocal);
-      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to delete from Supabase');
+      }
+
+      toast.success('Product deleted', { id: loadingToast });
+      fetchMenu();
       setDeletingId(null);
     } catch (error) {
       console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete product', { id: loadingToast });
     }
   };
 
   const toggleAvailability = async (item: MenuItem) => {
     try {
       const newStatus = !item.available;
-      await updateDoc(doc(db, 'menu', item.id), { 
-        available: newStatus,
-        updated_at: serverTimestamp()
+      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${item.id}`, {
+        method: "PATCH",
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ available: newStatus })
       });
-      // Proactively update local cache
-      const updatedLocal = menuItems.map(i => i.id === item.id ? { ...i, available: newStatus } : i);
-      setMenuItems(updatedLocal);
-      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+
+      if (!res.ok) throw new Error();
+
+      // Proactively update local state
+      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, available: newStatus } : i));
+      toast.success(`Product ${newStatus ? 'available' : 'sold out'}`);
     } catch (error) {
       console.error('Error toggling availability:', error);
+      toast.error('Failed to update availability');
     }
   };
 
   const updateStock = async (item: MenuItem, delta: number) => {
     try {
       const newStock = Math.max(0, (item.stock_quantity || 0) + delta);
-      await updateDoc(doc(db, 'menu', item.id), { 
-        stock_quantity: newStock,
-        updated_at: serverTimestamp()
+      const res = await fetch(`https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products?id=eq.${item.id}`, {
+        method: "PATCH",
+        headers: {
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ stock_quantity: newStock })
       });
-      // Proactively update local cache
-      const updatedLocal = menuItems.map(i => i.id === item.id ? { ...i, stock_quantity: newStock } : i);
-      setMenuItems(updatedLocal);
-      localStorage.setItem('menu_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+
+      if (!res.ok) throw new Error();
+
+      // Proactively update local state
+      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, stock_quantity: newStock } : i));
     } catch (error) {
       console.error('Error updating stock:', error);
+      toast.error('Failed to update stock');
     }
   }
 
@@ -499,19 +562,29 @@ export const MenuManager: React.FC = () => {
                           className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all" 
                         />
                       </div>
-                      <label className="flex items-center justify-center px-6 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all">
-                        <ImageIcon size={20} className="text-gray-400" />
+                      <label className={cn(
+                        "flex items-center justify-center px-6 bg-white/5 border border-white/10 rounded-2xl cursor-pointer hover:bg-white/10 transition-all",
+                        uploading && "opacity-50 cursor-not-allowed animate-pulse"
+                      )}>
+                        <ImageIcon size={20} className={cn("text-gray-400", uploading && "animate-bounce")} />
                         <input 
+                          id="image"
                           type="file" 
                           accept="image/*"
                           onChange={handleImageUpload}
                           className="hidden" 
+                          disabled={uploading}
                         />
                       </label>
                     </div>
                     {formData.image && (
-                      <div className="mt-2 h-20 w-20 rounded-xl overflow-hidden border border-white/10">
+                      <div className="mt-2 h-20 w-20 rounded-xl overflow-hidden border border-white/10 group relative">
                         <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
+                        {uploading && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -520,8 +593,15 @@ export const MenuManager: React.FC = () => {
                     <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all">
                       Cancel
                     </button>
-                    <button type="submit" className="flex-1 py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all">
-                      {editingItem ? 'Update Item' : 'Save Item'}
+                    <button 
+                      type="submit" 
+                      disabled={uploading}
+                      className={cn(
+                        "flex-1 py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all",
+                        uploading && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {uploading ? 'Uploading...' : (editingItem ? 'Update Item' : 'Save Item')}
                     </button>
                   </div>
                 </form>

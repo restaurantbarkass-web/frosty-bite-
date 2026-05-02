@@ -85,15 +85,38 @@ export const Home: React.FC = () => {
       }
     }
 
-    // Use listener with cacheKey which handles initial load and quota errors
-    const unsubscribeMenu = safeFirestore.listen(
-      collection(db, 'menu'),
-      (items: FoodItem[]) => {
-        console.log(`Loaded ${items?.length || 0} items from menu collection in firestore`);
-        setFirestoreMenu(items || []);
-      },
-      'menu_cache'
-    );
+    const fetchSupabaseProducts = async () => {
+      try {
+        const res = await fetch("https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/products", {
+          headers: {
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM"
+          }
+        });
+        
+        if (res.ok) {
+          const items = await res.json();
+          const mappedItems = items.map((item: any) => ({
+            id: item.id || String(Math.random()),
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            category: item.category || 'General',
+            available: item.available !== undefined ? item.available : true,
+            stock_quantity: item.stock_quantity || 0,
+            description: item.description || ''
+          }));
+          
+          console.log(`Loaded ${mappedItems.length} items from Supabase`);
+          setFirestoreMenu(mappedItems);
+          localStorage.setItem('menu_cache', JSON.stringify({ data: mappedItems, timestamp: Date.now() }));
+        }
+      } catch (error) {
+        console.error('Supabase fetch failed:', error);
+      }
+    };
+
+    fetchSupabaseProducts();
 
     // Listen for storage changes from other tabs (specifically for admin updates)
     const handleStorageChange = (e: StorageEvent) => {
@@ -110,7 +133,6 @@ export const Home: React.FC = () => {
     window.addEventListener('storage', handleStorageChange);
 
     return () => {
-      unsubscribeMenu();
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
