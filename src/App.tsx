@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -91,6 +91,7 @@ function AppContent() {
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isCheckoutPage = location.pathname === '/checkout';
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
+  const navigate = useNavigate();
   
   // Sidebar should be available on almost all pages
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
@@ -104,8 +105,19 @@ function AppContent() {
     setShowSplash(false);
   }, []);
 
+  const handleSwipeBack = (e: any, info: any) => {
+    // Swipe from left to right (offset.x > 80)
+    if (info.offset.x > 80 && info.velocity.x > 0) {
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate('/');
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
       <Toaster position="top-right" />
       <AnimatePresence>
         {quotaExceeded && (
@@ -133,51 +145,69 @@ function AppContent() {
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
         <Suspense fallback={<PageLoader />}>
-          <Routes location={location}>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/finish-sign-in" element={<FinishSignIn />} />
-            <Route path="/checkout" element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            } />
-            <Route path="/upi-checkout/:orderId" element={
-              <ProtectedRoute>
-                <UPICheckout />
-              </ProtectedRoute>
-            } />
-            <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
-            <Route path="/admin/*" element={
-              <ProtectedRoute allowedRoles={['admin']} autoLogout={true}>
-                <AdminLayout />
-              </ProtectedRoute>
-            } />
-            <Route path="/rider/*" element={
-              <ProtectedRoute allowedRoles={['rider']}>
-                <RiderPanel />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/orders" element={
-              <ProtectedRoute>
-                <Orders />
-              </ProtectedRoute>
-            } />
-            <Route path="/notifications" element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            } />
-            <Route path="/product/:id" element={<ProductDetail />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ x: 20, opacity: 0, scale: 0.98 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: -20, opacity: 0, scale: 0.98 }}
+              transition={{ 
+                duration: 0.2, 
+                ease: [0.25, 1, 0.5, 1] // Custom spring-like easing
+              }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={{ left: 0, right: 0.15 }}
+              onDragEnd={handleSwipeBack}
+              className="flex-1 flex flex-col w-full h-full"
+            >
+              <Routes location={location}>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/finish-sign-in" element={<FinishSignIn />} />
+                <Route path="/checkout" element={
+                  <ProtectedRoute>
+                    <Checkout />
+                  </ProtectedRoute>
+                } />
+                <Route path="/upi-checkout/:orderId" element={
+                  <ProtectedRoute>
+                    <UPICheckout />
+                  </ProtectedRoute>
+                } />
+                <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
+                <Route path="/admin/*" element={
+                  <ProtectedRoute allowedRoles={['admin']} autoLogout={true}>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                } />
+                <Route path="/rider/*" element={
+                  <ProtectedRoute allowedRoles={['rider']}>
+                    <RiderPanel />
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } />
+                <Route path="/orders" element={
+                  <ProtectedRoute>
+                    <Orders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/notifications" element={
+                  <ProtectedRoute>
+                    <Notifications />
+                  </ProtectedRoute>
+                } />
+                <Route path="/product/:id" element={<ProductDetail />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
         </Suspense>
       </main>
 
