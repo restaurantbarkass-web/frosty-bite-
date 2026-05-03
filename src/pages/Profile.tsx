@@ -11,6 +11,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
+import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
 
 export const Profile: React.FC = () => {
@@ -47,7 +48,7 @@ export const Profile: React.FC = () => {
     // Load initial data from cache
     const profileCacheKey = `profile_cache_${authUser.uid}`;
     const ordersCacheKey = `recent_orders_cache_${authUser.uid}`;
-    const wishlistCacheKey = `wishlist_cache_profile_${authUser.uid}`;
+    const wishlistCacheKey = `wishlist_cache_${authUser.uid}`;
 
     const cachedProfile = localStorage.getItem(profileCacheKey);
     const cachedOrders = localStorage.getItem(ordersCacheKey);
@@ -112,17 +113,9 @@ export const Profile: React.FC = () => {
           setRecentOrders(ordersData);
         }
 
-        // Wishlist
-        const qWishlist = query(
-          collection(db, 'wishlist'),
-          where('user_id', '==', authUser.uid)
-        );
-        const wishlistDocs = await safeFirestore.getCollection<any>(qWishlist, wishlistCacheKey, 'wishlist');
-
-        if (wishlistDocs && wishlistDocs.length > 0) {
-          const items = wishlistDocs.map(d => d.item_details || d.item).filter(Boolean);
-          setWishlist(items as FoodItem[]);
-        }
+        // Wishlist from Supabase
+        const wishlistItems = await getUserWishlist(authUser.uid);
+        setWishlist(wishlistItems || []);
       } catch (err) {
         console.error("Error fetching profile data:", err);
       }

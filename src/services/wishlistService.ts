@@ -106,12 +106,19 @@ export const getUserWishlist = async (userId: string) => {
   
   try {
     // Only use Supabase
+    console.log(`Fetching wishlist for user: ${userId}`);
     const { data, error } = await supabase
       .from('wishlist')
       .select('*')
       .eq('user_id', userId);
     
-    if (!error && data) {
+    if (error) {
+      console.error('Supabase error fetching wishlist:', error);
+      throw error;
+    }
+
+    if (data) {
+      console.log(`Found ${data.length} wishlist items in Supabase`);
       const items = data.map(d => d.item_details).filter(Boolean);
       localStorage.setItem(cacheKey, JSON.stringify(items));
       return items;

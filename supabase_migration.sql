@@ -34,12 +34,20 @@ CREATE TABLE IF NOT EXISTS public.products (id UUID PRIMARY KEY DEFAULT gen_rand
 CREATE TABLE IF NOT EXISTS public.orders (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS public.riders (id TEXT PRIMARY KEY);
 
--- 2. Alter Users table columns
-ALTER TABLE public.users ALTER COLUMN id TYPE TEXT USING id::text;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email TEXT;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'customer';
-ALTER TABLE public.users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
+-- 2. Users Table (Recreating to ensure schema cache is fresh and columns match)
+DROP TABLE IF EXISTS public.users CASCADE;
+CREATE TABLE public.users (
+    id TEXT PRIMARY KEY,
+    email TEXT,
+    full_name TEXT,
+    name TEXT, -- Keeping name for backwards compatibility if needed
+    role TEXT DEFAULT 'customer',
+    avatar_url TEXT,
+    phone TEXT,
+    address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
 
 -- 3. Alter Products table columns
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS name TEXT;
@@ -137,5 +145,11 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
 CREATE TRIGGER update_orders_updated_at
     BEFORE UPDATE ON public.orders
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON public.users
     FOR EACH ROW
     EXECUTE PROCEDURE update_updated_at_column();
