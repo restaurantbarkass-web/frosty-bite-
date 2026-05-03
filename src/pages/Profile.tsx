@@ -120,7 +120,7 @@ export const Profile: React.FC = () => {
         const wishlistDocs = await safeFirestore.getCollection<any>(qWishlist, wishlistCacheKey, 'wishlist');
 
         if (wishlistDocs && wishlistDocs.length > 0) {
-          const items = wishlistDocs.map(d => d.item).filter(Boolean);
+          const items = wishlistDocs.map(d => d.item_details || d.item).filter(Boolean);
           setWishlist(items as FoodItem[]);
         }
       } catch (err) {

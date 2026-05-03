@@ -144,6 +144,14 @@ service cloud.firestore {
              (data.created_at == request.time || data.created_at is string);
     }
 
+    function isValidWishlist(data) {
+      return data.keys().hasAll(['user_id', 'item_id', 'item_details', 'added_at']) &&
+             data.user_id == request.auth.uid &&
+             data.item_id is string &&
+             data.item_details is map &&
+             (data.added_at == request.time || data.added_at is string);
+    }
+
     // -------------------------------------------------------------------------
     // Collection Match Blocks
     // -------------------------------------------------------------------------
@@ -169,11 +177,14 @@ service cloud.firestore {
                        ((incoming().role == 'admin' && request.auth.token.email.lower() in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com"]) ||
                         (incoming().role == 'rider' && request.auth.token.email.lower() in ["rider1@gmail.com", "delivery@frostybite.com"])))
                     );
+    }
 
-      // WISHLIST
-      match /wishlist/{itemId} {
-        allow read, write: if isOwner(userId);
-      }
+    // WISHLIST
+    match /wishlist/{wishlistId} {
+      allow get: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isSignedIn() && isValidWishlist(incoming()) && wishlistId == request.auth.uid + "_" + incoming().item_id;
+      allow delete: if isSignedIn() && resource.data.user_id == request.auth.uid;
     }
 
     // MENU

@@ -122,6 +122,18 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["order_id", "user_id", "customer_name", "rating", "comment", "created_at"]
+    },
+    "WishlistItem": {
+      "title": "Wishlist Item",
+      "description": "A food item saved by a user for future reference.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "item_details": { "$ref": "#/entities/MenuItem" },
+        "added_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user_id", "item_id", "item_details", "added_at"]
     }
   },
   "firestore": {
@@ -156,6 +168,10 @@
     "reviews/{reviewId}": {
       "schema": "Review",
       "description": "Customer feedback and ratings."
+    },
+    "wishlist/{wishlistId}": {
+      "schema": "WishlistItem",
+      "description": "User's saved food items."
     }
   }
 }

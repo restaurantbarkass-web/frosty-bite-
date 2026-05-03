@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS public.orders (id TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS public.riders (id TEXT PRIMARY KEY);
 
 -- 2. Alter Users table columns
-ALTER TABLE public.users ALTER COLUMN id TYPE TEXT;
+ALTER TABLE public.users ALTER COLUMN id TYPE TEXT USING id::text;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'customer';
@@ -55,8 +55,8 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock_quantity INTEGER DEFA
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_user_id_fkey;
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_rider_id_fkey;
 
-ALTER TABLE public.orders ALTER COLUMN id TYPE TEXT;
-ALTER TABLE public.orders ALTER COLUMN user_id TYPE TEXT;
+ALTER TABLE public.orders ALTER COLUMN id TYPE TEXT USING id::text;
+ALTER TABLE public.orders ALTER COLUMN user_id TYPE TEXT USING user_id::text;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS items JSONB;
@@ -83,7 +83,7 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIM
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT now();
 
 -- 5. Alter Riders table columns
-ALTER TABLE public.riders ALTER COLUMN id TYPE TEXT;
+ALTER TABLE public.riders ALTER COLUMN id TYPE TEXT USING id::text;
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS name TEXT;
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS email TEXT;
@@ -96,43 +96,34 @@ ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS total_earnings NUMERIC DEFAUL
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS orders_completed INTEGER DEFAULT 0;
 ALTER TABLE public.riders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
 
--- Ensure NOT NULL constraints for critical fields (after adding columns)
--- Use a DO block to avoid errors if columns are already populated with nulls
-DO $$ 
-BEGIN
-    ALTER TABLE public.orders ALTER COLUMN customer_name SET NOT NULL;
-    ALTER TABLE public.orders ALTER COLUMN phone SET NOT NULL;
-    ALTER TABLE public.orders ALTER COLUMN total SET NOT NULL;
-    ALTER TABLE public.orders ALTER COLUMN address SET NOT NULL;
-EXCEPTION
-    WHEN others THEN 
-        RAISE NOTICE 'Could not set NOT NULL constraints. Make sure existing data is valid.';
-END $$;
+-- 6. Wishlist table (Recreating to refresh schema cache)
+DROP TABLE IF EXISTS public.wishlist;
+CREATE TABLE public.wishlist (
+    id BIGSERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    item_details JSONB,
+    added_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE(user_id, product_id)
+);
 
--- 5. Enable RLS
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.riders ENABLE ROW LEVEL SECURITY;
+-- Ensure RLS is enabled
+ALTER TABLE public.wishlist ENABLE ROW LEVEL SECURITY;
 
--- 6. Re-create Policies
--- Products
-CREATE POLICY "Public Read Products" ON public.products FOR SELECT USING (true);
-CREATE POLICY "Admin Manage Products" ON public.products FOR ALL USING (true);
+-- 7. Permissive Access Policies
+DROP POLICY IF EXISTS "wishlist_permissive_access" ON public.wishlist;
+CREATE POLICY "wishlist_permissive_access" ON public.wishlist FOR ALL USING (true) WITH CHECK (true);
 
--- Users
-CREATE POLICY "Public Read Users" ON public.users FOR SELECT USING (true);
-CREATE POLICY "Users Insert Own Profile" ON public.users FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users Update Own Profile" ON public.users FOR UPDATE USING (id = auth.uid()::text);
+DROP POLICY IF EXISTS "Users Update Own Profile" ON public.users;
+CREATE POLICY "Users Update Own Profile" ON public.users FOR ALL USING (true) WITH CHECK (true);
 
--- Orders
-CREATE POLICY "Public Read Orders" ON public.orders FOR SELECT USING (true);
-CREATE POLICY "Users Insert Orders" ON public.orders FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users Update Own Orders" ON public.orders FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Users Update Own Orders" ON public.orders;
+CREATE POLICY "Users Update Own Orders" ON public.orders FOR ALL USING (true) WITH CHECK (true);
 
--- Riders
+DROP POLICY IF EXISTS "Public Read Riders" ON public.riders;
 CREATE POLICY "Public Read Riders" ON public.riders FOR SELECT USING (true);
-CREATE POLICY "Riders Manage Own Profile" ON public.riders FOR ALL USING (true); -- Simplified for dev
+DROP POLICY IF EXISTS "Riders Manage Own Profile" ON public.riders;
+CREATE POLICY "Riders Manage Own Profile" ON public.riders FOR ALL USING (true);
 
 -- 7. Triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()

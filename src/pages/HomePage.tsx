@@ -557,7 +557,7 @@ export const Home: React.FC = () => {
           </div>
         </motion.section>
 
-        {/* Buy It Again / Previous Products */}
+        {/* Previous Favorites */}
         {previousPurchases.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
@@ -582,6 +582,36 @@ export const Home: React.FC = () => {
             </div>
           </motion.section>
         )}
+
+        {/* You Might Also Like / Trending */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mb-16"
+        >
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+               <Sparkles size={24} />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">You Might Also Like</h2>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Our top picks for your sweet cravings</p>
+            </div>
+          </div>
+          
+          <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+            {displayItems
+              .filter(item => item.available !== false)
+              .sort(() => 0.5 - Math.random())
+              .slice(0, 6)
+              .map((item) => (
+                <div key={`trending-${item.id}`} className="w-72 shrink-0">
+                  <FoodCard item={item} />
+                </div>
+              ))}
+          </div>
+        </motion.section>
 
         {/* Food Grid */}
         <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">

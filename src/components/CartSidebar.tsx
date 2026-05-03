@@ -1,16 +1,46 @@
 import React from 'react';
-import { X, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, Check } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, Check, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { supabase } from '../supabase';
 
 export const CartSidebar: React.FC = () => {
   const { cart, updateQuantity, removeFromCart, totalPrice, totalItems, isCartOpen: isOpen, setIsCartOpen } = useCart();
   const navigate = useNavigate();
   const { isOrderingOpen } = useAppConfig();
+
+  const [suggestions, setSuggestions] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .limit(10);
+        
+        if (!error && data) {
+          // Filter out items already in cart and randomize
+          const cartIds = cart.map(item => item.id);
+          const filtered = data
+            .filter(item => !cartIds.includes(item.id) && item.available !== false)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 3);
+          setSuggestions(filtered);
+        }
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      }
+    };
+
+    if (isOpen) {
+      fetchSuggestions();
+    }
+  }, [isOpen, cart.length]);
 
   const onClose = () => setIsCartOpen(false);
 
@@ -108,53 +138,88 @@ export const CartSidebar: React.FC = () => {
                     </div>
                   </motion.div>
                   
-                  <div className="space-y-4">
-                    {cart.map((item) => (
-                      <motion.div
-                        layout
-                        key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="flex space-x-3 sm:space-x-4 bg-white/5 p-3 rounded-2xl border border-white/5"
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-white/10"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="flex-1 flex flex-col justify-between py-0.5">
-                          <div className="flex justify-between items-start">
-                            <h4 className="font-black text-[11px] sm:text-sm uppercase tracking-tight italic">{item.name}</h4>
-                            <button
-                              onClick={() => removeFromCart(item.id)}
-                              className="text-zinc-600 hover:text-red-500 transition-colors p-1"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-primary font-black italic text-xs sm:text-sm">₹{item.price * item.quantity}</span>
-                            <div className="flex items-center space-x-3 bg-secondary/50 rounded-xl px-2 py-1 border border-white/5">
+                    <div className="space-y-4">
+                      {cart.map((item) => (
+                        <motion.div
+                          layout
+                          key={item.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex space-x-3 sm:space-x-4 bg-white/5 p-3 rounded-2xl border border-white/5"
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-white/10"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="flex-1 flex flex-col justify-between py-0.5">
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-black text-[11px] sm:text-sm uppercase tracking-tight italic">{item.name}</h4>
                               <button
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="text-zinc-400 hover:text-white transition-colors p-1"
+                                onClick={() => removeFromCart(item.id)}
+                                className="text-zinc-600 hover:text-red-500 transition-colors p-1"
                               >
-                                <Minus size={12} />
-                              </button>
-                              <span className="text-[10px] font-black w-4 text-center">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="text-zinc-400 hover:text-white transition-colors p-1"
-                              >
-                                <Plus size={12} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-primary font-black italic text-xs sm:text-sm">₹{item.price * item.quantity}</span>
+                              <div className="flex items-center space-x-3 bg-secondary/50 rounded-xl px-2 py-1 border border-white/5">
+                                <button
+                                  onClick={() => updateQuantity(item.id, -1)}
+                                  className="text-zinc-400 hover:text-white transition-colors p-1"
+                                >
+                                  <Minus size={12} />
+                                </button>
+                                <span className="text-[10px] font-black w-4 text-center">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.id, 1)}
+                                  className="text-zinc-400 hover:text-white transition-colors p-1"
+                                >
+                                  <Plus size={12} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Suggestions Section */}
+                    {suggestions.length > 0 && (
+                      <div className="pt-8 space-y-4">
+                        <div className="flex items-center gap-2 px-1">
+                          <Sparkles size={16} className="text-primary animate-pulse" />
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">You Might Also Like</h3>
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
+                        <div className="flex overflow-x-auto gap-4 pb-2 scrollbar-hide -mx-2 px-2">
+                          {suggestions.map((item) => (
+                            <motion.button
+                              key={item.id}
+                              whileHover={{ y: -4 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => {
+                                // Close cart and navigate to product
+                                setIsCartOpen(false);
+                                navigate(`/product/${item.id}`);
+                              }}
+                              className="w-40 shrink-0 bg-white/5 rounded-2xl border border-white/5 p-2 text-left group"
+                            >
+                              <div className="relative aspect-square rounded-xl overflow-hidden mb-2">
+                                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="absolute bottom-2 right-2 p-1.5 bg-primary rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                  <Plus size={14} strokeWidth={3} />
+                                </div>
+                              </div>
+                              <h4 className="text-[10px] font-black uppercase tracking-tight italic truncate text-zinc-300 mb-1">{item.name}</h4>
+                              <p className="text-xs font-black text-primary italic">₹{item.price}</p>
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                 </>
               )}
             </div>

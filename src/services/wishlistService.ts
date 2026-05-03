@@ -1,79 +1,102 @@
-import { db } from '../firebase';
-import { collection, query, where, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { FoodItem } from '../types';
-import { handleFirestoreError, OperationType, safeFirestore } from './firestoreService';
+import { supabase } from '../supabase';
 
 export const toggleWishlist = async (userId: string, item: FoodItem) => {
   const cacheKey = `wishlist_cache_${userId}`;
-  const docCacheKey = `wishlist_doc_${userId}_${item.id}`;
   
-  // Get current local items
-  const cached = localStorage.getItem(cacheKey);
-  let localData: FoodItem[] = [];
-  if (cached) {
-    try {
-      localData = JSON.parse(cached);
-      if (!Array.isArray(localData)) {
-        // Handle cases where data might be wrapped in {data: [...]}
-        localData = (localData as any).data || [];
-      }
-    } catch (e) {}
-  }
-
   try {
-    // Check if exists
-    const wishlistId = `${userId}_${item.id}`;
-    const docRef = doc(db, 'wishlist', wishlistId);
-    const exists = await safeFirestore.getDocument<any>(docRef, docCacheKey, `wishlist/${wishlistId}`);
+    // 1. Get user from supabase auth if they are logged in there (as per user's snippet preference)
+    const { data: { user: sbUser } } = await supabase.auth.getUser();
+    // We prefer the provided userId (from Firebase) as it's the primary identity in this app
+    const effectiveUserId = userId; 
 
-    if (exists) {
-      // Remove
-      await deleteDoc(docRef);
-      
-      // Update local cache
-      const updatedLocal = localData.filter(i => i.id !== item.id);
-      localStorage.setItem(cacheKey, JSON.stringify(updatedLocal));
-      localStorage.removeItem(docCacheKey);
-      return false; // Removed
+    // 2. Check if item exists in Supabase wishlist
+    const { data: existing, error: checkError } = await supabase
+      .from('wishlist')
+      .select('*')
+      .eq('user_id', effectiveUserId)
+      .eq('product_id', item.id)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Supabase check error:', checkError);
+    }
+
+    if (existing) {
+      // 3. REMOVE Case
+      console.log(`Removing from Supabase: ${existing.id}`);
+      const { error: deleteError } = await supabase
+        .from('wishlist')
+        .delete()
+        .eq('id', existing.id);
+
+      if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
+        throw new Error(`Remove from Supabase failed: ${deleteError.message}`);
+      }
+
+      // Update Local Cache
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const localData = JSON.parse(cached);
+          const filtered = Array.isArray(localData) ? localData.filter((i: any) => i.id !== item.id) : [];
+          localStorage.setItem(cacheKey, JSON.stringify(filtered));
+        } catch (e) {}
+      }
+      localStorage.removeItem(`wishlist_doc_${userId}_${item.id}`);
+
+      return false; // Removed successfully
     } else {
-      // Add
-      await setDoc(docRef, {
-        user_id: userId,
-        item_id: item.id,
-        item_details: item,
-        added_at: new Date().toISOString()
-      });
+      // 4. ADD Case
+      console.log('Adding to Supabase...');
+      const { error: insertError } = await supabase
+        .from('wishlist')
+        .insert({
+          user_id: effectiveUserId,
+          product_id: item.id,
+          item_details: item // Store details for UI
+        });
 
-      // Update local cache
-      const updatedLocal = [...localData, item];
-      localStorage.setItem(cacheKey, JSON.stringify(updatedLocal));
-      localStorage.setItem(docCacheKey, JSON.stringify({ user_id: userId, item_id: item.id }));
-      return true; // Added
+      if (insertError) {
+        // Handle unique constraint conflict gracefully
+        if (insertError.code === '23505') return true;
+        
+        console.error('Supabase insert error:', insertError);
+        throw new Error(`Add to Supabase failed: ${insertError.message}`);
+      }
+
+      // Update Local Cache
+      const cached = localStorage.getItem(cacheKey);
+      let localData = [];
+      try {
+        localData = cached ? JSON.parse(cached) : [];
+      } catch (e) {}
+      
+      const updated = Array.isArray(localData) ? [...localData, item] : [item];
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      localStorage.setItem(`wishlist_doc_${userId}_${item.id}`, JSON.stringify({ user_id: userId, product_id: item.id }));
+
+      return true; // Added successfully
     }
   } catch (error: any) {
-    console.error('Firestore error in toggleWishlist:', error);
-    const isQuotaError = error.code === 'resource-exhausted' || error.message?.includes('Quota');
-    if (error.code === 'permission-denied') {
-      handleFirestoreError(error, OperationType.WRITE, `wishlist/${userId}_${item.id}`);
-    } else if (isQuotaError) {
-       // Logged by safeFirestore or handleFirestoreError usually, 
-       // but toggleWishlist calls setDoc/deleteDoc directly which don't have wrappers yet
-       console.error('Database limit reached during wishlist toggle');
-    }
-    return false;
+    console.error('Error in toggleWishlist:', error);
+    throw error; 
   }
 };
 
 export const checkIfWishlisted = async (userId: string, itemId: string) => {
-  const docCacheKey = `wishlist_doc_${userId}_${itemId}`;
-  
   try {
-    const wishlistId = `${userId}_${itemId}`;
-    const docRef = doc(db, 'wishlist', wishlistId);
-    const exists = await safeFirestore.getDocument<any>(docRef, docCacheKey, `wishlist/${wishlistId}`);
-    return !!exists;
+    const { data, error } = await supabase
+      .from('wishlist')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('product_id', itemId)
+      .maybeSingle();
+    
+    return !error && !!data;
   } catch (error: any) {
-    console.warn('Error checking wishlist status in Firestore:', error);
+    console.warn('Error checking wishlist status:', error);
     return false;
   }
 };
@@ -82,16 +105,21 @@ export const getUserWishlist = async (userId: string) => {
   const cacheKey = `wishlist_cache_${userId}`;
   
   try {
-    const q = query(collection(db, 'wishlist'), where('user_id', '==', userId));
-    const wishlistDocs = await safeFirestore.getCollection<any>(q, cacheKey, 'wishlist');
+    // Only use Supabase
+    const { data, error } = await supabase
+      .from('wishlist')
+      .select('*')
+      .eq('user_id', userId);
     
-    if (wishlistDocs) {
-      const items = wishlistDocs.map(d => d.item_details as FoodItem).filter(Boolean);
+    if (!error && data) {
+      const items = data.map(d => d.item_details).filter(Boolean);
+      localStorage.setItem(cacheKey, JSON.stringify(items));
       return items;
     }
+    
     return [];
   } catch (error: any) {
-    console.error('Firestore error in getUserWishlist:', error);
+    console.error('Error in getUserWishlist:', error);
     return [];
   }
 };

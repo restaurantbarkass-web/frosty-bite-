@@ -1,5 +1,5 @@
-import React, { useState, memo } from 'react';
-import { Star, Plus, Zap, ShoppingCart, Check } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { Star, Plus, Zap, ShoppingCart, Check, Heart } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 
 import { ImageZoom } from './ImageZoom';
 
@@ -27,6 +28,66 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
   const [isFlying, setIsFlying] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { isOrderingOpen } = useAppConfig();
+  const [isLiked, setIsLiked] = useState(false);
+  const [isWishlisting, setIsWishlisting] = useState(false);
+
+  useEffect(() => {
+    const fetchWishlistStatus = async () => {
+      if (user && item.id) {
+        try {
+          const liked = await checkIfWishlisted(user.uid, item.id);
+          setIsLiked(liked);
+        } catch (error) {
+          // Fail silently for status check
+        }
+      }
+    };
+    fetchWishlistStatus();
+  }, [user, item.id]);
+
+  const handleToggleWishlist = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Please login to add to wishlist');
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+
+    if (isWishlisting) return;
+
+    setIsWishlisting(true);
+    try {
+      const added = await toggleWishlist(user.uid, item);
+      setIsLiked(added);
+      
+      if (added) {
+        toast.success('Saved to wishlist!', {
+          icon: '❤️',
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        });
+      } else {
+        toast('Removed from wishlist', {
+          icon: '🗑️',
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('Wishlist toggle error:', error);
+      toast.error(error.message || 'Failed to update wishlist');
+    } finally {
+      setIsWishlisting(false);
+    }
+  };
 
   const handleAddToCart = () => {
     if (!user) {
@@ -149,9 +210,22 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-2xl flex items-center space-x-1.5">
-          <Star size={14} className="text-orange-500 fill-orange-500" />
-          <span className="text-xs font-black text-white">{item.rating}</span>
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
+          <div className="bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-2xl flex items-center space-x-1.5">
+            <Star size={14} className="text-orange-500 fill-orange-500" />
+            <span className="text-xs font-black text-white">{item.rating}</span>
+          </div>
+          
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={handleToggleWishlist}
+            className={cn(
+              "w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-black/60 backdrop-blur-md border border-white/10",
+              isLiked ? "text-red-500" : "text-white hover:text-red-400"
+            )}
+          >
+            <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
+          </motion.button>
         </div>
 
         {item.available === false && (

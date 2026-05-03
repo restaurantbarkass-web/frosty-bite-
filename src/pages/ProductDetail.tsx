@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -122,7 +122,7 @@ const ProductDetail: React.FC = () => {
                   description: item.description || '',
                   rating: item.rating || 5
                 }))
-                .slice(0, 4);
+                .slice(0, 8);
               setRelatedItems(mappedRel);
             }
           } catch (relError) {
@@ -522,17 +522,26 @@ const ProductDetail: React.FC = () => {
             viewport={{ once: true }}
             className="mb-12"
           >
-            <h2 className="text-4xl lg:text-6xl font-display uppercase tracking-tighter mb-4">
-              You Might Also Like
-            </h2>
-            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
-              Similar items in {product.category}
-            </p>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                 <Sparkles size={24} />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-4xl lg:text-6xl font-display uppercase tracking-tighter leading-none italic">
+                  You Might Also Like
+                </h2>
+                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
+                  More from {product.category} for your cravings
+                </p>
+              </div>
+            </div>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="flex space-x-6 overflow-x-auto pb-8 scrollbar-hide -mx-6 px-6">
             {relatedItems.map((item) => (
-              <FoodCard key={item.id} item={item} />
+              <div key={item.id} className="w-72 shrink-0">
+                <FoodCard item={item} />
+              </div>
             ))}
           </div>
         </section>
