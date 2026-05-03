@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
       hmr: false,
       cors: true,
+      fs: {
+        allow: ['..']
+      }
     },
   };
 });
