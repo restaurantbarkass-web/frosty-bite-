@@ -1,15 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCart();
   const location = useLocation();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshKey((prev) => prev + 1);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
   const navLinks = [
     { name: 'Home', path: '/', icon: Home },
@@ -28,7 +40,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
       <motion.div 
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-black/70 backdrop-blur-2xl border border-white/10 rounded-[28px] p-2 flex items-center justify-around shadow-2xl relative overflow-hidden"
+        className="bg-[#0c0c0c] backdrop-blur-3xl border border-white/10 rounded-[32px] p-2 flex items-center justify-around shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
       >
         {navLinks.map((link) => {
           const Icon = link.icon;
@@ -76,15 +88,24 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
                 />
                 
                 {/* Badge for Cart */}
-                {link.badge !== undefined && link.badge > 0 && (
-                  <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-2 -right-2 bg-primary text-white text-[9px] font-black px-1 py-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center border border-black shadow-lg"
-                  >
-                    {link.badge}
-                  </motion.span>
-                )}
+                <AnimatePresence>
+                  {link.badge !== undefined && link.badge > 0 && (
+                    <motion.span 
+                      key={`${link.name}-${link.badge}-${refreshKey}`}
+                      initial={{ scale: 0, y: -5 }}
+                      animate={{ scale: 1, y: 0 }}
+                      exit={{ scale: 0 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 15,
+                      }}
+                      className="absolute -top-2 -right-2 bg-primary text-white text-[9px] font-black px-1 py-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center border border-black shadow-lg z-20"
+                    >
+                      {link.badge}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Label */}

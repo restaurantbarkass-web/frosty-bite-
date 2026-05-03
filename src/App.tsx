@@ -89,14 +89,15 @@ function AppContent() {
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
+  const isCheckoutPage = location.pathname === '/checkout';
   const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
   
   // Sidebar should be available on almost all pages
-  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
+  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
   // Navbar should be available on home and others, but maybe not auth/admin
   const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage;
   // Bottom nav and footer have their own hiding rules
-  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
   const handleSplashComplete = useCallback(() => {
     sessionStorage.setItem('splash_seen', 'true');
