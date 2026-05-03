@@ -16,6 +16,27 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [showHeader, setShowHeader] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Threshold to avoid flickering on tiny scrolls
+      if (Math.abs(window.scrollY - lastScrollY) < 10) return;
+
+      if (window.scrollY > lastScrollY && window.scrollY > 100) {
+        // scrolling down and passed a threshold
+        setShowHeader(false);
+      } else {
+        // scrolling up
+        setShowHeader(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
 
   useEffect(() => {
     const unsubscribe = appConfigService.subscribeToConfig((data) => {
@@ -44,7 +65,10 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
   const navLinks = getNavLinks();
 
   return (
-    <nav className="sticky top-0 z-50 w-full glass-dark border-b border-white/5">
+    <nav className={cn(
+      "fixed top-0 left-0 w-full z-50 transition-transform duration-300 glass-dark border-b border-white/5",
+      showHeader ? "translate-y-0" : "-translate-y-full"
+    )}>
       {/* Status Banner */}
       <AnimatePresence mode="wait">
         {config && (

@@ -128,6 +128,7 @@ function AppContent() {
       
       <main className={cn(
         "transition-all flex-1 flex flex-col min-h-svh",
+        showNavbar && "pt-24 md:pt-28", // Add padding for fixed Navbar
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
         <Suspense fallback={<PageLoader />}>
