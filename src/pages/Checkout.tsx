@@ -76,7 +76,9 @@ export const Checkout: React.FC = () => {
     id: string;
     code: string; 
     value: number; 
-    type: 'percentage' | 'fixed' 
+    type: 'percentage' | 'fixed' | 'free_item';
+    free_item_id?: string;
+    free_item_quantity?: number;
   } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
@@ -121,15 +123,17 @@ export const Checkout: React.FC = () => {
     : 0;
   const finalPrice = Math.max(0, subtotal - discountAmount + deliveryFee);
 
-  const handleApplyCoupon = async () => {
-    const trimmedCode = couponCode.trim();
+  const handleApplyCoupon = async (codeOverride?: string) => {
+    const trimmedCode = (codeOverride || couponCode).trim();
     if (!trimmedCode) {
       toast.error('Please enter a coupon code');
       return;
     }
     
     setIsApplyingCoupon(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
+    if (!codeOverride) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
 
     try {
       const code = trimmedCode.toUpperCase();
@@ -177,12 +181,18 @@ export const Checkout: React.FC = () => {
       setAppliedCoupon({ 
         id: couponId,
         code: couponData.code, 
-        value: couponData.value,
-        type: couponData.type
+        value: couponData.value || 0,
+        type: couponData.type,
+        free_item_id: couponData.free_item_id,
+        free_item_quantity: couponData.free_item_quantity
       });
 
-      const discountDisplay = couponData.type === 'percentage' ? `${couponData.value}%` : `₹${couponData.value}`;
-      toast.success(`${discountDisplay} discount applied!`, { icon: '🎉' });
+      let discountDisplay = '';
+      if (couponData.type === 'percentage') discountDisplay = `${couponData.value}%`;
+      else if (couponData.type === 'fixed') discountDisplay = `₹${couponData.value}`;
+      else if (couponData.type === 'free_item') discountDisplay = `FREE Gift`;
+
+      toast.success(`${discountDisplay} applied!`, { icon: '🎉' });
       
       confetti({
         particleCount: 150,
@@ -217,6 +227,14 @@ export const Checkout: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    const claimed = localStorage.getItem('claimed_coupon');
+    if (claimed && !appliedCoupon) {
+      handleApplyCoupon(claimed);
+      localStorage.removeItem('claimed_coupon');
+    }
+  }, [appliedCoupon]);
 
   if (cart.length === 0 && !showConfirmation) {
     return (
@@ -271,16 +289,30 @@ export const Checkout: React.FC = () => {
     setIsOrdering(true);
     try {
       const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      
+      const orderItems = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      }));
+
+      // Add free items if applicable
+      if (appliedCoupon?.type === 'free_item' && appliedCoupon.free_item_id) {
+        orderItems.push({
+          id: `free-${appliedCoupon.free_item_id}`,
+          name: `Gift: ${appliedCoupon.free_item_id.toUpperCase().replace(/_/g, ' ')}`,
+          price: 0,
+          quantity: appliedCoupon.free_item_quantity || 1,
+          image: '/gift-box.png' // Or a placeholder
+        });
+      }
+
       const orderData = {
         id: orderId,
         user_id: user?.uid || 'guest',
-        items: cart.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
+        items: orderItems,
         subtotal: subtotal,
         discount: discountAmount,
         delivery_charge: deliveryFee,
@@ -293,7 +325,7 @@ export const Checkout: React.FC = () => {
         delivery_location: formData.location || null,
         phone: formData.phone,
         customer_name: formData.name,
-        notes: formData.notes,
+        notes: formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
 
@@ -733,7 +765,7 @@ export const Checkout: React.FC = () => {
                         />
                         <button
                           type="button"
-                          onClick={handleApplyCoupon}
+                          onClick={() => handleApplyCoupon()}
                           disabled={isApplyingCoupon || !couponCode}
                           className="px-6 sm:px-8 bg-primary text-white disabled:bg-zinc-800 disabled:opacity-50 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-primary/25 whitespace-nowrap"
                         >

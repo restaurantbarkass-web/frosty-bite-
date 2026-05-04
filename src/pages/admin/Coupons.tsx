@@ -31,7 +31,7 @@ import { safeFirestore } from '../../services/firestoreService';
 interface Coupon {
   id: string;
   code: string;
-  type: 'percentage' | 'fixed';
+  type: 'percentage' | 'fixed' | 'free_item';
   value: number;
   min_order: number;
   expiry_date: string;
@@ -40,6 +40,8 @@ interface Coupon {
   status: 'active' | 'expired' | 'disabled';
   is_first_order_only?: boolean;
   created_at: string;
+  free_item_id?: string;
+  free_item_quantity?: number;
 }
 
 export const Coupons: React.FC = () => {
@@ -52,12 +54,14 @@ export const Coupons: React.FC = () => {
   // Form State
   const [newCoupon, setNewCoupon] = useState({
     code: '',
-    type: 'percentage' as 'percentage' | 'fixed',
+    type: 'percentage' as 'percentage' | 'fixed' | 'free_item',
     value: 0,
     min_order: 0,
     expiry_date: '',
     usage_limit: 100,
-    is_first_order_only: false
+    is_first_order_only: false,
+    free_item_id: '',
+    free_item_quantity: 1
   });
 
   const fetchCoupons = async () => {
@@ -108,7 +112,9 @@ export const Coupons: React.FC = () => {
         min_order: 0,
         expiry_date: '',
         usage_limit: 100,
-        is_first_order_only: false
+        is_first_order_only: false,
+        free_item_id: '',
+        free_item_quantity: 1
       });
     } catch (error) {
       console.error('Error creating coupon:', error);
@@ -354,7 +360,9 @@ export const Coupons: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-sm font-bold text-white">
-                      {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
+                      {coupon.type === 'percentage' ? `${coupon.value}%` : 
+                       coupon.type === 'fixed' ? `₹${coupon.value}` : 
+                       `Gift: ${coupon.free_item_quantity}x Item`}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-zinc-400">₹{coupon.min_order}</td>
@@ -421,7 +429,9 @@ export const Coupons: React.FC = () => {
                 </div>
                   <div className="text-right">
                     <p className="text-sm font-black text-white">
-                      {coupon.type === 'percentage' ? `${coupon.value}%` : `₹${coupon.value}`}
+                      {coupon.type === 'percentage' ? `${coupon.value}%` : 
+                       coupon.type === 'fixed' ? `₹${coupon.value}` : 
+                       'Free Gift'}
                     </p>
                     <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.min_order}</p>
                   </div>
@@ -480,18 +490,18 @@ export const Coupons: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-black text-white">New Coupon</h3>
+              <div className="flex items-center justify-between mb-6 sm:mb-8 shrink-0">
+                <h3 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tight">New Coupon</h3>
                 <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
                   <XCircle size={24} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateCoupon} className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
+              <form onSubmit={handleCreateCoupon} className="space-y-6 overflow-y-auto no-scrollbar pb-6 pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Coupon Code</label>
                     <input 
                       type="text" 
@@ -499,7 +509,7 @@ export const Coupons: React.FC = () => {
                       placeholder="E.G. WELCOME50"
                       value={newCoupon.code}
                       onChange={(e) => setNewCoupon({...newCoupon, code: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold placeholder:text-zinc-700"
                     />
                   </div>
                   <div>
@@ -507,27 +517,56 @@ export const Coupons: React.FC = () => {
                     <select 
                       value={newCoupon.type}
                       onChange={(e) => setNewCoupon({...newCoupon, type: e.target.value as any})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-sans"
                     >
                       <option value="percentage">Percentage (%)</option>
                       <option value="fixed">Fixed Amount (₹)</option>
+                      <option value="free_item">Free Gift Item</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Value</label>
-                    <div className="relative">
+                  {newCoupon.type !== 'free_item' ? (
+                    <div>
+                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Value</label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          required
+                          value={newCoupon.value}
+                          onChange={(e) => setNewCoupon({...newCoupon, value: Number(e.target.value)})}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                          {newCoupon.type === 'percentage' ? <Percent size={16} /> : <DollarSign size={16} />}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="col-span-1">
+                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Free Item ID</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. cupcakes"
+                        value={newCoupon.free_item_id}
+                        onChange={(e) => setNewCoupon({...newCoupon, free_item_id: e.target.value})}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                      />
+                    </div>
+                  )}
+
+                  {newCoupon.type === 'free_item' && (
+                    <div className="col-span-1 text-left">
+                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Gift Quantity</label>
                       <input 
                         type="number" 
                         required
-                        value={newCoupon.value}
-                        onChange={(e) => setNewCoupon({...newCoupon, value: Number(e.target.value)})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                        min="1"
+                        value={newCoupon.free_item_quantity}
+                        onChange={(e) => setNewCoupon({...newCoupon, free_item_quantity: Number(e.target.value)})}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
                       />
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                        {newCoupon.type === 'percentage' ? <Percent size={16} /> : <DollarSign size={16} />}
-                      </div>
                     </div>
-                  </div>
+                  )}
                   <div>
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Min. Order (₹)</label>
                     <input 
@@ -535,7 +574,7 @@ export const Coupons: React.FC = () => {
                       required
                       value={newCoupon.min_order}
                       onChange={(e) => setNewCoupon({...newCoupon, min_order: Number(e.target.value)})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
                     />
                   </div>
                   <div>
@@ -545,20 +584,20 @@ export const Coupons: React.FC = () => {
                       required
                       value={newCoupon.usage_limit}
                       onChange={(e) => setNewCoupon({...newCoupon, usage_limit: Number(e.target.value)})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Expiry Date</label>
                     <input 
                       type="date" 
                       required
                       value={newCoupon.expiry_date}
                       onChange={(e) => setNewCoupon({...newCoupon, expiry_date: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold appearance-none"
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="flex items-center gap-3 cursor-pointer group">
                       <div className="relative">
                         <input 
@@ -576,13 +615,15 @@ export const Coupons: React.FC = () => {
                   </div>
                 </div>
 
-                <button 
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
-                >
-                  {isLoading ? 'Creating...' : 'Create Coupon'}
-                </button>
+                <div className="sticky bottom-0 pt-4 bg-[#121212] shrink-0">
+                  <button 
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? 'Creating...' : 'Create Coupon'}
+                  </button>
+                </div>
               </form>
             </motion.div>
           </div>

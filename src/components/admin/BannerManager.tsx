@@ -13,7 +13,8 @@ import {
   Save,
   Loader2,
   Calendar,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Ticket
 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { Banner } from '../../types';
@@ -36,7 +37,8 @@ export const BannerManager: React.FC = () => {
     priority: 0,
     is_active: true,
     start_date: new Date().toISOString().split('T')[0],
-    end_date: ''
+    end_date: '',
+    auto_apply_coupon: ''
   });
 
   useEffect(() => {
@@ -89,7 +91,8 @@ export const BannerManager: React.FC = () => {
         priority: banner.priority,
         is_active: banner.is_active,
         start_date: banner.start_date.split('T')[0],
-        end_date: banner.end_date ? banner.end_date.split('T')[0] : ''
+        end_date: banner.end_date ? banner.end_date.split('T')[0] : '',
+        auto_apply_coupon: banner.auto_apply_coupon || ''
       });
     } else {
       setEditingBanner(null);
@@ -100,7 +103,8 @@ export const BannerManager: React.FC = () => {
         priority: 0,
         is_active: true,
         start_date: new Date().toISOString().split('T')[0],
-        end_date: ''
+        end_date: '',
+        auto_apply_coupon: ''
       });
     }
     setIsModalOpen(true);
@@ -118,7 +122,8 @@ export const BannerManager: React.FC = () => {
         priority: Number(formData.priority),
         is_active: formData.is_active,
         start_date: new Date(formData.start_date).toISOString(),
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null
+        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        auto_apply_coupon: formData.auto_apply_coupon || null
       };
 
       if (editingBanner) {
@@ -294,18 +299,18 @@ export const BannerManager: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[3rem] shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-3xl sm:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
-              <div className="bg-white/5 p-8 flex justify-between items-center border-b border-white/5">
-                <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">
+              <div className="bg-white/5 p-6 sm:p-8 flex justify-between items-center border-b border-white/5 shrink-0">
+                <h2 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tighter">
                   {editingBanner ? 'Edit Banner' : 'Create Banner'}
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 text-zinc-400">
+                <button onClick={() => setIsModalOpen(false)} className="p-2 sm:p-3 bg-white/5 rounded-2xl hover:bg-white/10 text-zinc-400">
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="p-8 space-y-6">
+              <form onSubmit={handleSave} className="p-6 sm:p-8 space-y-6 overflow-y-auto custom-scrollbar">
                 <div className="space-y-4">
                   <div>
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Banner Title</label>
@@ -322,7 +327,7 @@ export const BannerManager: React.FC = () => {
                   <ImageUpload 
                     onUploadComplete={(url) => setFormData({ ...formData, image_url: url })}
                     currentImage={formData.image_url}
-                    label="Banner Banner (21:9 Recommended)"
+                    label="Banner Image (21:9 Recommended)"
                   />
 
                   {formData.image_url && (
@@ -347,6 +352,21 @@ export const BannerManager: React.FC = () => {
                   )}
 
                   <div>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Auto-Apply Coupon Code (Optional)</label>
+                    <div className="relative group">
+                      <Ticket size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" />
+                      <input
+                        type="text"
+                        value={formData.auto_apply_coupon}
+                        onChange={e => setFormData({ ...formData, auto_apply_coupon: e.target.value.toUpperCase() })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 text-white text-sm focus:border-primary outline-none transition-colors"
+                        placeholder="e.g. MOTHERSDAY15"
+                      />
+                    </div>
+                    <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mt-2 ml-1">Applying this will skip manual entry for the user</p>
+                  </div>
+
+                  <div>
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Redirect URL (Optional)</label>
                     <div className="relative group">
                       <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" size={16} />
@@ -360,7 +380,7 @@ export const BannerManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Priority (Higher = First)</label>
                       <input
@@ -385,7 +405,7 @@ export const BannerManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Start Date</label>
                       <input
@@ -407,7 +427,7 @@ export const BannerManager: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-4 pt-4 shrink-0">
                   <button
                     type="submit"
                     disabled={isSaving}

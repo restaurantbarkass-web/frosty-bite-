@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 import { Banner } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { ExternalLink } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export const BannerCarousel: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -43,6 +44,20 @@ export const BannerCarousel: React.FC = () => {
         .then(({ error }) => {
           if (error) console.error('Error tracking click:', error);
         });
+
+      if (banner.auto_apply_coupon) {
+        localStorage.setItem('claimed_coupon', banner.auto_apply_coupon);
+        toast.success(`Deal Claimed: ${banner.auto_apply_coupon}! 🎉`, {
+          style: {
+            borderRadius: '16px',
+            background: '#18181b',
+            color: '#fff',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '12px',
+            fontWeight: 'bold',
+          }
+        });
+      }
 
       if (banner.redirect_url) {
         if (banner.redirect_url.startsWith('http')) {

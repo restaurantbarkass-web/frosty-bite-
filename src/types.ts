@@ -78,6 +78,23 @@ export interface Banner {
   start_date: string;
   end_date: string | null;
   created_at: string;
+  auto_apply_coupon?: string; // Code of coupon to auto-apply when clicked
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed' | 'free_item';
+  value: number; // For percentage/fixed
+  min_order: number;
+  expiry_date: string;
+  usage_limit: number;
+  usage_count: number;
+  status: 'active' | 'expired' | 'disabled';
+  is_first_order_only?: boolean;
+  created_at: string;
+  free_item_id?: string;
+  free_item_quantity?: number;
 }
 
 export interface BannerClick {

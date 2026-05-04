@@ -353,7 +353,7 @@ export const Home: React.FC = () => {
             <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
+            className="text-5xl sm:text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
           >
             Frosty <span className="font-sans font-black NOT-italic text-primary block md:inline">Bite</span>
           </motion.h1>
@@ -525,13 +525,13 @@ export const Home: React.FC = () => {
         </AnimatePresence>
 
         {/* Categories */}
-        <div className="flex space-x-4 overflow-x-auto pb-8 scrollbar-hide">
+        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4">
           {menuCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                "whitespace-nowrap px-6 py-3 rounded-2xl font-bold transition-all",
+                "whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all text-xs sm:text-sm",
                 selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "glass-dark text-muted hover:text-white"
               )}
             >
@@ -631,7 +631,7 @@ export const Home: React.FC = () => {
         </motion.section>
 
         {/* Food Grid */}
-        <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {filteredItems.map((item) => (
             <FoodCard key={item.id} item={item} />
           ))}
