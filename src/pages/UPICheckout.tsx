@@ -48,7 +48,7 @@ export const UPICheckout: React.FC = () => {
     address: string;
     discount?: number;
     couponCode?: string;
-    deliveryFee?: number;
+    delivery_charge?: number;
     scrollToQR?: boolean;
   } | null;
 
@@ -176,6 +176,7 @@ export const UPICheckout: React.FC = () => {
         address: state!.address,
         method: 'upi' as const,
         amount: state!.totalPrice,
+        delivery_charge: state!.delivery_charge || 0,
         discount: state!.discount || 0,
         couponCode: state!.couponCode || null,
         utr: utr,
@@ -337,10 +338,10 @@ export const UPICheckout: React.FC = () => {
                           </p>
                         </div>
                       )}
-                      {state.deliveryFee && state.deliveryFee > 0 && (
+                      {state.delivery_charge && state.delivery_charge > 0 && (
                         <div className="px-3 py-1 bg-zinc-100 border border-zinc-200 rounded-full">
                           <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest text-center">
-                            Delivery Fee: ₹{state.deliveryFee}
+                            Delivery Fee: ₹{state.delivery_charge}
                           </p>
                         </div>
                       )}

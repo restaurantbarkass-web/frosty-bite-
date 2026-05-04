@@ -283,7 +283,7 @@ export const Checkout: React.FC = () => {
         })),
         subtotal: subtotal,
         discount: discountAmount,
-        delivery_fee: deliveryFee,
+        delivery_charge: deliveryFee,
         coupon_code: appliedCoupon?.code || null,
         total: finalPrice,
         status: 'pending',
@@ -341,7 +341,7 @@ export const Checkout: React.FC = () => {
             address: formData.address,
             notes: formData.notes,
             discount: discountAmount,
-            deliveryFee: deliveryFee,
+            delivery_charge: deliveryFee,
             couponCode: appliedCoupon?.code,
             scrollToQR: true
           } 
@@ -366,7 +366,7 @@ export const Checkout: React.FC = () => {
           notes: formData.notes,
           method: 'cod' as const,
           amount: finalPrice,
-          delivery_fee: deliveryFee,
+          delivery_charge: deliveryFee,
           discount: discountAmount,
           couponCode: appliedCoupon?.code,
           items: cart.map(item => ({

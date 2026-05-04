@@ -42,7 +42,6 @@ export interface Order {
   discount?: number;
   coupon_code?: string | null;
   delivery_charge?: number;
-  delivery_fee?: number;
   subtotal?: number;
   gst?: number;
   estimated_delivery_time?: number; // in minutes

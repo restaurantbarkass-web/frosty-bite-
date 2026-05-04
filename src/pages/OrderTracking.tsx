@@ -548,7 +548,7 @@ export const OrderTracking: React.FC = () => {
               <div className="pt-4 border-t border-white/5 space-y-2">
                 <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                   <span>Subtotal</span>
-                  <span>₹{(order.total || 0) + (order.discount || 0) - (order.delivery_fee || 0)}</span>
+                  <span>₹{(order.total || 0) + (order.discount || 0) - (order.delivery_charge || 0)}</span>
                 </div>
                 {order.discount && order.discount > 0 && (
                   <div className="flex justify-between text-[10px] text-primary font-bold uppercase tracking-widest">
@@ -556,10 +556,10 @@ export const OrderTracking: React.FC = () => {
                     <span>-₹{order.discount}</span>
                   </div>
                 )}
-                {order.delivery_fee !== undefined && order.delivery_fee > 0 && (
+                {order.delivery_charge !== undefined && order.delivery_charge > 0 && (
                   <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                     <span>Delivery Fee</span>
-                    <span>₹{order.delivery_fee}</span>
+                    <span>₹{order.delivery_charge}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-xl font-black text-white italic uppercase tracking-tighter pt-2 border-t border-white/10 mt-2">

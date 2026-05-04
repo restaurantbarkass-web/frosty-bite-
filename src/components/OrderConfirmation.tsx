@@ -26,7 +26,7 @@ interface OrderConfirmationProps {
     notes?: string;
     method: 'upi' | 'cod';
     amount: number;
-    delivery_fee?: number;
+    delivery_charge?: number;
     discount?: number;
     items?: OrderItem[];
     estimatedDelivery?: number;
@@ -197,10 +197,10 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                       <div>
                         <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Amount to Pay</p>
                         <p className="text-2xl font-black text-white italic">₹{amountValue}</p>
-                        {(orderData.delivery_fee || orderData.discount) && (
+                        {(orderData.delivery_charge || orderData.discount) && (
                           <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
-                            {orderData.delivery_fee ? `Incl. ₹${orderData.delivery_fee} delivery` : ''}
-                            {orderData.discount ? `${orderData.delivery_fee ? ' • ' : ''}-₹${orderData.discount} discount` : ''}
+                            {orderData.delivery_charge ? `Incl. ₹${orderData.delivery_charge} delivery` : ''}
+                            {orderData.discount ? `${orderData.delivery_charge ? ' • ' : ''}-₹${orderData.discount} discount` : ''}
                           </p>
                         )}
                       </div>

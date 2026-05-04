@@ -761,9 +761,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 <td className="px-8 py-6">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-white">₹{order.total}</span>
-                    {order.delivery_fee !== undefined && order.delivery_fee > 0 && (
+                    {order.delivery_charge !== undefined && order.delivery_charge > 0 && (
                       <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                        Delivery: ₹{order.delivery_fee}
+                        Delivery: ₹{order.delivery_charge}
                       </span>
                     )}
                     {order.discount && order.discount > 0 && (

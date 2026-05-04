@@ -259,10 +259,10 @@ const Orders: React.FC = () => {
                         <div className="text-right">
                           <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest">Total Amount</p>
                           <p className="text-xl font-black text-white italic tracking-tighter">₹{order.total || 0}</p>
-                          {(order.delivery_fee || order.discount) && (
+                          {(order.delivery_charge || order.discount) && (
                             <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-1">
-                              {order.delivery_fee ? `Incl. ₹${order.delivery_fee} Del.` : ''}
-                              {order.discount ? `${order.delivery_fee ? ' • ' : ''}-₹${order.discount} Disc.` : ''}
+                              {order.delivery_charge ? `Incl. ₹${order.delivery_charge} Del.` : ''}
+                              {order.discount ? `${order.delivery_charge ? ' • ' : ''}-₹${order.discount} Disc.` : ''}
                             </p>
                           )}
                         </div>
