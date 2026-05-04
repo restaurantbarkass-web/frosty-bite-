@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { Banner } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const BannerCarousel: React.FC = () => {
@@ -103,6 +103,18 @@ export const BannerCarousel: React.FC = () => {
                 <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-[0.2em]">
                   View Details <ExternalLink size={12} />
                 </div>
+              )}
+              {banner.gift_url && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(banner.gift_url, '_blank');
+                  }}
+                  className="mt-3 w-max flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-primary hover:text-white transition-all active:scale-95 shadow-xl"
+                >
+                  <Sparkles size={12} />
+                  View Gift Info
+                </button>
               )}
             </div>
             

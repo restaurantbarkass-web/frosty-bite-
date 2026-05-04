@@ -42,6 +42,7 @@ interface Coupon {
   created_at: string;
   free_item_id?: string;
   free_item_quantity?: number;
+  gift_url?: string;
 }
 
 export const Coupons: React.FC = () => {
@@ -61,7 +62,8 @@ export const Coupons: React.FC = () => {
     usage_limit: 100,
     is_first_order_only: false,
     free_item_id: '',
-    free_item_quantity: 1
+    free_item_quantity: 1,
+    gift_url: ''
   });
 
   const fetchCoupons = async () => {
@@ -114,7 +116,8 @@ export const Coupons: React.FC = () => {
         usage_limit: 100,
         is_first_order_only: false,
         free_item_id: '',
-        free_item_quantity: 1
+        free_item_quantity: 1,
+        gift_url: ''
       });
     } catch (error) {
       console.error('Error creating coupon:', error);
@@ -553,7 +556,6 @@ export const Coupons: React.FC = () => {
                       />
                     </div>
                   )}
-
                   {newCoupon.type === 'free_item' && (
                     <div className="col-span-1 text-left">
                       <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Gift Quantity</label>
@@ -567,6 +569,17 @@ export const Coupons: React.FC = () => {
                       />
                     </div>
                   )}
+
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Gift Info URL (Optional)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. /product/cupcake-tasting-pack"
+                      value={newCoupon.gift_url}
+                      onChange={(e) => setNewCoupon({...newCoupon, gift_url: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold placeholder:text-zinc-800"
+                    />
+                  </div>
                   <div>
                     <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Min. Order (₹)</label>
                     <input 

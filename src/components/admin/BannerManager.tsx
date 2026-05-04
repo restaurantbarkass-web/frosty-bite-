@@ -14,7 +14,8 @@ import {
   Loader2,
   Calendar,
   Link as LinkIcon,
-  Ticket
+  Ticket,
+  Sparkles
 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { Banner } from '../../types';
@@ -38,7 +39,8 @@ export const BannerManager: React.FC = () => {
     is_active: true,
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
-    auto_apply_coupon: ''
+    auto_apply_coupon: '',
+    gift_url: ''
   });
 
   useEffect(() => {
@@ -92,7 +94,8 @@ export const BannerManager: React.FC = () => {
         is_active: banner.is_active,
         start_date: banner.start_date.split('T')[0],
         end_date: banner.end_date ? banner.end_date.split('T')[0] : '',
-        auto_apply_coupon: banner.auto_apply_coupon || ''
+        auto_apply_coupon: banner.auto_apply_coupon || '',
+        gift_url: banner.gift_url || ''
       });
     } else {
       setEditingBanner(null);
@@ -104,7 +107,8 @@ export const BannerManager: React.FC = () => {
         is_active: true,
         start_date: new Date().toISOString().split('T')[0],
         end_date: '',
-        auto_apply_coupon: ''
+        auto_apply_coupon: '',
+        gift_url: ''
       });
     }
     setIsModalOpen(true);
@@ -123,7 +127,8 @@ export const BannerManager: React.FC = () => {
         is_active: formData.is_active,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
-        auto_apply_coupon: formData.auto_apply_coupon || null
+        auto_apply_coupon: formData.auto_apply_coupon || null,
+        gift_url: formData.gift_url || null
       };
 
       if (editingBanner) {
@@ -364,6 +369,20 @@ export const BannerManager: React.FC = () => {
                       />
                     </div>
                     <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mt-2 ml-1">Applying this will skip manual entry for the user</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Gift Link / Info URL (Optional)</label>
+                    <div className="relative group">
+                      <Sparkles size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" />
+                      <input
+                        type="text"
+                        value={formData.gift_url}
+                        onChange={e => setFormData({ ...formData, gift_url: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-12 py-4 text-white text-sm focus:border-primary outline-none transition-colors"
+                        placeholder="e.g. /product/cupcake-pack"
+                      />
+                    </div>
                   </div>
 
                   <div>

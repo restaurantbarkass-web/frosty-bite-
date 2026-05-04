@@ -19,7 +19,8 @@ import {
   Ticket,
   Check,
   AlertTriangle,
-  Map as MapIcon
+  Map as MapIcon,
+  Sparkles
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -79,6 +80,7 @@ export const Checkout: React.FC = () => {
     type: 'percentage' | 'fixed' | 'free_item';
     free_item_id?: string;
     free_item_quantity?: number;
+    gift_url?: string;
   } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
@@ -184,7 +186,8 @@ export const Checkout: React.FC = () => {
         value: couponData.value || 0,
         type: couponData.type,
         free_item_id: couponData.free_item_id,
-        free_item_quantity: couponData.free_item_quantity
+        free_item_quantity: couponData.free_item_quantity,
+        gift_url: couponData.gift_url
       });
 
       let discountDisplay = '';
@@ -800,7 +803,19 @@ export const Checkout: React.FC = () => {
                             <p className="text-sm sm:text-base font-black text-white uppercase italic tracking-tight">{appliedCoupon.code}</p>
                             <span className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black uppercase rounded-md tracking-widest border border-primary/30">Verified</span>
                           </div>
-                          <p className="text-[11px] font-bold text-primary uppercase mt-1 tracking-wider italic">₹{discountAmount.toFixed(0)} Discounted! ✨</p>
+                          <p className="text-[11px] font-bold text-primary uppercase mt-1 tracking-wider italic">
+                            {appliedCoupon.type === 'free_item' ? 'FREE Gift Applied! 🎁' : `₹${discountAmount.toFixed(0)} Discounted! ✨`}
+                          </p>
+                          {appliedCoupon.gift_url && (
+                            <a 
+                              href={appliedCoupon.gift_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[9px] font-black text-white/40 hover:text-primary transition-colors uppercase tracking-widest mt-2 bg-white/5 px-2 py-1 rounded-md border border-white/5"
+                            >
+                              <Sparkles size={10} /> View Gift details
+                            </a>
+                          )}
                         </div>
                       </div>
                       <button

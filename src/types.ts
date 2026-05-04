@@ -79,6 +79,7 @@ export interface Banner {
   end_date: string | null;
   created_at: string;
   auto_apply_coupon?: string; // Code of coupon to auto-apply when clicked
+  gift_url?: string; // Optional link to see the gift item
 }
 
 export interface Coupon {
@@ -95,6 +96,7 @@ export interface Coupon {
   created_at: string;
   free_item_id?: string;
   free_item_quantity?: number;
+  gift_url?: string; // Optional link to see the gift item
 }
 
 export interface BannerClick {
