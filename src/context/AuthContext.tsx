@@ -94,14 +94,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const value = {
+  const value = React.useMemo(() => ({
     user,
     role,
     loading,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isRider: role === 'rider' || (!!user?.email && RIDER_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
-  };
+  }), [user, role, loading]);
 
   return (
     <AuthContext.Provider value={value}>

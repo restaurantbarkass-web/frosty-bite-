@@ -73,7 +73,8 @@ function AppContent() {
 
   useEffect(() => {
     const handleSearchState = (e: any) => {
-      setIsSearching(e.detail);
+      const newState = !!e.detail;
+      setIsSearching(prev => prev !== newState ? newState : prev);
     };
     const handleQuotaExceeded = () => {
       setQuotaExceeded(true);

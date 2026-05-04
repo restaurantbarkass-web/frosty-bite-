@@ -45,6 +45,7 @@ CREATE TABLE public.users (
     avatar_url TEXT,
     phone TEXT,
     address TEXT,
+    theme_name TEXT DEFAULT 'dark-premium',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

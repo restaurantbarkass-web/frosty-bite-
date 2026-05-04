@@ -169,64 +169,51 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -10, scale: 1.02 }}
-      className={cn(
-        "group relative bg-[#111]/80 backdrop-blur-xl overflow-hidden border border-white/5 hover:border-orange-500/30 transition-all duration-500 shadow-2xl cursor-pointer",
-        variant === 'compact' ? "rounded-3xl" : "rounded-[2.5rem]"
-      )}
-      onClick={() => navigate(`/product/${item.id}`)}
-    >
-      {/* Flying Animation Element */}
-      <AnimatePresence>
-        {isFlying && (
-          <motion.div
-            initial={{ scale: 1, x: 0, y: 0, opacity: 1 }}
-            animate={{ 
-              scale: 0.2, 
-              x: window.innerWidth > 768 ? 400 : 0, 
-              y: -500, 
-              opacity: 0 
-            }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
-            className="fixed z-[100] pointer-events-none"
-          >
-            <div className="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center shadow-2xl shadow-orange-500/50">
-              <ShoppingCart className="text-white" size={32} />
-            </div>
-          </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        whileHover={{ y: -5, scale: 1.01 }}
+        className={cn(
+          "group relative bg-white/5 overflow-hidden border border-white/5 hover:border-primary/30 transition-all shadow-xl",
+          variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
-      </AnimatePresence>
-
-      <div className="relative aspect-[4/3] overflow-hidden">
-        <ImageZoom
-          src={item.image}
-          alt={item.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          triggerClassName="w-full h-full"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        onClick={() => navigate(`/product/${item.id}`)}
+      >
+        {/* Flying Animation Element skipped */}
         
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          <div className="bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-2xl flex items-center space-x-1.5">
-            <Star size={14} className="text-orange-500 fill-orange-500" />
-            <span className="text-xs font-black text-white">{item.rating}</span>
-          </div>
+        <div className="relative aspect-[4/3] overflow-hidden">
+          <ImageZoom
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            triggerClassName="w-full h-full"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={handleToggleWishlist}
-            className={cn(
-              "w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-black/60 backdrop-blur-md border border-white/10",
-              isLiked ? "text-red-500" : "text-white hover:text-red-400"
-            )}
-          >
-            <Heart size={16} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
-          </motion.button>
-        </div>
+          <div className="absolute top-5 right-5 flex flex-col gap-2">
+            <div className="bg-background/60 backdrop-blur-md border border-border px-3 py-1.5 rounded-2xl flex items-center space-x-1.5 shadow-lg">
+              <Star size={14} className="text-primary fill-primary" />
+              <span className="text-xs font-black text-foreground">{item.rating}</span>
+            </div>
+            
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={handleToggleWishlist}
+              className={cn(
+                "w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-background/60 backdrop-blur-md border border-border shadow-lg",
+                isLiked ? "text-red-500" : "text-foreground/70 hover:text-red-400"
+              )}
+            >
+              <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
+            </motion.button>
+          </div>
+
+          <div className="absolute top-5 left-5">
+            <span className="bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-lg">
+              Freshly Baked
+            </span>
+          </div>
 
         {item.available === false && (
           <motion.div 
@@ -254,23 +241,23 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
         !isOrderingOpen && "opacity-60",
         variant === 'compact' ? "p-4" : "p-6"
       )}>
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex justify-between items-start mb-2">
           <h3 className={cn(
-            "font-black leading-tight text-white group-hover:text-orange-500 transition-colors tracking-tight uppercase italic",
-            variant === 'compact' ? "text-sm text-primary" : "text-xl"
+            "font-black leading-tight text-white group-hover:text-primary transition-colors tracking-tight uppercase",
+            variant === 'compact' ? "text-xs" : "text-lg"
           )}>
             {item.name}
           </h3>
           <div className="flex flex-col items-end">
             <span className={cn(
-              "text-orange-500 font-black italic",
-              variant === 'compact' ? "text-sm" : "text-lg"
+              "text-primary font-black",
+              variant === 'compact' ? "text-xs" : "text-xl"
             )}>₹{item.price}</span>
           </div>
         </div>
         
         {variant !== 'compact' && (
-          <p className="text-gray-500 text-xs font-medium line-clamp-2 mb-6 leading-relaxed">
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider line-clamp-2 mb-6">
             {item.description}
           </p>
         )}
@@ -281,7 +268,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
             disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
             className={cn(
               "flex-1 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden",
-              variant === 'compact' ? "py-2.5" : "py-4 rounded-2xl"
+              variant === 'compact' ? "py-2" : "py-3"
             )}
             title={!isOrderingOpen ? "Orders are currently closed" : "Add to Cart"}
           >
@@ -327,10 +314,10 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
             onClick={handleBuyNow}
             disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0) || isBuyingNow}
             className={cn(
-              "flex-[2] bg-orange-500 hover:bg-orange-600 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
-              variant === 'compact' ? "py-2.5" : "py-4 rounded-2xl"
+              "flex-[2.5] bg-primary hover:opacity-90 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
+              variant === 'compact' ? "py-2.5" : "py-4"
             )}
-            title={!isOrderingOpen ? "Orders are currently closed" : "Buy Now"}
+            title={!isOrderingOpen ? "Orders are currently closed" : "Quick Checkout"}
           >
             <AnimatePresence mode="wait">
               {isBuyingNow ? (
@@ -356,7 +343,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
                   className="flex items-center space-x-2"
                 >
                   <Zap size={16} fill="currentColor" className="group-hover:scale-125 transition-transform" />
-                  <span className="text-xs font-black uppercase tracking-[0.15em]">Buy Now</span>
+                  <span className="text-xs font-black uppercase tracking-[0.15em]">Quick Buy</span>
                 </motion.div>
               )}
             </AnimatePresence>

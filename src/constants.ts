@@ -11,7 +11,8 @@ export const RIDER_EMAILS = [
   "delivery@frostybite.com"
 ];
 
-export const RESTAURANT_WHATSAPP = "917735800239"; // Updated restaurant number
+export const RESTAURANT_WHATSAPP = "917735800239"; 
+export const RESTAURANT_LOCATION = { lat: 20.2961, lng: 85.8245 };
 
 export type UserRole = 'admin' | 'rider' | 'customer';
 

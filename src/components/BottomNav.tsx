@@ -36,11 +36,11 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
   }
 
   return (
-    <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm z-[100]">
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100]">
       <motion.div 
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-[#0c0c0c] backdrop-blur-3xl border border-white/10 rounded-[32px] p-2 flex items-center justify-around shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+        className="bg-black/90 backdrop-blur-xl p-3 flex items-center justify-around rounded-t-2xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
       >
         {navLinks.map((link) => {
           const Icon = link.icon;
@@ -120,7 +120,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
               {isActive && (
                 <motion.div 
                   layoutId="bottom-nav-dot"
-                  className="absolute -bottom-1 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(255,107,38,0.8)]"
+                  className="absolute -bottom-1.5 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_12px_rgba(255,107,38,1)]"
                   transition={{ type: "spring", stiffness: 500, damping: 20 }}
                 />
               )}

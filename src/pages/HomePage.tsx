@@ -41,32 +41,45 @@ export const Home: React.FC = () => {
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
 
+  const lastSearchState = React.useRef(false);
+
   useEffect(() => {
     // Notify App component about search state to hide/show navigation
-    window.dispatchEvent(new CustomEvent('is-searching', { detail: showSuggestions && searchQuery.length > 0 }));
+    const newState = Boolean(showSuggestions && searchQuery.length > 0);
+    if (newState !== lastSearchState.current) {
+      lastSearchState.current = newState;
+      // Use a small delay to avoid immediate layout thrashing
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('is-searching', { detail: newState }));
+      }, 50);
+      return () => clearTimeout(timer);
+    }
   }, [showSuggestions, searchQuery]);
 
   useEffect(() => {
     const handleNavbarSearch = (e: any) => {
-      setSearchQuery(e.detail);
-      const element = document.getElementById('menu-section');
-      element?.scrollIntoView({ behavior: 'smooth' });
+      const queryValue = e.detail;
+      if (queryValue !== searchQuery) {
+        setSearchQuery(queryValue);
+        const element = document.getElementById('menu-section');
+        element?.scrollIntoView({ behavior: 'smooth' });
+      }
     };
 
     window.addEventListener('navbar-search', handleNavbarSearch);
     return () => window.removeEventListener('navbar-search', handleNavbarSearch);
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
     const queryStr = new URLSearchParams(location.search).get('search');
-    if (queryStr) {
+    if (queryStr && queryStr !== searchQuery) {
       setSearchQuery(queryStr);
       setTimeout(() => {
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
       }, 500);
     }
-  }, [location.search]);
+  }, [location.search, searchQuery]);
 
   useEffect(() => {
     // Initial load from cache

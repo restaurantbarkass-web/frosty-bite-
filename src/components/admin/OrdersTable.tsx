@@ -761,8 +761,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 <td className="px-8 py-6">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-white">₹{order.total}</span>
+                    {order.delivery_fee !== undefined && order.delivery_fee > 0 && (
+                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                        Delivery: ₹{order.delivery_fee}
+                      </span>
+                    )}
                     {order.discount && order.discount > 0 && (
-                      <span className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
+                      <span className="text-[9px] text-primary font-black uppercase tracking-widest mt-0.5">
                         -₹{order.discount} ({order.coupon_code})
                       </span>
                     )}

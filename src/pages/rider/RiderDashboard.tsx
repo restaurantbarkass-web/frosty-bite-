@@ -27,7 +27,9 @@ import { riderService } from '../../services/riderService';
 import { StatusToggle } from '../../components/rider/StatusToggle';
 import { EarningsCard } from '../../components/rider/EarningsCard';
 import { OrderCard } from '../../components/rider/OrderCard';
-import { MapView } from '../../components/rider/MapView';
+
+const MapView = React.lazy(() => import('../../components/rider/MapView').then(m => ({ default: m.MapView })));
+
 import { logout } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
@@ -232,10 +234,12 @@ export const RiderDashboard: React.FC = () => {
                   />
                   
                   <div className="h-[400px]">
-                    <MapView 
-                      riderLocation={{ lat: 17.3850, lng: 78.4867 }}
-                      customerLocation={activeOrder.deliveryLocation || { lat: 17.3950, lng: 78.4967 }}
-                    />
+                    <React.Suspense fallback={<div className="w-full h-full bg-zinc-900 animate-pulse rounded-[2.5rem]" />}>
+                      <MapView 
+                        riderLocation={{ lat: 17.3850, lng: 78.4867 }}
+                        customerLocation={activeOrder.deliveryLocation || { lat: 17.3950, lng: 78.4967 }}
+                      />
+                    </React.Suspense>
                   </div>
                 </div>
               ) : (

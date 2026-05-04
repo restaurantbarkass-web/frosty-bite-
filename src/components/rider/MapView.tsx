@@ -37,7 +37,13 @@ interface MapViewProps {
 }
 
 // Component to handle map centering and URL parsing
-const MapController = ({ riderLocation }: { riderLocation: { lat: number; lng: number } | null }) => {
+const MapController = ({ 
+  riderLocation, 
+  customerLocation 
+}: { 
+  riderLocation: { lat: number; lng: number } | null;
+  customerLocation: { lat: number; lng: number } | null;
+}) => {
   const map = useMap();
   const [receivedLocation, setReceivedLocation] = useState<{ lat: number; lng: number; message: string } | null>(null);
 
@@ -53,8 +59,10 @@ const MapController = ({ riderLocation }: { riderLocation: { lat: number; lng: n
       map.setView([lat, lng], 16);
     } else if (riderLocation) {
       map.setView([riderLocation.lat, riderLocation.lng], 15);
+    } else if (customerLocation) {
+      map.setView([customerLocation.lat, customerLocation.lng], 15);
     }
-  }, [riderLocation, map]);
+  }, [riderLocation, customerLocation, map]);
 
   return (
     <>
@@ -192,7 +200,7 @@ export const MapView: React.FC<MapViewProps> = ({ riderLocation, customerLocatio
           </Marker>
         )}
 
-        <MapController riderLocation={riderLocation} />
+        <MapController riderLocation={riderLocation} customerLocation={customerLocation} />
         <ShareLocationControl />
       </MapContainer>
 

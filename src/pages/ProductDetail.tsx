@@ -305,7 +305,7 @@ const ProductDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pb-32">
+    <div className="min-h-screen bg-background text-foreground pb-32">
       
       {/* Header Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex items-center justify-between pointer-events-none">
@@ -313,7 +313,7 @@ const ProductDetail: React.FC = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => navigate(-1)}
-          className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-white pointer-events-auto hover:bg-white/10 transition-colors shadow-2xl"
+          className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground pointer-events-auto hover:bg-white/10 transition-colors shadow-2xl"
         >
           <ArrowLeft size={24} />
         </motion.button>
@@ -323,11 +323,11 @@ const ProductDetail: React.FC = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => setIsCartOpen(true)}
-            className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-white relative hover:bg-white/10 transition-colors shadow-2xl"
+            className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground relative hover:bg-white/10 transition-colors shadow-2xl"
           >
             <ShoppingCart size={22} />
             {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-[#050505]">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-background">
                 {totalItems}
               </span>
             )}
@@ -338,7 +338,7 @@ const ProductDetail: React.FC = () => {
             transition={{ delay: 0.1 }}
             onClick={handleToggleWishlist}
             disabled={isWishlisting}
-            className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-all shadow-2xl active:scale-90 disabled:opacity-50 ${isLiked ? 'text-red-500' : 'text-white hover:bg-white/10'}`}
+            className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-all shadow-2xl active:scale-90 disabled:opacity-50 ${isLiked ? 'text-red-500' : 'text-foreground hover:bg-white/10'}`}
           >
             <Heart size={22} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
           </motion.button>
@@ -365,7 +365,7 @@ const ProductDetail: React.FC = () => {
               </div>
             </motion.div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent lg:hidden" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent lg:hidden" />
         </div>
 
         {/* Product Details Section */}

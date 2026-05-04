@@ -120,7 +120,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = React.useCallback(async (id: string) => {
     try {
       const notifRef = doc(db, 'notifications', id);
       await updateDoc(notifRef, { read: true });
@@ -128,9 +128,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
-  };
+  }, []);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = React.useCallback(async () => {
     if (!user) return;
     try {
       const q = query(
@@ -153,9 +153,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
     }
-  };
+  }, [user]);
 
-  const addNotification = async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
+  const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     try {
       await addDoc(collection(db, 'notifications'), {
         ...notif,
@@ -165,16 +165,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (error) {
       console.error('Error adding notification:', error);
     }
-  };
+  }, []);
+
+  const value = React.useMemo(() => ({ 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead,
+    addNotification 
+  }), [notifications, unreadCount, markAsRead, markAllAsRead, addNotification]);
 
   return (
-    <NotificationContext.Provider value={{ 
-      notifications, 
-      unreadCount, 
-      markAsRead, 
-      markAllAsRead,
-      addNotification 
-    }}>
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );

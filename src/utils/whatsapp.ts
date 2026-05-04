@@ -8,16 +8,20 @@ export const openWhatsAppOrder = (orderData: {
   notes?: string;
   method: 'upi' | 'cod';
   amount: number;
+  delivery_fee?: number;
+  discount?: number;
   utr?: string;
   items?: { name: string; quantity: number }[];
 }) => {
-  const adminNumber = RESTAURANT_WHATSAPP; // Using global restaurant number
+  const adminNumber = RESTAURANT_WHATSAPP; 
   
   const itemsText = orderData.items 
     ? orderData.items.map(item => `• ${item.name} x ${item.quantity}`).join('\n')
     : '';
 
   const notesText = orderData.notes ? `\n*Notes:* ${orderData.notes}` : '';
+  const deliveryText = orderData.delivery_fee ? `\n*Delivery Fee:* ₹${orderData.delivery_fee}` : '';
+  const discountText = orderData.discount ? `\n*Discount Applied:* -₹${orderData.discount}` : '';
 
   const message = `🛒 *New Order Received!*
 ----------------------------
@@ -28,10 +32,10 @@ export const openWhatsAppOrder = (orderData: {
 ----------------------------
 *Items:*
 ${itemsText}
-----------------------------
-*Total Amount:* ₹${orderData.amount}
-*Payment:* ${orderData.method.toUpperCase()}
-${orderData.utr ? `*UPI UTR:* ${orderData.utr}\n_(Waiting for your verification in Admin Panel)_` : '*Method:* Cash on Delivery'}
+----------------------------${deliveryText}${discountText}
+*Final Amount:* ₹${orderData.amount}
+*Payment Method:* ${orderData.method.toUpperCase()}
+${orderData.utr ? `*UPI UTR:* ${orderData.utr}\n_(Waiting for verification)_` : '*Status:* Cash on Delivery'}
 ----------------------------`;
 
   const encodedMessage = encodeURIComponent(message);

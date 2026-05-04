@@ -21,22 +21,22 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
 
   useEffect(() => {
     const handleScroll = () => {
-      // Threshold to avoid flickering on tiny scrolls
-      if (Math.abs(window.scrollY - lastScrollY) < 10) return;
-
-      if (window.scrollY > lastScrollY && window.scrollY > 100) {
-        // scrolling down and passed a threshold
-        setShowHeader(false);
-      } else {
-        // scrolling up
-        setShowHeader(true);
-      }
-      setLastScrollY(window.scrollY);
+      const currentScrollY = window.scrollY;
+      setLastScrollY((prev) => {
+        if (Math.abs(currentScrollY - prev) < 10) return prev;
+        
+        if (currentScrollY > prev && currentScrollY > 100) {
+          setShowHeader(false);
+        } else {
+          setShowHeader(true);
+        }
+        return currentScrollY;
+      });
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = appConfigService.subscribeToConfig((data) => {
@@ -50,7 +50,7 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
     navigate('/login');
   };
 
-  const getNavLinks = () => {
+  const getNavLinks = React.useMemo(() => {
     const links = [{ name: 'Home', path: '/', icon: Home }];
     
     if (user) {
@@ -60,9 +60,9 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
     }
     
     return links;
-  };
+  }, [user, isAdmin]);
 
-  const navLinks = getNavLinks();
+  const navLinks = getNavLinks;
 
   return (
     <nav className={cn(

@@ -12,6 +12,8 @@ import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
 import { ReviewForm } from '../components/ReviewForm';
 
+const MapView = React.lazy(() => import('../components/rider/MapView').then(m => ({ default: m.MapView })));
+
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { RESTAURANT_WHATSAPP } from '../constants';
 
@@ -514,14 +516,13 @@ export const OrderTracking: React.FC = () => {
 
         {/* Map Placeholder */}
         <div className="space-y-8">
-          <div className="glass-dark aspect-square rounded-3xl border border-border overflow-hidden relative">
-            <div className="absolute inset-0 bg-secondary flex flex-col items-center justify-center p-8 text-center">
-              <MapPin size={48} className="text-primary mb-4 animate-bounce" />
-              <h4 className="font-bold mb-2">Live Tracking</h4>
-              <p className="text-muted text-xs">
-                {rider && rider.location ? `Your rider is currently at ${rider.location.lat?.toFixed(4) || '0'}, ${rider.location.lng?.toFixed(4) || '0'}` : 'Waiting for rider assignment...'}
-              </p>
-            </div>
+          <div className="aspect-square rounded-3xl overflow-hidden relative border border-border shadow-2xl bg-zinc-900">
+            <React.Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}>
+              <MapView 
+                riderLocation={rider?.location || null} 
+                customerLocation={order.delivery_location || null} 
+              />
+            </React.Suspense>
           </div>
 
           <div className="glass-dark p-6 rounded-3xl border border-border">
@@ -529,6 +530,44 @@ export const OrderTracking: React.FC = () => {
             <p className="text-sm text-muted">
               {order.address || 'No address provided'}
             </p>
+          </div>
+
+          <div className="glass-dark p-6 rounded-3xl border border-border">
+            <h4 className="font-bold mb-4 italic uppercase tracking-widest text-xs underline decoration-primary underline-offset-8">Order Summary</h4>
+            <div className="space-y-3">
+              {(order.items || []).map((item, i) => (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="text-primary font-black px-1.5 py-0.5 bg-primary/10 rounded-md text-[10px]">{item.quantity}x</span>
+                    <span className="text-zinc-300 font-bold uppercase tracking-tight">{item.name}</span>
+                  </div>
+                  <span className="text-zinc-500 font-mono">₹{item.price * item.quantity}</span>
+                </div>
+              ))}
+              
+              <div className="pt-4 border-t border-white/5 space-y-2">
+                <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                  <span>Subtotal</span>
+                  <span>₹{(order.total || 0) + (order.discount || 0) - (order.delivery_fee || 0)}</span>
+                </div>
+                {order.discount && order.discount > 0 && (
+                  <div className="flex justify-between text-[10px] text-primary font-bold uppercase tracking-widest">
+                    <span>Discount</span>
+                    <span>-₹{order.discount}</span>
+                  </div>
+                )}
+                {order.delivery_fee !== undefined && order.delivery_fee > 0 && (
+                  <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                    <span>Delivery Fee</span>
+                    <span>₹{order.delivery_fee}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xl font-black text-white italic uppercase tracking-tighter pt-2 border-t border-white/10 mt-2">
+                  <span>Grand Total</span>
+                  <span>₹{order.total}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {order.status === 'delivered' && !hasReviewed && orderId && (

@@ -12,7 +12,8 @@ import {
   Tag,
   Palette,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  Truck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -35,6 +36,7 @@ const menuItems = [
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'riders', label: 'Riders', icon: Bike },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

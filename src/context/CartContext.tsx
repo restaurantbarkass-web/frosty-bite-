@@ -20,7 +20,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const addToCart = (item: FoodItem) => {
+  const addToCart = React.useCallback((item: FoodItem) => {
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
@@ -34,13 +34,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     // Open cart when item is added
     setIsCartOpen(true);
-  };
+  }, []);
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = React.useCallback((id: string) => {
     setCart(prev => prev.filter(i => i.id !== id));
-  };
+  }, []);
 
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = React.useCallback((id: string, delta: number) => {
     setCart(prev => prev.map(i => {
       if (i.id === id) {
         const newQty = i.quantity + delta;
@@ -52,29 +52,31 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return i;
     }).filter(i => i.quantity > 0));
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = React.useCallback(() => {
     setCart([]);
-  };
+  }, []);
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalItems = React.useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+  const subtotal = React.useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
   const totalPrice = subtotal; // Currently same as subtotal here, checkout handles its own coupons
 
+  const value = React.useMemo(() => ({ 
+    cart, 
+    addToCart, 
+    removeFromCart, 
+    updateQuantity, 
+    clearCart, 
+    totalItems, 
+    totalPrice,
+    subtotal,
+    isCartOpen,
+    setIsCartOpen
+  }), [cart, isCartOpen, totalItems, totalPrice, subtotal, addToCart, removeFromCart, updateQuantity, clearCart]);
+
   return (
-    <CartContext.Provider value={{ 
-      cart, 
-      addToCart, 
-      removeFromCart, 
-      updateQuantity, 
-      clearCart, 
-      totalItems, 
-      totalPrice,
-      subtotal,
-      isCartOpen,
-      setIsCartOpen
-    }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );

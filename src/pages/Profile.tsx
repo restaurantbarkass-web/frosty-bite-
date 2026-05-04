@@ -356,10 +356,10 @@ export const Profile: React.FC = () => {
         {activeTab === 'personal' ? (
           <motion.div 
             key="personal"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-8"
           >
             <div className="glass-dark rounded-[2.5rem] border border-white/5 p-8 space-y-8">
               <div className="flex items-center gap-4">
@@ -551,8 +551,8 @@ export const Profile: React.FC = () => {
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Identity</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Profile</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Update your information</p>
                   </div>
                   <button 
                     onClick={() => setIsEditing(false)} 
@@ -577,7 +577,7 @@ export const Profile: React.FC = () => {
                     </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Direct Contact</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Phone Number</label>
                   <input 
                     type="text" 
                     required
@@ -589,7 +589,7 @@ export const Profile: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Primary HQ (Address)</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Delivery Address</label>
                   <textarea 
                     required
                     value={formData.address}
@@ -648,6 +648,7 @@ export const Profile: React.FC = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 scrollbar-hide pb-32 md:pb-6">
+                
                 {/* Notifications Section skipped */}
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>

@@ -18,7 +18,8 @@ import {
   Zap,
   Ticket,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  Map as MapIcon
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,10 +33,14 @@ import { supabaseService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
+import { RESTAURANT_LOCATION } from '../constants';
+import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useNotifications } from '../context/NotificationContext';
 import { handleFirestoreError, OperationType, safeFirestore } from '../services/firestoreService';
+
+const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -43,7 +48,9 @@ export const Checkout: React.FC = () => {
   const { cart, subtotal: cartSubtotal, clearCart } = useCart();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const { isOrderingOpen } = useAppConfig();
+  const { isOrderingOpen, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm } = useAppConfig();
+  const [deliveryFee, setDeliveryFee] = useState(0);
+
   const [isOrdering, setIsOrdering] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
@@ -57,10 +64,12 @@ export const Checkout: React.FC = () => {
     name: user?.displayName || user?.email?.split('@')[0] || '',
     phone: '',
     address: '',
+    location: undefined as { lat: number; lng: number } | undefined,
     notes: '',
     paymentMethod: 'upi' as 'upi' | 'cod'
   });
   const [isLocating, setIsLocating] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ 
@@ -71,13 +80,36 @@ export const Checkout: React.FC = () => {
   } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
+  useEffect(() => {
+    if (formData.location) {
+      const distance = calculateDistance(
+        RESTAURANT_LOCATION.lat,
+        RESTAURANT_LOCATION.lng,
+        formData.location.lat,
+        formData.location.lng
+      );
+      
+      if (distance <= deliveryFreeKm) {
+        setDeliveryFee(0);
+      } else {
+        // Using user's explicit rule: 
+        // If distance > free limit -> base fee + (distance * per km rate)
+        const fee = Math.round(deliveryBaseFee + (distance * deliveryFeePerKm));
+        setDeliveryFee(fee);
+      }
+    } else {
+      // If no pinpointed location, we default to the base delivery fee
+      setDeliveryFee(deliveryBaseFee);
+    }
+  }, [formData.location, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm]);
+
   const subtotal = cartSubtotal;
   const discountAmount = appliedCoupon 
     ? (appliedCoupon.type === 'percentage' 
         ? (subtotal * appliedCoupon.value) / 100 
         : appliedCoupon.value)
     : 0;
-  const finalPrice = Math.max(0, subtotal - discountAmount);
+  const finalPrice = Math.max(0, subtotal - discountAmount + deliveryFee);
 
   const handleApplyCoupon = async () => {
     const trimmedCode = couponCode.trim();
@@ -241,12 +273,14 @@ export const Checkout: React.FC = () => {
         })),
         subtotal: subtotal,
         discount: discountAmount,
+        delivery_fee: deliveryFee,
         coupon_code: appliedCoupon?.code || null,
         total: finalPrice,
         status: 'pending',
         payment_method: formData.paymentMethod,
         payment_status: formData.paymentMethod === 'upi' ? 'pending_verification' : 'pending',
         address: formData.address,
+        delivery_location: formData.location || null,
         phone: formData.phone,
         customer_name: formData.name,
         notes: formData.notes,
@@ -297,6 +331,7 @@ export const Checkout: React.FC = () => {
             address: formData.address,
             notes: formData.notes,
             discount: discountAmount,
+            deliveryFee: deliveryFee,
             couponCode: appliedCoupon?.code,
             scrollToQR: true
           } 
@@ -321,6 +356,7 @@ export const Checkout: React.FC = () => {
           notes: formData.notes,
           method: 'cod' as const,
           amount: finalPrice,
+          delivery_fee: deliveryFee,
           discount: discountAmount,
           couponCode: appliedCoupon?.code,
           items: cart.map(item => ({
@@ -366,12 +402,17 @@ export const Checkout: React.FC = () => {
           const data = await response.json();
           
           if (data.display_name) {
-            setFormData(prev => ({ ...prev, address: data.display_name }));
+            setFormData(prev => ({ 
+              ...prev, 
+              address: data.display_name,
+              location: { lat: latitude, lng: longitude }
+            }));
             toast.success("Location updated!");
           } else {
             toast.error("Could not find address for your location");
           }
         } catch (error) {
+          console.error("Geocoding error:", error);
           toast.error("Error fetching address. Please enter manually.");
         } finally {
           setIsLocating(false);
@@ -379,13 +420,27 @@ export const Checkout: React.FC = () => {
       },
       (error) => {
         setIsLocating(false);
-        if (error.code === 1) {
-          toast.error("Location permission denied. Please enable it in browser settings.");
-        } else {
-          toast.error("Error getting location. Please enter manually.");
+        console.error("Geolocation error:", error);
+        
+        switch (error.code) {
+          case 1:
+            toast.error("Permission denied. Please allow location access.");
+            break;
+          case 2:
+            toast.error("Location unavailable. Check your GPS or internet.");
+            break;
+          case 3:
+            toast.error("Location request timed out.");
+            break;
+          default:
+            toast.error("Error getting location. Please enter manually.");
         }
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: 10000, 
+        maximumAge: 0 
+      }
     );
   };
 
@@ -552,25 +607,65 @@ export const Checkout: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
                     <MapPin size={12} className="text-primary" /> Complete Address *
                   </label>
-                  <button
-                    type="button"
-                    onClick={handleLocateMe}
-                    disabled={isLocating}
-                    className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                  >
-                    {isLocating ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <Zap size={12} fill="currentColor" />
-                    )}
-                    Locate Me
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(!showMap)}
+                      className={cn(
+                        "text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all",
+                        showMap ? "text-primary bg-primary/10 px-2 py-0.5 rounded-md" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      <MapIcon size={12} />
+                      {showMap ? 'Hide Map' : 'Pinpoint on Map'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLocateMe}
+                      disabled={isLocating}
+                      className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                    >
+                      {isLocating ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Zap size={12} fill="currentColor" />
+                      )}
+                      Locate Me
+                    </button>
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {showMap && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mb-4">
+                        <React.Suspense fallback={<div className="w-full h-[300px] bg-zinc-900 animate-pulse rounded-3xl" />}>
+                          <MapSelector 
+                            initialLocation={formData.location}
+                            onLocationSelect={(lat, lng, address) => {
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                address,
+                                location: { lat, lng }
+                              }));
+                            }}
+                          />
+                        </React.Suspense>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <textarea
                   ref={addressRef}
                   required
@@ -799,7 +894,11 @@ export const Checkout: React.FC = () => {
                 )}
                 <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
                   <span>Delivery</span>
-                  <span className="text-emerald-500">FREE</span>
+                  {deliveryFee === 0 ? (
+                    <span className="text-emerald-500">FREE</span>
+                  ) : (
+                    <span>₹{deliveryFee}</span>
+                  )}
                 </div>
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-lg font-black text-white uppercase italic tracking-tight">Total Payable</span>

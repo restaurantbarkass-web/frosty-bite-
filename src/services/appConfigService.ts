@@ -8,6 +8,9 @@ import { safeFirestore } from './firestoreService';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
+  deliveryBaseFee?: number;
+  deliveryFeePerKm?: number;
+  deliveryFreeKm?: number;
   updated_at?: any;
 }
 
@@ -33,6 +36,9 @@ export const appConfigService = {
         if (data) {
           const config: AppConfig = {
             isOrderingOpen: data.isOrderingOpen ?? true,
+            deliveryBaseFee: data.deliveryBaseFee ?? 20,
+            deliveryFeePerKm: data.deliveryFeePerKm ?? 8,
+            deliveryFreeKm: data.deliveryFreeKm ?? 5,
             updated_at: data.updated_at
           };
           currentConfig = config;
@@ -68,6 +74,23 @@ export const appConfigService = {
   },
 
   /**
+   * Updates delivery pricing settings.
+   */
+  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }) => {
+    try {
+      await setDoc(doc(db, CONFIG_DOC_PATH), {
+        deliveryBaseFee: pricing.baseFee,
+        deliveryFeePerKm: pricing.perKm,
+        deliveryFreeKm: pricing.freeKm,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error updating delivery pricing:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Fetches the current configuration once.
    */
   getConfig: async (): Promise<AppConfig> => {
@@ -76,6 +99,9 @@ export const appConfigService = {
       if (data) {
         return {
           isOrderingOpen: data.isOrderingOpen,
+          deliveryBaseFee: data.deliveryBaseFee ?? 20,
+          deliveryFeePerKm: data.deliveryFeePerKm ?? 8,
+          deliveryFreeKm: data.deliveryFreeKm ?? 5,
           updated_at: data.updated_at
         };
       }

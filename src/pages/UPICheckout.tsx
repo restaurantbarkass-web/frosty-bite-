@@ -48,6 +48,7 @@ export const UPICheckout: React.FC = () => {
     address: string;
     discount?: number;
     couponCode?: string;
+    deliveryFee?: number;
     scrollToQR?: boolean;
   } | null;
 
@@ -328,13 +329,22 @@ export const UPICheckout: React.FC = () => {
                   {/* Payment Info */}
                   <div className="flex flex-col items-center space-y-1">
                     <p className="text-zinc-600 font-black text-[10px] uppercase tracking-widest">Scan & Pay Using Any UPI App</p>
-                    {state.discount && state.discount > 0 && (
-                      <div className="mt-1 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
-                        <p className="text-[9px] font-black text-primary uppercase tracking-widest">
-                          Coupon {state.couponCode} Applied: -₹{state.discount}
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex flex-col items-center gap-1 mt-1">
+                      {state.discount && state.discount > 0 && (
+                        <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
+                          <p className="text-[9px] font-black text-primary uppercase tracking-widest">
+                            Coupon {state.couponCode} Applied: -₹{state.discount}
+                          </p>
+                        </div>
+                      )}
+                      {state.deliveryFee && state.deliveryFee > 0 && (
+                        <div className="px-3 py-1 bg-zinc-100 border border-zinc-200 rounded-full">
+                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest text-center">
+                            Delivery Fee: ₹{state.deliveryFee}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* QR Code */}

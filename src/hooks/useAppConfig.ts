@@ -13,5 +13,12 @@ export const useAppConfig = () => {
     return () => unsubscribe();
   }, []);
 
-  return { config, isLoading, isOrderingOpen: config?.isOrderingOpen ?? true };
+  return { 
+    config, 
+    isLoading, 
+    isOrderingOpen: config?.isOrderingOpen ?? true,
+    deliveryBaseFee: config?.deliveryBaseFee ?? 20,
+    deliveryFeePerKm: config?.deliveryFeePerKm ?? 8,
+    deliveryFreeKm: config?.deliveryFreeKm ?? 5
+  };
 };
