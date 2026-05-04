@@ -148,9 +148,18 @@ export const BannerManager: React.FC = () => {
 
       setIsModalOpen(false);
       fetchBanners();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving banner:', error);
-      toast.error('Failed to save banner');
+      const errorMessage = error?.message || 'Failed to save banner';
+      toast.error(errorMessage, {
+        duration: 5000,
+        style: {
+          borderRadius: '16px',
+          background: '#18181b',
+          color: '#fff',
+          fontSize: '12px'
+        }
+      });
     } finally {
       setIsSaving(false);
     }

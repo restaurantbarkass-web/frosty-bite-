@@ -116,7 +116,44 @@ CREATE TABLE public.wishlist (
     UNIQUE(user_id, product_id)
 );
 
--- Ensure RLS is enabled
+-- 6.5 Coupons Table
+CREATE TABLE IF NOT EXISTS public.coupons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code TEXT UNIQUE NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('percentage', 'fixed', 'free_item')),
+    value NUMERIC DEFAULT 0,
+    min_order NUMERIC DEFAULT 0,
+    expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    usage_limit INTEGER DEFAULT 100,
+    usage_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'active',
+    is_first_order_only BOOLEAN DEFAULT false,
+    free_item_id TEXT,
+    free_item_quantity INTEGER DEFAULT 1,
+    gift_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Enable RLS for coupons
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+
+-- Coupons Policies
+DROP POLICY IF EXISTS "Public Read Coupons" ON public.coupons;
+CREATE POLICY "Public Read Coupons" ON public.coupons FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin Manage Coupons" ON public.coupons;
+CREATE POLICY "Admin Manage Coupons" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
+
+-- Ensure columns exist if table was already created
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS free_item_id TEXT;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS free_item_quantity INTEGER DEFAULT 1;
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS gift_url TEXT;
+
+-- Ensure constraints match
+ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_type_check;
+ALTER TABLE public.coupons ADD CONSTRAINT coupons_type_check CHECK (type IN ('percentage', 'fixed', 'free_item'));
+
+-- 7. Ensure RLS is enabled
 ALTER TABLE public.wishlist ENABLE ROW LEVEL SECURITY;
 
 -- 7. Permissive Access Policies
@@ -163,10 +200,16 @@ CREATE TABLE IF NOT EXISTS public.banners (
     redirect_url TEXT,
     priority INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
+    auto_apply_coupon TEXT,
+    gift_url TEXT,
     start_date TIMESTAMP WITH TIME ZONE DEFAULT now(),
     end_date TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+
+-- Ensure columns exist if table was already created
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS auto_apply_coupon TEXT;
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS gift_url TEXT;
 
 -- 9. Banner Clicks Table
 CREATE TABLE IF NOT EXISTS public.banner_clicks (
