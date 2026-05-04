@@ -81,6 +81,8 @@ export const Checkout: React.FC = () => {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   useEffect(() => {
+    let newFee = deliveryBaseFee;
+    
     if (formData.location) {
       const distance = calculateDistance(
         RESTAURANT_LOCATION.lat,
@@ -90,18 +92,26 @@ export const Checkout: React.FC = () => {
       );
       
       if (distance <= deliveryFreeKm) {
-        setDeliveryFee(0);
+        newFee = 0;
       } else {
         // Using user's explicit rule: 
         // If distance > free limit -> base fee + (distance * per km rate)
-        const fee = Math.round(deliveryBaseFee + (distance * deliveryFeePerKm));
-        setDeliveryFee(fee);
+        newFee = Math.round(deliveryBaseFee + (distance * deliveryFeePerKm));
       }
-    } else {
-      // If no pinpointed location, we default to the base delivery fee
-      setDeliveryFee(deliveryBaseFee);
     }
-  }, [formData.location, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm]);
+
+    // Only update if the fee has actually changed to prevent infinite loops
+    if (newFee !== deliveryFee) {
+      setDeliveryFee(newFee);
+    }
+  }, [
+    formData.location?.lat, 
+    formData.location?.lng, 
+    deliveryBaseFee, 
+    deliveryFeePerKm, 
+    deliveryFreeKm, 
+    deliveryFee
+  ]);
 
   const subtotal = cartSubtotal;
   const discountAmount = appliedCoupon 
