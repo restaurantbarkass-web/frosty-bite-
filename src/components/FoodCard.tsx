@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { Star, Plus, Zap, ShoppingCart, Check, Heart } from 'lucide-react';
+import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2 } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -206,6 +206,26 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
               )}
             >
               <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const url = `${window.location.origin}/product/${item.id}`;
+                navigator.clipboard.writeText(url);
+                toast.success('Product link copied!', {
+                   style: {
+                    borderRadius: '16px',
+                    background: '#18181b',
+                    color: '#fff',
+                  }
+                });
+              }}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-background/60 backdrop-blur-md border border-border text-foreground/70 hover:text-primary transition-all shadow-lg"
+              title="Copy Link"
+            >
+              <Share2 size={16} />
             </motion.button>
           </div>
 

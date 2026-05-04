@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X } from 'lucide-react';
+import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES } from '../../constants';
 import { cn } from '../../lib/utils';
@@ -395,6 +395,17 @@ export const MenuManager: React.FC = () => {
                   </div>
                 )}
                 <div className="absolute top-4 right-4 flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const url = `${window.location.origin}/product/${item.id}`;
+                      navigator.clipboard.writeText(url);
+                      toast.success('Product link copied!');
+                    }}
+                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-primary transition-all"
+                    title="Copy Public Link"
+                  >
+                    <LinkIcon size={16} />
+                  </button>
                   <button 
                     onClick={() => {
                       setEditingItem(item);

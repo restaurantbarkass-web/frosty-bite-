@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles } from 'lucide-react';
+import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -335,7 +335,42 @@ const ProductDetail: React.FC = () => {
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 }}
+            onClick={() => {
+              const url = window.location.href;
+              const text = `Check out this delicious ${product.name} from Frosty Bite! 🍰\n\n${url}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+            }}
+            className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center hover:bg-emerald-500/30 transition-colors shadow-2xl pointer-events-auto border border-emerald-500/20"
+            title="Share to WhatsApp"
+          >
+            <MessageCircle size={20} />
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
+            onClick={() => {
+              const url = window.location.href;
+              navigator.clipboard.writeText(url);
+              toast.success('Link copied to clipboard!', {
+                icon: '🔗',
+                style: {
+                  borderRadius: '16px',
+                  background: '#18181b',
+                  color: '#fff',
+                }
+              });
+            }}
+            className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground hover:bg-white/10 transition-colors shadow-2xl pointer-events-auto"
+            title="Copy Link"
+          >
+            <Share2 size={20} />
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
             onClick={handleToggleWishlist}
             disabled={isWishlisting}
             className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-all shadow-2xl active:scale-90 disabled:opacity-50 ${isLiked ? 'text-red-500' : 'text-foreground hover:bg-white/10'}`}
