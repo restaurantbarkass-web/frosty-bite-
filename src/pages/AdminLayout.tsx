@@ -15,6 +15,7 @@ const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Cou
 const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
 const Admins = lazy(() => import('./admin/Admins').then(m => ({ default: m.Admins })));
 const Pricing = lazy(() => import('./admin/Pricing').then(m => ({ default: m.Pricing })));
+import { BannerManager } from '../components/admin/BannerManager';
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -52,6 +53,7 @@ export const AdminLayout: React.FC = () => {
       case 'pricing': return <Pricing />;
       case 'menu': return <Menu />;
       case 'coupons': return <Coupons />;
+      case 'banners': return <BannerManager />;
       case 'riders': return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
           <div className="w-24 h-24 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500">

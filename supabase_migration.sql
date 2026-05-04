@@ -154,3 +154,41 @@ CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON public.users
     FOR EACH ROW
     EXECUTE PROCEDURE update_updated_at_column();
+
+-- 8. Banners Table
+CREATE TABLE IF NOT EXISTS public.banners (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    image_url TEXT NOT NULL,
+    redirect_url TEXT,
+    priority INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    start_date TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    end_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- 9. Banner Clicks Table
+CREATE TABLE IF NOT EXISTS public.banner_clicks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    banner_id UUID REFERENCES public.banners(id) ON DELETE CASCADE,
+    clicked_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    user_id TEXT
+);
+
+-- Enable RLS
+ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.banner_clicks ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Public Read Banners" ON public.banners;
+CREATE POLICY "Public Read Banners" ON public.banners FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admin All Banners" ON public.banners;
+CREATE POLICY "Admin All Banners" ON public.banners FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Public Insert Clicks" ON public.banner_clicks;
+CREATE POLICY "Public Insert Clicks" ON public.banner_clicks FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Admin Read Clicks" ON public.banner_clicks;
+CREATE POLICY "Admin Read Clicks" ON public.banner_clicks FOR SELECT USING (true);

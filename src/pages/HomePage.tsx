@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
+import { BannerCarousel } from '../components/BannerCarousel';
 import { getFoodRecommendations } from '../services/geminiService';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
@@ -497,7 +498,10 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-
+      {/* Banner Carousel */}
+      <div className="max-w-7xl mx-auto">
+        <BannerCarousel />
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}

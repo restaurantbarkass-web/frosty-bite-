@@ -67,3 +67,22 @@ export interface User {
   address: string;
   role: 'customer' | 'admin' | 'rider';
 }
+
+export interface Banner {
+  id: string;
+  title: string;
+  image_url: string;
+  redirect_url: string;
+  priority: number;
+  is_active: boolean;
+  start_date: string;
+  end_date: string | null;
+  created_at: string;
+}
+
+export interface BannerClick {
+  id: string;
+  banner_id: string;
+  clicked_at: string;
+  user_id?: string;
+}

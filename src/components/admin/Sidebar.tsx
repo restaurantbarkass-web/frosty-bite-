@@ -34,6 +34,7 @@ const menuItems = [
   { id: 'admins', label: 'Admins', icon: ShieldCheck },
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
   { id: 'coupons', label: 'Coupons', icon: Tag },
+  { id: 'banners', label: 'Banners', icon: Palette },
   { id: 'riders', label: 'Riders', icon: Bike },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
