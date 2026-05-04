@@ -176,19 +176,56 @@ CREATE TABLE IF NOT EXISTS public.banner_clicks (
     user_id TEXT
 );
 
--- Enable RLS
+-- Enable RLS for banners
 ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banner_clicks ENABLE ROW LEVEL SECURITY;
 
--- Policies
+-- Banners Policies
 DROP POLICY IF EXISTS "Public Read Banners" ON public.banners;
 CREATE POLICY "Public Read Banners" ON public.banners FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Admin All Banners" ON public.banners;
-CREATE POLICY "Admin All Banners" ON public.banners FOR ALL USING (true);
+CREATE POLICY "Admin All Banners" ON public.banners FOR ALL USING (true) WITH CHECK (true);
 
+-- Banner Clicks Policies
 DROP POLICY IF EXISTS "Public Insert Clicks" ON public.banner_clicks;
 CREATE POLICY "Public Insert Clicks" ON public.banner_clicks FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Admin Read Clicks" ON public.banner_clicks;
 CREATE POLICY "Admin Read Clicks" ON public.banner_clicks FOR SELECT USING (true);
+
+-- 10. Admins Table (Whitelisted admin emails)
+CREATE TABLE IF NOT EXISTS public.admins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Enable RLS on admins
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read of admins (needed for auth check)
+DROP POLICY IF EXISTS "Public Read Admins" ON public.admins;
+CREATE POLICY "Public Read Admins" ON public.admins FOR SELECT USING (true);
+
+-- 11. Storage Setup & Policies
+-- Create the bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('banners', 'banners', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- STORAGE POLICIES (Critical for Image Upload)
+-- 1. Allow public to view images
+DROP POLICY IF EXISTS "Public View Banners" ON storage.objects;
+CREATE POLICY "Public View Banners" ON storage.objects FOR SELECT USING (bucket_id = 'banners');
+
+-- 2. Allow anyone to upload to banners (Simplified for now, you can restrict to auth.uid() later)
+DROP POLICY IF EXISTS "Anonymous Upload Banners" ON storage.objects;
+CREATE POLICY "Anonymous Upload Banners" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'banners');
+
+-- 3. Allow updates/deletes
+DROP POLICY IF EXISTS "Anyone Update Banners" ON storage.objects;
+CREATE POLICY "Anyone Update Banners" ON storage.objects FOR UPDATE USING (bucket_id = 'banners');
+
+DROP POLICY IF EXISTS "Anyone Delete Banners" ON storage.objects;
+CREATE POLICY "Anyone Delete Banners" ON storage.objects FOR DELETE USING (bucket_id = 'banners');
