@@ -354,7 +354,7 @@ const ProductDetail: React.FC = () => {
             className={cn("w-full h-full object-cover", product.available === false && "grayscale")}
             triggerClassName="w-full h-full"
           />
-          {product.available === false && (
+          {(product.available === false || product.stock_quantity <= 0) && (
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -556,7 +556,7 @@ const ProductDetail: React.FC = () => {
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <button
             onClick={handleAddToCart}
-            disabled={product.available === false}
+            disabled={product.available === false || product.stock_quantity <= 0}
             className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 border border-white/10 group shadow-xl disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ShoppingCart size={20} className="group-hover:scale-110 transition-transform" />
@@ -566,7 +566,7 @@ const ProductDetail: React.FC = () => {
           
           <button
             onClick={handleBuyNow}
-            disabled={product.available === false || isBuyingNow}
+            disabled={product.available === false || product.stock_quantity <= 0 || isBuyingNow}
             className="flex-[1.8] py-5 bg-primary hover:bg-accent text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden"
           >
             <AnimatePresence mode="wait">
@@ -594,7 +594,7 @@ const ProductDetail: React.FC = () => {
                 >
                   <Zap size={20} fill="currentColor" className="group-hover:scale-125 transition-transform" />
                   <span className="text-xs font-black uppercase tracking-[0.2em]">
-                    {product.available === false ? 'Currently Unavailable' : 'Buy Now'}
+                    {(product.available === false || product.stock_quantity <= 0) ? 'Currently Unavailable' : 'Buy Now'}
                   </span>
                 </motion.div>
               )}

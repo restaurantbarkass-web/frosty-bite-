@@ -138,14 +138,15 @@ export const MenuManager: React.FC = () => {
         return;
       }
 
+      const stockQty = Number(formData.stock_quantity);
       const body = {
         name: formData.name,
         price: Number(formData.price),
         image: imageUrl,
         category: formData.category,
         description: formData.description,
-        stock_quantity: Number(formData.stock_quantity),
-        available: formData.available
+        stock_quantity: stockQty,
+        available: stockQty === 0 ? false : formData.available
       };
 
       let result;
@@ -203,6 +204,12 @@ export const MenuManager: React.FC = () => {
   const toggleAvailability = async (item: MenuItem) => {
     try {
       const newStatus = !item.available;
+      
+      if (newStatus && (item.stock_quantity === 0)) {
+        toast.error('Cannot mark as available with 0 stock');
+        return;
+      }
+
       const { error } = await supabase
         .from('products')
         .update({ available: newStatus })
@@ -222,15 +229,30 @@ export const MenuManager: React.FC = () => {
   const updateStock = async (item: MenuItem, delta: number) => {
     try {
       const newStock = Math.max(0, (item.stock_quantity || 0) + delta);
+      const updates: any = { stock_quantity: newStock };
+      
+      // Automatically set available to false if stock hits 0
+      if (newStock === 0) {
+        updates.available = false;
+      }
+      
       const { error } = await supabase
         .from('products')
-        .update({ stock_quantity: newStock })
+        .update(updates)
         .eq('id', item.id);
 
       if (error) throw error;
 
       // Proactively update local state
-      setMenuItems(prev => prev.map(i => i.id === item.id ? { ...i, stock_quantity: newStock } : i));
+      setMenuItems(prev => prev.map(i => i.id === item.id ? { 
+        ...i, 
+        stock_quantity: newStock,
+        available: newStock === 0 ? false : i.available
+      } : i));
+      
+      if (newStock === 0) {
+        toast.error(`${item.name} is now Sold Out!`);
+      }
     } catch (error) {
       console.error('Error updating stock:', error);
       toast.error('Failed to update stock');
@@ -362,9 +384,16 @@ export const MenuManager: React.FC = () => {
                 <ImageZoom 
                   src={item.image} 
                   alt={item.name} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  className={cn("w-full h-full object-cover group-hover:scale-110 transition-transform duration-500", (item.available === false || item.stock_quantity <= 0) && "grayscale")}
                   triggerClassName="w-full h-full"
                 />
+                {(item.available === false || item.stock_quantity <= 0) && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
+                    <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg -rotate-12 border border-white/20">
+                      Sold Out
+                    </span>
+                  </div>
+                )}
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 
                     onClick={() => {
@@ -437,9 +466,9 @@ export const MenuManager: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className={`flex items-center gap-1 text-xs font-bold ${item.available ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {item.available ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                    {item.available ? 'Available' : 'Sold Out'}
+                  <div className={`flex items-center gap-1 text-xs font-bold ${(item.available && item.stock_quantity > 0) ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {(item.available && item.stock_quantity > 0) ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                    {(item.available && item.stock_quantity > 0) ? 'Available' : 'Sold Out'}
                   </div>
                 </div>
                 <button 

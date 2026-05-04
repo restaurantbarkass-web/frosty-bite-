@@ -215,7 +215,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
             </span>
           </div>
 
-        {item.available === false && (
+        {(item.available === false || item.stock_quantity <= 0) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
