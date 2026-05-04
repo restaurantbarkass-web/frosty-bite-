@@ -1,8 +1,10 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
+import { OrderActionPopup } from '../components/admin/OrderActionPopup';
 import { motion, AnimatePresence } from 'motion/react';
 import { requestForToken, onMessageListener } from '../utils/messaging';
+import { useNotifications } from '../context/NotificationContext';
 import toast from 'react-hot-toast';
 
 const Dashboard = lazy(() => import('./admin/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -17,6 +19,7 @@ const Pricing = lazy(() => import('./admin/Pricing').then(m => ({ default: m.Pri
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { incomingOrder, setIncomingOrder } = useNotifications();
 
   useEffect(() => {
     // Request permission and register token
@@ -101,6 +104,13 @@ export const AdminLayout: React.FC = () => {
           </AnimatePresence>
         </main>
       </div>
+      
+      {/* Global Order Notification Popup */}
+      <OrderActionPopup 
+        order={incomingOrder} 
+        onClose={() => setIncomingOrder(null)}
+        onAction={() => setIncomingOrder(null)}
+      />
     </div>
   );
 };

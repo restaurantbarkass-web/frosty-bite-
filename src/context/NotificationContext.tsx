@@ -20,6 +20,8 @@ export interface Notification {
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
+  incomingOrder: any | null;
+  setIncomingOrder: (order: any | null) => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Promise<void>;
@@ -30,6 +32,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, role, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -74,6 +77,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           
           if (lastOrderIdRef.current && lastOrderIdRef.current !== latestOrder.id) {
             // New order received!
+            if (latestOrder.status === 'pending') {
+              setIncomingOrder(latestOrder);
+            }
+            
             toast.success(`New Order #${latestOrder.id.slice(-6).toUpperCase()} received!`, {
               duration: 8000,
               icon: '🍕'
@@ -170,10 +177,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const value = React.useMemo(() => ({ 
     notifications, 
     unreadCount, 
+    incomingOrder,
+    setIncomingOrder,
     markAsRead, 
     markAllAsRead,
     addNotification 
-  }), [notifications, unreadCount, markAsRead, markAllAsRead, addNotification]);
+  }), [notifications, unreadCount, incomingOrder, markAsRead, markAllAsRead, addNotification]);
 
   return (
     <NotificationContext.Provider value={value}>
