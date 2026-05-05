@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS public.coupons (
     usage_limit INTEGER DEFAULT 100,
     usage_count INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
+    is_hidden BOOLEAN DEFAULT false,
     is_first_order_only BOOLEAN DEFAULT false,
     free_item_id TEXT,
     free_item_quantity INTEGER DEFAULT 1,
@@ -145,6 +146,7 @@ DROP POLICY IF EXISTS "Admin Manage Coupons" ON public.coupons;
 CREATE POLICY "Admin Manage Coupons" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
 
 -- Ensure columns exist if table was already created
+ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT false;
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS free_item_id TEXT;
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS free_item_quantity INTEGER DEFAULT 1;
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS gift_url TEXT;
@@ -200,6 +202,7 @@ CREATE TABLE IF NOT EXISTS public.banners (
     redirect_url TEXT,
     priority INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
+    is_flash_deal BOOLEAN DEFAULT false,
     auto_apply_coupon TEXT,
     gift_url TEXT,
     start_date TIMESTAMP WITH TIME ZONE DEFAULT now(),
@@ -208,6 +211,7 @@ CREATE TABLE IF NOT EXISTS public.banners (
 );
 
 -- Ensure columns exist if table was already created
+ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS is_flash_deal BOOLEAN DEFAULT false;
 ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS auto_apply_coupon TEXT;
 ALTER TABLE public.banners ADD COLUMN IF NOT EXISTS gift_url TEXT;
 

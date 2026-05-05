@@ -75,6 +75,7 @@ export interface Banner {
   redirect_url: string;
   priority: number;
   is_active: boolean;
+  is_flash_deal?: boolean;
   start_date: string;
   end_date: string | null;
   created_at: string;
@@ -92,6 +93,7 @@ export interface Coupon {
   usage_limit: number;
   usage_count: number;
   status: 'active' | 'expired' | 'disabled';
+  is_hidden?: boolean;
   is_first_order_only?: boolean;
   created_at: string;
   free_item_id?: string;

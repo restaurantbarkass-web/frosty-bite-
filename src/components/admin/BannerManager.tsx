@@ -15,7 +15,8 @@ import {
   Calendar,
   Link as LinkIcon,
   Ticket,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { Banner } from '../../types';
@@ -37,6 +38,7 @@ export const BannerManager: React.FC = () => {
     redirect_url: '',
     priority: 0,
     is_active: true,
+    is_flash_deal: false,
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
     auto_apply_coupon: '',
@@ -92,6 +94,7 @@ export const BannerManager: React.FC = () => {
         redirect_url: banner.redirect_url || '',
         priority: banner.priority,
         is_active: banner.is_active,
+        is_flash_deal: banner.is_flash_deal || false,
         start_date: banner.start_date.split('T')[0],
         end_date: banner.end_date ? banner.end_date.split('T')[0] : '',
         auto_apply_coupon: banner.auto_apply_coupon || '',
@@ -105,6 +108,7 @@ export const BannerManager: React.FC = () => {
         redirect_url: '',
         priority: 0,
         is_active: true,
+        is_flash_deal: false,
         start_date: new Date().toISOString().split('T')[0],
         end_date: '',
         auto_apply_coupon: '',
@@ -125,6 +129,7 @@ export const BannerManager: React.FC = () => {
         redirect_url: formData.redirect_url,
         priority: Number(formData.priority),
         is_active: formData.is_active,
+        is_flash_deal: formData.is_flash_deal,
         start_date: new Date(formData.start_date).toISOString(),
         end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
         auto_apply_coupon: formData.auto_apply_coupon || null,
@@ -244,6 +249,12 @@ export const BannerManager: React.FC = () => {
                   )}
                 />
                 <div className="absolute top-4 right-4 flex gap-2">
+                  {banner.is_flash_deal && (
+                    <div className="px-3 py-1.5 bg-rose-600 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2 animate-pulse">
+                      <Zap size={10} className="fill-white text-white" />
+                      <span className="text-[10px] font-black italic text-white tracking-widest">FLASH DEAL</span>
+                    </div>
+                  )}
                   <div className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
                     <BarChart3 size={12} className="text-primary" />
                     <span className="text-[10px] font-black italic text-white tracking-widest">{analytics[banner.id] || 0} CLICKS</span>
@@ -408,7 +419,7 @@ export const BannerManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Priority (Higher = First)</label>
                       <input
@@ -429,6 +440,19 @@ export const BannerManager: React.FC = () => {
                       >
                         {formData.is_active ? <ToggleRight /> : <ToggleLeft />}
                         <span className="text-xs font-black uppercase tracking-widest">{formData.is_active ? 'Active' : 'Draft'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 block">Flash Deal Mode</label>
+                      <div 
+                        onClick={() => setFormData({ ...formData, is_flash_deal: !formData.is_flash_deal })}
+                        className={cn(
+                          "flex items-center gap-3 w-full h-[54px] rounded-2xl px-5 border transition-all cursor-pointer",
+                          formData.is_flash_deal ? "bg-rose-500/10 border-rose-500/30 text-rose-500" : "bg-white/5 border-white/10 text-zinc-500"
+                        )}
+                      >
+                        {formData.is_flash_deal ? <ToggleRight /> : <ToggleLeft />}
+                        <span className="text-xs font-black uppercase tracking-widest">{formData.is_flash_deal ? 'Flash ON' : 'Flash OFF'}</span>
                       </div>
                     </div>
                   </div>

@@ -12,10 +12,13 @@ import {
   Calendar,
   Users,
   Percent,
-  DollarSign
+  DollarSign,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../../firebase';
+import { cn } from '../../lib/utils';
 import { 
   collection, 
   query, 
@@ -38,6 +41,7 @@ interface Coupon {
   usage_limit: number;
   usage_count: number;
   status: 'active' | 'expired' | 'disabled';
+  is_hidden?: boolean;
   is_first_order_only?: boolean;
   created_at: string;
   free_item_id?: string;
@@ -60,6 +64,7 @@ export const Coupons: React.FC = () => {
     min_order: 0,
     expiry_date: '',
     usage_limit: 100,
+    is_hidden: false,
     is_first_order_only: false,
     free_item_id: '',
     free_item_quantity: 1,
@@ -114,6 +119,7 @@ export const Coupons: React.FC = () => {
         min_order: 0,
         expiry_date: '',
         usage_limit: 100,
+        is_hidden: false,
         is_first_order_only: false,
         free_item_id: '',
         free_item_quantity: 1,
@@ -199,6 +205,19 @@ export const Coupons: React.FC = () => {
       localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
     } catch (error) {
       console.error('Error toggling coupon status:', error);
+    }
+  };
+
+  const toggleCouponVisibility = async (id: string, isCurrentlyHidden: boolean) => {
+    try {
+      await updateDoc(doc(db, 'coupons', id), { is_hidden: !isCurrentlyHidden });
+      
+      // Proactively update local cache
+      const updatedLocal = coupons.map(c => c.id === id ? { ...c, is_hidden: !isCurrentlyHidden } : c);
+      setCoupons(updatedLocal);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+    } catch (error) {
+      console.error('Error toggling coupon visibility:', error);
     }
   };
 
@@ -341,6 +360,7 @@ export const Coupons: React.FC = () => {
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Min. Order</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Usage</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Expiry</th>
+                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Public?</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Status</th>
                 <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Actions</th>
               </tr>
@@ -383,6 +403,18 @@ export const Coupons: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-zinc-400">{coupon.expiry_date}</td>
+                  <td className="px-6 py-4">
+                    <button 
+                      onClick={() => toggleCouponVisibility(coupon.id, !!coupon.is_hidden)}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        coupon.is_hidden ? "text-zinc-500 hover:text-white bg-white/5" : "text-emerald-500 bg-emerald-500/10"
+                      )}
+                      title={coupon.is_hidden ? "Show on Offers page" : "Hide from Offers page"}
+                    >
+                      {coupon.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       coupon.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
@@ -624,6 +656,22 @@ export const Coupons: React.FC = () => {
                         </div>
                       </div>
                       <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">First Order Only</span>
+                    </label>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-3 cursor-pointer group">
+                      <div className="relative">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only"
+                          checked={newCoupon.is_hidden}
+                          onChange={(e) => setNewCoupon({...newCoupon, is_hidden: e.target.checked})}
+                        />
+                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_hidden ? 'bg-orange-500' : 'bg-zinc-800'}`}>
+                          <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.is_hidden ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">Hide from Offers List</span>
                     </label>
                   </div>
                 </div>

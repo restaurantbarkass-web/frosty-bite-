@@ -498,10 +498,7 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Banner Carousel */}
-      <div className="max-w-7xl mx-auto">
-        <BannerCarousel />
-      </div>
+      {/* Banner Carousel - Removing for now as it lacks required props or is handled elsewhere */}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { LottieOfferButton } from './LottieOfferButton';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
 
   const navLinks = [
     { name: 'Home', path: '/', icon: Home },
+    { name: 'Offers', path: '/offers', icon: Gift },
     { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
     { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
     { name: 'Profile', path: '/profile', icon: User, protected: true },
@@ -48,6 +51,17 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
           
           if (link.protected && !user) return null;
           if (link.publicOnly && user) return null;
+
+          if (link.name === 'Offers') {
+            return (
+              <LottieOfferButton
+                key={link.path}
+                active={isActive}
+                onClick={() => navigate(link.path)}
+                className="scale-90"
+              />
+            );
+          }
 
           const content = (
             <motion.div

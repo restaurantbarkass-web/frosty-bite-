@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search, Gift } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 import { Logo } from './Logo';
+import { LottieOfferButton } from './LottieOfferButton';
 
 export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { totalItems } = useCart();
@@ -51,7 +52,27 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
   };
 
   const getNavLinks = React.useMemo(() => {
-    const links = [{ name: 'Home', path: '/', icon: Home }];
+    const links = [
+      { name: 'Home', path: '/', icon: Home },
+      { 
+        name: 'Offers', 
+        path: '/offers', 
+        component: (isActive: boolean) => (
+          <div className="relative group">
+            <LottieOfferButton 
+              active={isActive} 
+              className="scale-[0.6] sm:scale-[0.7] -my-4" 
+            />
+            {isActive && (
+              <motion.div 
+                layoutId="nav-underline-desktop"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
+              />
+            )}
+          </div>
+        )
+      }
+    ];
     
     if (user) {
       links.push({ name: 'Orders', path: '/orders', icon: ClipboardList });
@@ -128,18 +149,30 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  location.pathname === link.path ? "text-primary" : "text-muted"
-                )}
-              >
-                {link.name}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.path;
+              
+              if ('component' in link && link.component) {
+                return (
+                  <Link key={link.path} to={link.path} className="flex items-center">
+                    {link.component(isActive)}
+                  </Link>
+                );
+              }
+
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={cn(
+                    "text-sm font-medium transition-colors hover:text-primary",
+                    isActive ? "text-primary" : "text-muted"
+                  )}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
             
             {user ? (
               <div className="flex items-center space-x-4">
@@ -230,20 +263,48 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
               </div>
 
               <div className="space-y-1">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium",
-                      location.pathname === link.path ? "bg-primary/10 text-primary" : "text-muted hover:bg-white/5"
-                    )}
-                  >
-                    <link.icon size={20} />
-                    <span>{link.name}</span>
-                  </Link>
-                ))}
+                {navLinks.map((link) => {
+                  const isActive = location.pathname === link.path;
+                  
+                  if ('component' in link && link.component) {
+                    return (
+                      <Link
+                        key={link.path}
+                        to={link.path}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={cn(
+                          "flex items-center px-3 py-1 rounded-lg",
+                          isActive ? "bg-primary/10" : "hover:bg-white/5"
+                        )}
+                      >
+                        <div className="scale-75 -ml-8">
+                          {link.component(isActive)}
+                        </div>
+                        <span className={cn(
+                          "text-base font-medium -ml-4",
+                          isActive ? "text-primary" : "text-muted"
+                        )}>
+                          {link.name}
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium",
+                        isActive ? "bg-primary/10 text-primary" : "text-muted hover:bg-white/5"
+                      )}
+                    >
+                      {link.icon && <link.icon size={20} />}
+                      <span>{link.name}</span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </motion.div>
