@@ -16,6 +16,7 @@ import { cn } from './lib/utils';
 import { Instagram, MessageCircle } from 'lucide-react';
 
 import { Logo } from './components/Logo';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -299,6 +300,9 @@ function AppContent() {
           </svg>
         </a>
       )}
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }

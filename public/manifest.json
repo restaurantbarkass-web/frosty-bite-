@@ -1,11 +1,11 @@
 {
   "name": "Frosty Bite",
-  "short_name": "FrostyBite",
+  "short_name": "Frosty",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#050505",
   "theme_color": "#f97316",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "description": "Artisan Bakery & Custom Cakes",
   "icons": [
     {
