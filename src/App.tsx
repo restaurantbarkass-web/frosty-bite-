@@ -11,7 +11,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
 import { RESTAURANT_WHATSAPP } from './constants';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from './lib/utils';
 import { Instagram, MessageCircle } from 'lucide-react';
 
