@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -17,6 +17,10 @@ const Orders: React.FC = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -182,7 +186,11 @@ const Orders: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8"
+    >
       <div className="space-y-2">
         <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">Order History</h1>
         <p className="text-zinc-500 font-medium">Revisit your favorite bakes and tracking details.</p>
@@ -337,7 +345,7 @@ const Orders: React.FC = () => {
           </AnimatePresence>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

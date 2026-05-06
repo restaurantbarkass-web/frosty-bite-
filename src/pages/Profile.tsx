@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +41,10 @@ export const Profile: React.FC = () => {
       saveSearchHistory: true
     }
   });
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     if (!authUser) return;
@@ -277,11 +281,13 @@ export const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-svh flex flex-col max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-32">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="min-h-svh flex flex-col max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-32"
+    >
       {/* Profile Card */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div 
         className="glass-dark rounded-[40px] border border-white/5 p-8 relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] -translate-y-1/2 translate-x-1/2" />
@@ -318,7 +324,7 @@ export const Profile: React.FC = () => {
             Edit Profile
           </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Tabs */}
       <div className="flex p-2 bg-white/5 border border-white/5 rounded-[2rem] gap-2">
@@ -749,7 +755,7 @@ export const Profile: React.FC = () => {
       </AnimatePresence>
 
       {/* ThemeSettingsPanel removed */}
-    </div>
+    </motion.div>
   );
 };
 
