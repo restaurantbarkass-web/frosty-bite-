@@ -3,7 +3,7 @@ import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2 } from 'lucide-reac
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';

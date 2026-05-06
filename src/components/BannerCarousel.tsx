@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSwipeable } from 'react-swipeable';
 import { Banner } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Ticket, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 

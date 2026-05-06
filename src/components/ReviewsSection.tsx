@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { safeFirestore } from '../services/firestoreService';
 import { Star, Quote } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 
 interface Review {
