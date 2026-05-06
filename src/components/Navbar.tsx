@@ -61,12 +61,12 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
           <div className="relative group">
             <LottieOfferButton 
               active={isActive} 
-              className="scale-[0.6] sm:scale-[0.7] -my-4" 
+              className="scale-[0.5] sm:scale-[0.6] origin-center -my-6" 
             />
             {isActive && (
               <motion.div 
                 layoutId="nav-underline-desktop"
-                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(255,107,38,0.5)]"
               />
             )}
           </div>
@@ -150,7 +150,7 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
+              const isActive = location.pathname === link.path.split('#')[0];
               
               if ('component' in link && link.component) {
                 return (
@@ -264,7 +264,7 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
 
               <div className="space-y-1">
                 {navLinks.map((link) => {
-                  const isActive = location.pathname === link.path;
+                  const isActive = location.pathname === link.path.split('#')[0];
                   
                   if ('component' in link && link.component) {
                     return (

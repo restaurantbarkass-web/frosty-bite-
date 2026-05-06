@@ -47,7 +47,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
       >
         {navLinks.map((link) => {
           const Icon = link.icon;
-          const isActive = location.pathname === link.path;
+          const isActive = location.pathname === link.path.split('#')[0];
           
           if (link.protected && !user) return null;
           if (link.publicOnly && user) return null;

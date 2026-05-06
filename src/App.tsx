@@ -148,23 +148,23 @@ function AppContent() {
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
         <Suspense fallback={<PageLoader />}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ x: 20, opacity: 0, scale: 0.98 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: -20, opacity: 0, scale: 0.98 }}
-              transition={{ 
-                duration: 0.2, 
-                ease: [0.25, 1, 0.5, 1] // Custom spring-like easing
-              }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={{ left: 0, right: 0.15 }}
-              onDragEnd={handleSwipeBack}
-              className="flex-1 flex flex-col w-full h-full"
-            >
-              <Routes location={location}>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={location.pathname}
+                  initial={{ opacity: 0, scale: 0.99, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 1.01, y: -10 }}
+                  transition={{ 
+                    duration: 0.5, 
+                    ease: [0.22, 1, 0.36, 1] // Premium Cubic Easing
+                  }}
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={{ left: 0, right: 0.15 }}
+                  onDragEnd={handleSwipeBack}
+                  className="flex-1 flex flex-col w-full h-full"
+                >
+                  <Routes location={location}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
@@ -20,7 +20,17 @@ export const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   
   const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
   const { isOrderingOpen } = useAppConfig();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchBanners = async () => {
+      const { data } = await supabase.from('banners').select('*');
+      if (data) setBanners(data);
+    };
+    fetchBanners();
+  }, []);
   
   // Use static MENU_ITEMS as fallback if firestore is empty
   const displayItems = React.useMemo(() => {
@@ -498,7 +508,19 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Banner Carousel - Removing for now as it lacks required props or is handled elsewhere */}
+      {/* Banner Carousel */}
+      {banners.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 -mt-8 relative z-20">
+          <BannerCarousel 
+            banners={banners} 
+            onNavigate={(url) => navigate(url)}
+            onApplyCoupon={(code) => {
+              // We could handle coupon apply logic here or just navigate to products
+              navigate(`/?search=${code}`);
+            }}
+          />
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}
