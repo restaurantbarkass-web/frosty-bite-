@@ -122,49 +122,40 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
       <Toaster position="top-right" />
-      <AnimatePresence>
-        {quotaExceeded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="bg-amber-500 text-black px-4 py-2 text-center text-[10px] font-black uppercase tracking-widest relative z-[100]"
-          >
-            ⚠️ Database limit reached! Showing cached menu. New orders may be limited.
-            <button onClick={() => setQuotaExceeded(false)} className="ml-4 underline">Close</button>
-          </motion.div>
-        )}
-        {showSplash && location.pathname === '/' && (
-          <IntroSplash onComplete={handleSplashComplete} />
-        )}
-      </AnimatePresence>
+      
+      {quotaExceeded && (
+        <div className="bg-amber-500 text-black px-4 py-2 text-center text-[10px] font-black uppercase tracking-widest relative z-[100]">
+          ⚠️ Database limit reached! Showing cached menu. New orders may be limited.
+          <button onClick={() => setQuotaExceeded(false)} className="ml-4 underline">Close</button>
+        </div>
+      )}
 
       {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} />}
       {showCartSidebar && <CartSidebar />}
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       
       <main className={cn(
-        "transition-all flex-1 flex flex-col min-h-svh",
-        showNavbar && "pt-24 md:pt-28", // Add padding for fixed Navbar
+        "transition-all flex-1 flex flex-col min-h-svh relative",
+        showNavbar && "pt-24 md:pt-28",
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
+        <AnimatePresence>
+          {showSplash && location.pathname === '/' && (
+            <IntroSplash onComplete={handleSplashComplete} />
+          )}
+        </AnimatePresence>
+
         <Suspense fallback={<PageLoader />}>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={location.pathname}
-                  initial={{ opacity: 0, scale: 0.99, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 1.01, y: -10 }}
-                  transition={{ 
-                    duration: 0.5, 
-                    ease: [0.22, 1, 0.36, 1] // Premium Cubic Easing
-                  }}
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={{ left: 0, right: 0.15 }}
-                  onDragEnd={handleSwipeBack}
-                  className="flex-1 flex flex-col w-full h-full"
-                >
-                  <Routes location={location}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex-1 flex flex-col w-full h-full"
+            >
+              <Routes location={location}>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />

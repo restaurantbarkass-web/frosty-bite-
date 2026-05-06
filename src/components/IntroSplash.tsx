@@ -32,19 +32,18 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
       className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
       onClick={onComplete}
     >
-      {/* Background Video */}
-      <div className="absolute inset-0">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover scale-105"
-        >
-          <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
-        </video>
+      {/* Cinematic Background */}
+      <div className="absolute inset-0 bg-black">
+        <motion.div 
+          animate={{ 
+            opacity: [0.1, 0.3, 0.1],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent blur-[100px]"
+        />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay" />
         {/* Cinematic Overlays */}
-        <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
       </div>
 
