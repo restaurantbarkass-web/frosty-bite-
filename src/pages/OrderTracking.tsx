@@ -341,11 +341,11 @@ export const OrderTracking: React.FC = () => {
         <div className="space-y-4 mb-12">
           <p className="text-zinc-500 max-w-md mx-auto">
             We're sorry, but your order has been cancelled by the restaurant. 
-            Please contact support if you need further assistance or try ordering again.
+            If you have already paid for this order, your money will be refunded according to our refund policy within the next 24 hours.
           </p>
           {order.notes && (
             <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl max-w-md mx-auto">
-              <p className="text-red-500 font-bold text-xs uppercase tracking-widest mb-1">Reason:</p>
+              <p className="text-red-500 font-bold text-xs uppercase tracking-widest mb-1">Status Note:</p>
               <p className="text-white text-sm italic">"{order.notes}"</p>
             </div>
           )}

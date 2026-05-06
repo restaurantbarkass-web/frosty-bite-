@@ -25,7 +25,8 @@ const StatusBadge = ({ order }: { order: Order }) => {
   }
 
   const styles = {
-  'pending': 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm',
+    'awaiting_payment': 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20 shadow-sm',
+    'pending': 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm',
     'confirmed': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm',
     'assigned': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
     'preparing': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
@@ -35,6 +36,7 @@ const StatusBadge = ({ order }: { order: Order }) => {
   };
 
   const icons = {
+    'awaiting_payment': <Clock size={14} />,
     'pending': <Clock size={14} />,
     'confirmed': <CheckCircle2 size={14} />,
     'preparing': <Package size={14} />,
@@ -44,6 +46,7 @@ const StatusBadge = ({ order }: { order: Order }) => {
   };
 
   const labels = {
+    'awaiting_payment': 'Awaiting Payment',
     'pending': 'Pending',
     'confirmed': 'Confirmed (Paid)',
     'preparing': 'Preparing',
@@ -348,7 +351,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           payment_status: 'pending',
           status: 'cancelled',
           utr: null,
-          notes: "Admin rejected payment proof (UTR). Please contact support or re-order.",
+          notes: "Admin rejected payment proof (UTR). If you already paid, your money will be refunded according to our policy within 24 hours. Please contact support.",
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
@@ -358,15 +361,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       const order = orders.find(o => o.id === orderId);
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
-          title: 'Order Rejected',
-          message: `Your order #${orderId.slice(-6).toUpperCase()} has been rejected.`,
+          title: 'Order Rejected & Refund Initiated',
+          message: `Order #${orderId.slice(-6).toUpperCase()} rejected. If paid, refund will be processed within 24 hrs as per policy.`,
           type: 'order',
           user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
       }
 
-      toast.success('Order rejected & cancelled', { id: loadingToast });
+      toast.success('Order rejected & cancelled. Refund notice sent.', { id: loadingToast });
     } catch (error: any) {
       console.error('Reject payment error:', error);
       toast.error(error.message || 'Rejection failed', { id: loadingToast });
@@ -811,22 +814,27 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                                       </div>
                                     </div>
                                   )}
-                                  <div className="flex items-center gap-2">
-                                    <button 
-                                      onClick={() => verifyPayment(order.id)}
-                                      className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-                                    >
-                                      <CheckCircle2 size={12} />
-                                      Approve Payment
-                                    </button>
-                                    <button 
-                                      onClick={() => rejectPayment(order.id)}
-                                      className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
-                                      title="Reject Payment"
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
+                                    <div className="flex flex-col gap-2">
+                                      <p className="text-[8px] text-red-500 font-bold uppercase leading-none italic">
+                                        If cancelled, paid money will refund in 24 hrs
+                                      </p>
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={() => verifyPayment(order.id)}
+                                          className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                        >
+                                          <CheckCircle2 size={12} />
+                                          Approve Payment
+                                        </button>
+                                        <button 
+                                          onClick={() => rejectPayment(order.id)}
+                                          className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                          title="Reject Payment"
+                                        >
+                                          <X size={12} />
+                                        </button>
+                                      </div>
+                                    </div>
                                 </>
                               ) : (
                                 <div className="px-4 py-2 bg-white/5 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2">
@@ -1173,20 +1181,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                             />
                           </div>
                         )}
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => verifyPayment(order.id)}
-                            className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                          >
-                            <CheckCircle2 size={16} />
-                            Approve Payment
-                          </button>
-                          <button 
-                            onClick={() => rejectPayment(order.id)}
-                            className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
-                          >
-                            <X size={20} />
-                          </button>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-[8px] text-red-500 font-bold uppercase text-center italic">
+                            If cancelled, paid money will refund in 24 hrs
+                          </p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => verifyPayment(order.id)}
+                              className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle2 size={16} />
+                              Approve Payment
+                            </button>
+                            <button 
+                              onClick={() => rejectPayment(order.id)}
+                              className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
                         </div>
                       </>
                     ) : (

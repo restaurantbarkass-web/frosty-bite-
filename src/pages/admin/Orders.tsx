@@ -287,8 +287,8 @@ export const Orders: React.FC = () => {
           if (activeTab === 'verification') {
             return o.payment_status === 'pending_verification' || (o.utr && o.payment_status !== 'paid');
           }
-          // In Active tab, show everything except those currently in "verification" status
-          if (o.payment_status === 'pending_verification') return false;
+          // In Active tab, show everything except those currently in "verification" or "awaiting_payment" status
+          if (o.payment_status === 'pending_verification' || o.status === 'awaiting_payment') return false;
           return true;
         })} 
         loading={loading} 

@@ -22,7 +22,7 @@ export interface Order {
   customerName?: string; // Add optional for backward compatibility / mixed casing
   items: any[];
   total: number;
-  status: 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: 'awaiting_payment' | 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   rider_id?: string;
   rider_name?: string;
   delivery_location?: {
@@ -36,7 +36,7 @@ export interface Order {
   delivery_otp?: string;
   notes?: string;
   payment_method?: 'cash' | 'online' | 'upi' | 'cod';
-  payment_status?: 'pending' | 'paid' | 'pending_verification';
+  payment_status?: 'pending' | 'paid' | 'pending_verification' | 'failed';
   utr?: string;
   payment_screenshot?: string;
   discount?: number;
