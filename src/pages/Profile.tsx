@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';

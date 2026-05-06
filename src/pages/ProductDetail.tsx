@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';

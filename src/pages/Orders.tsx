@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';

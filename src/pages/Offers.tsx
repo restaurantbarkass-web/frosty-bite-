@@ -80,8 +80,9 @@ const OffersPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black pb-32 overflow-hidden">
+    <div className="min-h-screen bg-black pb-32 overflow-hidden offers-content">
       <style>{`
+        .offers-content { display: block !important; }
         .perspective-1000 { perspective: 1000px; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -131,8 +132,11 @@ const OffersPage = () => {
       <div className="px-6 space-y-16">
         {/* Flash Deal Section Loading / Content */}
         {loading ? (
-          <GiftBoxLoader />
-        ) : flashDeal && (
+          <div className="flex flex-col items-center justify-center py-20">
+             <GiftBoxLoader />
+             <p className="mt-8 text-primary/40 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse">Unlocking Rewards...</p>
+          </div>
+        ) : flashDeal ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -180,7 +184,7 @@ const OffersPage = () => {
               <Zap size={300} className="absolute -right-24 -bottom-12 text-white/[0.03] rotate-12 blur-sm pointer-events-none" />
             </div>
           </motion.div>
-        )}
+        ) : null}
         {/* Premium Rotational Banner Section */}
         {regularBanners.length > 0 && (
           <div className="space-y-6">
