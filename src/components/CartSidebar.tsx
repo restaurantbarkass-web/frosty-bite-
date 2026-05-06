@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, Check, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';

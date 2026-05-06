@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Gift, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { supabase } from '../supabase';
 import { Coupon, Banner } from '../types';

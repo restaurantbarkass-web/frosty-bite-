@@ -21,7 +21,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';

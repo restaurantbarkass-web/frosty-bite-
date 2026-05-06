@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
 import { OrderActionPopup } from '../components/admin/OrderActionPopup';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { requestForToken, onMessageListener } from '../utils/messaging';
 import { useNotifications } from '../context/NotificationContext';
 import toast from 'react-hot-toast';

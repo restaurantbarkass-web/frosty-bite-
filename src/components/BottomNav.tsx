@@ -4,7 +4,7 @@ import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard, Gift } from 'l
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { LottieOfferButton } from './LottieOfferButton';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {

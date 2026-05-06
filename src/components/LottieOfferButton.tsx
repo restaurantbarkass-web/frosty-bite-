@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
 import offerAnim from '../assets/offer.json';
 import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import gsap from 'gsap';
 
 interface LottieOfferButtonProps {

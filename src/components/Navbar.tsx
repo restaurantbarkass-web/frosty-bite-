@@ -4,7 +4,7 @@ import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboa
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 import { Logo } from './Logo';

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'motion/react';
 import { X, ZoomIn, ZoomOut, Maximize2, RotateCcw, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
