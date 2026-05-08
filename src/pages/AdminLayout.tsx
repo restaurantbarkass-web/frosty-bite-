@@ -15,6 +15,7 @@ const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Cou
 const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
 const Admins = lazy(() => import('./admin/Admins').then(m => ({ default: m.Admins })));
 const Pricing = lazy(() => import('./admin/Pricing').then(m => ({ default: m.Pricing })));
+const SearchAnalytics = lazy(() => import('./admin/SearchAnalytics').then(m => ({ default: m.SearchAnalytics })));
 import { BannerManager } from '../components/admin/BannerManager';
 
 export const AdminLayout: React.FC = () => {
@@ -72,6 +73,7 @@ export const AdminLayout: React.FC = () => {
         </div>
       );
       case 'analytics': return <Analytics />;
+      case 'search-analytics': return <SearchAnalytics />;
       default: return <Dashboard />;
     }
   };

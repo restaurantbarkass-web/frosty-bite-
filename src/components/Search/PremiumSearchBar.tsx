@@ -11,7 +11,8 @@ import {
   Command,
   ArrowRight,
   Loader2,
-  Cpu
+  Cpu,
+  QrCode
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -273,6 +274,15 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
                 <span>K</span>
               </div>
             )}
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="hidden sm:flex p-2.5 sm:p-3 bg-white/5 text-gray-400 hover:text-white rounded-xl transition-all"
+              title="Scan QR"
+            >
+              <QrCode size={20} />
+            </motion.button>
 
             <motion.button
               whileHover={{ scale: 1.05 }}

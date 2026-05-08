@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search, Gift } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search, Gift, Command } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
@@ -10,7 +10,7 @@ import { appConfigService, AppConfig } from '../services/appConfigService';
 import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
 
-export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
+export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCart();
   const { user, role, isAdmin, isRider } = useAuth();
   const location = useLocation();
@@ -120,31 +120,26 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
       </AnimatePresence>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
-          <Link to="/" className="flex items-center space-x-3 group relative">
-            <Logo size="md" />
+        <div className="flex justify-between items-center h-20 sm:h-24 gap-4">
+          <Link to="/" className="flex items-center shrink-0 group relative">
+            <Logo size="md" className="scale-90 sm:scale-100" />
           </Link>
 
           {/* Search Bar (Desktop) */}
-          <div className="hidden lg:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search Bakery..." 
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-primary/50 focus:bg-white/10 transition-all"
-                onChange={(e) => {
-                  // This is a global search, we can use a custom event or just navigate to home with a query
-                  const query = e.target.value;
-                  if (location.pathname !== '/') {
-                    navigate(`/?search=${encodeURIComponent(query)}`);
-                  } else {
-                    // If on home, we can dispatch a custom event
-                    window.dispatchEvent(new CustomEvent('navbar-search', { detail: query }));
-                  }
-                }}
-              />
-            </div>
+          <div className="hidden lg:flex flex-1 max-w-sm mx-8">
+            <button 
+              onClick={onSearchClick}
+              className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl py-2.5 px-4 group hover:border-primary/50 transition-all text-gray-500"
+            >
+              <div className="flex items-center gap-3">
+                <Search size={18} className="group-hover:text-primary transition-colors" />
+                <span className="text-sm font-medium">Search for premium treats...</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold">
+                <Command size={10} />
+                <span>K</span>
+              </div>
+            </button>
           </div>
 
           {/* Desktop Nav */}
@@ -209,23 +204,29 @@ export const Navbar: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) =
             )}
           </div>
 
-          {/* Mobile Menu Button - Hidden to prefer BottomNav */}
-          <div className="md:hidden flex items-center space-x-2">
+          {/* Mobile Menu Button - Optimized spacing */}
+          <div className="md:hidden flex items-center gap-1 sm:gap-2 shrink-0">
             {!user && (
               <Link
                 to="/login"
-                className="text-[10px] font-black uppercase tracking-widest bg-primary text-white px-5 py-2.5 rounded-full active:scale-95 transition-all shadow-lg shadow-primary/20"
+                className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-full active:scale-95 transition-all shadow-lg shadow-primary/20 shrink-0"
               >
                 Login
               </Link>
             )}
             <button
-              onClick={onCartClick}
-              className="relative p-2 text-muted hover:text-primary active:scale-95 transition-all"
+              onClick={onSearchClick}
+              className="p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0"
             >
-              <ShoppingCart size={24} />
+              <Search size={20} />
+            </button>
+            <button
+              onClick={onCartClick}
+              className="relative p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0"
+            >
+              <ShoppingCart size={22} />
               {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
+                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-black/50">
                   {totalItems}
                 </span>
               )}

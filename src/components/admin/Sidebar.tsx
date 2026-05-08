@@ -13,7 +13,8 @@ import {
   Palette,
   Users,
   ShieldCheck,
-  Truck
+  Truck,
+  Search as SearchIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -37,6 +38,7 @@ const menuItems = [
   { id: 'banners', label: 'Banners', icon: Palette },
   { id: 'riders', label: 'Riders', icon: Bike },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'search-analytics', label: 'Search Insights', icon: SearchIcon },
   { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

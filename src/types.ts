@@ -9,6 +9,7 @@ export interface FoodItem {
   stock_quantity: number;
   is_recommended?: boolean;
   available?: boolean;
+  tags?: string[];
 }
 
 export interface CartItem extends FoodItem {

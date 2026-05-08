@@ -12,15 +12,16 @@ import { FoodItem } from '../types';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
+import { useMenu } from '../context/MenuContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
 
 // Home Page Component
 export const Home: React.FC = () => {
   const location = useLocation();
+  const { items: displayItems, categories: menuCategories, loading: isMenuLoading } = useMenu();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   
-  const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
   const { isOrderingOpen } = useAppConfig();
   const navigate = useNavigate();
@@ -33,20 +34,7 @@ export const Home: React.FC = () => {
     fetchBanners();
   }, []);
   
-  // Use static MENU_ITEMS as fallback if firestore is empty
-  const displayItems = React.useMemo(() => {
-    if (!firestoreMenu || firestoreMenu.length === 0) {
-      return MENU_ITEMS;
-    }
-    return firestoreMenu;
-  }, [firestoreMenu]);
-
   // Dynamic categories based on menu items
-  const menuCategories = React.useMemo(() => {
-    const cats = displayItems.map(item => item.category);
-    return ['All', ...Array.from(new Set(cats))].filter(Boolean);
-  }, [displayItems]);
-
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
@@ -59,6 +47,11 @@ export const Home: React.FC = () => {
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
       }
+    };
+
+    const handleOpenOverlay = () => {
+        // Search bar on top is just a trigger now
+        window.dispatchEvent(new CustomEvent('open-search'));
     };
 
     window.addEventListener('navbar-search', handleNavbarSearch);
@@ -75,72 +68,6 @@ export const Home: React.FC = () => {
       }, 500);
     }
   }, [location.search, searchQuery]);
-
-  useEffect(() => {
-    // Initial load from cache
-    const cachedMenu = localStorage.getItem('menu_cache');
-    if (cachedMenu) {
-      try {
-        const parsed = JSON.parse(cachedMenu);
-        const data = parsed.data || parsed;
-        if (Array.isArray(data)) {
-          setFirestoreMenu(data);
-        }
-      } catch (e) {
-        console.error('Failed to parse menu cache', e);
-      }
-    }
-
-    const fetchSupabaseProducts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*');
-        
-        if (error) throw error;
-        
-        if (data) {
-          const mappedItems = data.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            category: item.category || 'General',
-            available: item.available !== undefined ? item.available : true,
-            stock_quantity: item.stock_quantity || 0,
-            description: item.description || '',
-            rating: item.rating || 5
-          }));
-          
-          console.log(`Loaded ${mappedItems.length} items from Supabase`);
-          setFirestoreMenu(mappedItems);
-          localStorage.setItem('menu_cache', JSON.stringify({ data: mappedItems, timestamp: Date.now() }));
-        }
-      } catch (error) {
-        console.error('Supabase fetch failed:', error);
-      }
-    };
-
-    fetchSupabaseProducts();
-
-    // Listen for storage changes from other tabs (specifically for admin updates)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'menu_cache' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          const data = parsed.data || parsed;
-          if (Array.isArray(data)) {
-            setFirestoreMenu(data);
-          }
-        } catch (err) {}
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
 
   useEffect(() => {
     const fetchRecs = async () => {
@@ -251,7 +178,7 @@ export const Home: React.FC = () => {
       .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .map(item => item.name);
 
-    const categorySuggestions = menuCategories
+    const categorySuggestions = (menuCategories || [])
       .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const combined = Array.from(new Set([...itemSuggestions, ...categorySuggestions]))
@@ -331,12 +258,14 @@ export const Home: React.FC = () => {
                   element?.scrollIntoView({ behavior: 'smooth' });
                 }, 100);
               }}
+              onFocusChange={(focused) => {
+                if (focused) {
+                    window.dispatchEvent(new CustomEvent('open-search'));
+                }
+              }}
               initialQuery={searchQuery}
               suggestions={suggestions}
               aiRecommendations={aiRecs}
-              onFocusChange={(focused) => {
-                window.dispatchEvent(new CustomEvent('is-searching', { detail: focused }));
-              }}
             />
           </motion.div>
         </div>

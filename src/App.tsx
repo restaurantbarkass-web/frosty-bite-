@@ -2,11 +2,13 @@ import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
+import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { CartSidebar } from './components/CartSidebar';
+import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
@@ -41,11 +43,14 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
 import { useCart } from './context/CartContext';
+import { useMenu } from './context/MenuContext';
 
 // Forced rebuild for artifact detection
 function AppContent() {
   const { isCartOpen, setIsCartOpen } = useCart();
+  const { items } = useMenu();
   const [isSearching, setIsSearching] = useState(false);
+  const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash only once per session
@@ -83,9 +88,29 @@ function AppContent() {
     };
     window.addEventListener('is-searching', handleSearchState);
     window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOverlayOpen(true);
+      }
+      if (e.key === 'Escape') {
+        setIsSearchOverlayOpen(false);
+      }
+    };
+
+    const handleGlobalSearch = (e: any) => {
+        setIsSearchOverlayOpen(true);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('open-search', handleGlobalSearch);
+
     return () => {
       window.removeEventListener('is-searching', handleSearchState);
       window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('open-search', handleGlobalSearch);
     };
   }, []);
 
@@ -130,9 +155,15 @@ function AppContent() {
         </div>
       )}
 
-      {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} />}
+      {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} onSearchClick={() => setIsSearchOverlayOpen(true)} />}
       {showCartSidebar && <CartSidebar />}
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
+      
+      <SearchOverlay 
+        isOpen={isSearchOverlayOpen} 
+        onClose={() => setIsSearchOverlayOpen(false)} 
+        allItems={items}
+      />
       
       <main className={cn(
         "transition-all flex-1 flex flex-col min-h-svh relative",
@@ -303,11 +334,13 @@ export default function App() {
     <ErrorBoundary>
       <Router>
         <AuthProvider>
-          <NotificationProvider>
-            <CartProvider>
-              <AppContent />
-            </CartProvider>
-          </NotificationProvider>
+          <MenuProvider>
+            <NotificationProvider>
+              <CartProvider>
+                <AppContent />
+              </CartProvider>
+            </NotificationProvider>
+          </MenuProvider>
         </AuthProvider>
       </Router>
     </ErrorBoundary>
