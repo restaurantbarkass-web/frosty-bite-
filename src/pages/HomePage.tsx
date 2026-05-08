@@ -12,6 +12,7 @@ import { FoodItem } from '../types';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
+import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
 
 // Home Page Component
 export const Home: React.FC = () => {
@@ -47,25 +48,8 @@ export const Home: React.FC = () => {
   }, [displayItems]);
 
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-
-  const lastSearchState = React.useRef(false);
-
-  useEffect(() => {
-    // Notify App component about search state to hide/show navigation
-    const newState = Boolean(showSuggestions && searchQuery.length > 0);
-    if (newState !== lastSearchState.current) {
-      lastSearchState.current = newState;
-      // Use a small delay to avoid immediate layout thrashing
-      const timer = setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('is-searching', { detail: newState }));
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [showSuggestions, searchQuery]);
 
   useEffect(() => {
     const handleNavbarSearch = (e: any) => {
@@ -257,51 +241,9 @@ export const Home: React.FC = () => {
     };
   }, [user]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex(prev => (prev > 0 ? prev - 1 : 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (activeIndex >= 0) {
-        setSearchQuery(suggestions[activeIndex]);
-        setShowSuggestions(false);
-        setActiveIndex(-1);
-        setTimeout(() => {
-          const element = document.getElementById('menu-section');
-          element?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      } else {
-        const element = document.getElementById('menu-section');
-        element?.scrollIntoView({ behavior: 'smooth' });
-        setShowSuggestions(false);
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-  };
-
-  const highlightMatch = (text: string, query: string) => {
-    if (!query.trim()) return text;
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
-    return (
-      <span className="font-medium text-gray-400">
-        {parts.map((part, i) => 
-          part.toLowerCase() === query.toLowerCase() ? (
-            <span key={i} className="text-white font-black group-hover:text-primary transition-colors">{part}</span>
-          ) : part
-        )}
-      </span>
-    );
-  };
-
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setSuggestions([]);
-      setActiveIndex(-1);
       return;
     }
 
@@ -316,8 +258,7 @@ export const Home: React.FC = () => {
       .slice(0, 6);
 
     setSuggestions(combined);
-    setActiveIndex(-1);
-  }, [searchQuery, displayItems]);
+  }, [searchQuery, displayItems, menuCategories]);
 
   const filteredItems = React.useMemo(() => {
     return displayItems.filter(item => {
@@ -377,133 +318,26 @@ export const Home: React.FC = () => {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-xl mx-auto relative group/search"
+            transition={{ delay: 0.2 }}
+            className="max-w-xl mx-auto"
           >
-            <div className={cn(
-              "relative bg-black/80 backdrop-blur-2xl p-2 rounded-2xl flex items-center shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/20 transition-all duration-500",
-              showSuggestions && searchQuery.length > 0 && "rounded-b-none border-b-transparent shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
-            )}>
-              {/* Focus Glow Background */}
-              <div className="absolute -inset-1 bg-primary/20 rounded-2xl blur-xl opacity-0 group-focus-within/search:opacity-100 transition-opacity duration-1000 -z-10" />
-              
-              <div className="flex-1 flex items-center px-2 sm:px-4 space-x-2 sm:space-x-3 min-w-0">
-                <Search className={cn("transition-colors duration-300 flex-shrink-0", showSuggestions ? "text-primary" : "text-gray-500")} size={20} />
-                <input
-                  type="text"
-                  placeholder="Search Cakes, Pastries or Breads..."
-                  className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base py-3 sm:py-4 text-white placeholder:text-gray-400 font-medium min-w-0 px-0"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  onKeyDown={handleKeyDown}
-                />
-                <AnimatePresence>
-                  {searchQuery && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      onClick={() => setSearchQuery('')}
-                      className="p-2 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
-                    >
-                      <X size={20} />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-              </div>
-              <button 
-                onClick={() => {
+            <PremiumSearchBar 
+              onSearch={(q) => {
+                setSearchQuery(q);
+                setTimeout(() => {
                   const element = document.getElementById('menu-section');
                   element?.scrollIntoView({ behavior: 'smooth' });
-                  setShowSuggestions(false);
-                }}
-                className="bg-primary text-white px-3 sm:px-10 py-3 sm:py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0 active:scale-95 text-[10px] sm:text-sm"
-              >
-                Search
-              </button>
-            </div>
-
-            {/* Search Suggestions */}
-            <AnimatePresence>
-              {showSuggestions && suggestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                  className="absolute left-0 right-0 top-full bg-black/90 backdrop-blur-3xl border border-white/20 border-t-transparent rounded-b-2xl overflow-hidden z-50 shadow-2xl origin-top"
-                >
-                  <div className="h-[1px] mx-6 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                  <motion.div 
-                    initial="hidden"
-                    animate="show"
-                    variants={{
-                      hidden: { opacity: 0 },
-                      show: {
-                        opacity: 1,
-                        transition: {
-                          staggerChildren: 0.05
-                        }
-                      }
-                    }}
-                    className="py-2"
-                  >
-                    {suggestions.map((suggestion, index) => (
-                      <motion.button
-                        key={index}
-                        variants={{
-                          hidden: { opacity: 0, x: -10 },
-                          show: { opacity: 1, x: 0 }
-                        }}
-                        onMouseEnter={() => setActiveIndex(index)}
-                        onClick={() => {
-                          setSearchQuery(suggestion);
-                          setShowSuggestions(false);
-                          setTimeout(() => {
-                            const element = document.getElementById('menu-section');
-                            element?.scrollIntoView({ behavior: 'smooth' });
-                          }, 100);
-                        }}
-                        className={cn(
-                          "w-full px-6 py-4 text-left transition-all flex items-center space-x-4 group relative",
-                          activeIndex === index ? "bg-white/10" : "hover:bg-white/5"
-                        )}
-                      >
-                        {activeIndex === index && (
-                          <motion.div 
-                            layoutId="suggestion-pill"
-                            className="absolute inset-y-2 left-2 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(125,211,252,0.5)]"
-                          />
-                        )}
-                        <div className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                          activeIndex === index ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "bg-white/5 text-gray-500"
-                        )}>
-                          <Search size={14} />
-                        </div>
-                        <span className="flex-1 truncate">
-                          {highlightMatch(suggestion, searchQuery)}
-                        </span>
-                        <AnimatePresence>
-                          {activeIndex === index && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.5, x: 10 }}
-                              animate={{ opacity: 1, scale: 1, x: 0 }}
-                              exit={{ opacity: 0, scale: 0.5, x: 10 }}
-                            >
-                              <ChevronRight size={16} className="text-primary" />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.button>
-                    ))}
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                }, 100);
+              }}
+              initialQuery={searchQuery}
+              suggestions={suggestions}
+              aiRecommendations={aiRecs}
+              onFocusChange={(focused) => {
+                window.dispatchEvent(new CustomEvent('is-searching', { detail: focused }));
+              }}
+            />
           </motion.div>
         </div>
       </section>
