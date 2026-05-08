@@ -1,8 +1,8 @@
 import { supabase } from '../supabase';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { FoodItem } from '../types';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export interface SearchHistory {
   id?: string;
@@ -23,11 +23,12 @@ export const searchService = {
     if (!searchTerm || searchTerm.length < 2) return [];
     
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const prompt = `As a bakery AI assistant for "Frosty Bite", provide 5 short, creative search suggestions based on the term: "${searchTerm}". Only return the suggestions separated by newlines. Examples: "Custom Birthday Cakes", "Eggless Brownies", "Red Velvet Pastries".`;
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `As a bakery AI assistant for "Frosty Bite", provide 5 short, creative search suggestions based on the term: "${searchTerm}". Only return the suggestions separated by newlines. Examples: "Custom Birthday Cakes", "Eggless Brownies", "Red Velvet Pastries".`
+      });
       
-      const result = await model.generateContent(prompt);
-      const output = result.response.text();
+      const output = response.text || '';
       return output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
     } catch (error) {
       console.error('AI Suggestion Error:', error);
