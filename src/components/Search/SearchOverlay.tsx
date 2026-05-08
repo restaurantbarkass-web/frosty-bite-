@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -13,20 +13,24 @@ import {
   Info,
   Mic,
   ArrowRight,
-  QrCode
+  QrCode,
+  Loader2,
+  Camera
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { FoodItem } from '../../types';
 import { useSearch } from '../../hooks/useSearch';
 import { FoodCard } from '../FoodCard';
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 
 interface SearchOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   allItems: FoodItem[];
+  initialScan?: boolean;
 }
 
-export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, allItems }) => {
+export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, allItems, initialScan }) => {
   const { 
     query, 
     setQuery, 
@@ -40,35 +44,131 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      if (initialScan) {
+          handleQRSearch();
+      } else {
+          setTimeout(() => inputRef.current?.focus(), 300);
+      }
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      stopScanner();
     }
     return () => {
       document.body.style.overflow = 'unset';
+      stopScanner();
     };
   }, [isOpen]);
+
+  const stopScanner = useCallback(() => {
+    if (scannerRef.current) {
+        if (scannerRef.current.isScanning) {
+            scannerRef.current.stop().then(() => {
+                scannerRef.current?.clear();
+                scannerRef.current = null;
+                setIsScanning(false);
+            }).catch(err => console.error("Error stopping scanner", err));
+        } else {
+            scannerRef.current.clear();
+            scannerRef.current = null;
+            setIsScanning(false);
+        }
+    }
+  }, []);
+
+  const handleVoiceSearch = () => {
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice search is not supported in this browser.");
+      return;
+    }
+
+    setIsListening(true);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const result = event.results[0][0].transcript;
+      setQuery(result);
+      setIsListening(false);
+      performSearch(result);
+    };
+
+    recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+    };
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+  };
+
+  const handleQRSearch = async () => {
+    if (isScanning) {
+      stopScanner();
+      return;
+    }
+
+    setIsScanning(true);
+    
+    // Give DOM time to render the reader div
+    setTimeout(async () => {
+        try {
+            const html5QrCode = new Html5Qrcode("reader");
+            scannerRef.current = html5QrCode;
+            
+            const qrCodeSuccessCallback = (decodedText: string) => {
+              setQuery(decodedText);
+              performSearch(decodedText);
+              stopScanner();
+            };
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            await html5QrCode.start(
+              { facingMode: "environment" }, 
+              config, 
+              qrCodeSuccessCallback,
+              () => {} // error callback - ignore
+            );
+        } catch (err) {
+            console.error("Unable to start scanning", err);
+            setIsScanning(false);
+            alert("Failed to access camera. Please check permissions.");
+        }
+    }, 100);
+  };
 
   // Handle ESC key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+          if (isScanning) {
+              stopScanner();
+          } else {
+              onClose();
+          }
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         if (!isOpen) {
             e.preventDefault();
-            // This would be handled by the parent, but inside here we just keep focus
             inputRef.current?.focus();
         }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isScanning, stopScanner]);
 
   const filteredResults = selectedCategory 
     ? results.filter(item => item.category === selectedCategory)
@@ -112,11 +212,23 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                         <X size={18} />
                     </button>
                     )}
-                    <button className="p-2 text-gray-500 hover:text-primary transition-colors">
+                    <button 
+                        onClick={handleQRSearch}
+                        className={cn(
+                            "p-2 transition-colors",
+                            isScanning ? "text-primary bg-primary/10 rounded-lg" : "text-gray-500 hover:text-primary"
+                        )}
+                    >
                         <QrCode size={20} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:text-primary transition-colors">
-                        <Mic size={20} />
+                    <button 
+                        onClick={handleVoiceSearch}
+                        className={cn(
+                            "p-2 transition-colors",
+                            isListening ? "text-red-500 bg-red-500/10 rounded-lg scale-110" : "text-gray-500 hover:text-primary"
+                        )}
+                    >
+                        {isListening ? <Loader2 size={20} className="animate-spin" /> : <Mic size={20} />}
                     </button>
                 </div>
               </div>
@@ -141,6 +253,34 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
               </button>
             </div>
           </div>
+
+          {/* QR Scanner Overlay */}
+          <AnimatePresence>
+            {isScanning && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute inset-x-0 top-32 z-50 flex justify-center px-4"
+                >
+                    <div className="w-full max-w-sm bg-black border border-primary/30 rounded-3xl overflow-hidden shadow-2xl shadow-primary/20">
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-900">
+                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
+                                <Camera size={14} />
+                                Scanner Active
+                            </div>
+                            <button onClick={stopScanner} className="text-gray-500 hover:text-white">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div id="reader" className="w-full aspect-square bg-black"></div>
+                        <div className="p-4 text-center text-[10px] text-gray-400 font-medium">
+                            Point your camera at a QR code or barcode
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Main Content Area */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -204,7 +344,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                       <p className="text-sm text-gray-300 italic mb-4 leading-relaxed">
                         "I'm looking for a premium tiered chocolate cake for a 25th anniversary celebration..."
                       </p>
-                      <button className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-4 transition-all">
+                      <button 
+                        onClick={handleVoiceSearch}
+                        className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-4 transition-all"
+                      >
                         Try AI Butler <Mic size={14} />
                       </button>
                     </div>

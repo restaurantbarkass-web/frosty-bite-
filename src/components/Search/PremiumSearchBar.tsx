@@ -124,20 +124,21 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
   }, [onSearch, recentSearches]);
 
   const handleVoiceSearch = () => {
-    if (!('webkitSpeechRecognition' in window)) {
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
       alert("Voice search is not supported in this browser.");
       return;
     }
 
     setIsListening(true);
-    // @ts-ignore
-    const recognition = new webkitSpeechRecognition();
+    const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
-      const result = event.results[0][0].transcript;
+      const result = event.results[event.results.length - 1][0].transcript;
       setQuery(result);
       setIsListening(false);
       handleSearch(result);
@@ -278,6 +279,11 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                // If we are in the premium search bar, we might want to just open the overlay
+                // which has the full scanning UI.
+                window.dispatchEvent(new CustomEvent('open-search', { detail: { scan: true } }));
+              }}
               className="hidden sm:flex p-2.5 sm:p-3 bg-white/5 text-gray-400 hover:text-white rounded-xl transition-all"
               title="Scan QR"
             >
@@ -301,7 +307,7 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
                   className="absolute inset-0 bg-red-500 rounded-full -z-10"
                 />
               )}
-              <Mic size={20} />
+              {isListening ? <Loader2 size={20} className="animate-spin" /> : <Mic size={20} />}
             </motion.button>
 
             <button 
@@ -426,7 +432,10 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
                       <p className="text-[10px] text-gray-400 leading-relaxed mb-3">
                         "I need a tiered eggless cake for a corporate event under ₹3000..."
                       </p>
-                      <button className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-3 transition-all">
+                      <button 
+                        onClick={handleVoiceSearch}
+                        className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-3 transition-all"
+                      >
                         Try AI Search <ArrowRight size={12} />
                       </button>
                     </div>

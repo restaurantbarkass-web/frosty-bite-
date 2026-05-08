@@ -78,6 +78,8 @@ function AppContent() {
     }
   }, [showSplash]);
 
+  const [isSearchOverlayScan, setIsSearchOverlayScan] = useState(false);
+
   useEffect(() => {
     const handleSearchState = (e: any) => {
       const newState = !!e.detail;
@@ -86,12 +88,11 @@ function AppContent() {
     const handleQuotaExceeded = () => {
       setQuotaExceeded(true);
     };
-    window.addEventListener('is-searching', handleSearchState);
-    window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
-
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
+        setIsSearchOverlayScan(false);
         setIsSearchOverlayOpen(true);
       }
       if (e.key === 'Escape') {
@@ -100,9 +101,12 @@ function AppContent() {
     };
 
     const handleGlobalSearch = (e: any) => {
+        setIsSearchOverlayScan(!!e.detail?.scan);
         setIsSearchOverlayOpen(true);
     };
 
+    window.addEventListener('is-searching', handleSearchState);
+    window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('open-search', handleGlobalSearch);
 
@@ -113,6 +117,7 @@ function AppContent() {
       window.removeEventListener('open-search', handleGlobalSearch);
     };
   }, []);
+
 
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
@@ -163,6 +168,7 @@ function AppContent() {
         isOpen={isSearchOverlayOpen} 
         onClose={() => setIsSearchOverlayOpen(false)} 
         allItems={items}
+        initialScan={isSearchOverlayScan}
       />
       
       <main className={cn(
