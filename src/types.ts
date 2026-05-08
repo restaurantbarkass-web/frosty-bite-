@@ -10,6 +10,7 @@ export interface FoodItem {
   is_recommended?: boolean;
   available?: boolean;
   tags?: string[];
+  barcode?: string;
 }
 
 export interface CartItem extends FoodItem {

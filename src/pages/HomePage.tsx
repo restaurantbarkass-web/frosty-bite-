@@ -70,32 +70,37 @@ export const Home: React.FC = () => {
   }, [location.search, searchQuery]);
 
   useEffect(() => {
-    const fetchRecs = async () => {
-      // Check cache first
-      const cachedRecs = localStorage.getItem('ai_recs');
-      const cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
-      const now = Date.now();
-      
-      if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
-        setAiRecs(JSON.parse(cachedRecs));
-        return;
-      }
+    // Delay non-critical data fetching to prioritize main menu rendering
+    const timer = setTimeout(() => {
+        const fetchRecs = async () => {
+          // Check cache first
+          const cachedRecs = localStorage.getItem('ai_recs');
+          const cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
+          const now = Date.now();
+          
+          if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
+            setAiRecs(JSON.parse(cachedRecs));
+            return;
+          }
 
-      setIsLoadingRecs(true);
-      try {
-        const recs = await getFoodRecommendations("I want something spicy and filling for dinner");
-        if (recs && recs.length > 0) {
-          setAiRecs(recs);
-          localStorage.setItem('ai_recs', JSON.stringify(recs));
-          localStorage.setItem('ai_recs_timestamp', now.toString());
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoadingRecs(false);
-      }
-    };
-    fetchRecs();
+          setIsLoadingRecs(true);
+          try {
+            const recs = await getFoodRecommendations("I want something spicy and filling for dinner");
+            if (recs && recs.length > 0) {
+              setAiRecs(recs);
+              localStorage.setItem('ai_recs', JSON.stringify(recs));
+              localStorage.setItem('ai_recs_timestamp', now.toString());
+            }
+          } catch (e) {
+            console.error(e);
+          } finally {
+            setIsLoadingRecs(false);
+          }
+        };
+        fetchRecs();
+    }, 2000); // 2 second delay
+
+    return () => clearTimeout(timer);
   }, []);
 
   const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
@@ -108,9 +113,10 @@ export const Home: React.FC = () => {
     }
 
     const fetchPreviousPurchases = async () => {
-      // If the database is misconfigured with UUID columns, sending a Firebase UID will crash the query.
-      // We skip the query if it's not a valid UUID format AND we suspect the DB might be using UUID types.
-      // However, it's better to just try and catch the specific format error.
+      // Delay user-specific data to prioritize main content
+      await new Promise(r => setTimeout(r, 1000));
+      
+      // If the database is misconfigured with UUID columns...
       try {
         const { data: orders, error } = await supabase
           .from('orders')

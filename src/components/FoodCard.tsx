@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2 } from 'lucide-react';
+import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2, Sparkles } from 'lucide-react';
 import { FoodItem } from '../types';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,9 +18,10 @@ import { ImageZoom } from './ImageZoom';
 interface FoodCardProps {
   item: FoodItem;
   variant?: 'default' | 'compact';
+  isAiRecommended?: boolean;
 }
 
-export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'default' }) => {
+export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'default', isAiRecommended = false }) => {
   const { addToCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -229,10 +230,20 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
             </motion.button>
           </div>
 
-          <div className="absolute top-5 left-5">
+          <div className="absolute top-5 left-5 flex flex-col gap-2">
             <span className="bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-lg">
               Freshly Baked
             </span>
+            {isAiRecommended && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-black/80 backdrop-blur-md border border-primary/50 text-primary text-[8px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(249,115,22,0.3)] flex items-center gap-1.5"
+              >
+                <Sparkles size={10} className="animate-pulse" />
+                AI Recommended
+              </motion.div>
+            )}
           </div>
 
         {(item.available === false || item.stock_quantity <= 0) && (

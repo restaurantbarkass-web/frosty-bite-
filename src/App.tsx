@@ -48,7 +48,7 @@ import { useMenu } from './context/MenuContext';
 // Forced rebuild for artifact detection
 function AppContent() {
   const { isCartOpen, setIsCartOpen } = useCart();
-  const { items } = useMenu();
+  const { items, loading: menuLoading } = useMenu();
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -65,6 +65,17 @@ function AppContent() {
   });
 
   const location = useLocation();
+
+  useEffect(() => {
+    // Automatically transition from splash when menu is loaded
+    if (showSplash && !menuLoading && items.length > 0) {
+      // Small delay for visual polish
+      const timer = setTimeout(() => {
+        handleSplashComplete();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showSplash, menuLoading, items.length]);
 
   useEffect(() => {
     // Failsafe to unstick splash after 6 seconds

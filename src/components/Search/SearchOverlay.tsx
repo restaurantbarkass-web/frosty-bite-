@@ -39,8 +39,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
     trending, 
     recent, 
     performSearch,
-    clear
+    clear,
+    smartRec,
+    isProcessingRec
   } = useSearch(allItems);
+
+  const bestMatch = allItems.find(i => i.id === smartRec?.bestMatchId);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -106,6 +110,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
 
     recognition.onerror = (event: any) => {
         console.error("Speech recognition error", event.error);
+        if (event.error === 'no-speech') {
+            // Silently handle no-speech or maybe show a small toast if we had a toast system
+            // For now, we'll just stop the listening state
+        } else if (event.error === 'not-allowed') {
+            alert("Microphone access denied. Please check permissions.");
+        }
         setIsListening(false);
     };
     recognition.onend = () => setIsListening(false);
@@ -133,7 +143,18 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
               stopScanner();
             };
             
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            const config = { 
+              fps: 10, 
+              qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const size = Math.floor(minEdge * 0.7);
+                return {
+                  width: size,
+                  height: size * 0.6 // Slightly wider/shorter for barcodes
+                };
+              },
+              aspectRatio: 1.0
+            };
             
             await html5QrCode.start(
               { facingMode: "environment" }, 
@@ -357,6 +378,118 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
 
               {query && (
                 <div className="space-y-8">
+                  {/* AI Processing / Best Match Section */}
+                  <AnimatePresence>
+                    {(isProcessingRec || smartRec) && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="p-1 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-white/5 to-accent/30 shadow-2xl overflow-hidden"
+                      >
+                        <div className="relative p-6 sm:p-10 rounded-[2.4rem] bg-zinc-950/90 backdrop-blur-3xl overflow-hidden group">
+                          {/* Background Glow */}
+                          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] pointer-events-none" />
+                          <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/10 blur-[100px] pointer-events-none" />
+
+                          <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start relative z-10">
+                            {/* AI Identity */}
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary to-accent p-[2px] mb-4">
+                                <div className="w-full h-full rounded-[22px] bg-black flex items-center justify-center relative overflow-hidden">
+                                  <Sparkles size={32} className="text-white animate-pulse" />
+                                  <motion.div 
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                                    className="absolute inset-0 border border-white/10 rounded-full scale-150 border-dashed"
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Frosty Butler</span>
+                                <div className="flex gap-1">
+                                  {[1,2,3].map(i => (
+                                    <motion.div 
+                                      key={i}
+                                      animate={{ scale: [1, 1.5, 1] }} 
+                                      transition={{ repeat: Infinity, delay: i * 0.2 }}
+                                      className="w-1 h-1 bg-primary rounded-full" 
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Recommendation Logic */}
+                            <div className="flex-1 text-center lg:text-left">
+                              {isProcessingRec ? (
+                                <div className="space-y-4">
+                                  <h3 className="text-2xl font-black text-white italic">Analyzing your intent...</h3>
+                                  <div className="space-y-2 max-w-lg mx-auto lg:mx-0">
+                                    <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        initial={{ x: "-100%" }}
+                                        animate={{ x: "100%" }}
+                                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                        className="w-1/2 h-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" 
+                                      />
+                                    </div>
+                                    <p className="text-gray-500 text-xs font-mono">Personalizing recommendations based on "{query}"</p>
+                                  </div>
+                                </div>
+                              ) : smartRec && bestMatch ? (
+                                <motion.div 
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="space-y-6"
+                                >
+                                  <div>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-[10px] font-black text-primary uppercase tracking-widest mb-4">
+                                      <Sparkles size={12} />
+                                      AI Best Match
+                                    </div>
+                                    <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
+                                      "{smartRec.reason}"
+                                    </h3>
+                                  </div>
+
+                                  <div className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer">
+                                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
+                                          <img 
+                                            src={bestMatch.image} 
+                                            alt={bestMatch.name} 
+                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                            referrerPolicy="no-referrer"
+                                          />
+                                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                      </div>
+                                      <div className="flex-1 text-center sm:text-left">
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                              <h4 className="text-xl font-black text-white">{bestMatch.name}</h4>
+                                              <span className="text-primary font-black text-lg">₹{bestMatch.price}</span>
+                                          </div>
+                                          <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
+                                          <div className="flex flex-wrap justify-center sm:justify-start gap-2">
+                                              {bestMatch.tags?.slice(0, 3).map(tag => (
+                                                <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
+                                              ))}
+                                              <button className="ml-auto inline-flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-3 transition-all">
+                                                  Quick View <ArrowRight size={14} />
+                                              </button>
+                                          </div>
+                                      </div>
+                                  </div>
+                                </motion.div>
+                              ) : (
+                                <p className="text-gray-500">No AI-specific matches found, showing best search matches.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* AI Suggestions Bar */}
                   <AnimatePresence>
                     {aiSuggestions.length > 0 && (
@@ -428,7 +561,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
                             transition={{ delay: idx * 0.05 }}
                           >
-                            <FoodCard item={item} />
+                            <FoodCard 
+                                item={item} 
+                                isAiRecommended={
+                                    item.id === smartRec?.bestMatchId || 
+                                    smartRec?.alternatives?.includes(item.id)
+                                }
+                            />
                           </motion.div>
                         ))}
                       </AnimatePresence>

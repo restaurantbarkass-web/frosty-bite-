@@ -18,18 +18,41 @@ export interface SearchAnalytics {
 }
 
 export const searchService = {
-  // AI-powered smart suggestions
-  async getAiSuggestions(searchTerm: string): Promise<string[]> {
+  // AI-powered smart suggestions strictly based on in-stock menu items
+  async getAiSuggestions(searchTerm: string, items: FoodItem[]): Promise<string[]> {
     if (!searchTerm || searchTerm.length < 2) return [];
     
     try {
+      const menuReference = items.map(i => ({ name: i.name, category: i.category })).slice(0, 50);
+      
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `As a bakery AI assistant for "Frosty Bite", provide 5 short, creative search suggestions based on the term: "${searchTerm}". Only return the suggestions separated by newlines. Examples: "Custom Birthday Cakes", "Eggless Brownies", "Red Velvet Pastries".`
+        contents: `
+          Search Term: "${searchTerm}"
+          Menu Reference: ${JSON.stringify(menuReference)}
+
+          As a bakery AI assistant, provide 5 search suggestions that strictly relate to products we actually have in our menu reference above. 
+          Respond ONLY with a list of suggestions separated by newlines. 
+          Do not suggest anything not present or highly similar to the items in the menu reference.
+        `
       });
       
       const output = response.text || '';
-      return output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
+      const suggestions = output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
+      
+      // Grounding: Ensure suggestions are relevant to items we actually have
+      const menuKeywords = items.flatMap(i => [
+        i.name.toLowerCase(), 
+        i.category.toLowerCase(),
+        ...(i.tags || []).map(t => t.toLowerCase())
+      ]);
+
+      return suggestions.filter(s => {
+        const suggestionLower = s.toLowerCase();
+        return menuKeywords.some(keyword => 
+          keyword.includes(suggestionLower) || suggestionLower.includes(keyword)
+        );
+      });
     } catch (error) {
       console.error('AI Suggestion Error:', error);
       return [];
@@ -118,6 +141,12 @@ export const searchService = {
         const category = item.category.toLowerCase();
         const description = (item.description || '').toLowerCase();
         const tags = (item.tags || []).map(t => t.toLowerCase());
+        const id = item.id.toLowerCase();
+        const barcode = (item.barcode || '').toLowerCase();
+
+        // ID & Barcode match (highest priority for scanning)
+        if (id === query || (barcode && barcode === query)) score += 200;
+        else if (id.includes(query) || (barcode && barcode.includes(query))) score += 40;
 
         // Exact match (high priority)
         if (name === query) score += 100;
@@ -140,5 +169,74 @@ export const searchService = {
       .filter(entry => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .map(entry => entry.item);
+  },
+
+  // Deep AI Recommendation Engine
+  async getSmartRecommendation(query: string, items: FoodItem[]) {
+    if (!query || query.length < 3) return null;
+
+    try {
+      const simplifiedItems = items.map(i => ({
+        id: i.id,
+        name: i.name,
+        category: i.category,
+        description: i.description,
+        price: i.price,
+        tags: i.tags
+      }));
+
+      const response = await ai.models.generateContent({ 
+        model: "gemini-3-flash-preview",
+        contents: `
+          User Search: "${query}"
+          Menu Data: ${JSON.stringify(simplifiedItems)}
+
+          Analyze the search intent (occasion, mood, budget, flavor) and return a JSON response.
+          CRITICAL: You MUST ONLY suggest product IDs that are present in the 'Menu Data' provided above. Do not hallucinate or suggest IDs that don't exist in the data.
+          
+          {
+            "bestMatchId": "id-of-the-product",
+            "reason": "Personalized human-like explanation (max 120 chars)",
+            "intent": "Occasion/Mood detected",
+            "alternatives": ["id1", "id2"],
+            "isEmotionalMatch": true/false
+          }
+          If no good match from the provided Menu Data, return null. Return ONLY JSON.
+        `,
+        config: {
+          systemInstruction: "You are the 'Frosty Bite Butler', a luxury bakery concierge. Your goal is to find the perfect match for a user's request from the menu.",
+          responseMimeType: "application/json"
+        }
+      });
+
+      const resultText = response.text || '';
+      try {
+        const cleaned = resultText.replace(/```json|```/g, '').trim();
+        const recommendation = JSON.parse(cleaned);
+
+        if (!recommendation) return null;
+
+        // Validation: Ensure the best match exists in our local menu
+        const validItem = items.find(i => i.id === recommendation.bestMatchId);
+        if (!validItem) {
+          console.warn('AI suggested a non-existent product ID:', recommendation.bestMatchId);
+          return null;
+        }
+
+        // Integrity: Filter out any alternative IDs that don't exist
+        if (recommendation.alternatives) {
+          recommendation.alternatives = recommendation.alternatives.filter((id: string) => 
+            items.some(i => i.id === id)
+          );
+        }
+
+        return recommendation;
+      } catch (e) {
+        return null;
+      }
+    } catch (error) {
+      console.error('Smart Rec Error:', error);
+      return null;
+    }
   }
 };

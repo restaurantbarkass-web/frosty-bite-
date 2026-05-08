@@ -144,7 +144,15 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
       handleSearch(result);
     };
 
-    recognition.onerror = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        if (event.error === 'no-speech') {
+            // Silently handle no-speech
+        } else if (event.error === 'not-allowed') {
+            alert("Microphone access denied. Please check permissions.");
+        }
+        setIsListening(false);
+    };
     recognition.onend = () => setIsListening(false);
 
     recognition.start();
