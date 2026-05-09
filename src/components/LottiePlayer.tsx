@@ -28,6 +28,12 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    if (!url) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+
     let isMounted = true;
     setLoading(true);
     setError(false);

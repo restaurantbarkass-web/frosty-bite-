@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { ShieldAlert } from 'lucide-react';
@@ -19,14 +19,34 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, loading, isAdmin, isRider, isCustomer } = useAuth();
   const location = useLocation();
 
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!loading && user && allowedRoles) {
+      const hasAccess = allowedRoles.some(r => {
+        if (r === 'admin') return isAdmin;
+        if (r === 'rider') return isRider;
+        if (r === 'customer') return isCustomer;
+        return false;
+      });
+
+      if (!hasAccess && autoLogout) {
+        logout().then(() => navigate('/login', { replace: true }));
+      }
+    }
+  }, [user, loading, allowedRoles, isAdmin, isRider, isCustomer, autoLogout, navigate]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505]">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
-          className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full shadow-lg shadow-orange-500/20"
-        />
+      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6">
+        <div className="flex flex-col items-center gap-6">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+            className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full shadow-[0_0_30px_rgba(249,115,22,0.1)]"
+          />
+          <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.4em] animate-pulse">Checking Access</p>
+        </div>
       </div>
     );
   }
@@ -45,8 +65,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     if (!hasAccess) {
       if (autoLogout) {
-        logout();
-        return <Navigate to="/login" replace />;
+        return null; // Handle via useEffect
       }
 
       const roleNeeded = allowedRoles.join(' or ');

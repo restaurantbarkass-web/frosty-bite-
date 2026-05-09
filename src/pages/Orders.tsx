@@ -164,6 +164,7 @@ const Orders: React.FC = () => {
     if (!timestamp) return 'N/A';
     try {
       const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'N/A';
       return date.toLocaleDateString('en-IN', { 
         day: 'numeric', 
         month: 'short', 
@@ -245,7 +246,7 @@ const Orders: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-3">
-                            <h4 className="text-lg font-black text-white tracking-tight uppercase leading-none">Order #{order.id?.slice(-6).toUpperCase()}</h4>
+                            <h4 className="text-lg font-black text-white tracking-tight uppercase leading-none">Order #{order.id?.toString().slice(-6).toUpperCase() || 'UNKNOWN'}</h4>
                             <span className={cn(
                               "px-2 px-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest h-5 flex items-center",
                               getStatusColor(order.status || 'pending', !!order.utr)
@@ -291,11 +292,11 @@ const Orders: React.FC = () => {
                             <div key={i} className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 group/item">
                               <div className="flex items-center gap-3">
                                 {item.image && (
-                                  <img src={item.image} alt={item.name} className="w-10 h-10 rounded-xl object-cover" />
+                                  <img src={item.image} alt={item.name || 'Item'} className="w-10 h-10 rounded-xl object-cover" />
                                 )}
                                 <div>
-                                  <p className="text-xs font-black text-white italic leading-tight uppercase">{item.name}</p>
-                                  <p className="text-[9px] text-zinc-500 font-bold tracking-widest mt-0.5 uppercase">Qty: {item.quantity} · ₹{item.price}</p>
+                                  <p className="text-xs font-black text-white italic leading-tight uppercase">{item.name || 'Item'}</p>
+                                  <p className="text-[9px] text-zinc-500 font-bold tracking-widest mt-0.5 uppercase">Qty: {item.quantity || 1} · ₹{item.price || 0}</p>
                                 </div>
                               </div>
                               <button 

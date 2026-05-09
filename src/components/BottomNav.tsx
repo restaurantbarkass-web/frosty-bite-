@@ -78,7 +78,12 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
               }}
               className="relative flex flex-col items-center justify-center py-2 px-3 cursor-pointer group"
               onClick={() => {
-                if (navigator.vibrate) navigator.vibrate(10);
+                try {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    navigator.vibrate(10);
+                  }
+                } catch (e) {}
+                
                 if (link.action) link.action();
               }}
             >

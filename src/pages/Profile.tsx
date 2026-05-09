@@ -479,12 +479,12 @@ export const Profile: React.FC = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-black text-white tracking-tight">Order #{order.id.slice(0, 6)}</h4>
+                          <h4 className="font-black text-white tracking-tight">Order #{order.id?.toString().slice(0, 6) || 'N/A'}</h4>
                           <span className={cn(
                             "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest",
                             getStatusColor(order.status)
                           )}>
-                            {order.status.replace(/-/g, ' ')}
+                            {(order.status || 'pending').replace(/-/g, ' ')}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-widest">
@@ -493,7 +493,7 @@ export const Profile: React.FC = () => {
                             {formatDate(order.created_at)}
                           </div>
                           <span>•</span>
-                          <span>{order.items.length} Items</span>
+                          <span>{(order.items || []).length} Items</span>
                         </div>
                       </div>
                     </div>
