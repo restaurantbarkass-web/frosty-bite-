@@ -1,106 +1,166 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
-import { BannerCarousel } from '../components/BannerCarousel';
 import { getFoodRecommendations } from '../services/geminiService';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
-import { useMenu } from '../context/MenuContext';
-import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
 
 // Home Page Component
 export const Home: React.FC = () => {
   const location = useLocation();
-  const { items: displayItems, categories: menuCategories, loading: isMenuLoading } = useMenu();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   
-  const [banners, setBanners] = useState<any[]>([]);
+  const [firestoreMenu, setFirestoreMenu] = useState<FoodItem[]>([]);
   const { isOrderingOpen } = useAppConfig();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchBanners = async () => {
-      const { data } = await supabase.from('banners').select('*');
-      if (data) setBanners(data);
-    };
-    fetchBanners();
-  }, []);
   
+  // Use static MENU_ITEMS as fallback if firestore is empty
+  const displayItems = React.useMemo(() => {
+    if (!firestoreMenu || firestoreMenu.length === 0) {
+      return MENU_ITEMS;
+    }
+    return firestoreMenu;
+  }, [firestoreMenu]);
+
   // Dynamic categories based on menu items
+  const menuCategories = React.useMemo(() => {
+    const cats = displayItems.map(item => item.category);
+    return ['All', ...Array.from(new Set(cats))].filter(Boolean);
+  }, [displayItems]);
+
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
 
   useEffect(() => {
-    const handleNavbarSearch = (e: any) => {
-      const queryValue = e.detail;
-      if (queryValue !== searchQuery) {
-        setSearchQuery(queryValue);
-        const element = document.getElementById('menu-section');
-        element?.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
+    // Notify App component about search state to hide/show navigation
+    window.dispatchEvent(new CustomEvent('is-searching', { detail: showSuggestions && searchQuery.length > 0 }));
+  }, [showSuggestions, searchQuery]);
 
-    const handleOpenOverlay = () => {
-        // Search bar on top is just a trigger now
-        window.dispatchEvent(new CustomEvent('open-search'));
+  useEffect(() => {
+    const handleNavbarSearch = (e: any) => {
+      setSearchQuery(e.detail);
+      const element = document.getElementById('menu-section');
+      element?.scrollIntoView({ behavior: 'smooth' });
     };
 
     window.addEventListener('navbar-search', handleNavbarSearch);
     return () => window.removeEventListener('navbar-search', handleNavbarSearch);
-  }, [searchQuery]);
+  }, []);
 
   useEffect(() => {
     const queryStr = new URLSearchParams(location.search).get('search');
-    if (queryStr && queryStr !== searchQuery) {
+    if (queryStr) {
       setSearchQuery(queryStr);
       setTimeout(() => {
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
       }, 500);
     }
-  }, [location.search, searchQuery]);
+  }, [location.search]);
 
   useEffect(() => {
-    // Delay non-critical data fetching to prioritize main menu rendering
-    const timer = setTimeout(() => {
-        const fetchRecs = async () => {
-          // Check cache first
-          const cachedRecs = localStorage.getItem('ai_recs');
-          const cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
-          const now = Date.now();
+    // Initial load from cache
+    const cachedMenu = localStorage.getItem('menu_cache');
+    if (cachedMenu) {
+      try {
+        const parsed = JSON.parse(cachedMenu);
+        const data = parsed.data || parsed;
+        if (Array.isArray(data)) {
+          setFirestoreMenu(data);
+        }
+      } catch (e) {
+        console.error('Failed to parse menu cache', e);
+      }
+    }
+
+    const fetchSupabaseProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*');
+        
+        if (error) throw error;
+        
+        if (data) {
+          const mappedItems = data.map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            category: item.category || 'General',
+            available: item.available !== undefined ? item.available : true,
+            stock_quantity: item.stock_quantity || 0,
+            description: item.description || '',
+            rating: item.rating || 5
+          }));
           
-          if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
-            setAiRecs(JSON.parse(cachedRecs));
-            return;
-          }
+          console.log(`Loaded ${mappedItems.length} items from Supabase`);
+          setFirestoreMenu(mappedItems);
+          localStorage.setItem('menu_cache', JSON.stringify({ data: mappedItems, timestamp: Date.now() }));
+        }
+      } catch (error) {
+        console.error('Supabase fetch failed:', error);
+      }
+    };
 
-          setIsLoadingRecs(true);
-          try {
-            const recs = await getFoodRecommendations("I want something spicy and filling for dinner");
-            if (recs && recs.length > 0) {
-              setAiRecs(recs);
-              localStorage.setItem('ai_recs', JSON.stringify(recs));
-              localStorage.setItem('ai_recs_timestamp', now.toString());
-            }
-          } catch (e) {
-            console.error(e);
-          } finally {
-            setIsLoadingRecs(false);
-          }
-        };
-        fetchRecs();
-    }, 2000); // 2 second delay
+    fetchSupabaseProducts();
 
-    return () => clearTimeout(timer);
+    // Listen for storage changes from other tabs (specifically for admin updates)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'menu_cache' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          const data = parsed.data || parsed;
+          if (Array.isArray(data)) {
+            setFirestoreMenu(data);
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchRecs = async () => {
+      // Check cache first
+      const cachedRecs = localStorage.getItem('ai_recs');
+      const cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
+      const now = Date.now();
+      
+      if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
+        setAiRecs(JSON.parse(cachedRecs));
+        return;
+      }
+
+      setIsLoadingRecs(true);
+      try {
+        const recs = await getFoodRecommendations("I want something spicy and filling for dinner");
+        if (recs && recs.length > 0) {
+          setAiRecs(recs);
+          localStorage.setItem('ai_recs', JSON.stringify(recs));
+          localStorage.setItem('ai_recs_timestamp', now.toString());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoadingRecs(false);
+      }
+    };
+    fetchRecs();
   }, []);
 
   const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
@@ -113,10 +173,9 @@ export const Home: React.FC = () => {
     }
 
     const fetchPreviousPurchases = async () => {
-      // Delay user-specific data to prioritize main content
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // If the database is misconfigured with UUID columns...
+      // If the database is misconfigured with UUID columns, sending a Firebase UID will crash the query.
+      // We skip the query if it's not a valid UUID format AND we suspect the DB might be using UUID types.
+      // However, it's better to just try and catch the specific format error.
       try {
         const { data: orders, error } = await supabase
           .from('orders')
@@ -174,9 +233,51 @@ export const Home: React.FC = () => {
     };
   }, [user]);
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev < suggestions.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0) {
+        setSearchQuery(suggestions[activeIndex]);
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+        setTimeout(() => {
+          const element = document.getElementById('menu-section');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        const element = document.getElementById('menu-section');
+        element?.scrollIntoView({ behavior: 'smooth' });
+        setShowSuggestions(false);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const highlightMatch = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+      <span className="font-medium text-gray-400">
+        {parts.map((part, i) => 
+          part.toLowerCase() === query.toLowerCase() ? (
+            <span key={i} className="text-white font-black group-hover:text-primary transition-colors">{part}</span>
+          ) : part
+        )}
+      </span>
+    );
+  };
+
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setSuggestions([]);
+      setActiveIndex(-1);
       return;
     }
 
@@ -184,14 +285,15 @@ export const Home: React.FC = () => {
       .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
       .map(item => item.name);
 
-    const categorySuggestions = (menuCategories || [])
+    const categorySuggestions = menuCategories
       .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const combined = Array.from(new Set([...itemSuggestions, ...categorySuggestions]))
       .slice(0, 6);
 
     setSuggestions(combined);
-  }, [searchQuery, displayItems, menuCategories]);
+    setActiveIndex(-1);
+  }, [searchQuery, displayItems]);
 
   const filteredItems = React.useMemo(() => {
     return displayItems.filter(item => {
@@ -237,7 +339,7 @@ export const Home: React.FC = () => {
             <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-5xl sm:text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
+            className="text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
           >
             Frosty <span className="font-sans font-black NOT-italic text-primary block md:inline">Bite</span>
           </motion.h1>
@@ -251,41 +353,138 @@ export const Home: React.FC = () => {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="max-w-xl mx-auto"
+            className="max-w-xl mx-auto relative group/search"
           >
-            <PremiumSearchBar 
-              onSearch={(q) => {
-                window.dispatchEvent(new CustomEvent('open-search', { detail: { query: q } }));
-              }}
-              onFocusChange={(focused) => {
-                if (focused) {
-                    window.dispatchEvent(new CustomEvent('open-search'));
-                }
-              }}
-              initialQuery={searchQuery}
-              suggestions={suggestions}
-              aiRecommendations={aiRecs}
-            />
+            <div className={cn(
+              "relative bg-black/80 backdrop-blur-2xl p-2 rounded-2xl flex items-center shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/20 transition-all duration-500",
+              showSuggestions && searchQuery.length > 0 && "rounded-b-none border-b-transparent shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+            )}>
+              {/* Focus Glow Background */}
+              <div className="absolute -inset-1 bg-primary/20 rounded-2xl blur-xl opacity-0 group-focus-within/search:opacity-100 transition-opacity duration-1000 -z-10" />
+              
+              <div className="flex-1 flex items-center px-2 sm:px-4 space-x-2 sm:space-x-3 min-w-0">
+                <Search className={cn("transition-colors duration-300 flex-shrink-0", showSuggestions ? "text-primary" : "text-gray-500")} size={20} />
+                <input
+                  type="text"
+                  placeholder="Search Cakes, Pastries or Breads..."
+                  className="w-full bg-transparent border-none focus:ring-0 text-sm sm:text-base py-3 sm:py-4 text-white placeholder:text-gray-400 font-medium min-w-0 px-0"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onKeyDown={handleKeyDown}
+                />
+                <AnimatePresence>
+                  {searchQuery && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={() => setSearchQuery('')}
+                      className="p-2 hover:bg-white/10 rounded-full text-gray-500 hover:text-white transition-colors"
+                    >
+                      <X size={20} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+              <button 
+                onClick={() => {
+                  const element = document.getElementById('menu-section');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                  setShowSuggestions(false);
+                }}
+                className="bg-primary text-white px-3 sm:px-10 py-3 sm:py-4 rounded-xl font-black uppercase tracking-widest hover:bg-accent transition-all shadow-xl shadow-primary/40 flex-shrink-0 active:scale-95 text-[10px] sm:text-sm"
+              >
+                Search
+              </button>
+            </div>
+
+            {/* Search Suggestions */}
+            <AnimatePresence>
+              {showSuggestions && suggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  className="absolute left-0 right-0 top-full bg-black/90 backdrop-blur-3xl border border-white/20 border-t-transparent rounded-b-2xl overflow-hidden z-50 shadow-2xl origin-top"
+                >
+                  <div className="h-[1px] mx-6 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  <motion.div 
+                    initial="hidden"
+                    animate="show"
+                    variants={{
+                      hidden: { opacity: 0 },
+                      show: {
+                        opacity: 1,
+                        transition: {
+                          staggerChildren: 0.05
+                        }
+                      }
+                    }}
+                    className="py-2"
+                  >
+                    {suggestions.map((suggestion, index) => (
+                      <motion.button
+                        key={index}
+                        variants={{
+                          hidden: { opacity: 0, x: -10 },
+                          show: { opacity: 1, x: 0 }
+                        }}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        onClick={() => {
+                          setSearchQuery(suggestion);
+                          setShowSuggestions(false);
+                          setTimeout(() => {
+                            const element = document.getElementById('menu-section');
+                            element?.scrollIntoView({ behavior: 'smooth' });
+                          }, 100);
+                        }}
+                        className={cn(
+                          "w-full px-6 py-4 text-left transition-all flex items-center space-x-4 group relative",
+                          activeIndex === index ? "bg-white/10" : "hover:bg-white/5"
+                        )}
+                      >
+                        {activeIndex === index && (
+                          <motion.div 
+                            layoutId="suggestion-pill"
+                            className="absolute inset-y-2 left-2 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(125,211,252,0.5)]"
+                          />
+                        )}
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                          activeIndex === index ? "bg-primary text-white scale-110 shadow-lg shadow-primary/20" : "bg-white/5 text-gray-500"
+                        )}>
+                          <Search size={14} />
+                        </div>
+                        <span className="flex-1 truncate">
+                          {highlightMatch(suggestion, searchQuery)}
+                        </span>
+                        <AnimatePresence>
+                          {activeIndex === index && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.5, x: 10 }}
+                              animate={{ opacity: 1, scale: 1, x: 0 }}
+                              exit={{ opacity: 0, scale: 0.5, x: 10 }}
+                            >
+                              <ChevronRight size={16} className="text-primary" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       </section>
 
-      {/* Banner Carousel */}
-      {banners.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 -mt-8 relative z-20">
-          <BannerCarousel 
-            banners={banners} 
-            onNavigate={(url) => navigate(url)}
-            onApplyCoupon={(code) => {
-              // We could handle coupon apply logic here or just navigate to products
-              navigate(`/?search=${code}`);
-            }}
-          />
-        </div>
-      )}
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
         {/* Orders Closed Banner */}
@@ -309,13 +508,13 @@ export const Home: React.FC = () => {
         </AnimatePresence>
 
         {/* Categories */}
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4">
+        <div className="flex space-x-4 overflow-x-auto pb-8 scrollbar-hide">
           {menuCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
               className={cn(
-                "whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all text-xs sm:text-sm",
+                "whitespace-nowrap px-6 py-3 rounded-2xl font-bold transition-all",
                 selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "glass-dark text-muted hover:text-white"
               )}
             >
@@ -326,66 +525,35 @@ export const Home: React.FC = () => {
 
         {/* AI Recommendations */}
         <motion.section
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true }}
-          className="mb-16 relative overflow-hidden group"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          className="mb-12 p-6 glass-dark rounded-3xl border border-primary/10"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 rounded-[40px] opacity-50 transition-opacity group-hover:opacity-100" />
-          <div className="relative p-8 md:p-12 glass-dark rounded-[40px] border border-primary/20 backdrop-blur-2xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(249,115,22,0.2)]">
-                  <Sparkles size={28} className="animate-pulse" />
-                </div>
-                <div className="space-y-1">
-                  <h2 className="text-3xl md:text-4xl font-black text-white italic uppercase tracking-tighter leading-none">AI Recommendations</h2>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Curated by your personal Frosty Butler</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Live Engine Active</span>
-              </div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="text-primary" size={24} />
+              <h2 className="text-xl font-bold">AI Recommendations</h2>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {isLoadingRecs ? (
-                Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="h-[300px] bg-white/5 rounded-3xl animate-pulse border border-white/5" />
-                ))
-              ) : (
-                <>
-                  {displayItems
-                    .filter(item => item.is_ai_boosted)
-                    .slice(0, 4)
-                    .map((item) => (
-                      <FoodCard key={`boosted-${item.id}`} item={item} isAiRecommended={true} />
-                    ))}
-                  
-                  {displayItems.filter(item => item.is_ai_boosted).length === 0 && (
-                    <div className="col-span-full py-12 text-center">
-                      <div className="inline-flex flex-wrap gap-3 justify-center">
-                        {aiRecs.map((rec, i) => (
-                          <motion.button
-                            key={i}
-                            whileHover={{ scale: 1.05, y: -2 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              window.dispatchEvent(new CustomEvent('open-search', { detail: { query: rec } }));
-                            }}
-                            className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-sm font-bold hover:bg-primary hover:text-white transition-all shadow-xl"
-                          >
-                            {rec}
-                          </motion.button>
-                        ))}
-                      </div>
-                      <p className="mt-8 text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em]">Ask me for something specific in the search bar above</p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <span className="text-xs text-muted">Powered by Frosty Bite</span>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {isLoadingRecs ? (
+              <div className="animate-pulse flex space-x-3">
+                {[1, 2, 3].map(i => <div key={i} className="h-10 w-32 bg-white/5 rounded-full" />)}
+              </div>
+            ) : (
+              aiRecs.map((rec, i) => (
+                <motion.div
+                  key={i}
+                  whileHover={{ scale: 1.05 }}
+                  className="px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full text-sm font-medium cursor-pointer"
+                  onClick={() => setSearchQuery(rec)}
+                >
+                  {rec}
+                </motion.div>
+              ))
+            )}
           </div>
         </motion.section>
 
@@ -446,7 +614,7 @@ export const Home: React.FC = () => {
         </motion.section>
 
         {/* Food Grid */}
-        <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredItems.map((item) => (
             <FoodCard key={item.id} item={item} />
           ))}
