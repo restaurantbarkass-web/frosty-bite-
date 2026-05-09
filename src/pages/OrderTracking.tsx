@@ -174,16 +174,27 @@ export const OrderTracking: React.FC = () => {
       if (data) setRider(data as Rider);
     };
 
-    // Review check - keep in Firestore for now or update if reviews moved
+    // Review check - Try Supabase first
     const checkReview = async () => {
       try {
-        const q = query(
-          collection(db, 'reviews'),
-          where('order_id', '==', orderId),
-          limit(1)
-        );
-        const reviews = await safeFirestore.getCollection<any>(q, `review_check_${orderId}`, 'reviews');
-        setHasReviewed(reviews && reviews.length > 0);
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('id')
+          .eq('order_id', orderId)
+          .maybeSingle();
+        
+        if (data) {
+          setHasReviewed(true);
+        } else {
+          // Fallback to Firestore check
+          const q = query(
+            collection(db, 'reviews'),
+            where('order_id', '==', orderId),
+            limit(1)
+          );
+          const reviews = await safeFirestore.getCollection<any>(q, `review_check_${orderId}`, 'reviews');
+          setHasReviewed(reviews && reviews.length > 0);
+        }
       } catch (e: any) {
         console.error('Error checking review:', e);
       }

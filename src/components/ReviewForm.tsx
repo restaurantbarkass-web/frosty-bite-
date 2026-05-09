@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { supabase } from '../supabase';
 import { Star, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -24,15 +25,25 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
     if (!user) return;
 
     setSubmitting(true);
+    const reviewData = {
+      order_id: orderId,
+      user_id: user.uid,
+      customer_name: user.displayName || user.email?.split('@')[0] || 'Customer',
+      rating,
+      comment,
+      created_at: new Date().toISOString(),
+    };
+
     try {
-      await addDoc(collection(db, 'reviews'), {
-        order_id: orderId,
-        user_id: user.uid,
-        customer_name: user.displayName || user.email?.split('@')[0] || 'Customer',
-        rating,
-        comment,
-        created_at: new Date().toISOString(),
-      });
+      // Primary: Supabase
+      const { error: sbError } = await supabase
+        .from('reviews')
+        .insert([reviewData]);
+      
+      if (sbError) console.warn('Supabase review error:', sbError);
+
+      // Secondary: Firestore (non-blocking fallback)
+      addDoc(collection(db, 'reviews'), reviewData).catch(e => console.warn('Firestore review sync skip:', e));
 
       setSubmitted(true);
       setTimeout(onSuccess, 2000);

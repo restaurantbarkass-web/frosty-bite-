@@ -51,17 +51,58 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       } catch (e) {}
     }
 
-    // Notifications listener
-    const qNotif = query(
-      collection(db, 'notifications'),
-      where('user_id', '==', user.uid),
-      orderBy('created_at', 'desc'),
-      limit(50)
-    );
+    // Notifications listener - Prefer Supabase Real-time
+    const channel = supabase
+      .channel(`user_notifications_${user.uid}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.uid}`
+      }, async () => {
+        // Refresh notifications
+        const { data } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.uid)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (data) setNotifications(data as Notification[]);
+      })
+      .subscribe();
 
-    const unsubNotif = safeFirestore.listen(qNotif, (data: Notification[]) => {
-      setNotifications(data);
-    }, cacheKey);
+    // Initial load from Supabase
+    const loadNotifs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.uid)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        if (data) {
+          setNotifications(data as Notification[]);
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } else {
+          // Fallback to Firestore listener if Supabase fails
+          const qNotif = query(
+            collection(db, 'notifications'),
+            where('user_id', '==', user.uid),
+            orderBy('created_at', 'desc'),
+            limit(50)
+          );
+
+          return safeFirestore.listen(qNotif, (data: Notification[]) => {
+            setNotifications(data);
+          }, cacheKey);
+        }
+      } catch (err) {
+        console.warn('Supabase notifications failed:', err);
+      }
+    };
+
+    loadNotifs();
 
     // Admin new order monitor
     let unsubAdminOrders: (() => void) | null = null;
@@ -120,7 +161,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     return () => {
-      unsubNotif();
+      supabase.removeChannel(channel);
       if (unsubAdminOrders) unsubAdminOrders();
     };
   }, [user, role, isAdmin]);
@@ -129,8 +170,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAsRead = React.useCallback(async (id: string) => {
     try {
-      const notifRef = doc(db, 'notifications', id);
-      await updateDoc(notifRef, { read: true });
+      // Supabase Update
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+
+      // Firestore Update (non-blocking)
+      updateDoc(doc(db, 'notifications', id), { read: true })
+        .catch(e => console.warn('Firestore notification sync skip:', e));
+
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -164,11 +213,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     try {
-      await addDoc(collection(db, 'notifications'), {
+      const newNotif = {
         ...notif,
         read: false,
         created_at: new Date().toISOString()
-      });
+      };
+
+      // Supabase Insert
+      const { error } = await supabase
+        .from('notifications')
+        .insert([newNotif]);
+      
+      if (error) console.warn('Supabase notification error:', error);
+
+      // Firestore Insert (non-blocking)
+      addDoc(collection(db, 'notifications'), newNotif)
+        .catch(e => console.warn('Firestore notification sync skip:', e));
     } catch (error) {
       console.error('Error adding notification:', error);
     }

@@ -19,4 +19,10 @@ if (!supabaseAnonKey) {
   console.error("Supabase Anon Key is missing! Check your environment variables.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false
+  }
+});

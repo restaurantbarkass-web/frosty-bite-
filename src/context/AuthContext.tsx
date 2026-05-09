@@ -4,6 +4,7 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
 import { safeFirestore } from '../services/firestoreService';
+import { supabase } from '../supabase';
 
 type UserRole = 'customer' | 'admin' | 'rider';
 
@@ -33,36 +34,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
       
       if (currentUser) {
-        // Sync with Firestore (the primary data source)
-        await syncUserWithFirestore(currentUser);
-        await fetchRole(currentUser);
+        // Parallel sync
+        syncUserWithSupabase(currentUser);
+        fetchRole(currentUser);
       } else {
         setRole('customer');
         setLoading(false);
       }
     });
 
-    const syncUserWithFirestore = async (firebaseUser: User) => {
+    const syncUserWithSupabase = async (firebaseUser: User) => {
       try {
-        const { doc, setDoc, serverTimestamp } = await import('firebase/firestore');
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        // Determine role from email if not already set or needing update
         const determinedRole = getRoleFromEmail(firebaseUser.email);
+        const { error } = await supabase
+          .from('users')
+          .upsert({
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            full_name: firebaseUser.displayName || '',
+            role: determinedRole,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
         
-        await setDoc(userRef, {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          full_name: firebaseUser.displayName || '',
-          role: determinedRole,
-          updated_at: serverTimestamp(),
-        }, { merge: true });
+        if (error) console.warn('Supabase sync warning:', error);
       } catch (err) {
-        console.error('Failed to sync user with Firestore:', err);
+        console.warn('Failed to sync user with Supabase:', err);
       }
     };
 
     const fetchRole = async (currentUser: User) => {
+      // First try Supabase
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', currentUser.uid)
+          .single();
+        
+        if (data && data.role) {
+          setRole(data.role as UserRole);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Supabase role fetch failed:', err);
+      }
+
+      // Fallback to Firestore
       try {
         const { doc } = await import('firebase/firestore');
         const userDoc = await safeFirestore.getDocument<any>(
@@ -71,12 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           `users/${currentUser.uid}`
         );
         
-        if (userDoc) {
-          if (userDoc.role) {
-            setRole(userDoc.role as UserRole);
-          } else {
-            setRole(getRoleFromEmail(currentUser.email) as UserRole);
-          }
+        if (userDoc?.role) {
+          setRole(userDoc.role as UserRole);
         } else {
           setRole(getRoleFromEmail(currentUser.email) as UserRole);
         }

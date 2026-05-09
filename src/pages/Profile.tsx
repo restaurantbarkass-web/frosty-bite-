@@ -10,6 +10,7 @@ import { safeFirestore, handleFirestoreError, OperationType } from '../services/
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
+import { supabase } from '../supabase';
 import { FoodCard } from '../components/FoodCard';
 import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
@@ -89,34 +90,64 @@ export const Profile: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        // User data
-        const userDataObj = await safeFirestore.getDocument<any>(
-          doc(db, 'users', authUser.uid), 
-          profileCacheKey,
-          `users/${authUser.uid}`
-        );
+        // 1. Try Supabase for User Data
+        const { data: sbUser, error: sbError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.uid)
+          .single();
         
-        if (userDataObj) {
-          setUserData(userDataObj);
+        if (sbUser) {
+          setUserData(sbUser);
           setFormData({
-            name: userDataObj.full_name || '',
-            phone: userDataObj.phone || '',
-            address: userDataObj.address || ''
+            name: sbUser.full_name || '',
+            phone: sbUser.phone || '',
+            address: sbUser.address || ''
           });
-          if (userDataObj.settings) setSettingsData(userDataObj.settings);
+          if (sbUser.settings) setSettingsData(sbUser.settings);
+        } else {
+          // Fallback to Firestore
+          const userDataObj = await safeFirestore.getDocument<any>(
+            doc(db, 'users', authUser.uid), 
+            profileCacheKey,
+            `users/${authUser.uid}`
+          );
+          
+          if (userDataObj) {
+            setUserData(userDataObj);
+            setFormData({
+              name: userDataObj.full_name || '',
+              phone: userDataObj.phone || '',
+              address: userDataObj.address || ''
+            });
+            if (userDataObj.settings) setSettingsData(userDataObj.settings);
+          }
         }
 
-        // Recent orders
-        const qOrders = query(
-          collection(db, 'orders'),
-          where('user_id', '==', authUser.uid),
-          orderBy('created_at', 'desc'),
-          limit(5)
-        );
-        const ordersData = await safeFirestore.getCollection<Order>(qOrders, ordersCacheKey, 'orders');
+        // 2. Try Supabase for Recent Orders
+        const { data: sbOrders, error: sboError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', authUser.uid)
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-        if (ordersData && ordersData.length > 0) {
-          setRecentOrders(ordersData);
+        if (sbOrders && sbOrders.length > 0) {
+          setRecentOrders(sbOrders as Order[]);
+          localStorage.setItem(ordersCacheKey, JSON.stringify(sbOrders));
+        } else {
+          // Fallback to Firestore
+          const qOrders = query(
+            collection(db, 'orders'),
+            where('user_id', '==', authUser.uid),
+            orderBy('created_at', 'desc'),
+            limit(5)
+          );
+          const ordersData = await safeFirestore.getCollection<Order>(qOrders, ordersCacheKey, 'orders');
+
+          if (ordersData && ordersData.length > 0) {
+            setRecentOrders(ordersData);
+          }
         }
 
         // Wishlist from Supabase
@@ -170,13 +201,22 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
 
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
-      await updateDoc(userDocRef, {
+      // Sync with Supabase (Primary)
+      await supabase.from('users').update({
         full_name: formData.name,
         phone: formData.phone,
         address: formData.address,
         updated_at: new Date().toISOString()
-      });
+      }).eq('id', authUser.uid);
+
+      // Sync with Firestore (Secondary, non-blocking)
+      const userDocRef = doc(db, 'users', authUser.uid);
+      updateDoc(userDocRef, {
+        full_name: formData.name,
+        phone: formData.phone,
+        address: formData.address,
+        updated_at: new Date().toISOString()
+      }).catch(e => console.warn('Firestore profile sync skip:', e));
       
       setIsEditing(false);
     } catch (error: any) {
