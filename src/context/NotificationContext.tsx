@@ -1,7 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, addDoc, updateDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
@@ -84,18 +81,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (data) {
           setNotifications(data as Notification[]);
           localStorage.setItem(cacheKey, JSON.stringify(data));
-        } else {
-          // Fallback to Firestore listener if Supabase fails
-          const qNotif = query(
-            collection(db, 'notifications'),
-            where('user_id', '==', user.uid),
-            orderBy('created_at', 'desc'),
-            limit(50)
-          );
-
-          return safeFirestore.listen(qNotif, (data: Notification[]) => {
-            setNotifications(data);
-          }, cacheKey);
         }
       } catch (err) {
         console.warn('Supabase notifications failed:', err);
@@ -176,10 +161,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .update({ read: true })
         .eq('id', id);
 
-      // Firestore Update (non-blocking)
-      updateDoc(doc(db, 'notifications', id), { read: true })
-        .catch(e => console.warn('Firestore notification sync skip:', e));
-
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -189,21 +170,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const markAllAsRead = React.useCallback(async () => {
     if (!user) return;
     try {
-      const q = query(
-        collection(db, 'notifications'),
-        where('user_id', '==', user.uid),
-        where('read', '==', false)
-      );
-      
-      const unreadDocs = await safeFirestore.getCollection<Notification>(q, `unread_notifs_${user.uid}`, 'notifications');
-      
-      if (unreadDocs.length === 0) return;
-      
-      const batch = writeBatch(db);
-      unreadDocs.forEach((d) => {
-        batch.update(doc(db, 'notifications', d.id), { read: true });
-      });
-      await batch.commit();
+      // Supabase Update
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.uid);
       
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
@@ -225,10 +196,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         .insert([newNotif]);
       
       if (error) console.warn('Supabase notification error:', error);
-
-      // Firestore Insert (non-blocking)
-      addDoc(collection(db, 'notifications'), newNotif)
-        .catch(e => console.warn('Firestore notification sync skip:', e));
     } catch (error) {
       console.error('Error adding notification:', error);
     }

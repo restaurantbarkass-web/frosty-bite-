@@ -1,9 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase';
+import { auth } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
-import { safeFirestore } from '../services/firestoreService';
 import { supabase } from '../supabase';
 
 type UserRole = 'customer' | 'admin' | 'rider';
@@ -80,26 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Supabase role fetch failed:', err);
       }
 
-      // Fallback to Firestore
-      try {
-        const { doc } = await import('firebase/firestore');
-        const userDoc = await safeFirestore.getDocument<any>(
-          doc(db, 'users', currentUser.uid),
-          `user_role_${currentUser.uid}`,
-          `users/${currentUser.uid}`
-        );
-        
-        if (userDoc?.role) {
-          setRole(userDoc.role as UserRole);
-        } else {
-          setRole(getRoleFromEmail(currentUser.email) as UserRole);
-        }
-      } catch (error) {
-        console.warn('Error fetching user role from Firestore, falling back to email whitelist:', error);
-        setRole(getRoleFromEmail(currentUser.email) as UserRole);
-      } finally {
-        setLoading(false);
-      }
+      // Fallback to Email Whitelist (No Firestore fallback)
+      setRole(getRoleFromEmail(currentUser.email) as UserRole);
+      setLoading(false);
     };
 
     return () => {

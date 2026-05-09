@@ -13,10 +13,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { supabase } from '../../supabase';
-import { safeFirestore } from '../../services/firestoreService';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {

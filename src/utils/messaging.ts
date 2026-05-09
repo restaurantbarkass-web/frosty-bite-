@@ -1,7 +1,6 @@
-import { messaging, auth, db } from '../firebase';
+import { messaging, auth } from '../firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import toast from 'react-hot-toast';
+import { supabase } from '../supabase';
 
 export const requestForToken = async () => {
   if (!messaging) return null;
@@ -14,13 +13,28 @@ export const requestForToken = async () => {
     if (currentToken) {
       console.log('Current token for client: ', currentToken);
       
-      // Save token to user document in Firestore
+      // Save token to user document in Supabase
       if (auth.currentUser) {
-        const userDocRef = doc(db, 'users', auth.currentUser.uid);
-        await updateDoc(userDocRef, {
-          fcm_tokens: arrayUnion(currentToken),
-          updated_at: new Date().toISOString()
-        });
+        try {
+          const { data: user } = await supabase
+            .from('users')
+            .select('fcm_tokens')
+            .eq('id', auth.currentUser.uid)
+            .single();
+
+          const tokens = user?.fcm_tokens || [];
+          if (!tokens.includes(currentToken)) {
+            await supabase
+              .from('users')
+              .update({
+                fcm_tokens: [...tokens, currentToken],
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', auth.currentUser.uid);
+          }
+        } catch (err) {
+          console.error('Failed to sync FCM token to Supabase:', err);
+        }
       }
       
       return currentToken;

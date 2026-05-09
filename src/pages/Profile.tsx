@@ -4,9 +4,6 @@ import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRigh
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
-import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, orderBy, limit, getDocs, updateDoc } from 'firebase/firestore';
-import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
@@ -105,23 +102,6 @@ export const Profile: React.FC = () => {
             address: sbUser.address || ''
           });
           if (sbUser.settings) setSettingsData(sbUser.settings);
-        } else {
-          // Fallback to Firestore
-          const userDataObj = await safeFirestore.getDocument<any>(
-            doc(db, 'users', authUser.uid), 
-            profileCacheKey,
-            `users/${authUser.uid}`
-          );
-          
-          if (userDataObj) {
-            setUserData(userDataObj);
-            setFormData({
-              name: userDataObj.full_name || '',
-              phone: userDataObj.phone || '',
-              address: userDataObj.address || ''
-            });
-            if (userDataObj.settings) setSettingsData(userDataObj.settings);
-          }
         }
 
         // 2. Try Supabase for Recent Orders
@@ -135,19 +115,6 @@ export const Profile: React.FC = () => {
         if (sbOrders && sbOrders.length > 0) {
           setRecentOrders(sbOrders as Order[]);
           localStorage.setItem(ordersCacheKey, JSON.stringify(sbOrders));
-        } else {
-          // Fallback to Firestore
-          const qOrders = query(
-            collection(db, 'orders'),
-            where('user_id', '==', authUser.uid),
-            orderBy('created_at', 'desc'),
-            limit(5)
-          );
-          const ordersData = await safeFirestore.getCollection<Order>(qOrders, ordersCacheKey, 'orders');
-
-          if (ordersData && ordersData.length > 0) {
-            setRecentOrders(ordersData);
-          }
         }
 
         // Wishlist from Supabase
@@ -162,32 +129,43 @@ export const Profile: React.FC = () => {
 
     fetchData();
 
-    // Real-time subscriptions
-    const unsubUser = safeFirestore.listen(doc(db, 'users', authUser.uid), (data: any) => {
-      if (data) {
-        setUserData(data);
-        setFormData({
-          name: data.full_name || '',
-          phone: data.phone || '',
-          address: data.address || ''
-        });
-        if (data.settings) setSettingsData(data.settings);
-      }
-    }, `profile_user_${authUser.uid}`);
+    // Real-time subscriptions via Supabase
+    const userChannel = supabase
+      .channel(`profile_user_${authUser.uid}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'users',
+        filter: `id=eq.${authUser.uid}`
+      }, (payload) => {
+        const data = payload.new as any;
+        if (data) {
+          setUserData(data);
+          setFormData({
+            name: data.full_name || '',
+            phone: data.phone || '',
+            address: data.address || ''
+          });
+          if (data.settings) setSettingsData(data.settings);
+        }
+      })
+      .subscribe();
 
-    const qOrdersRealtime = query(
-      collection(db, 'orders'),
-      where('user_id', '==', authUser.uid),
-      orderBy('created_at', 'desc'),
-      limit(5)
-    );
-    const unsubOrders = safeFirestore.listen(qOrdersRealtime, (data: Order[]) => {
-      setRecentOrders(data);
-    }, `profile_orders_${authUser.uid}`);
+    const ordersChannel = supabase
+      .channel(`profile_orders_${authUser.uid}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'orders',
+        filter: `user_id=eq.${authUser.uid}`
+      }, () => {
+        fetchData();
+      })
+      .subscribe();
 
     return () => {
-      unsubUser();
-      unsubOrders();
+      supabase.removeChannel(userChannel);
+      supabase.removeChannel(ordersChannel);
     };
   }, [authUser]);
 
@@ -208,38 +186,24 @@ export const Profile: React.FC = () => {
         address: formData.address,
         updated_at: new Date().toISOString()
       }).eq('id', authUser.uid);
-
-      // Sync with Firestore (Secondary, non-blocking)
-      const userDocRef = doc(db, 'users', authUser.uid);
-      updateDoc(userDocRef, {
-        full_name: formData.name,
-        phone: formData.phone,
-        address: formData.address,
-        updated_at: new Date().toISOString()
-      }).catch(e => console.warn('Firestore profile sync skip:', e));
       
       setIsEditing(false);
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
-      }
     }
   };
 
   const handleUpdateSettings = async (newSettings: any) => {
     if (!authUser || !newSettings) return;
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
-      await updateDoc(userDocRef, { 
+      await supabase.from('users').update({
         settings: newSettings,
         updated_at: new Date().toISOString()
-      });
+      }).eq('id', authUser.uid);
       
       setSettingsData(newSettings);
     } catch (error: any) {
       console.error('Error updating settings:', error);
-      // Don't crash for settings error, just log
     }
   };
 
@@ -268,20 +232,16 @@ export const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
       try {
-        const userDocRef = doc(db, 'users', authUser?.uid!);
-        await updateDoc(userDocRef, { 
+        await supabase.from('users').update({
           deleted: true,
           deleted_at: new Date().toISOString(),
           status: 'deactivated'
-        });
+        }).eq('id', authUser?.uid);
         
         alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
         await handleLogout();
       } catch (error: any) {
         console.error("Account deletion failed:", error);
-        if (error.code === 'permission-denied') {
-          handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
-        }
       }
     }
   };

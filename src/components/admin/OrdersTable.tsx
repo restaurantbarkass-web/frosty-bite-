@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, auth } from '../../firebase';
+import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
-import { handleFirestoreError, OperationType } from '../../services/firestoreService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import toast from 'react-hot-toast';

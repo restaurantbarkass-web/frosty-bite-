@@ -22,16 +22,13 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../firebase';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useNotifications } from '../context/NotificationContext';
-import { handleFirestoreError, OperationType, safeFirestore } from '../services/firestoreService';
 
 const PAYMENT_EXPIRY_SECONDS = 600;
 const UPI_ID = "7735800239@ibl";
@@ -127,18 +124,16 @@ export const UPICheckout: React.FC = () => {
 
     setIsVerifying(true);
     try {
-      // Check for duplicate UTR in Firestore with handled quota
-      const q = query(
-        collection(db, 'orders'),
-        where('utr', '==', utr)
-      );
+      // Check for duplicate UTR in Supabase
+      const { data: duplicateOrders, error: dupError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('utr', utr);
       
-      const duplicateOrders = await safeFirestore.getCollection<any>(q, `utr_check_${utr}`, 'orders');
-      
-      if (duplicateOrders.length > 0) {
+      if (duplicateOrders && duplicateOrders.length > 0) {
         const dupOrder = duplicateOrders[0];
         // Only error if it's a DIFFERENT order than the current one
-        if (duplicateOrders.some(d => d.id !== state!.orderId)) {
+        if (duplicateOrders.some((d: any) => d.id !== state!.orderId)) {
           toast.error(`This UTR has already been used for an order of ₹${dupOrder.total}. Please check again.`);
           setIsVerifying(false);
           return;
@@ -158,16 +153,6 @@ export const UPICheckout: React.FC = () => {
         console.error('Supabase order update failed:', supabaseError);
         throw new Error('Failed to update order in Supabase');
       }
-
-      // Firestore update (for backward compatibility/consistency)
-      const orderDocRef = doc(db, 'orders', state!.orderId);
-      await updateDoc(orderDocRef, {
-        utr: utr,
-        payment_screenshot: screenshot,
-        status: 'pending', 
-        payment_status: 'pending_verification', 
-        updated_at: new Date().toISOString()
-      });
       
       const orderSummary = {
         orderId: state!.orderId,

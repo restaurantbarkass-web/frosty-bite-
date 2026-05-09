@@ -27,8 +27,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { collection, serverTimestamp, query, where, getDocs, doc, updateDoc, increment, limit } from 'firebase/firestore';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
@@ -39,7 +37,6 @@ import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useNotifications } from '../context/NotificationContext';
-import { handleFirestoreError, OperationType, safeFirestore } from '../services/firestoreService';
 
 const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
 
@@ -140,14 +137,14 @@ export const Checkout: React.FC = () => {
     try {
       const code = trimmedCode.toUpperCase();
       
-      const q = query(
-        collection(db, 'coupons'),
-        where('code', '==', code),
-        where('status', '==', 'active'),
-        limit(1)
-      );
-      const coupons = await safeFirestore.getCollection<any>(q, `coupon_check_${code}`, 'coupons');
-      if (coupons.length === 0) {
+      const { data: coupons, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code)
+        .eq('status', 'active')
+        .limit(1);
+
+      if (error || !coupons || coupons.length === 0) {
         toast.error('Invalid or expired coupon code');
         setIsApplyingCoupon(false);
         return;
@@ -345,14 +342,11 @@ export const Checkout: React.FC = () => {
       // Increment coupon usage count if applied
       if (appliedCoupon?.id) {
         try {
-          await updateDoc(doc(db, 'coupons', appliedCoupon.id), {
-            usage_count: increment(1)
-          });
+          const { data: currentCoupon } = await supabase.from('coupons').select('usage_count').eq('id', appliedCoupon.id).single();
+          const newCount = (currentCoupon?.usage_count || 0) + 1;
+          await supabase.from('coupons').update({ usage_count: newCount }).eq('id', appliedCoupon.id);
         } catch (err: any) {
           console.error('Failed to increment coupon usage:', err);
-          if (err.code === 'permission-denied') {
-            handleFirestoreError(err, OperationType.WRITE, `coupons/${appliedCoupon.id}`);
-          }
         }
       }
       

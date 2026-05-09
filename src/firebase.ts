@@ -10,15 +10,8 @@ import {
 import { getMessaging } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
-import { initializeFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
-
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-
-// Use initializeFirestore with settings to improve stability
-export const db = initializeFirestore(app, {
-  ignoreUndefinedProperties: true,
-}, firebaseConfig.firestoreDatabaseId);
 
 export const messaging = typeof window !== 'undefined' ? (() => {
   try {

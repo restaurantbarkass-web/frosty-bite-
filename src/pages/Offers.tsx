@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Gift, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { supabase } from '../supabase';
-import { db } from '../firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
 import { Coupon, Banner } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -32,20 +29,20 @@ const OffersPage = () => {
           .eq('is_active', true)
           .order('priority', { ascending: false });
 
-        const couponsQuery = query(
-          collection(db, 'coupons'),
-          where('status', '==', 'active'),
-          where('is_hidden', '==', false),
-          orderBy('created_at', 'desc')
-        );
+        const couponsPromise = supabase
+          .from('coupons')
+          .select('*')
+          .eq('status', 'active')
+          .eq('is_hidden', false)
+          .order('created_at', { ascending: false });
 
-        const [bannersRes, couponsData] = await Promise.all([
+        const [bannersRes, couponsRes] = await Promise.all([
           bannersPromise,
-          safeFirestore.getCollection<Coupon>(couponsQuery, 'coupons_cache', 'coupons')
+          couponsPromise
         ]);
 
         if (bannersRes.data) setBanners(bannersRes.data);
-        if (couponsData) setCoupons(couponsData);
+        if (couponsRes.data) setCoupons(couponsRes.data);
       } catch (error) {
         console.error('Error fetching offers:', error);
       } finally {

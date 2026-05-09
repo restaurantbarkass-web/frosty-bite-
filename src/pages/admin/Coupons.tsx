@@ -17,19 +17,8 @@ import {
   EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../../firebase';
 import { cn } from '../../lib/utils';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
+import { supabase } from '../../supabase';
 
 interface Coupon {
   id: string;
@@ -73,9 +62,14 @@ export const Coupons: React.FC = () => {
 
   const fetchCoupons = async () => {
     try {
-      const q = query(collection(db, 'coupons'), orderBy('created_at', 'desc'));
-      const data = await safeFirestore.getCollection<Coupon>(q, 'coupons_cache');
-      setCoupons(data);
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setCoupons(data || []);
+      localStorage.setItem('coupons_cache', JSON.stringify({ data: data || [], timestamp: Date.now() }));
     } catch (error) {
       console.error('Error fetching coupons:', error);
     }
@@ -84,32 +78,33 @@ export const Coupons: React.FC = () => {
   useEffect(() => {
     fetchCoupons();
 
-    const q = query(collection(db, 'coupons'), orderBy('created_at', 'desc'));
-    const unsubscribe = safeFirestore.listen(q, (data: Coupon[]) => {
-      setCoupons(data);
-    }, 'coupons_cache');
+    const channel = supabase
+      .channel('coupons_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons' }, () => {
+        fetchCoupons();
+      })
+      .subscribe();
 
-    return () => unsubscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const docRef = await addDoc(collection(db, 'coupons'), {
-        ...newCoupon,
-        code: newCoupon.code.toUpperCase(),
-        usage_count: 0,
-        status: 'active',
-        created_at: new Date().toISOString(),
-        serverCreatedAt: serverTimestamp(),
-      });
+      const { error } = await supabase
+        .from('coupons')
+        .insert([{
+          ...newCoupon,
+          code: newCoupon.code.toUpperCase(),
+          usage_count: 0,
+          status: 'active',
+          created_at: new Date().toISOString()
+        }]);
       
-      // Proactively update local cache
-      const newItem = { id: docRef.id, ...newCoupon, code: newCoupon.code.toUpperCase(), usage_count: 0, status: 'active', created_at: new Date().toISOString() } as Coupon;
-      const updatedLocal = [newItem, ...coupons];
-      setCoupons(updatedLocal);
-      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      if (error) throw error;
       
       setIsModalOpen(false);
       setNewCoupon({
@@ -139,37 +134,22 @@ export const Coupons: React.FC = () => {
       expiryDate.setDate(expiryDate.getDate() + 30);
       const expiryStr = expiryDate.toISOString().split('T')[0];
 
-      const docRef = await addDoc(collection(db, 'coupons'), {
-        code: 'FIRSTORDER',
-        type: 'percentage',
-        value: 20,
-        min_order: 0,
-        expiry_date: expiryStr,
-        usage_limit: 100,
-        usage_count: 0,
-        status: 'active',
-        is_first_order_only: true,
-        created_at: new Date().toISOString(),
-        serverCreatedAt: serverTimestamp(),
-      });
+      const { error } = await supabase
+        .from('coupons')
+        .insert([{
+          code: 'FIRSTORDER',
+          type: 'percentage',
+          value: 20,
+          min_order: 0,
+          expiry_date: expiryStr,
+          usage_limit: 100,
+          usage_count: 0,
+          status: 'active',
+          is_first_order_only: true,
+          created_at: new Date().toISOString()
+        }]);
       
-      // Proactively update local cache
-      const newItem = { 
-        id: docRef.id, 
-        code: 'FIRSTORDER', 
-        type: 'percentage', 
-        value: 20, 
-        min_order: 0, 
-        expiry_date: expiryStr, 
-        usage_limit: 100, 
-        usage_count: 0, 
-        status: 'active', 
-        is_first_order_only: true,
-        created_at: new Date().toISOString()
-      } as Coupon;
-      const updatedLocal = [newItem, ...coupons];
-      setCoupons(updatedLocal);
-      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      if (error) throw error;
 
       alert('FIRSTORDER coupon generated successfully!');
     } catch (error) {
@@ -181,13 +161,12 @@ export const Coupons: React.FC = () => {
 
   const handleDeleteCoupon = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'coupons', id));
+      const { error } = await supabase
+        .from('coupons')
+        .delete()
+        .eq('id', id);
       
-      // Proactively update local cache
-      const updatedLocal = coupons.filter(c => c.id !== id);
-      setCoupons(updatedLocal);
-      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
-      
+      if (error) throw error;
       setDeletingId(null);
     } catch (error) {
       console.error('Error deleting coupon:', error);
@@ -197,12 +176,12 @@ export const Coupons: React.FC = () => {
   const toggleCouponStatus = async (id: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'active' ? 'disabled' : 'active' as any;
-      await updateDoc(doc(db, 'coupons', id), { status: newStatus });
+      const { error } = await supabase
+        .from('coupons')
+        .update({ status: newStatus })
+        .eq('id', id);
       
-      // Proactively update local cache
-      const updatedLocal = coupons.map(c => c.id === id ? { ...c, status: newStatus } : c);
-      setCoupons(updatedLocal);
-      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      if (error) throw error;
     } catch (error) {
       console.error('Error toggling coupon status:', error);
     }
@@ -210,12 +189,12 @@ export const Coupons: React.FC = () => {
 
   const toggleCouponVisibility = async (id: string, isCurrentlyHidden: boolean) => {
     try {
-      await updateDoc(doc(db, 'coupons', id), { is_hidden: !isCurrentlyHidden });
+      const { error } = await supabase
+        .from('coupons')
+        .update({ is_hidden: !isCurrentlyHidden })
+        .eq('id', id);
       
-      // Proactively update local cache
-      const updatedLocal = coupons.map(c => c.id === id ? { ...c, is_hidden: !isCurrentlyHidden } : c);
-      setCoupons(updatedLocal);
-      localStorage.setItem('coupons_cache', JSON.stringify({ data: updatedLocal, timestamp: Date.now() }));
+      if (error) throw error;
     } catch (error) {
       console.error('Error toggling coupon visibility:', error);
     }

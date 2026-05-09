@@ -7,9 +7,6 @@ import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
 import { supabase } from '../../supabase';
 import { Order } from '../../types';
 

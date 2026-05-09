@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
 

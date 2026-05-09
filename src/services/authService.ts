@@ -8,9 +8,7 @@ import {
   GoogleAuthProvider,
   sendSignInLinkToEmail
 } from 'firebase/auth';
-import { auth, db } from '../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from './firestoreService';
+import { auth } from '../firebase';
 import { supabase } from '../supabase';
 import { getRoleFromEmail } from '../constants';
 
@@ -66,7 +64,7 @@ export const authService = {
     await sendPasswordResetEmail(auth, email);
   },
 
-  // Sync user with tables (Firestore for role/meta, Supabase for primary data)
+  // Sync user with tables (Supabase for primary data)
   async syncUserWithDatabase(user: any, name?: string) {
     const determinedRole = getRoleFromEmail(user.email);
     const userData = {
@@ -77,17 +75,7 @@ export const authService = {
       updated_at: new Date().toISOString(),
     };
 
-    // Firestore Sync (for role-based security rules if still needed)
-    try {
-      await setDoc(doc(db, 'users', user.uid), userData, { merge: true });
-    } catch (error: any) {
-      console.error('Error syncing user with Firestore:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
-      }
-    }
-
-    // Supabase Sync
+    // Supabase Sync (Primary)
     try {
       const { error } = await supabase
         .from('users')
@@ -99,7 +87,7 @@ export const authService = {
           updated_at: userData.updated_at
         }, { onConflict: 'id' });
       
-      if (error && error.code !== 'PGRST116') { // Only log if it's not a "not found" style error on upsert
+      if (error && error.code !== 'PGRST116') { 
         console.error('Error syncing user with Supabase:', error);
       }
     } catch (error) {

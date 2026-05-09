@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../services/firestoreService';
+import { supabase } from '../supabase';
 import { Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -19,20 +17,38 @@ export const ReviewsSection: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'reviews'),
-      orderBy('created_at', 'desc'),
-      limit(6)
-    );
-
-    const unsubscribe = safeFirestore.listen(q, (data: any[]) => {
-      if (data && data.length > 0) {
-        setReviews(data);
+    const fetchReviews = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('reviews')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(6);
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setReviews(data);
+          localStorage.setItem('reviews_cache', JSON.stringify({ data, timestamp: Date.now() }));
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 'reviews_cache');
+    };
 
-    return () => unsubscribe();
+    fetchReviews();
+
+    const channel = supabase
+      .channel('public_reviews')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
+        fetchReviews();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading || reviews.length === 0) return null;

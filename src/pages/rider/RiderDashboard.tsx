@@ -32,7 +32,6 @@ const MapView = React.lazy(() => import('../../components/rider/MapView').then(m
 
 import { logout } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../../firebase';
 
 export const RiderDashboard: React.FC = () => {
   const { user, role } = useAuth();

@@ -5,13 +5,10 @@ import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
-import { safeFirestore } from '../services/firestoreService';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 import { supabase } from '../supabase';
 import toast from 'react-hot-toast';

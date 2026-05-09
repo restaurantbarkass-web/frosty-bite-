@@ -2,10 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
-import { db } from '../firebase';
-import { doc, collection, query, where, limit } from 'firebase/firestore';
 import { supabase } from '../supabase';
-import { safeFirestore } from '../services/firestoreService';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order, Rider } from '../types';
 import { cn } from '../lib/utils';
@@ -174,7 +171,7 @@ export const OrderTracking: React.FC = () => {
       if (data) setRider(data as Rider);
     };
 
-    // Review check - Try Supabase first
+    // Review check - Try Supabase
     const checkReview = async () => {
       try {
         const { data, error } = await supabase
@@ -185,15 +182,6 @@ export const OrderTracking: React.FC = () => {
         
         if (data) {
           setHasReviewed(true);
-        } else {
-          // Fallback to Firestore check
-          const q = query(
-            collection(db, 'reviews'),
-            where('order_id', '==', orderId),
-            limit(1)
-          );
-          const reviews = await safeFirestore.getCollection<any>(q, `review_check_${orderId}`, 'reviews');
-          setHasReviewed(reviews && reviews.length > 0);
         }
       } catch (e: any) {
         console.error('Error checking review:', e);

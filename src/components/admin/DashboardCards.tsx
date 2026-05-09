@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingBag, DollarSign, Activity, Users, TrendingUp, TrendingDown } from 'lucide-react';
 import { motion } from 'motion/react';
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
 import { supabase } from '../../supabase';
 
 interface CardProps {

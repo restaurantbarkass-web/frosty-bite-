@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
 import { supabase } from '../supabase';
 import { Star, MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -35,15 +33,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
     };
 
     try {
-      // Primary: Supabase
+      // Supabase
       const { error: sbError } = await supabase
         .from('reviews')
         .insert([reviewData]);
       
-      if (sbError) console.warn('Supabase review error:', sbError);
-
-      // Secondary: Firestore (non-blocking fallback)
-      addDoc(collection(db, 'reviews'), reviewData).catch(e => console.warn('Firestore review sync skip:', e));
+      if (sbError) throw sbError;
 
       setSubmitted(true);
       setTimeout(onSuccess, 2000);
