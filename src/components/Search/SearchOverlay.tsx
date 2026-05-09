@@ -22,6 +22,8 @@ import { FoodItem } from '../../types';
 import { useSearch } from '../../hooks/useSearch';
 import { FoodCard } from '../FoodCard';
 import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { useNavigate } from 'react-router-dom';
+import { useCart } from '../../context/CartContext';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -44,6 +46,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
     isProcessingRec
   } = useSearch(allItems);
 
+  const { addToCart, setIsCartOpen } = useCart();
+  const navigate = useNavigate();
   const bestMatch = allItems.find(i => i.id === smartRec?.bestMatchId);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -453,7 +457,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                                     </h3>
                                   </div>
 
-                                  <div className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer">
+                                  <div 
+                                    onClick={() => {
+                                      navigate(`/product/${bestMatch.id}`);
+                                      onClose();
+                                    }}
+                                    className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
+                                  >
                                       <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
                                           <img 
                                             src={bestMatch.image} 
@@ -469,13 +479,36 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                                               <span className="text-primary font-black text-lg">₹{bestMatch.price}</span>
                                           </div>
                                           <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
-                                          <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-                                              {bestMatch.tags?.slice(0, 3).map(tag => (
-                                                <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
-                                              ))}
-                                              <button className="ml-auto inline-flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-3 transition-all">
-                                                  Quick View <ArrowRight size={14} />
-                                              </button>
+                                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                                              <div className="flex gap-2">
+                                                {bestMatch.tags?.slice(0, 2).map(tag => (
+                                                  <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
+                                                ))}
+                                              </div>
+                                              
+                                              <div className="flex items-center gap-3 ml-auto">
+                                                <button 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`/product/${bestMatch.id}`);
+                                                    onClose();
+                                                  }}
+                                                  className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all"
+                                                >
+                                                    Details
+                                                </button>
+                                                <button 
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    addToCart(bestMatch);
+                                                    onClose();
+                                                    setIsCartOpen(true);
+                                                  }}
+                                                  className="px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                                                >
+                                                    Buy Now
+                                                </button>
+                                              </div>
                                           </div>
                                       </div>
                                   </div>
@@ -563,6 +596,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
                           >
                             <FoodCard 
                                 item={item} 
+                                onClick={onClose}
+                                showBuyNow={true}
                                 isAiRecommended={
                                     item.id === smartRec?.bestMatchId || 
                                     smartRec?.alternatives?.includes(item.id)

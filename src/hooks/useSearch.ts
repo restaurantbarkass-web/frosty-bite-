@@ -39,16 +39,28 @@ export const useSearch = (allItems: FoodItem[]) => {
     }
   }, [query, allItems]);
 
-  // Debounced AI Suggestions
+  // Debounced AI Suggestions & Smart Recommendation
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (query.length > 2 && allItems.length > 0) {
-        const suggestions = await searchService.getAiSuggestions(query, allItems);
-        setAiSuggestions(suggestions);
+        // Get Suggestions
+        searchService.getAiSuggestions(query, allItems).then(setAiSuggestions);
+        
+        // Fetch Smart AI Recommendation automatically while typing
+        setIsProcessingRec(true);
+        searchService.getSmartRecommendation(query, allItems).then(rec => {
+            setSmartRec(rec);
+            setIsProcessingRec(false);
+        }).catch(() => {
+            setSmartRec(null);
+            setIsProcessingRec(false);
+        });
       } else {
         setAiSuggestions([]);
+        setSmartRec(null);
+        setIsProcessingRec(false);
       }
-    }, 1000);
+    }, 800); // Slightly faster debounce for better feel
 
     return () => clearTimeout(timer);
   }, [query, allItems]);
@@ -58,17 +70,9 @@ export const useSearch = (allItems: FoodItem[]) => {
     if (!trimmed) return;
 
     setQuery(trimmed);
-    setSmartRec(null); // Clear previous
-    setIsProcessingRec(true);
     
     // Log search for analytics and history
     await searchService.logSearch(trimmed, user?.uid || 'guest');
-
-    // Fetch Smart AI Recommendation
-    searchService.getSmartRecommendation(trimmed, allItems).then(rec => {
-        setSmartRec(rec);
-        setIsProcessingRec(false);
-    }).catch(() => setIsProcessingRec(false));
 
     // Update local recent searches
     setRecent(prev => {
@@ -76,7 +80,7 @@ export const useSearch = (allItems: FoodItem[]) => {
       localStorage.setItem('frosty_recent_searches', JSON.stringify(updated));
       return updated;
     });
-  }, [user, allItems]);
+  }, [user]);
 
   const clear = useCallback(() => {
     setQuery('');

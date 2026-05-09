@@ -173,10 +173,15 @@ export const searchService = {
 
   // Deep AI Recommendation Engine
   async getSmartRecommendation(query: string, items: FoodItem[]) {
-    if (!query || query.length < 3) return null;
+    if (!query || query.trim().length < 2) return null;
 
     try {
-      const simplifiedItems = items.map(i => ({
+      // Limit items to top 15 fuzzy matches to keep prompt small and relevant
+      const relevantItems = this.filterAndRankItems(items, query).slice(0, 15);
+      
+      if (relevantItems.length === 0) return null;
+
+      const simplifiedItems = relevantItems.map(i => ({
         id: i.id,
         name: i.name,
         category: i.category,
@@ -185,26 +190,32 @@ export const searchService = {
         tags: i.tags
       }));
 
+      // Using the Universal SDK models.generateContent interface
       const response = await ai.models.generateContent({ 
         model: "gemini-3-flash-preview",
-        contents: `
-          User Search: "${query}"
-          Menu Data: ${JSON.stringify(simplifiedItems)}
+        contents: [{
+          role: "user",
+          parts: [{
+            text: `
+              User Search Term: "${query}"
+              Relevant Menu Items: ${JSON.stringify(simplifiedItems)}
 
-          Analyze the search intent (occasion, mood, budget, flavor) and return a JSON response.
-          CRITICAL: You MUST ONLY suggest product IDs that are present in the 'Menu Data' provided above. Do not hallucinate or suggest IDs that don't exist in the data.
-          
-          {
-            "bestMatchId": "id-of-the-product",
-            "reason": "Personalized human-like explanation (max 120 chars)",
-            "intent": "Occasion/Mood detected",
-            "alternatives": ["id1", "id2"],
-            "isEmotionalMatch": true/false
-          }
-          If no good match from the provided Menu Data, return null. Return ONLY JSON.
-        `,
+              Task: Match the search term to the BEST item from our menu. 
+              Be a personal bakery butler. If "cup" is searched, find the cupcakes.
+              Return ONLY a JSON object:
+              {
+                "bestMatchId": "id-of-the-item",
+                "reason": "Butler-style punchy reason (max 10 words)",
+                "intent": "detected intent",
+                "alternatives": ["similar-id-1", "similar-id-2"],
+                "isEmotionalMatch": true
+              }
+              If no match, return null. No yapping. Respond ONLY with JSON.
+            `
+          }]
+        }],
         config: {
-          systemInstruction: "You are the 'Frosty Bite Butler', a luxury bakery concierge. Your goal is to find the perfect match for a user's request from the menu.",
+          systemInstruction: "You are the 'Frosty Bite Butler'. Your tone is premium, concierge-like, and highly helpful.",
           responseMimeType: "application/json"
         }
       });
@@ -212,26 +223,18 @@ export const searchService = {
       const resultText = response.text || '';
       try {
         const cleaned = resultText.replace(/```json|```/g, '').trim();
+        if (!cleaned || cleaned === 'null') return null;
+        
         const recommendation = JSON.parse(cleaned);
+        if (!recommendation || !recommendation.bestMatchId) return null;
 
-        if (!recommendation) return null;
-
-        // Validation: Ensure the best match exists in our local menu
+        // Double check existence
         const validItem = items.find(i => i.id === recommendation.bestMatchId);
-        if (!validItem) {
-          console.warn('AI suggested a non-existent product ID:', recommendation.bestMatchId);
-          return null;
-        }
-
-        // Integrity: Filter out any alternative IDs that don't exist
-        if (recommendation.alternatives) {
-          recommendation.alternatives = recommendation.alternatives.filter((id: string) => 
-            items.some(i => i.id === id)
-          );
-        }
+        if (!validItem) return null;
 
         return recommendation;
       } catch (e) {
+        console.error('JSON Parse Error in AI Butler:', e);
         return null;
       }
     } catch (error) {

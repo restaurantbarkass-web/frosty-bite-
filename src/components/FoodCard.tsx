@@ -19,10 +19,18 @@ interface FoodCardProps {
   item: FoodItem;
   variant?: 'default' | 'compact';
   isAiRecommended?: boolean;
+  onClick?: () => void;
+  showBuyNow?: boolean;
 }
 
-export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'default', isAiRecommended = false }) => {
-  const { addToCart } = useCart();
+export const FoodCard: React.FC<FoodCardProps> = memo(({ 
+  item, 
+  variant = 'default', 
+  isAiRecommended = false,
+  onClick,
+  showBuyNow = false
+}) => {
+  const { addToCart, setIsCartOpen } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -179,7 +187,10 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
           "group relative bg-white/5 overflow-hidden border border-white/5 hover:border-primary/30 transition-all shadow-xl",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
-        onClick={() => navigate(`/product/${item.id}`)}
+        onClick={() => {
+          navigate(`/product/${item.id}`);
+          onClick?.();
+        }}
       >
         {/* Flying Animation Element skipped */}
         
@@ -340,45 +351,64 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({ item, variant = 'defaul
               )}
             </AnimatePresence>
           </button>
+
+          {showBuyNow && (
+            <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 addToCart(item);
+                 onClick?.();
+                 setIsCartOpen(true);
+               }}
+               className={cn(
+                 "flex-1 bg-primary text-white rounded-xl flex items-center justify-center transition-all duration-300 active:scale-95 shadow-lg shadow-primary/20",
+                 variant === 'compact' ? "py-2 px-4" : "py-3 px-6"
+               )}
+            >
+               <span className="text-xs font-black uppercase tracking-widest">Buy Now</span>
+            </button>
+          )}
           
-          <button
-            onClick={handleBuyNow}
-            disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0) || isBuyingNow}
-            className={cn(
-              "flex-[2.5] bg-primary hover:opacity-90 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
-              variant === 'compact' ? "py-2.5" : "py-4"
-            )}
-            title={!isOrderingOpen ? "Orders are currently closed" : "Quick Checkout"}
-          >
-            <AnimatePresence mode="wait">
-              {isBuyingNow ? (
-                <motion.div
-                  key="buying"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center space-x-2"
-                >
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Zap size={16} fill="currentColor" />
-                  </motion.div>
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">Fast tracking...</span>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="default"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center space-x-2"
-                >
-                  <Zap size={16} fill="currentColor" className="group-hover:scale-125 transition-transform" />
-                  <span className="text-xs font-black uppercase tracking-[0.15em]">Quick Buy</span>
-                </motion.div>
+          {!showBuyNow && (
+            <button
+              onClick={handleBuyNow}
+              disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0) || isBuyingNow}
+              className={cn(
+                "flex-[2.5] bg-primary hover:opacity-90 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
+                variant === 'compact' ? "py-2.5" : "py-4"
               )}
-            </AnimatePresence>
-          </button>
+              title={!isOrderingOpen ? "Orders are currently closed" : "Quick Checkout"}
+            >
+              <AnimatePresence mode="wait">
+                {isBuyingNow ? (
+                  <motion.div
+                    key="buying"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center space-x-2"
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Zap size={16} fill="currentColor" />
+                    </motion.div>
+                    <span className="text-[10px] font-black uppercase tracking-widest italic">Fast tracking...</span>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="default"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center space-x-2"
+                  >
+                    <Zap size={16} fill="currentColor" className="group-hover:scale-125 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-[0.15em]">Quick Buy</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
