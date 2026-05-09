@@ -91,7 +91,7 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
       {/* Decorative Branding */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.05 }}
+        animate={{ opacity: 0.10 }}
         className="absolute bottom-10 left-10 text-white font-black text-8xl pointer-events-none select-none"
       >
         2026
