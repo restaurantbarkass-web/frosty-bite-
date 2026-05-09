@@ -1,30 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import Lottie from 'lottie-react';
+
+// Using a similar animation to the one requested
+const INSTALL_ANIM_URL = "https://assets2.lottiefiles.com/packages/lf20_myejiggj.json";
 
 export const PWAInstallPrompt: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [isInstalledState, setIsInstalledState] = useState(false);
+  const [animationData, setAnimationData] = useState<any>(null);
 
   useEffect(() => {
-    // Check if app already installed
+    // Fetch animation data
+    fetch(INSTALL_ANIM_URL)
+      .then(res => res.json())
+      .then(data => setAnimationData(data))
+      .catch(err => console.error("Lottie fetch error:", err));
+
     const standalone = window.matchMedia('(display-mode: standalone)').matches ||
                      (window.navigator as any).standalone === true;
     
     setIsStandalone(standalone);
 
-    if (standalone) {
-      setIsVisible(true); // Still show the "Open App" button even in standalone for some users, or maybe hide based on logic
-    }
-
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setIsVisible(true);
+      if (!standalone) setIsVisible(true);
     };
 
     const handleAppInstalled = () => {
-      setIsVisible(false);
+      setIsInstalledState(true);
+      setTimeout(() => setIsVisible(false), 2000);
       setDeferredPrompt(null);
     };
 
@@ -38,24 +46,24 @@ export const PWAInstallPrompt: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    // If app already installed → open app behavior
+    if (navigator.vibrate) navigator.vibrate(20);
+
     if (isStandalone) {
       window.location.href = "/";
       return;
     }
 
-    // Trigger install popup
     if (deferredPrompt) {
       deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
+      const { outcome } = await deferredPrompt.userChoice;
 
-      if (choiceResult.outcome === 'accepted') {
-        setIsVisible(false);
+      if (outcome === 'accepted') {
+        setIsInstalledState(true);
+        setTimeout(() => setIsVisible(false), 2000);
       }
       setDeferredPrompt(null);
     } else {
-      // Fallback for unsupported browsers/iOS
-      alert("Install option not available yet. On iOS, use Safari's 'Add to Home Screen'.");
+      alert("Install option not available yet. On iOS, use Share > Add to Home Screen.");
     }
   };
 
@@ -64,25 +72,31 @@ export const PWAInstallPrompt: React.FC = () => {
   return (
     <AnimatePresence>
       <motion.div
-        id="appInstallContainer"
-        initial={{ opacity: 0, scale: 0.9, x: '-50%', y: 20 }}
-        animate={{ opacity: 1, scale: 1, x: '-50%', y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, x: '-50%', y: 20 }}
-        className="fixed bottom-20 left-1/2 z-[9999]"
+        initial={{ opacity: 0, y: 30, x: '-50%' }}
+        animate={{ opacity: 1, y: 0, x: '-50%' }}
+        exit={{ opacity: 0, y: 30, x: '-50%' }}
+        className="fixed bottom-6 left-1/2 z-[9999]"
       >
         <button
-          id="installAppBtn"
           onClick={handleInstallClick}
-          className="install-btn px-8 py-4 rounded-full font-semibold text-white shadow-2xl transition-all active:scale-95 bg-gradient-to-r from-[#ff7b00] to-[#ff0055] shadow-[#ff0055]/35 hover:scale-105 backdrop-blur-md"
-          style={{
-            border: 'none',
-            outline: 'none',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: 'pointer',
-          }}
+          className={`
+            flex items-center gap-3 px-6 py-3.5 rounded-full font-semibold text-white shadow-2xl transition-all active:scale-95
+            backdrop-blur-xl border border-white/10
+            ${isInstalledState 
+              ? 'bg-gradient-to-r from-green-500 to-emerald-400 shadow-green-500/20' 
+              : 'bg-white/10 shadow-black/20 hover:scale-105'
+            }
+          `}
         >
-          <span id="btnText">{isStandalone ? 'Open App' : 'Add to Home Screen'}</span>
+          {animationData && !isInstalledState && (
+            <div className="w-10 h-10 -ml-2">
+              <Lottie animationData={animationData} loop={true} />
+            </div>
+          )}
+          
+          <span className="whitespace-nowrap text-base tracking-tight">
+            {isInstalledState ? 'Installed ✅' : (isStandalone ? 'Open App' : 'Install App')}
+          </span>
         </button>
       </motion.div>
     </AnimatePresence>
