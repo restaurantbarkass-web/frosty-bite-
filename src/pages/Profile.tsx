@@ -188,7 +188,7 @@ export const Profile: React.FC = () => {
   };
 
   const handleUpdateSettings = async (newSettings: any) => {
-    if (!authUser) return;
+    if (!authUser || !newSettings) return;
     try {
       const userDocRef = doc(db, 'users', authUser.uid);
       await updateDoc(userDocRef, { 
@@ -199,27 +199,30 @@ export const Profile: React.FC = () => {
       setSettingsData(newSettings);
     } catch (error: any) {
       console.error('Error updating settings:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
-      }
+      // Don't crash for settings error, just log
     }
   };
 
   const handleExportData = () => {
+    if (!authUser) return;
     const data = {
-      profile: user,
-      orders: recentOrders,
-      settings: settingsData,
+      profile: user || {},
+      orders: recentOrders || [],
+      settings: settingsData || {},
       exportedAt: new Date().toISOString()
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `frosty-bite-data-${authUser?.uid.slice(0, 8)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `frosty-bite-data-${authUser.uid.slice(0, 8)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      console.error("Export failed:", e);
+    }
   };
 
   const handleDeleteAccount = async () => {

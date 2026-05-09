@@ -149,17 +149,6 @@ function AppContent() {
     setShowSplash(false);
   }, []);
 
-  const handleSwipeBack = (e: any, info: any) => {
-    // Swipe from left to right (offset.x > 80)
-    if (info.offset.x > 80 && info.velocity.x > 0) {
-      if (window.history.length > 1) {
-        navigate(-1);
-      } else {
-        navigate('/');
-      }
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
       <Toaster position="top-right" />
@@ -197,15 +186,11 @@ function AppContent() {
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="flex-1 flex flex-col w-full h-full"
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.15}
-              onDragEnd={handleSwipeBack}
             >
               <Routes location={location}>
                 <Route path="/" element={<Home />} />
