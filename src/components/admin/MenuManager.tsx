@@ -16,9 +16,12 @@ interface MenuItem {
   available: boolean;
   stock_quantity: number;
   description: string;
+  ai_description?: string;
+  is_ai_boosted?: boolean;
 }
 
 import { ImageZoom } from '../ImageZoom';
+import { Sparkles } from 'lucide-react';
 
 export const MenuManager: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -37,7 +40,9 @@ export const MenuManager: React.FC = () => {
     category: CATEGORIES[0],
     image: '',
     available: true,
-    description: ''
+    description: '',
+    ai_description: '',
+    is_ai_boosted: false
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +85,9 @@ export const MenuManager: React.FC = () => {
           category: item.category || 'General',
           available: item.available !== undefined ? item.available : true,
           stock_quantity: item.stock_quantity || 0,
-          description: item.description || ''
+          description: item.description || '',
+          ai_description: item.ai_description || '',
+          is_ai_boosted: item.is_ai_boosted || false
         }));
         setMenuItems(mappedItems);
       }
@@ -145,6 +152,8 @@ export const MenuManager: React.FC = () => {
         image: imageUrl,
         category: formData.category,
         description: formData.description,
+        ai_description: formData.ai_description,
+        is_ai_boosted: formData.is_ai_boosted,
         stock_quantity: stockQty,
         available: stockQty === 0 ? false : formData.available
       };
@@ -173,7 +182,17 @@ export const MenuManager: React.FC = () => {
       
       setIsAdding(false);
       setEditingItem(null);
-      setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
+      setFormData({ 
+        name: '', 
+        price: '', 
+        stock_quantity: '0', 
+        category: CATEGORIES[0], 
+        image: '', 
+        available: true, 
+        description: '',
+        ai_description: '',
+        is_ai_boosted: false
+      });
       fetchMenu(); // Refresh list from Supabase
     } catch (error: any) {
       console.error('Error saving product:', error);
@@ -341,7 +360,17 @@ export const MenuManager: React.FC = () => {
             whileTap={{ scale: 0.98 }}
             onClick={() => {
               setEditingItem(null);
-              setFormData({ name: '', price: '', stock_quantity: '0', category: CATEGORIES[0], image: '', available: true, description: '' });
+              setFormData({ 
+                name: '', 
+                price: '', 
+                stock_quantity: '0', 
+                category: CATEGORIES[0], 
+                image: '', 
+                available: true, 
+                description: '',
+                ai_description: '',
+                is_ai_boosted: false
+              });
               setIsAdding(true);
             }}
             className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex-1 md:flex-none justify-center"
@@ -416,7 +445,9 @@ export const MenuManager: React.FC = () => {
                         category: item.category,
                         image: item.image,
                         available: item.available,
-                        description: item.description || ''
+                        description: item.description || '',
+                        ai_description: item.ai_description || '',
+                        is_ai_boosted: !!item.is_ai_boosted
                       });
                       setIsAdding(true);
                     }}
@@ -445,10 +476,10 @@ export const MenuManager: React.FC = () => {
                       <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
                       <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
                       
-                      {item.description && (
-                        <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 mt-2 mb-2 italic">
-                          {item.description}
-                        </p>
+                      {item.is_ai_boosted && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md text-[8px] font-black text-primary uppercase animate-pulse mt-2">
+                          <Sparkles size={10} /> AI Boosted
+                        </div>
                       )}
 
                       <div className="flex items-center gap-2 mt-1">
@@ -658,6 +689,41 @@ export const MenuManager: React.FC = () => {
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-primary/10 border border-primary/20 rounded-2xl">
+                        <div className="flex items-center gap-3">
+                          <Sparkles className="text-primary" size={20} />
+                          <div>
+                            <p className="text-xs font-bold text-white uppercase tracking-wider">AI Boost</p>
+                            <p className="text-[10px] text-zinc-500">Enable to prioritize this item in smart recommendations</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, is_ai_boosted: !formData.is_ai_boosted })}
+                          className={cn(
+                            "w-12 h-6 rounded-full transition-all relative shrink-0",
+                            formData.is_ai_boosted ? "bg-primary" : "bg-zinc-800"
+                          )}
+                        >
+                          <div className={cn(
+                            "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                            formData.is_ai_boosted ? "left-7" : "left-1"
+                          )} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">AI Optimization Description</label>
+                          <textarea 
+                            value={formData.ai_description}
+                            onChange={(e) => setFormData({...formData, ai_description: e.target.value})}
+                            placeholder="Special search keywords or context for the AI Butler..." 
+                            className="w-full bg-primary/5 border border-primary/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none font-medium placeholder:text-zinc-700 text-sm" 
+                          />
                       </div>
                     </div>
 

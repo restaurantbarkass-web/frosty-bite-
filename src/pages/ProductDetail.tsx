@@ -71,9 +71,9 @@ const ProductDetail: React.FC = () => {
             image: item.image,
             category: item.category || 'General',
             available: item.available !== undefined ? item.available : true,
-            stock_quantity: item.stock_quantity || 0,
+            stock_quantity: item.stock_quantity !== undefined ? item.stock_quantity : 100,
             description: item.description || '',
-            rating: item.rating || 5
+            rating: Number(item.rating || 5)
           };
         }
 
@@ -115,9 +115,9 @@ const ProductDetail: React.FC = () => {
                   image: item.image,
                   category: item.category || 'General',
                   available: item.available !== undefined ? item.available : true,
-                  stock_quantity: item.stock_quantity || 0,
+                  stock_quantity: item.stock_quantity !== undefined ? item.stock_quantity : 100,
                   description: item.description || '',
-                  rating: item.rating || 5
+                  rating: Number(item.rating || 5)
                 }))
                 .slice(0, 8);
               setRelatedItems(mappedRel);

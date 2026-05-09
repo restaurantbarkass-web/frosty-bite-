@@ -2,6 +2,21 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
+import { db } from '../firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  addDoc, 
+  Timestamp,
+  writeBatch,
+  getDocs
+} from 'firebase/firestore';
 
 export interface Notification {
   id: string;
@@ -9,7 +24,7 @@ export interface Notification {
   message: string;
   type: 'order' | 'system' | 'rider';
   read: boolean;
-  created_at: string;
+  created_at: any; // Can be string or Timestamp
   user_id: string;
   link?: string;
 }
@@ -26,8 +41,55 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(auth: any, error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map((provider: any) => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, role, isAdmin } = useAuth();
+  const { user, role, isAdmin, auth: authInstance } = useAuth() as any;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
@@ -48,48 +110,33 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       } catch (e) {}
     }
 
-    // Notifications listener - Prefer Supabase Real-time
-    const channel = supabase
-      .channel(`user_notifications_${user.uid}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.uid}`
-      }, async () => {
-        // Refresh notifications
-        const { data } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.uid)
-          .order('created_at', { ascending: false })
-          .limit(50);
-        if (data) setNotifications(data as Notification[]);
-      })
-      .subscribe();
+    // Firestore Notifications listener
+    const path = 'notifications';
+    const q = query(
+      collection(db, path),
+      where('user_id', '==', user.uid),
+      orderBy('created_at', 'desc'),
+      limit(50)
+    );
 
-    // Initial load from Supabase
-    const loadNotifs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.uid)
-          .order('created_at', { ascending: false })
-          .limit(50);
-        
-        if (data) {
-          setNotifications(data as Notification[]);
-          localStorage.setItem(cacheKey, JSON.stringify(data));
-        }
-      } catch (err) {
-        console.warn('Supabase notifications failed:', err);
-      }
-    };
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Convert Firestore Timestamp to string for Date constructor compatibility
+          created_at: data.created_at?.toDate?.() ? data.created_at.toDate().toISOString() : data.created_at
+        };
+      }) as Notification[];
+      
+      setNotifications(notifs);
+      localStorage.setItem(cacheKey, JSON.stringify(notifs));
+    }, (error) => {
+      handleFirestoreError(authInstance, error, OperationType.GET, path);
+    });
 
-    loadNotifs();
-
-    // Admin new order monitor
+    // Admin new order monitor - Orders still in Supabase
     let unsubAdminOrders: (() => void) | null = null;
     if (isAdmin || role === 'admin') {
       const channel = supabase
@@ -132,7 +179,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         supabase.removeChannel(channel);
       };
       
-      // Seed the initial lastOrderIdRef
+      // Seed the initial lastOrderIdRef from Supabase
       supabase
         .from('orders')
         .select('id')
@@ -146,7 +193,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
       if (unsubAdminOrders) unsubAdminOrders();
     };
   }, [user, role, isAdmin]);
@@ -154,52 +201,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAsRead = React.useCallback(async (id: string) => {
+    const path = 'notifications';
     try {
-      // Supabase Update
-      await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('id', id);
-
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      const docRef = doc(db, path, id);
+      await updateDoc(docRef, { read: true });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      handleFirestoreError(authInstance, error, OperationType.UPDATE, `${path}/${id}`);
     }
-  }, []);
+  }, [authInstance]);
 
   const markAllAsRead = React.useCallback(async () => {
     if (!user) return;
+    const path = 'notifications';
     try {
-      // Supabase Update
-      await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user.uid);
+      const q = query(
+        collection(db, path),
+        where('user_id', '==', user.uid),
+        where('read', '==', false)
+      );
       
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      const querySnapshot = await getDocs(q);
+      const batch = writeBatch(db);
+      
+      querySnapshot.forEach((doc) => {
+        batch.update(doc.ref, { read: true });
+      });
+      
+      await batch.commit();
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      handleFirestoreError(authInstance, error, OperationType.WRITE, path);
     }
-  }, [user]);
+  }, [user, authInstance]);
 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
+    const path = 'notifications';
     try {
-      const newNotif = {
+      await addDoc(collection(db, path), {
         ...notif,
         read: false,
-        created_at: new Date().toISOString()
-      };
-
-      // Supabase Insert
-      const { error } = await supabase
-        .from('notifications')
-        .insert([newNotif]);
-      
-      if (error) console.warn('Supabase notification error:', error);
+        created_at: Timestamp.now()
+      });
     } catch (error) {
-      console.error('Error adding notification:', error);
+      handleFirestoreError(authInstance, error, OperationType.CREATE, path);
     }
-  }, []);
+  }, [authInstance]);
 
   const value = React.useMemo(() => ({ 
     notifications, 

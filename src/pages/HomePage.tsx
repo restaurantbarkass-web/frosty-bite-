@@ -258,11 +258,7 @@ export const Home: React.FC = () => {
           >
             <PremiumSearchBar 
               onSearch={(q) => {
-                setSearchQuery(q);
-                setTimeout(() => {
-                  const element = document.getElementById('menu-section');
-                  element?.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
+                window.dispatchEvent(new CustomEvent('open-search', { detail: { query: q } }));
               }}
               onFocusChange={(focused) => {
                 if (focused) {
@@ -330,35 +326,66 @@ export const Home: React.FC = () => {
 
         {/* AI Recommendations */}
         <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          className="mb-12 p-6 glass-dark rounded-3xl border border-primary/10"
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="mb-16 relative overflow-hidden group"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="text-primary" size={24} />
-              <h2 className="text-xl font-bold">AI Recommendations</h2>
-            </div>
-            <span className="text-xs text-muted">Powered by Frosty Bite</span>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {isLoadingRecs ? (
-              <div className="animate-pulse flex space-x-3">
-                {[1, 2, 3].map(i => <div key={i} className="h-10 w-32 bg-white/5 rounded-full" />)}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 rounded-[40px] opacity-50 transition-opacity group-hover:opacity-100" />
+          <div className="relative p-8 md:p-12 glass-dark rounded-[40px] border border-primary/20 backdrop-blur-2xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(249,115,22,0.2)]">
+                  <Sparkles size={28} className="animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-3xl md:text-4xl font-black text-white italic uppercase tracking-tighter leading-none">AI Recommendations</h2>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">Curated by your personal Frosty Butler</p>
+                </div>
               </div>
-            ) : (
-              aiRecs.map((rec, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ scale: 1.05 }}
-                  className="px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full text-sm font-medium cursor-pointer"
-                  onClick={() => setSearchQuery(rec)}
-                >
-                  {rec}
-                </motion.div>
-              ))
-            )}
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
+                <span className="text-[10px] font-black text-primary uppercase tracking-widest">Live Engine Active</span>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {isLoadingRecs ? (
+                Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="h-[300px] bg-white/5 rounded-3xl animate-pulse border border-white/5" />
+                ))
+              ) : (
+                <>
+                  {displayItems
+                    .filter(item => item.is_ai_boosted)
+                    .slice(0, 4)
+                    .map((item) => (
+                      <FoodCard key={`boosted-${item.id}`} item={item} isAiRecommended={true} />
+                    ))}
+                  
+                  {displayItems.filter(item => item.is_ai_boosted).length === 0 && (
+                    <div className="col-span-full py-12 text-center">
+                      <div className="inline-flex flex-wrap gap-3 justify-center">
+                        {aiRecs.map((rec, i) => (
+                          <motion.button
+                            key={i}
+                            whileHover={{ scale: 1.05, y: -2 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('open-search', { detail: { query: rec } }));
+                            }}
+                            className="px-6 py-3 bg-white/5 border border-white/10 text-white rounded-2xl text-sm font-bold hover:bg-primary hover:text-white transition-all shadow-xl"
+                          >
+                            {rec}
+                          </motion.button>
+                        ))}
+                      </div>
+                      <p className="mt-8 text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em]">Ask me for something specific in the search bar above</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </motion.section>
 

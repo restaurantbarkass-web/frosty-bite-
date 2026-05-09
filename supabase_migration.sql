@@ -261,6 +261,27 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('banners', 'banners', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- 12. Reviews Table
+CREATE TABLE IF NOT EXISTS public.reviews (
+    id BIGSERIAL PRIMARY KEY,
+    order_id TEXT,
+    user_id TEXT,
+    customer_name TEXT,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Enable RLS for reviews
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+
+-- Reviews Policies
+DROP POLICY IF EXISTS "Public Read Reviews" ON public.reviews;
+CREATE POLICY "Public Read Reviews" ON public.reviews FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users Insert Own Reviews" ON public.reviews;
+CREATE POLICY "Users Insert Own Reviews" ON public.reviews FOR INSERT WITH CHECK (true);
+
 -- STORAGE POLICIES (Critical for Image Upload)
 -- 1. Allow public to view images
 DROP POLICY IF EXISTS "Public View Banners" ON storage.objects;

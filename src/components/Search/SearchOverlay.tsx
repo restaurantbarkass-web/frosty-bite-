@@ -136,15 +136,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
     setIsScanning(true);
     
     // Give DOM time to render the reader div
-    const timer = setTimeout(async () => {
-        if (!isOpen) return;
+    setTimeout(async () => {
         try {
-            const readerElement = document.getElementById("reader");
-            if (!readerElement) {
-                setIsScanning(false);
-                return;
-            }
-
             const html5QrCode = new Html5Qrcode("reader");
             scannerRef.current = html5QrCode;
             
@@ -176,12 +169,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
         } catch (err) {
             console.error("Unable to start scanning", err);
             setIsScanning(false);
-            // Non-blocking approach for mobile
-            console.warn("Camera access failed");
+            alert("Failed to access camera. Please check permissions.");
         }
-    }, 150);
-
-    return () => clearTimeout(timer);
+    }, 100);
   };
 
   // Handle ESC key

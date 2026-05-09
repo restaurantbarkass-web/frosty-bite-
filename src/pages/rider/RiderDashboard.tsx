@@ -33,7 +33,7 @@ const MapView = React.lazy(() => import('../../components/rider/MapView').then(m
 import { logout } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
-export const RiderDashboard: React.FC = () => {
+const RiderDashboard: React.FC = () => {
   const { user, role } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
@@ -356,3 +356,5 @@ export const RiderDashboard: React.FC = () => {
     </div>
   );
 };
+
+export default RiderDashboard;

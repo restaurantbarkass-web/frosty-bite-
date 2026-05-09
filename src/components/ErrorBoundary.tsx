@@ -35,21 +35,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      // Check if it's a Firestore permission error
-      const isFirestoreError = this.state.error?.message.includes('authInfo');
       let errorMessage = "We've encountered an unexpected issue. Our team has been notified.";
       
-      if (isFirestoreError) {
-        try {
-          const parsed = JSON.parse(this.state.error!.message);
-          if (parsed.error === 'DATABASE_QUOTA_EXCEEDED') {
-            errorMessage = "Our kitchen is a bit overloaded right now (Daily limit reached). Please try again later today or tomorrow when the ovens cool down!";
-          } else {
-            errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
-          }
-        } catch (e) {
-          errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
-        }
+      const errorMsg = this.state.error?.message || "";
+      if (errorMsg.includes('permission') || errorMsg.includes('unauthorized')) {
+        errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
+      } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
+        errorMessage = "We're currently experiencing high traffic. Please try again in a few moments.";
       }
 
       return (
@@ -59,9 +51,21 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <RefreshCcw size={40} />
             </div>
             <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Bite Interrupted</h2>
-            <p className="text-zinc-500 font-medium mb-10 leading-relaxed px-4">
+            <p className="text-zinc-500 font-medium mb-4 leading-relaxed px-4">
               We're polishing the frosting. {errorMessage}
             </p>
+            {this.state.error && (
+              <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-left overflow-auto max-h-32">
+                <p className="text-[10px] font-mono text-red-400 break-words">
+                  {this.state.error.toString()}
+                  {this.state.error.stack && (
+                    <span className="block mt-2 opacity-50 text-[8px]">
+                      {this.state.error.stack.split('\n').slice(0, 3).join('\n')}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
             <div className="flex flex-col gap-4">
               <Button onClick={this.handleReset} className="w-full py-4 flex items-center justify-center gap-3">
                 <RefreshCcw size={18} />

@@ -1,4 +1,6 @@
-import { supabase } from '../supabase';
+import { doc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { safeFirestore } from './firestoreService';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
@@ -8,99 +10,75 @@ export interface AppConfig {
   updated_at?: any;
 }
 
-const CONFIG_KEY = 'app_config';
+const CONFIG_DOC_PATH = 'settings/appConfig';
 
-let channel: any = null;
-let listeners: ((config: AppConfig) => void)[] = [];
+let unsubscribe: (() => void) | null = null;
+let currentListeners: ((config: AppConfig) => void)[] = [];
 let currentConfig: AppConfig | null = null;
 
 export const appConfigService = {
   /**
-   * Subscribes to application configuration changes.
+   * Subscribes to application configuration changes using Firestore.
    */
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
-    listeners.push(callback);
+    currentListeners.push(callback);
     
     if (currentConfig) {
       callback(currentConfig);
     }
 
-    if (!channel) {
-      // First, get initial config
-      supabase
-        .from('app_settings')
-        .select('*')
-        .eq('id', CONFIG_KEY)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            const config = data.value as AppConfig;
-            currentConfig = config;
-            listeners.forEach(l => l(config));
-          }
-        });
-
-      // Then subscribe to changes
-      channel = supabase
-        .channel('app_settings_changes')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'app_settings',
-          filter: `id=eq.${CONFIG_KEY}` 
-        }, (payload) => {
-          if (payload.new) {
-            const config = (payload.new as any).value as AppConfig;
-            currentConfig = config;
-            listeners.forEach(l => l(config));
-          }
-        })
-        .subscribe();
+    if (!unsubscribe) {
+      const configRef = doc(db, CONFIG_DOC_PATH);
+      unsubscribe = safeFirestore.subscribe<AppConfig>(configRef, (data) => {
+        const config = Array.isArray(data) ? data[0] : data;
+        if (config) {
+          currentConfig = config;
+          currentListeners.forEach(l => l(config));
+        } else {
+          // Initialize with default if document doesn't exist
+          const defaultConfig: AppConfig = { isOrderingOpen: true };
+          safeFirestore.set(configRef, defaultConfig);
+        }
+      });
     }
 
     return () => {
-      listeners = listeners.filter(l => l !== callback);
+      currentListeners = currentListeners.filter(l => l !== callback);
+      // We don't necessarily want to unsubscribe from Firestore just because one UI listener left,
+      // but if all are gone we could. For simplicity in this app, we'll keep the singleton subscription.
     };
   },
 
   /**
-   * Toggles the ordering status.
+   * Toggles the ordering status in Firestore.
    */
   toggleOrderingStatus: async (currentStatus: boolean) => {
     const newStatus = !currentStatus;
-    localStorage.setItem('ordering_status_fallback', String(newStatus));
+    const configRef = doc(db, CONFIG_DOC_PATH);
     
     try {
-      const config = { 
+      await safeFirestore.set(configRef, { 
         ...currentConfig, 
-        isOrderingOpen: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      
-      await supabase
-        .from('app_settings')
-        .upsert({ id: CONFIG_KEY, value: config });
+        isOrderingOpen: newStatus 
+      });
     } catch (error) {
-      console.warn('Error toggling status in Supabase:', error);
+      console.error('Error toggling status in Firestore:', error);
+      throw error;
     }
   },
 
   /**
-   * Updates delivery pricing settings.
+   * Updates delivery pricing settings in Firestore.
    */
   updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }) => {
+    const configRef = doc(db, CONFIG_DOC_PATH);
     try {
-      const config = { 
+      await safeFirestore.set(configRef, { 
         ...currentConfig, 
         deliveryBaseFee: pricing.baseFee,
         deliveryFeePerKm: pricing.perKm,
-        deliveryFreeKm: pricing.freeKm,
-        updated_at: new Date().toISOString()
-      } as AppConfig;
-
-      await supabase
-        .from('app_settings')
-        .upsert({ id: CONFIG_KEY, value: config });
+        deliveryFreeKm: pricing.freeKm
+      });
     } catch (error) {
       console.error('Error updating delivery pricing:', error);
       throw error;
@@ -108,19 +86,13 @@ export const appConfigService = {
   },
 
   /**
-   * Fetches the current configuration once.
+   * Fetches the current configuration once from Firestore.
    */
   getConfig: async (): Promise<AppConfig> => {
     try {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('*')
-        .eq('id', CONFIG_KEY)
-        .single();
-
-      if (data) {
-        return data.value as AppConfig;
-      }
+      const configRef = doc(db, CONFIG_DOC_PATH);
+      const data = await safeFirestore.get<AppConfig>(configRef);
+      if (data) return data;
     } catch (error) {
       console.error('Error in getConfig:', error);
     }

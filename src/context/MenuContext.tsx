@@ -23,7 +23,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [loading, setLoading] = useState(true);
 
-  const fetchMenu = async () => {
+  const fetchMenu = React.useCallback(async () => {
     setLoading(true);
     try {
       // Prioritize Supabase for Menu Items
@@ -37,9 +37,9 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
           image: item.image,
           category: item.category || 'General',
           available: item.available ?? true,
-          stock_quantity: item.stock_quantity ?? 0,
+          stock_quantity: item.stock_quantity ?? 100,
           description: item.description ?? '',
-          rating: item.rating ?? 5,
+          rating: Number(item.rating ?? 5),
           tags: item.tags ?? []
         }));
         setItems(mapped);
@@ -59,23 +59,37 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Menu fetching failed:', err);
       // Final fallback to hardcoded items
-      if (!items || items.length === 0) {
-        const cached = localStorage.getItem('menu_cache');
-        setItems(cached ? JSON.parse(cached) : MENU_ITEMS);
-      }
+      // Using functional update for setItems to avoid dependency on 'items' state
+      setItems(prevItems => {
+        if (!prevItems || prevItems.length === 0) {
+          const cached = localStorage.getItem('menu_cache');
+          return cached ? JSON.parse(cached) : MENU_ITEMS;
+        }
+        return prevItems;
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMenu();
   }, []);
 
-  const categories = ['All', ...Array.from(new Set(items.map(i => i.category)))].filter(Boolean);
+  const categories = React.useMemo(() => 
+    ['All', ...Array.from(new Set(items.map(i => i.category)))].filter(Boolean) as string[],
+    [items]
+  );
+
+  const value = React.useMemo(() => ({ 
+    items, 
+    loading, 
+    categories, 
+    refreshMenu: fetchMenu 
+  }), [items, loading, categories, fetchMenu]);
 
   return (
-    <MenuContext.Provider value={{ items, loading, categories, refreshMenu: fetchMenu }}>
+    <MenuContext.Provider value={value}>
       {children}
     </MenuContext.Provider>
   );

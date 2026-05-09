@@ -5,11 +5,13 @@ import { cn } from '../lib/utils';
 interface BrandAnimationProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
+  onComplete?: () => void;
 }
 
 export const BrandAnimation: React.FC<BrandAnimationProps> = ({ 
   className,
-  size = 'md'
+  size = 'md',
+  onComplete
 }) => {
   const containerSizes = {
     sm: 'h-16',
@@ -22,6 +24,13 @@ export const BrandAnimation: React.FC<BrandAnimationProps> = ({
     md: 'text-4xl',
     lg: 'text-7xl'
   };
+
+  React.useEffect(() => {
+    if (onComplete) {
+      const timer = setTimeout(onComplete, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [onComplete]);
 
   return (
     <div className={cn("flex flex-col items-center justify-center overflow-hidden", containerSizes[size], className)}>

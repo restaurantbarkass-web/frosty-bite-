@@ -38,13 +38,18 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
         .from('reviews')
         .insert([reviewData]);
       
-      if (sbError) throw sbError;
+      if (sbError) {
+        if (sbError.code === 'PGRST205' || sbError.message?.includes('not found')) {
+          throw new Error('The reviews system is currently undergoing maintenance. Please try again later.');
+        }
+        throw sbError;
+      }
 
       setSubmitted(true);
       setTimeout(onSuccess, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting review:', error);
-      alert('Failed to submit review. Please try again.');
+      alert(error.message || 'Failed to submit review. Please try again.');
     } finally {
       setSubmitting(false);
     }

@@ -451,9 +451,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success('Changes saved!', { id: loadingToast });
     } catch (error: any) {
       console.error('Edit submit error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${editingOrder.id}`);
-      }
       toast.error(error.message || 'Failed to save', { id: loadingToast });
     }
   };
@@ -472,9 +469,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success('Order deleted', { id: loadingToast });
     } catch (error: any) {
       console.error('Delete error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.DELETE, `orders/${id}`);
-      }
       toast.error(error.message || 'Failed to delete', { id: loadingToast });
     }
   };
@@ -517,9 +511,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success(`Assigned to ${rider.name}`, { id: loadingToast });
     } catch (error: any) {
       console.error('Assign rider error:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${orderId}`);
-      }
       toast.error(error.message || 'Assignment failed', { id: loadingToast });
     }
   };

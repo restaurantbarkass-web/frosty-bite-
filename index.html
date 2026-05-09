@@ -14,22 +14,6 @@
     <link rel="icon" href="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" />
     <title>Frosty Bite</title>
     <meta name="description" content="Artisan bakery and frosty treats">
-    <script>
-      console.log('Index script starting');
-      window.addEventListener('error', (e) => {
-        console.error('GLOBAL ERROR:', e);
-      });
-
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered: ', registration);
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

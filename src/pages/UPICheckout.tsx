@@ -193,9 +193,6 @@ export const UPICheckout: React.FC = () => {
       toast.success('Payment Submitted for Verification! 🍰');
     } catch (error: any) {
       console.error('Verification failed:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `orders/${state!.orderId}`);
-      }
       toast.error('Verification failed. Please check UTR.');
     } finally {
       setIsVerifying(false);

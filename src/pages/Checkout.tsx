@@ -415,9 +415,6 @@ export const Checkout: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Order failed:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.CREATE, 'orders');
-      }
       toast.error('Failed to place order. Please try again.');
     } finally {
       setIsOrdering(false);

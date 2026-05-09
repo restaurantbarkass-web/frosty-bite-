@@ -2,12 +2,14 @@ export interface FoodItem {
   id: string;
   name: string;
   description: string;
+  ai_description?: string; // AI-optimized description for better matching
   price: number;
   rating: number;
   image: string;
   category: string;
   stock_quantity: number;
   is_recommended?: boolean;
+  is_ai_boosted?: boolean; // Boosted by admin for AI recommendations
   available?: boolean;
   tags?: string[];
   barcode?: string;

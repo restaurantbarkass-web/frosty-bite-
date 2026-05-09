@@ -66,19 +66,30 @@ const Signup: React.FC = () => {
     }
   };
 
+  const handleGoogleSignup = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      await authService.loginWithGoogle();
+      setSuccess('Account created with Google!');
+      setTimeout(() => navigate('/'), 2000);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Google sign-up failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#050505]">
       {/* Background Video */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
+        <img 
+          src="https://images.unsplash.com/photo-1549590143-d5855148a9d5?auto=format&fit=crop&q=80&w=2000" 
+          alt="Bakery Background" 
           className="w-full h-full object-cover opacity-40 blur-[2px] scale-105"
-        >
-          <source src="https://www.pexels.com/download/video/16664748/" type="video/mp4" />
-        </video>
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/90" />
       </div>
 
@@ -175,6 +186,26 @@ const Signup: React.FC = () => {
             </motion.div>
           ) : (
             <>
+               {/* Google Sign-up Button */}
+               <button
+                type="button"
+                onClick={handleGoogleSignup}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-bold transition-all mb-6 disabled:opacity-50"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                <span className="text-sm font-black uppercase tracking-widest">Continue with Google</span>
+              </button>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10"></div>
+                </div>
+                <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest">
+                  <span className="bg-[#0c0c0c] px-4 text-gray-500">Or continue with</span>
+                </div>
+              </div>
+
               {/* Method Toggle */}
               <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
                 <button 

@@ -14,6 +14,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isRider: boolean;
   isCustomer: boolean;
+  auth: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,19 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const timeoutId = setTimeout(() => {
       setLoading(false);
     }, 8000);
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      
-      if (currentUser) {
-        // Parallel sync
-        syncUserWithSupabase(currentUser);
-        fetchRole(currentUser);
-      } else {
-        setRole('customer');
-        setLoading(false);
-      }
-    });
 
     const syncUserWithSupabase = async (firebaseUser: User) => {
       try {
@@ -84,6 +72,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     };
 
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      
+      if (currentUser) {
+        // Parallel sync
+        syncUserWithSupabase(currentUser);
+        fetchRole(currentUser);
+      } else {
+        setRole('customer');
+        setLoading(false);
+      }
+    });
+
     return () => {
       unsubscribe();
       clearTimeout(timeoutId);
@@ -94,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     role,
     loading,
+    auth,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isRider: role === 'rider' || (!!user?.email && RIDER_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',

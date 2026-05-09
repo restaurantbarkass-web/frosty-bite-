@@ -1,6 +1,6 @@
 {
   "name": "Frosty Bite",
-  "description": "Artisan bakery and frosty treats",
+  "description": "Artisan bakery and frosty treats with smart AI recommendations and real-time order tracking.",
   "requestFramePermissions": [
     "geolocation",
     "camera",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FoodItem } from '../types';
-import { searchService, AiRecommendationResponse } from '../services/searchService';
+import { searchService } from '../services/searchService';
 import { useAuth } from '../context/AuthContext';
 
 export const useSearch = (allItems: FoodItem[]) => {
@@ -11,7 +11,7 @@ export const useSearch = (allItems: FoodItem[]) => {
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
-  const [smartRec, setSmartRec] = useState<AiRecommendationResponse | null>(null);
+  const [smartRec, setSmartRec] = useState<any>(null);
   const [isProcessingRec, setIsProcessingRec] = useState(false);
 
   // Load recent searches from localStorage

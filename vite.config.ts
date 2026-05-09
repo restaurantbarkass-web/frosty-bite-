@@ -6,30 +6,18 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
-    base: '/',
-    resolve: {
-      dedupe: ['react', 'react-dom']
-    },
-    optimizeDeps: {
-      include: ['react-leaflet', 'leaflet']
-    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ""),
     },
     build: {
       outDir: 'dist',
       emptyOutDir: true,
-      sourcemap: false
     },
     server: {
+      host: true,
       port: 3000,
-      host: '0.0.0.0',
-      allowedHosts: true,
+      strictPort: true,
       hmr: false,
-      cors: true,
-      fs: {
-        allow: ['..']
-      }
     },
   };
 });

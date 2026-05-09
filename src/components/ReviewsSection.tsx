@@ -25,7 +25,13 @@ export const ReviewsSection: React.FC = () => {
           .order('created_at', { ascending: false })
           .limit(6);
         
-        if (error) throw error;
+        if (error) {
+          // Silently handle "table not found" error during potential schema transitions
+          if (error.code === 'PGRST205' || error.message?.includes('not found')) {
+            return;
+          }
+          throw error;
+        }
         if (data && data.length > 0) {
           setReviews(data);
           localStorage.setItem('reviews_cache', JSON.stringify({ data, timestamp: Date.now() }));
