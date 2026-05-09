@@ -1,9 +1,12 @@
 {
   "name": "Frosty Bite",
   "short_name": "Frosty",
+  "id": "/",
   "description": "Luxury Bakery Concierge",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0a0a0a",
   "theme_color": "#ff0055",
   "icons": [

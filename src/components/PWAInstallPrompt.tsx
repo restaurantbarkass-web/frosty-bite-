@@ -19,15 +19,17 @@ export const PWAInstallPrompt: React.FC = () => {
       .then(data => setAnimationData(data))
       .catch(err => console.error("Lottie fetch error:", err));
 
-    const standalone = window.matchMedia('(display-mode: standalone)').matches ||
-                     (window.navigator as any).standalone === true;
+    const checkStandalone = () => {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             (window.navigator as any).standalone === true;
+    };
     
-    setIsStandalone(standalone);
+    setIsStandalone(checkStandalone());
 
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      if (!standalone) setIsVisible(true);
+      if (!checkStandalone()) setIsVisible(true);
     };
 
     const handleAppInstalled = () => {
@@ -49,7 +51,7 @@ export const PWAInstallPrompt: React.FC = () => {
     if (navigator.vibrate) navigator.vibrate(20);
 
     if (isStandalone) {
-      window.location.href = "/";
+      window.location.reload();
       return;
     }
 
@@ -63,42 +65,55 @@ export const PWAInstallPrompt: React.FC = () => {
       }
       setDeferredPrompt(null);
     } else {
-      alert("Install option not available yet. On iOS, use Share > Add to Home Screen.");
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        alert("To install: Tap Share then 'Add to Home Screen' (on Safari).");
+      } else {
+        alert("Install option not available yet. Please interact with the site more or check browser settings.");
+      }
     }
   };
 
-  if (!isVisible) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 30, x: '-50%' }}
-        animate={{ opacity: 1, y: 0, x: '-50%' }}
-        exit={{ opacity: 0, y: 30, x: '-50%' }}
-        className="fixed bottom-6 left-1/2 z-[9999]"
-      >
-        <button
-          onClick={handleInstallClick}
-          className={`
-            flex items-center gap-3 px-6 py-3.5 rounded-full font-semibold text-white shadow-2xl transition-all active:scale-95
-            backdrop-blur-xl border border-white/10
-            ${isInstalledState 
-              ? 'bg-gradient-to-r from-green-500 to-emerald-400 shadow-green-500/20' 
-              : 'bg-white/10 shadow-black/20 hover:scale-105'
-            }
-          `}
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, x: '-50%' }}
+          animate={{ opacity: 1, y: 0, x: '-50%' }}
+          exit={{ opacity: 0, y: 50, x: '-50%' }}
+          className="fixed bottom-24 md:bottom-10 left-1/2 z-[10000]"
         >
-          {animationData && !isInstalledState && (
-            <div className="w-10 h-10 -ml-2">
-              <Lottie animationData={animationData} loop={true} />
-            </div>
-          )}
-          
-          <span className="whitespace-nowrap text-base tracking-tight">
-            {isInstalledState ? 'Installed ✅' : (isStandalone ? 'Open App' : 'Install App')}
-          </span>
-        </button>
-      </motion.div>
+          <button
+            onClick={handleInstallClick}
+            className={`
+              flex items-center gap-4 px-8 py-4 rounded-full font-black text-white shadow-2xl transition-all active:scale-95
+              backdrop-blur-2xl border border-white/10 group
+              ${isInstalledState 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-400 shadow-green-500/30' 
+                : 'bg-black/40 shadow-black/40 hover:scale-105 hover:bg-black/60'
+              }
+            `}
+          >
+            {animationData && !isInstalledState && (
+              <div className="w-10 h-10 -ml-2 group-hover:scale-110 transition-transform">
+                <Lottie animationData={animationData} loop={true} />
+              </div>
+            )}
+            
+            <span className="whitespace-nowrap text-sm tracking-[0.15em] uppercase italic">
+              {isInstalledState ? 'Installed ✅' : (isStandalone ? 'Open App' : 'Get the App')}
+            </span>
+
+            {!isInstalledState && !isStandalone && (
+                <div className="flex gap-1 items-center opacity-40 group-hover:opacity-100 transition-opacity">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse delay-75" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse delay-150" />
+                </div>
+            )}
+          </button>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };
