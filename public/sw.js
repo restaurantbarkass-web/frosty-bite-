@@ -1,15 +1,29 @@
-const CACHE_NAME = 'frosty-v1';
+const CACHE_NAME = 'frosty-bite-v2';
 
 self.addEventListener('install', (event) => {
-  console.log('SW Installed');
-
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('SW Activated');
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      )
+    )
+  );
 
-  event.waitUntil(clients.claim());
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', () => {});
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
+  );
+});
