@@ -58,9 +58,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center text-primary mx-auto mb-8">
               <RefreshCcw size={40} />
             </div>
-            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Bake Interrupted</h2>
+            <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Bite Interrupted</h2>
             <p className="text-zinc-500 font-medium mb-10 leading-relaxed px-4">
-              {errorMessage}
+              We're polishing the frosting. {errorMessage}
             </p>
             <div className="flex flex-col gap-4">
               <Button onClick={this.handleReset} className="w-full py-4 flex items-center justify-center gap-3">

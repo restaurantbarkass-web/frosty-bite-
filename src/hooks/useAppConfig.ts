@@ -6,11 +6,25 @@ export const useAppConfig = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = appConfigService.subscribeToConfig((data) => {
-      setConfig(data);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
+    let mounted = true;
+    let unsubscribe: (() => void) | null = null;
+    
+    try {
+      unsubscribe = appConfigService.subscribeToConfig((data) => {
+        if (mounted) {
+          setConfig(data);
+          setIsLoading(false);
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to subscribe to app config:', err);
+      if (mounted) setIsLoading(false);
+    }
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   return { 

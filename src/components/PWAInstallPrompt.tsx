@@ -1,51 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Lottie from 'lottie-react';
+import { usePWA } from '../hooks/usePWA';
 
 // Using a similar animation to the one requested
 const INSTALL_ANIM_URL = "https://assets2.lottiefiles.com/packages/lf20_myejiggj.json";
 
 export const PWAInstallPrompt: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { install, isStandalone, isInstallable } = usePWA();
   const [isVisible, setIsVisible] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [isInstalledState, setIsInstalledState] = useState(false);
   const [animationData, setAnimationData] = useState<any>(null);
 
   useEffect(() => {
-    // Fetch animation data
-    fetch(INSTALL_ANIM_URL)
-      .then(res => res.json())
-      .then(data => setAnimationData(data))
-      .catch(err => console.error("Lottie fetch error:", err));
-
-    const checkStandalone = () => {
-      return window.matchMedia('(display-mode: standalone)').matches ||
-             (window.navigator as any).standalone === true;
+    // Fetch animation data with error handling
+    const fetchAnim = async () => {
+      try {
+        const res = await fetch(INSTALL_ANIM_URL);
+        if (!res.ok) throw new Error('Failed to fetch Lottie');
+        const data = await res.json();
+        setAnimationData(data);
+      } catch (err) {
+        console.warn("Lottie fetch error:", err);
+      }
     };
-    
-    setIsStandalone(checkStandalone());
+    fetchAnim();
 
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      if (!checkStandalone()) setIsVisible(true);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalledState(true);
-      setTimeout(() => setIsVisible(false), 2000);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
+    // Show prompt after a delay if installable and not standalone
+    if (isInstallable && !isStandalone) {
+      const timer = setTimeout(() => setIsVisible(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isInstallable, isStandalone]);
 
   const handleInstallClick = async () => {
     if (navigator.vibrate) navigator.vibrate(20);
@@ -55,28 +41,25 @@ export const PWAInstallPrompt: React.FC = () => {
       return;
     }
 
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-
-      if (outcome === 'accepted') {
-        setIsInstalledState(true);
-        setTimeout(() => setIsVisible(false), 2000);
-      }
-      setDeferredPrompt(null);
-    } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      if (isIOS) {
-        alert("To install: Tap Share then 'Add to Home Screen' (on Safari).");
-      } else {
-        alert("Install option not available yet. Please interact with the site more or check browser settings.");
-      }
-    }
+    await install();
+    // If we're successful, the hook state will update or we can assume success if no error
   };
+
+  // Listen for appinstalled globally to show success state in the button
+  useEffect(() => {
+    const handleInstalled = () => {
+      setIsInstalledState(true);
+      setTimeout(() => setIsVisible(false), 2000);
+    };
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => window.removeEventListener('appinstalled', handleInstalled);
+  }, []);
+
+  if (!isVisible && !isInstalledState) return null;
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {(isVisible || isInstalledState) && (
         <motion.div
           initial={{ opacity: 0, y: 50, x: '-50%' }}
           animate={{ opacity: 1, y: 0, x: '-50%' }}

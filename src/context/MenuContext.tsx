@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { db } from '../firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
 
@@ -13,14 +16,45 @@ interface MenuContextType {
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
 
 export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<FoodItem[]>([]);
+  const [items, setItems] = useState<FoodItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('menu_cache');
+      return cached ? JSON.parse(cached) : MENU_ITEMS;
+    } catch {
+      return MENU_ITEMS;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchMenu = async () => {
     setLoading(true);
     try {
+      // 1. Try Firestore First
+      try {
+        const menuDocs = await safeFirestore.getCollection<any>(
+          collection(db, 'menu'),
+          'menu_list',
+          'menu'
+        );
+        if (menuDocs && menuDocs.length > 0) {
+          const mapped = menuDocs.map((item: any) => ({
+            ...item,
+            id: item.id || item.uid || Math.random().toString(36).substr(2, 9),
+            category: item.category || 'General',
+            available: item.available ?? true,
+            stock_quantity: item.stock_quantity ?? 0,
+          }));
+          setItems(mapped as FoodItem[]);
+          localStorage.setItem('menu_cache', JSON.stringify(mapped));
+          setLoading(false);
+          return;
+        }
+      } catch (fErr) {
+        console.warn('Firestore menu fail:', fErr);
+      }
+
+      // 2. Try Supabase
       const { data, error } = await supabase.from('products').select('*');
-      if (error) throw error;
       
       if (data && data.length > 0) {
         const mapped = data.map((item: any) => ({
@@ -38,17 +72,12 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setItems(mapped);
         localStorage.setItem('menu_cache', JSON.stringify(mapped));
       } else {
-        setItems(MENU_ITEMS);
+        if (error) console.error('Supabase fetch error:', error);
+        if (!items || items.length === 0) setItems(MENU_ITEMS);
       }
     } catch (err) {
-      console.error('Fetch Menu Error:', err);
-      // Fallback to cache if exists
-      const cached = localStorage.getItem('menu_cache');
-      if (cached) {
-        setItems(JSON.parse(cached));
-      } else {
-        setItems(MENU_ITEMS);
-      }
+      console.error('All menu sources failed:', err);
+      if (!items || items.length === 0) setItems(MENU_ITEMS);
     } finally {
       setLoading(false);
     }

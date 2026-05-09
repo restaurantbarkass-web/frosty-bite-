@@ -1,6 +1,14 @@
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getApiKey = () => {
+  try {
+    return process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  } catch (e) {
+    return (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 const MAX_RETRIES = 3;
 const INITIAL_DELAY = 1000; // 1 second

@@ -13,6 +13,7 @@ import { Order, FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
 import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
+import { usePWA } from '../hooks/usePWA';
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
@@ -22,6 +23,7 @@ export const Profile: React.FC = () => {
   const [wishlist, setWishlist] = useState<FoodItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { install, isStandalone, isInstallable } = usePWA();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist'>('personal');
   const [formData, setFormData] = useState({
@@ -640,29 +642,29 @@ export const Profile: React.FC = () => {
               className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-6">
+                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-8 mt-4">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
+                    <h3 className="text-5xl font-black text-white tracking-tighter leading-none">Account<br />Center</h3>
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] mt-4">Manage Control Panel</p>
                   </div>
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                    className="w-16 h-16 rounded-[2rem] bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all hover:bg-white/10"
                   >
-                    <X size={24} />
+                    <X size={28} />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 scrollbar-hide pb-32 md:pb-6">
+                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-12 scrollbar-hide pb-32 md:pb-6">
                 
-                {/* Notifications Section skipped */}
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
+                {/* Notifications Section */}
+                <div className="space-y-8">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Notification Preferences</h4>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div>
-                        <p className="text-sm font-bold text-white">Order Status Updates</p>
-                        <p className="text-[10px] text-zinc-500">Real-time alerts for your orders</p>
+                    <div className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
+                      <div className="space-y-1">
+                        <p className="text-lg font-black text-white leading-tight">Order Status Updates</p>
+                        <p className="text-xs text-zinc-500 font-medium">Real-time alerts for your orders</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -670,21 +672,21 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, orderUpdates: !settingsData.notifications.orderUpdates }
                         })}
                         className={cn(
-                          "w-12 h-6 rounded-full transition-all relative",
+                          "w-14 h-8 rounded-full transition-all relative",
                           settingsData.notifications.orderUpdates ? "bg-primary" : "bg-zinc-800"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          "absolute top-1 w-6 h-6 rounded-full bg-white shadow-lg transition-all",
                           settingsData.notifications.orderUpdates ? "right-1" : "left-1"
                         )} />
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div>
-                        <p className="text-sm font-bold text-white">Promotional Offers</p>
-                        <p className="text-[10px] text-zinc-500">New discounts and seasonal treats</p>
+                    <div className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
+                      <div className="space-y-1">
+                        <p className="text-lg font-black text-white leading-tight">Promotional Offers</p>
+                        <p className="text-xs text-zinc-500 font-medium">New discounts and seasonal treats</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -692,12 +694,12 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, promotions: !settingsData.notifications.promotions }
                         })}
                         className={cn(
-                          "w-12 h-6 rounded-full transition-all relative",
+                          "w-14 h-8 rounded-full transition-all relative",
                           settingsData.notifications.promotions ? "bg-primary" : "bg-zinc-800"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          "absolute top-1 w-6 h-6 rounded-full bg-white shadow-lg transition-all",
                           settingsData.notifications.promotions ? "right-1" : "left-1"
                         )} />
                       </button>
@@ -706,26 +708,54 @@ export const Profile: React.FC = () => {
                 </div>
 
                 {/* Data Section */}
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Data & Portability</h4>
+                <div className="space-y-8">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Data & Portability</h4>
                   <div className="flex flex-col gap-4">
                     <button 
                       onClick={handleExportData}
-                      className="w-full flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors group"
+                      className="w-full flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5 hover:bg-white/10 transition-all group"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                          <ShoppingBag size={20} />
+                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                          <ShoppingBag size={24} />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm font-bold text-white">Export Order History</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Download as JSON</p>
+                          <p className="text-lg font-black text-white">Export Order History</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black mt-0.5">Download as JSON</p>
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <ChevronRight size={20} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
                     </button>
                   </div>
                 </div>
+
+                {/* App Installation Section - Only show if not installed */}
+                {!isStandalone && (
+                  <div className="space-y-8">
+                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">App Experience</h4>
+                    <button 
+                      onClick={install}
+                      className="w-full flex items-center justify-between p-6 bg-primary/10 rounded-3xl border border-primary/20 hover:bg-primary/20 transition-all group active:scale-[0.98]"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white">
+                          <Smartphone size={24} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-lg font-black text-white">Install Frosty Bite</p>
+                          <p className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-black mt-0.5">Faster access & offline mode</p>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
+                        isInstallable ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-zinc-800 text-zinc-500"
+                      )}>
+                        {isInstallable ? 'Ready' : 'Wait...'}
+                        <ChevronRight size={14} />
+                      </div>
+                    </button>
+                  </div>
+                )}
 
                 {/* Danger Zone */}
                 <div className="space-y-6 pt-4">
@@ -740,12 +770,12 @@ export const Profile: React.FC = () => {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+                <div className="sticky bottom-0 left-0 right-0 p-8 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-[#0a0a0a]/90 backdrop-blur-3xl border-t border-white/5 flex gap-4 shrink-0">
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-full py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95"
+                    className="w-full py-6 rounded-[2.5rem] bg-white/10 text-white font-black uppercase text-sm tracking-[0.4em] hover:bg-white/15 transition-all active:scale-[0.96] shadow-2xl border border-white/5"
                   >
-                    Done
+                    DONE
                   </button>
                 </div>
               </div>
