@@ -358,9 +358,25 @@ export const Profile: React.FC = () => {
     { label: 'Orders', value: recentOrders.length, icon: ShoppingBag, color: 'text-blue-400' },
     { label: 'Favorites', value: wishlist.length, icon: Heart, color: 'text-pink-500' },
     { label: 'Rewards', value: userData?.points || 0, icon: Gift, color: 'text-primary' },
-    { label: 'Wallet', value: '₹450', icon: Wallet, color: 'text-emerald-400' },
+    { label: 'Wallet', value: `₹${userData?.wallet_balance || 0}`, icon: Wallet, color: 'text-emerald-400' },
     { label: 'Experience', value: `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: Zap, color: 'text-yellow-400' },
   ], [recentOrders, wishlist, userData]);
+
+  const handleAddFunds = async () => {
+    if (!authUser) return;
+    try {
+      const userDocRef = doc(db, 'users', authUser.uid);
+      const currentBalance = userData?.wallet_balance || 0;
+      await updateDoc(userDocRef, {
+        wallet_balance: currentBalance + 500,
+        updated_at: new Date().toISOString()
+      });
+      toast.success('₹500 added to your wallet!');
+    } catch (error: any) {
+      console.error('Error adding funds:', error);
+      toast.error('Failed to add funds');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -724,8 +740,8 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-8">
-              <SmartActionCard label="Account Settings" icon={Settings} onClick={() => setIsSettingsOpen(true)} />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+              <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-primary/5 group-hover:bg-primary/10" />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
               <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />

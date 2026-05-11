@@ -64,6 +64,7 @@ service cloud.firestore {
              (!('phone' in data) || (data.phone is string && data.phone.size() <= 20)) &&
              (!('address' in data) || (data.address is string && data.address.size() <= 500)) &&
              (!('points' in data) || (data.points is number && data.points >= 0)) &&
+             (!('wallet_balance' in data) || (data.wallet_balance is number && data.wallet_balance >= 0)) &&
              (data.updated_at == request.time);
     }
 
@@ -158,7 +159,7 @@ service cloud.firestore {
         incoming().role == 'customer' || isAdmin()
       );
       allow update: if (isOwner(userId) || isAdmin()) && (
-        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings'])) ||
+        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance'])) ||
         isAdmin()
       ) && isValidUser(incoming());
     }
