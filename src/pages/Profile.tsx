@@ -28,7 +28,10 @@ import { useMenu } from '../context/MenuContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
-import Lenis from '@studio-freight/lenis';
+
+import { rewardsService, BadgeConfig } from '../services/rewardsService';
+import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
+import { LogOut as LucideLogOut } from 'lucide-react';
 
 // --- STYLIZED COMPONENTS ---
 
@@ -160,9 +163,24 @@ export const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist' | 'rewards'>('personal');
   const { install, isStandalone, isInstallable } = usePWA();
   const [aiRec, setAiRec] = useState<{ recommendation: AiRecommendationResponse, item: FoodItem } | null>(null);
+
+  const [badgeConfigs, setBadgeConfigs] = useState<BadgeConfig[]>([]);
+  const [gifts, setGifts] = useState<any[]>([]);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [newTierName, setNewTierName] = useState('');
+  const [prevTier, setPrevTier] = useState('');
+  
+  const currentTierConfig = useMemo(() => {
+    return badgeConfigs.find(c => c.tierName === userData?.badge_tier) || {
+      tierName: userData?.badge_tier || 'Foodie Starter',
+      themeColor: '#F97316',
+      badgeIcon: 'Crown',
+      benefits: ['Standard Support', 'Fresh Bakery Access']
+    };
+  }, [userData?.badge_tier, badgeConfigs]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -202,28 +220,6 @@ export const Profile: React.FC = () => {
     if (hour < 18) return 'from-blue-400/20 via-cyan-400/5 to-transparent';
     return 'from-purple-600/30 via-indigo-900/10 to-transparent';
   }, [theme]);
-
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      touchMultiplier: 2,
-      infinite: false,
-    });
-
-    let rafId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    }
-    rafId = requestAnimationFrame(raf);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      lenis.destroy();
-    };
-  }, []);
 
   useEffect(() => {
     if (!authUser) return;
@@ -266,6 +262,10 @@ export const Profile: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        // Fetch badge configs
+        const configs = await rewardsService.getBadgeConfigs();
+        setBadgeConfigs(configs);
+
         // User data
         const userDataObj = await safeFirestore.get<any>(doc(db, 'users', authUser.uid));
         
@@ -296,6 +296,10 @@ export const Profile: React.FC = () => {
         const wishlistItems = await getUserWishlist(authUser.uid);
         setWishlist(wishlistItems || []);
 
+        // Rewards gifts
+        const availableGifts = await rewardsService.getGifts();
+        setGifts(availableGifts);
+
         if (menuItems.length > 0) {
           const queryText = "Best celebratory dessert for a premium member";
           const rec = await searchService.getSmartRecommendation(queryText, menuItems);
@@ -316,6 +320,13 @@ export const Profile: React.FC = () => {
     // Real-time subscriptions
     const unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', authUser.uid), (data) => {
       if (data) {
+        // Check for tier upgrade
+        if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
+          setNewTierName(data.badge_tier);
+          setPrevTier(userData.badge_tier);
+          setShowUnlockModal(true);
+        }
+
         setUserData(data);
         setFormData({
           name: data.full_name || '',
@@ -345,22 +356,36 @@ export const Profile: React.FC = () => {
   }, [authUser, menuItems]);
 
   const loyaltyStats = useMemo(() => {
-    const orderCount = recentOrders.length;
     const points = userData?.points || 0;
-    const nextTier = points >= 1000 ? 'Platinum' : 'Gold';
-    const progress = Math.min(100, (points / 1000) * 100);
-    const ordersLeft = Math.max(0, 5 - orderCount);
+    const totalOrders = userData?.total_orders || 0;
+    const spend = userData?.lifetime_spend || 0;
     
-    return { progress, nextTier, ordersLeft };
-  }, [recentOrders, userData]);
+    // Find next tier
+    const nextTierConfig = badgeConfigs.find(c => {
+      const currentPriority = badgeConfigs.find(curr => curr.tierName === (userData?.badge_tier || 'Foodie Starter'))?.priority || 0;
+      return c.priority > currentPriority;
+    });
+
+    const progress = nextTierConfig ? Math.min(100, Math.max(
+      (totalOrders / nextTierConfig.minOrders) * 100,
+      (spend / nextTierConfig.minSpend) * 100
+    )) : 100;
+    
+    return { 
+      progress, 
+      nextTier: nextTierConfig?.tierName || 'Elite', 
+      ordersLeft: nextTierConfig ? Math.max(0, nextTierConfig.minOrders - totalOrders) : 0,
+      spendLeft: nextTierConfig ? Math.max(0, nextTierConfig.minSpend - spend) : 0
+    };
+  }, [recentOrders, userData, badgeConfigs]);
 
   const stats = useMemo(() => [
-    { label: 'Orders', value: recentOrders.length, icon: ShoppingBag, color: 'text-blue-400' },
+    { label: 'Orders', value: userData?.total_orders || 0, icon: ShoppingBag, color: 'text-blue-400' },
     { label: 'Favorites', value: wishlist.length, icon: Heart, color: 'text-pink-500' },
     { label: 'Rewards', value: userData?.points || 0, icon: Gift, color: 'text-primary' },
     { label: 'Wallet', value: `₹${userData?.wallet_balance || 0}`, icon: Wallet, color: 'text-emerald-400' },
     { label: 'Experience', value: `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: Zap, color: 'text-yellow-400' },
-  ], [recentOrders, wishlist, userData]);
+  ], [wishlist, userData]);
 
   const handleAddFunds = async () => {
     if (!authUser) return;
@@ -462,6 +487,19 @@ export const Profile: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleClaimGift = async (giftId: string) => {
+    if (!authUser) return;
+    const loadingToast = toast.loading('Claiming reward...');
+    try {
+      const success = await rewardsService.claimGift(authUser.uid, giftId);
+      if (success) {
+        toast.success('Reward claimed! Check your email for details.', { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error('Failed to claim reward', { id: loadingToast });
+    }
+  };
+
   const handleDeleteAccount = async () => {
     if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
       try {
@@ -548,7 +586,7 @@ export const Profile: React.FC = () => {
             className="mt-8 md:mt-12 space-y-4 md:space-y-6 w-full max-w-4xl"
           >
             <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 mb-2 md:mb-4">
-              <PremiumBadge text="Elite Member" icon={Crown} color="bg-primary/20 text-primary border-primary/20" />
+              <PremiumBadge text={userData?.badge_tier || 'Foodie Starter'} icon={Crown} color="bg-primary/20 text-primary border-primary/20" />
               <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-500 border-emerald-500/10" />
             </div>
             
@@ -586,12 +624,12 @@ export const Profile: React.FC = () => {
               viewport={{ once: true }}
               className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 relative overflow-hidden"
             >
-              <div className="relative z-10 flex flex-col items-center text-center sm:text-left">
+              <div className="relative z-10 flex flex-col items-center">
                 <div className="w-full flex justify-between items-center mb-6 md:mb-8">
                   <h3 className="text-lg md:text-xl font-black text-white tracking-tight italic">LOYALTY ENGINE</h3>
                   <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
                     <TrendingUp size={12} className="text-primary" />
-                    <span className="text-[9px] md:text-[10px] font-black text-primary uppercase">Tier: Gold</span>
+                    <span className="text-[9px] md:text-[10px] font-black text-primary uppercase">Tier: {userData?.badge_tier || 'Starter'}</span>
                   </div>
                 </div>
 
@@ -609,8 +647,10 @@ export const Profile: React.FC = () => {
                       whileInView={{ width: `${loyaltyStats.progress}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-zinc-400 font-bold leading-relaxed">
-                    Complete <span className="text-white italic">{loyaltyStats.ordersLeft} more orders</span> to unlock Platinum benefits including free midnight deliveries.
+                  <p className="text-[10px] text-zinc-400 font-bold leading-relaxed px-1">
+                    {loyaltyStats.ordersLeft > 0 
+                      ? `Complete ${loyaltyStats.ordersLeft} more orders to unlock ${loyaltyStats.nextTier} benefits.`
+                      : `You've reached the ${userData?.badge_tier} tier! Keep ordering for maximum rewards.`}
                   </p>
                 </div>
               </div>
@@ -647,7 +687,7 @@ export const Profile: React.FC = () => {
           {/* Right Column: Dynamic Content Tabs */}
           <div className="lg:col-span-8 space-y-8">
             <div className="flex p-1.5 md:p-2 bg-black/80 border border-white/10 rounded-full sticky top-4 z-40 backdrop-blur-xl mx-4 lg:mx-0">
-              {(['personal', 'orders', 'wishlist'] as const).map((tab) => (
+              {(['personal', 'orders', 'wishlist', 'rewards'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -829,7 +869,7 @@ export const Profile: React.FC = () => {
               ))
             )}
           </motion.div>
-        ) : (
+        ) : activeTab === 'wishlist' ? (
           <motion.div 
             key="wishlist"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -863,6 +903,115 @@ export const Profile: React.FC = () => {
                 {wishlist.map((item) => (
                   <FoodCard key={item.id} item={item} />
                 ))}
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="rewards"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-8"
+          >
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-3xl font-black text-white tracking-tighter italic uppercase">REWARDS STORE</h3>
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Exclusive Tier-Based Perks</p>
+                </div>
+                <div className="px-6 py-3 bg-primary/10 rounded-full border border-primary/20 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Award size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.15em] leading-none mb-1">Your Balance</p>
+                    <p className="text-lg font-black text-white leading-none tabular-nums">{userData?.points || 0} PTS</p>
+                  </div>
+                </div>
+              </div>
+
+            {gifts.length === 0 ? (
+              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
+                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700 animate-pulse">
+                  <Gift size={48} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">NO REWARDS AVAILABLE</h3>
+                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">Check back later for exclusive member benefits.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {gifts.map((gift) => {
+                  const requiredPriority = badgeConfigs.find(c => c.tierName === gift.requiredTier)?.priority || 0;
+                  const userPriority = badgeConfigs.find(c => c.tierName === userData?.badge_tier)?.priority || 0;
+                  const isLocked = userPriority < requiredPriority;
+                  const canAfford = (userData?.points || 0) >= (gift.costPoints || 0);
+                  const isClaimed = userData?.claimedGifts?.some((g: any) => g.giftId === gift.id);
+
+                  return (
+                    <motion.div
+                      key={gift.id}
+                      className={cn(
+                        "glass-dark rounded-[2.5rem] border border-white/5 p-6 md:p-8 flex items-center gap-6 group transition-all relative overflow-hidden",
+                        isLocked && "opacity-50 grayscale pointer-events-none"
+                      )}
+                    >
+                      <div className="shrink-0 w-24 h-24 rounded-3xl overflow-hidden border border-white/10 relative">
+                        <img src={gift.image} alt={gift.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        {isLocked && (
+                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
+                            <Shield size={32} className="text-white/40" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 space-y-3 min-w-0">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
+                              isLocked ? "bg-zinc-800 text-zinc-500 border-zinc-700" : "bg-primary/20 text-primary border-primary/20"
+                            )}>
+                              {gift.requiredTier} Only
+                            </span>
+                            {isClaimed && (
+                               <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                                 <CheckCircle size={10} /> Claimed
+                               </span>
+                            )}
+                          </div>
+                          <h4 className="text-xl font-black text-white tracking-tight uppercase italic truncate">{gift.title}</h4>
+                          <p className="text-[10px] text-zinc-500 font-bold line-clamp-2 mt-1">{gift.description}</p>
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-4 pt-2">
+                           <div className="flex flex-col">
+                             <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Investment</span>
+                             <span className="text-lg font-black text-white tabular-nums tracking-tight">{gift.costPoints || 0} PTS</span>
+                           </div>
+                           <Button 
+                             onClick={() => handleClaimGift(gift.id)}
+                             disabled={isLocked || !canAfford || gift.stock <= 0}
+                             variant={isLocked ? "outline" : canAfford ? "primary" : "ghost"}
+                             size="sm"
+                             className="rounded-2xl px-6 h-12"
+                           >
+                             {isLocked ? 'Locked' : gift.stock <= 0 ? 'Out of Stock' : canAfford ? 'Claim Reward' : 'Points Needed'}
+                           </Button>
+                        </div>
+                      </div>
+
+                      {isLocked && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                           <div className="bg-black/60 border border-white/10 px-6 py-2 rounded-full transform -rotate-12">
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest">Locked: Upgrade to {gift.requiredTier}</span>
+                           </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -1089,6 +1238,13 @@ export const Profile: React.FC = () => {
       </AnimatePresence>
 
       {/* ThemeSettingsPanel removed */}
+      
+      <BadgeUnlockModal 
+        isOpen={showUnlockModal}
+        onClose={() => setShowUnlockModal(false)}
+        tierName={newTierName}
+        themeColor={badgeConfigs.find(c => c.tierName === newTierName)?.themeColor}
+      />
     </div>
   );
 };

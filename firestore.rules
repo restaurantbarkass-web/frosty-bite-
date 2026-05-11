@@ -65,6 +65,13 @@ service cloud.firestore {
              (!('address' in data) || (data.address is string && data.address.size() <= 500)) &&
              (!('points' in data) || (data.points is number && data.points >= 0)) &&
              (!('wallet_balance' in data) || (data.wallet_balance is number && data.wallet_balance >= 0)) &&
+             (!('badge_tier' in data) || (data.badge_tier is string && data.badge_tier.size() <= 50)) &&
+             (!('total_orders' in data) || (data.total_orders is number && data.total_orders >= 0)) &&
+             (!('lifetime_spend' in data) || (data.lifetime_spend is number && data.lifetime_spend >= 0)) &&
+             (!('activity_streak' in data) || (data.activity_streak is number && data.activity_streak >= 0)) &&
+             (!('referral_count' in data) || (data.referral_count is number && data.referral_count >= 0)) &&
+             (!('review_count' in data) || (data.review_count is number && data.review_count >= 0)) &&
+             (!('title' in data) || (data.title is string && data.title.size() <= 100)) &&
              (data.updated_at == request.time);
     }
 
@@ -130,6 +137,25 @@ service cloud.firestore {
              (!('link' in data) || (data.link is string && data.link.size() <= 2000));
     }
 
+    function isValidBadgeConfig(data) {
+      return data.keys().hasAll(['tierName', 'minOrders', 'minSpend', 'priority']) &&
+             data.tierName is string && data.tierName.size() <= 100 &&
+             data.minOrders is number &&
+             data.minSpend is number &&
+             data.priority is number &&
+             (!('benefits' in data) || data.benefits is list) &&
+             (!('themeColor' in data) || data.themeColor is string) &&
+             (!('badgeIcon' in data) || data.badgeIcon is string);
+    }
+
+    function isValidGift(data) {
+      return data.keys().hasAll(['title', 'requiredTier', 'stock', 'active']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.requiredTier is string &&
+             data.stock is number &&
+             data.active is bool;
+    }
+
     // -------------------------------------------------------------------------
     // Match Blocks
     // -------------------------------------------------------------------------
@@ -159,7 +185,7 @@ service cloud.firestore {
         incoming().role == 'customer' || isAdmin()
       );
       allow update: if (isOwner(userId) || isAdmin()) && (
-        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance'])) ||
+        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance', 'badge_tier', 'total_orders', 'lifetime_spend', 'activity_streak', 'referral_count', 'review_count', 'title', 'points'])) ||
         isAdmin()
       ) && isValidUser(incoming());
     }
@@ -249,6 +275,17 @@ service cloud.firestore {
         incoming().usage_count == existing().usage_count + 1
       );
       allow create, delete: if isAdmin();
+    }
+
+    // BADGE CONFIGS & GIFTS
+    match /badge_configs/{badgeId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidBadgeConfig(incoming());
+    }
+
+    match /gifts/{giftId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidGift(incoming());
     }
   }
 }

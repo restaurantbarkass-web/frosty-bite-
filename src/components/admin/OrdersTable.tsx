@@ -7,6 +7,7 @@ import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
+import { rewardsService } from '../../services/rewardsService';
 
 import { Order, Rider } from '../../types';
 import { ImageZoom } from '../ImageZoom';
@@ -418,6 +419,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           user_id: order.user_id,
           link: `/order-tracking/${id}`
         });
+
+        // Trigger Rewards Engine on Delivery
+        if (newStatus === 'delivered') {
+          rewardsService.processOrderForRewards(order.user_id, order.total)
+            .then(() => console.log('Rewards processed for order:', id))
+            .catch(err => console.error('Rewards processing failed:', err));
+        }
       }
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });

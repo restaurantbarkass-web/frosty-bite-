@@ -14,7 +14,8 @@ import {
   Users,
   ShieldCheck,
   Truck,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -31,6 +32,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'rewards', label: 'Rewards Engine', icon: Award },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'admins', label: 'Admins', icon: ShieldCheck },
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },

@@ -121,7 +121,16 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20 sm:h-24 gap-4">
-          <Link to="/" className="flex items-center shrink-0 group relative">
+          <Link 
+            to="/" 
+            className="flex items-center shrink-0 group relative"
+            onClick={(e) => {
+              if (location.pathname === '/') {
+                e.preventDefault();
+                window.dispatchEvent(new CustomEvent('scroll-to-top'));
+              }
+            }}
+          >
             <Logo size="md" className="scale-90 sm:scale-100" />
           </Link>
 
@@ -149,7 +158,17 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               
               if ('component' in link && link.component) {
                 return (
-                  <Link key={link.path} to={link.path} className="flex items-center">
+                  <Link 
+                    key={link.path} 
+                    to={link.path} 
+                    onClick={(e) => {
+                      if (location.pathname === link.path) {
+                        e.preventDefault();
+                        window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                      }
+                    }}
+                    className="flex items-center"
+                  >
                     {link.component(isActive)}
                   </Link>
                 );
@@ -159,6 +178,12 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                 <Link
                   key={link.path}
                   to={link.path}
+                  onClick={(e) => {
+                    if (location.pathname === link.path) {
+                      e.preventDefault();
+                      window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                    }
+                  }}
                   className={cn(
                     "text-sm font-medium transition-colors hover:text-primary",
                     isActive ? "text-primary" : "text-muted"
@@ -272,7 +297,13 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                       <Link
                         key={link.path}
                         to={link.path}
-                        onClick={() => setIsMobileMenuOpen(false)}
+                        onClick={(e) => {
+                          setIsMobileMenuOpen(false);
+                          if (location.pathname === link.path) {
+                            e.preventDefault();
+                            window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                          }
+                        }}
                         className={cn(
                           "flex items-center px-3 py-1 rounded-lg",
                           isActive ? "bg-primary/10" : "hover:bg-white/5"
@@ -295,7 +326,13 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                     <Link
                       key={link.path}
                       to={link.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      onClick={(e) => {
+                        setIsMobileMenuOpen(false);
+                        if (location.pathname === link.path) {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                        }
+                      }}
                       className={cn(
                         "flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium",
                         isActive ? "bg-primary/10 text-primary" : "text-muted hover:bg-white/5"

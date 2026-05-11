@@ -20,6 +20,7 @@ import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import Lenis from '@studio-freight/lenis';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
@@ -69,6 +70,34 @@ function AppContent() {
   });
 
   const location = useLocation();
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 2,
+      infinite: false,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    const handleScrollToTop = () => {
+      lenis.scrollTo(0, { duration: 1.5 });
+    };
+    window.addEventListener('scroll-to-top', handleScrollToTop);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll-to-top', handleScrollToTop);
+      lenis.destroy();
+    };
+  }, []);
 
   useEffect(() => {
     // Automatically transition from splash when menu is loaded

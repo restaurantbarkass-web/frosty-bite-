@@ -59,7 +59,13 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
               <LottieOfferButton
                 key={link.path}
                 active={isActive}
-                onClick={() => navigate(link.path)}
+                onClick={() => {
+                  if (isActive) {
+                    window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                  } else {
+                    navigate(link.path);
+                  }
+                }}
                 className="scale-90"
               />
             );
@@ -86,7 +92,9 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
                   }
                 } catch (e) {}
                 
-                if (link.action) link.action();
+                if (link.action) {
+                  link.action();
+                }
               }}
             >
               {/* Glow Active Background */}
@@ -153,7 +161,16 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
           }
 
           return (
-            <Link key={link.path} to={link.path}>
+            <Link 
+              key={link.path} 
+              to={link.path}
+              onClick={(e) => {
+                if (isActive) {
+                  e.preventDefault();
+                  window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                }
+              }}
+            >
               {content}
             </Link>
           );

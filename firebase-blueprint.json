@@ -14,6 +14,13 @@
         "role": { "type": "string", "enum": ["customer", "admin", "rider"] },
         "points": { "type": "number" },
         "wallet_balance": { "type": "number" },
+        "badge_tier": { "type": "string" },
+        "total_orders": { "type": "number" },
+        "lifetime_spend": { "type": "number" },
+        "activity_streak": { "type": "number" },
+        "referral_count": { "type": "number" },
+        "review_count": { "type": "number" },
+        "title": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
@@ -111,9 +118,45 @@
         "usage_count": { "type": "number" },
         "status": { "type": "string", "enum": ["active", "expired", "disabled"] },
         "is_first_order_only": { "type": "boolean" },
+        "allowedTiers": { "type": "array" },
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["code", "type", "value", "min_order", "expiry_date", "usage_limit", "usage_count", "status"]
+    },
+    "BadgeConfig": {
+      "title": "Badge Configuration",
+      "description": "Defines tiers and their requirements/benefits.",
+      "type": "object",
+      "properties": {
+        "tierName": { "type": "string" },
+        "minOrders": { "type": "number" },
+        "minSpend": { "type": "number" },
+        "benefits": { "type": "array" },
+        "couponIds": { "type": "array" },
+        "giftIds": { "type": "array" },
+        "freeDelivery": { "type": "boolean" },
+        "cashbackPercent": { "type": "number" },
+        "prioritySupport": { "type": "boolean" },
+        "themeColor": { "type": "string" },
+        "badgeIcon": { "type": "string" },
+        "priority": { "type": "number" }
+      },
+      "required": ["tierName", "minOrders", "minSpend", "priority"]
+    },
+    "Gift": {
+      "title": "Reward Gift",
+      "description": "Physical or digital rewards for users.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "requiredTier": { "type": "string" },
+        "stock": { "type": "number" },
+        "active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "requiredTier", "stock", "active"]
     },
     "Review": {
       "title": "Order Review",
@@ -218,6 +261,14 @@
     "notifications/{notificationId}": {
       "schema": "Notification",
       "description": "User alerts and updates."
+    },
+    "badge_configs/{badgeId}": {
+      "schema": "BadgeConfig",
+      "description": "Global tier requirements and benefits."
+    },
+    "gifts/{giftId}": {
+      "schema": "Gift",
+      "description": "Rewards available for users."
     }
   }
 }
