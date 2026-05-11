@@ -92,6 +92,10 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
                   }
                 } catch (e) {}
                 
+                if (isActive) {
+                  window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                }
+
                 if (link.action) {
                   link.action();
                 }

@@ -590,7 +590,7 @@ export const Profile: React.FC = () => {
               <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-500 border-emerald-500/10" />
             </div>
             
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] md:leading-none px-2">
+            <h1 id="profile-greeting" className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] md:leading-none px-2">
               {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-400 to-zinc-600 block sm:inline-block mt-2 sm:mt-0">{user.name.split(' ')[0]}</span>
             </h1>
             <p className="text-zinc-500 font-bold uppercase tracking-[0.2em] md:tracking-[0.4em] text-[10px] md:text-sm">

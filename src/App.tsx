@@ -88,9 +88,23 @@ function AppContent() {
     rafId = requestAnimationFrame(raf);
 
     const handleScrollToTop = () => {
-      lenis.scrollTo(0, { duration: 1.5 });
+      console.log('Scroll to top event received');
+      const target = document.getElementById('profile-greeting') || 0;
+      lenis.scrollTo(target, { 
+        duration: 1.5,
+        easing: (t: number) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t) 
+      });
+      // Fallback for safety
+      if (typeof target === 'number') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
     };
     window.addEventListener('scroll-to-top', handleScrollToTop);
+    
+    // Also export it globally for easy access
+    (window as any).lenis = lenis;
 
     return () => {
       cancelAnimationFrame(rafId);
