@@ -56,7 +56,7 @@ if ('caches' in window) {
 
 /* ---------------- SERVICE WORKER ---------------- */
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', async () => {
     try {
       const reg = await navigator.serviceWorker.register('/sw.js');
@@ -65,10 +65,10 @@ if ('serviceWorker' in navigator) {
 
       /* CHECK FOR UPDATES */
 
-      reg.update();
+      reg.update().catch(err => console.warn('SW Update failed:', err));
 
       setInterval(() => {
-        reg.update();
+        reg.update().catch(err => console.warn('SW Update failed:', err));
       }, 60000);
 
       /* HANDLE NEW VERSION */
