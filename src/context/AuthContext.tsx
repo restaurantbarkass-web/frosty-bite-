@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase';
+import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
+import { doc, serverTimestamp } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 
 type UserRole = 'customer' | 'admin' | 'rider';
 
@@ -14,6 +16,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isRider: boolean;
   isCustomer: boolean;
+  isVerified: boolean;
   auth: any;
 }
 
@@ -24,6 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isVerified = !!user?.emailVerified;
+
   useEffect(() => {
     // 8-second safety timeout instead of 15
     const timeoutId = setTimeout(() => {
@@ -33,6 +38,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const syncUserWithSupabase = async (firebaseUser: User) => {
       try {
         const determinedRole = getRoleFromEmail(firebaseUser.email);
+        
+        // Firestore Sync (Using safeFirestore + hardened rules)
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        await safeFirestore.set(userRef, {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          full_name: firebaseUser.displayName || '',
+          role: determinedRole,
+          updated_at: serverTimestamp()
+        });
+
+        // Supabase Sync
         const { error } = await supabase
           .from('users')
           .upsert({
@@ -45,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) console.warn('Supabase sync warning:', error);
       } catch (err) {
-        console.warn('Failed to sync user with Supabase:', err);
+        console.warn('Failed to sync user:', err);
       }
     };
 
@@ -96,10 +113,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role,
     loading,
     auth,
+    isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isRider: role === 'rider' || (!!user?.email && RIDER_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
-  }), [user, role, loading]);
+  }), [user, role, loading, isVerified]);
 
   return (
     <AuthContext.Provider value={value}>

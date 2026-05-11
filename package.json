@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
+    "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.105.1",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

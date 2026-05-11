@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useNotifications } from '../context/NotificationContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LottieOfferButton } from './LottieOfferButton';
@@ -10,6 +11,7 @@ import { LottieOfferButton } from './LottieOfferButton';
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCart();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -30,7 +32,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
     { name: 'Offers', path: '/offers', icon: Gift },
     { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
     { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
-    { name: 'Profile', path: '/profile', icon: User, protected: true },
+    { name: 'Profile', path: '/profile', icon: User, protected: true, badge: unreadCount },
     { name: 'Login', path: '/login', icon: User, publicOnly: true },
   ];
 

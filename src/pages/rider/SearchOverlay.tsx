@@ -20,7 +20,7 @@ import {
 import { cn } from '../../lib/utils';
 import { FoodItem } from '../../types';
 import { useSearch } from '../../hooks/useSearch';
-import { FoodCard } from '../FoodCard';
+import { FoodCard } from '../../components/FoodCard';
 import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';

@@ -1,29 +1,169 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, Clock, Heart, Palette, MessageCircle } from 'lucide-react';
+import { 
+  User, MapPin, CreditCard, Mail, Phone, Plus, Edit2, Trash2, 
+  ChevronRight, LogOut, X, CheckCircle, Smartphone, ShoppingBag, 
+  Clock, Heart, Palette, MessageCircle, Star, ShieldCheck, 
+  Gift, Percent, Settings, ArrowUpRight, Sparkles, TrendingUp,
+  Crown, Wallet, Briefcase, Zap, Bell, Award, Coffee, IceCream,
+  Pizza, Flame, Moon, Sun, CloudRain, Shield, Camera, 
+  Share2, HeartHandshake, HelpCircle, Layout, Calendar
+} from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
+import { db } from '../firebase';
+import { doc, collection, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
+import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
-import { supabase } from '../supabase';
 import { FoodCard } from '../components/FoodCard';
 import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
 import { usePWA } from '../hooks/usePWA';
+import { AiRecommendationCard } from '../AiRecommendationCard';
+import { searchService, AiRecommendationResponse } from '../services/searchService';
+import { useMenu } from '../context/MenuContext';
+import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
+import { toast } from 'react-hot-toast';
+import Lenis from '@studio-freight/lenis';
+
+// --- STYLIZED COMPONENTS ---
+
+const GlowingAvatar = ({ src, name }: { src: string; name: string }) => (
+  <div className="relative group perspective-1000">
+    <div className="absolute -inset-1.5 bg-gradient-to-r from-primary via-purple-500 to-cyan-500 rounded-full blur opacity-75 group-hover:opacity-100 animate-spin-slow transition duration-1000" />
+    <motion.div 
+      whileHover={{ scale: 1.05, rotateY: 10 }}
+      className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-black overflow-hidden"
+    >
+      <img 
+        src={src} 
+        alt={name} 
+        className="w-full h-full object-cover rounded-full"
+        referrerPolicy="no-referrer"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Camera size={16} className="text-white" />
+      </div>
+    </motion.div>
+  </div>
+);
+
+const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary' }: { text: string; icon: any; color?: string }) => (
+  <motion.div 
+    initial={{ scale: 0, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    className={cn("px-4 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg backdrop-blur-md", color)}
+  >
+    <Icon size={14} className="text-white" />
+    <span className="text-[10px] font-black text-white uppercase tracking-widest">{text}</span>
+  </motion.div>
+);
+
+const StatCard = ({ label, value, icon: Icon, color, delay }: { label: string; value: string | number; icon: any; color: string; delay: number }) => (
+  <motion.div
+    initial={{ x: 50, opacity: 0 }}
+    animate={{ x: 0, opacity: 1 }}
+    transition={{ delay, type: 'spring', stiffness: 100 }}
+    whileHover={{ y: -5 }}
+    className="min-w-[150px] md:min-w-[180px] glass-dark border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 group cursor-pointer relative overflow-hidden"
+  >
+    <div className={cn("absolute top-0 right-0 p-3 md:p-4 opacity-5 group-hover:opacity-10 transition-all scale-125 md:scale-150 rotate-12", color)}>
+      <Icon className="w-10 h-10 md:w-12 md:h-12" />
+    </div>
+    <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/5 flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:rotate-12", color)}>
+      <Icon className="w-5 h-5 md:w-6 md:h-6" />
+    </div>
+    <div>
+      <h4 className="text-2xl md:text-3xl font-black text-white tracking-tighter tabular-nums mb-1">{value}</h4>
+      <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors">{label}</p>
+    </div>
+    <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+  </motion.div>
+);
+
+const LoyaltyProgressRing = ({ percentage }: { percentage: number }) => {
+  const radius = 70;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center group">
+      <svg className="w-48 h-48 transform -rotate-90">
+        <circle
+          cx="96"
+          cy="96"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="12"
+          fill="transparent"
+          className="text-white/5"
+        />
+        <motion.circle
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 2, ease: "easeOut" }}
+          cx="96"
+          cy="96"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="12"
+          fill="transparent"
+          strokeDasharray={circumference}
+          className="text-primary drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <Crown size={32} className="text-yellow-500 animate-bounce mb-1" />
+        <span className="text-3xl font-black text-white">{percentage}%</span>
+        <span className="text-[8px] font-black uppercase text-zinc-500 tracking-widest">To Platinum</span>
+      </div>
+    </div>
+  );
+};
+
+const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: { label: string; icon: any; onClick?: () => void; color?: string }) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={cn(
+      "relative p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center gap-3 md:gap-4 transition-all group overflow-hidden",
+      color
+    )}
+  >
+    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-white/5 flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors group-hover:scale-110">
+      <Icon className="w-6 h-6 md:w-7 md:h-7" />
+    </div>
+    <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors text-center">{label}</span>
+    <div className="absolute -bottom-4 -right-4 text-white/[0.02] group-hover:text-white/[0.05] transition-colors">
+      <Icon className="w-16 h-16 md:w-20 md:h-20" />
+    </div>
+  </motion.button>
+);
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
+  const { items: menuItems } = useMenu();
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { theme, toggleTheme } = useTheme();
+  const { notifications } = useNotifications();
+  
   const [userData, setUserData] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<FoodItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { install, isStandalone, isInstallable } = usePWA();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist'>('personal');
+  const { install, isStandalone, isInstallable } = usePWA();
+  const [aiRec, setAiRec] = useState<{ recommendation: AiRecommendationResponse, item: FoodItem } | null>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -42,8 +182,47 @@ export const Profile: React.FC = () => {
     }
   });
 
+  // Greetings & Background logic
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 18) return 'Good Afternoon 🌤️';
+    return 'Good Evening 🌙';
+  }, []);
+
+  const timeBackground = useMemo(() => {
+    const hour = new Date().getHours();
+    const isLight = theme === 'light';
+    if (isLight) {
+      if (hour < 12) return 'from-orange-200/50 via-yellow-100/30 to-transparent';
+      if (hour < 18) return 'from-blue-200/50 via-cyan-100/30 to-transparent';
+      return 'from-purple-200/50 via-indigo-100/30 to-transparent';
+    }
+    if (hour < 12) return 'from-orange-500/20 via-yellow-400/5 to-transparent';
+    if (hour < 18) return 'from-blue-400/20 via-cyan-400/5 to-transparent';
+    return 'from-purple-600/30 via-indigo-900/10 to-transparent';
+  }, [theme]);
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 2,
+      infinite: false,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
   }, []);
 
   useEffect(() => {
@@ -87,39 +266,44 @@ export const Profile: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        // 1. Try Supabase for User Data
-        const { data: sbUser, error: sbError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.uid)
-          .single();
+        // User data
+        const userDataObj = await safeFirestore.get<any>(doc(db, 'users', authUser.uid));
         
-        if (sbUser) {
-          setUserData(sbUser);
+        if (userDataObj) {
+          setUserData(userDataObj);
           setFormData({
-            name: sbUser.full_name || '',
-            phone: sbUser.phone || '',
-            address: sbUser.address || ''
+            name: userDataObj.full_name || '',
+            phone: userDataObj.phone || '',
+            address: userDataObj.address || ''
           });
-          if (sbUser.settings) setSettingsData(sbUser.settings);
+          if (userDataObj.settings) setSettingsData(userDataObj.settings);
         }
 
-        // 2. Try Supabase for Recent Orders
-        const { data: sbOrders, error: sboError } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('user_id', authUser.uid)
-          .order('created_at', { ascending: false })
-          .limit(5);
+        // Recent orders
+        const qOrders = query(
+          collection(db, 'orders'),
+          where('user_id', '==', authUser.uid),
+          orderBy('created_at', 'desc'),
+          limit(5)
+        );
+        const ordersData = await safeFirestore.list<Order>(qOrders);
 
-        if (sbOrders && sbOrders.length > 0) {
-          setRecentOrders(sbOrders as Order[]);
-          localStorage.setItem(ordersCacheKey, JSON.stringify(sbOrders));
+        if (ordersData && ordersData.length > 0) {
+          setRecentOrders(ordersData);
         }
 
         // Wishlist from Supabase
         const wishlistItems = await getUserWishlist(authUser.uid);
         setWishlist(wishlistItems || []);
+
+        if (menuItems.length > 0) {
+          const queryText = "Best celebratory dessert for a premium member";
+          const rec = await searchService.getSmartRecommendation(queryText, menuItems);
+          if (rec) {
+             const item = menuItems.find(i => i.id === rec.bestMatchId);
+             if (item) setAiRec({ recommendation: rec, item });
+          }
+        }
       } catch (err) {
         console.error("Error fetching profile data:", err);
       }
@@ -129,45 +313,54 @@ export const Profile: React.FC = () => {
 
     fetchData();
 
-    // Real-time subscriptions via Supabase
-    const userChannel = supabase
-      .channel(`profile_user_${authUser.uid}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'users',
-        filter: `id=eq.${authUser.uid}`
-      }, (payload) => {
-        const data = payload.new as any;
-        if (data) {
-          setUserData(data);
-          setFormData({
-            name: data.full_name || '',
-            phone: data.phone || '',
-            address: data.address || ''
-          });
-          if (data.settings) setSettingsData(data.settings);
-        }
-      })
-      .subscribe();
+    // Real-time subscriptions
+    const unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', authUser.uid), (data) => {
+      if (data) {
+        setUserData(data);
+        setFormData({
+          name: data.full_name || '',
+          phone: data.phone || '',
+          address: data.address || ''
+        });
+        if (data.settings) setSettingsData(data.settings);
+      }
+    });
 
-    const ordersChannel = supabase
-      .channel(`profile_orders_${authUser.uid}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'orders',
-        filter: `user_id=eq.${authUser.uid}`
-      }, () => {
-        fetchData();
-      })
-      .subscribe();
+    const qOrdersRealtime = query(
+      collection(db, 'orders'),
+      where('user_id', '==', authUser.uid),
+      orderBy('created_at', 'desc'),
+      limit(5)
+    );
+    const unsubOrders = safeFirestore.subscribe<Order>(qOrdersRealtime, (data) => {
+      if (Array.isArray(data)) {
+        setRecentOrders(data);
+      }
+    });
 
     return () => {
-      supabase.removeChannel(userChannel);
-      supabase.removeChannel(ordersChannel);
+      unsubUser();
+      unsubOrders();
     };
-  }, [authUser]);
+  }, [authUser, menuItems]);
+
+  const loyaltyStats = useMemo(() => {
+    const orderCount = recentOrders.length;
+    const points = userData?.points || 0;
+    const nextTier = points >= 1000 ? 'Platinum' : 'Gold';
+    const progress = Math.min(100, (points / 1000) * 100);
+    const ordersLeft = Math.max(0, 5 - orderCount);
+    
+    return { progress, nextTier, ordersLeft };
+  }, [recentOrders, userData]);
+
+  const stats = useMemo(() => [
+    { label: 'Orders', value: recentOrders.length, icon: ShoppingBag, color: 'text-blue-400' },
+    { label: 'Favorites', value: wishlist.length, icon: Heart, color: 'text-pink-500' },
+    { label: 'Rewards', value: userData?.points || 0, icon: Gift, color: 'text-primary' },
+    { label: 'Wallet', value: '₹450', icon: Wallet, color: 'text-emerald-400' },
+    { label: 'Experience', value: `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: Zap, color: 'text-yellow-400' },
+  ], [recentOrders, wishlist, userData]);
 
   const handleLogout = async () => {
     await logout();
@@ -179,69 +372,75 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
 
     try {
-      // Sync with Supabase (Primary)
-      await supabase.from('users').update({
+      const userDocRef = doc(db, 'users', authUser.uid);
+      await updateDoc(userDocRef, {
         full_name: formData.name,
         phone: formData.phone,
         address: formData.address,
         updated_at: new Date().toISOString()
-      }).eq('id', authUser.uid);
+      });
       
       setIsEditing(false);
     } catch (error: any) {
       console.error('Error updating profile:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+      }
     }
   };
 
   const handleUpdateSettings = async (newSettings: any) => {
-    if (!authUser || !newSettings) return;
+    if (!authUser) return;
     try {
-      await supabase.from('users').update({
+      const userDocRef = doc(db, 'users', authUser.uid);
+      await updateDoc(userDocRef, { 
         settings: newSettings,
         updated_at: new Date().toISOString()
-      }).eq('id', authUser.uid);
+      });
       
       setSettingsData(newSettings);
     } catch (error: any) {
       console.error('Error updating settings:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+      }
     }
   };
 
   const handleExportData = () => {
-    if (!authUser) return;
     const data = {
-      profile: user || {},
-      orders: recentOrders || [],
-      settings: settingsData || {},
+      profile: user,
+      orders: recentOrders,
+      settings: settingsData,
       exportedAt: new Date().toISOString()
     };
-    try {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `frosty-bite-data-${authUser.uid.slice(0, 8)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (e) {
-      console.error("Export failed:", e);
-    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `frosty-bite-data-${authUser?.uid.slice(0, 8)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleDeleteAccount = async () => {
     if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
       try {
-        await supabase.from('users').update({
+        const userDocRef = doc(db, 'users', authUser?.uid!);
+        await updateDoc(userDocRef, { 
           deleted: true,
           deleted_at: new Date().toISOString(),
           status: 'deactivated'
-        }).eq('id', authUser?.uid);
+        });
         
         alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
         await handleLogout();
       } catch (error: any) {
         console.error("Account deletion failed:", error);
+        if (error.code === 'permission-denied') {
+          handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
+        }
       }
     }
   };
@@ -286,226 +485,309 @@ export const Profile: React.FC = () => {
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-svh flex flex-col max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-32"
-    >
-      {/* Profile Card */}
-      <div 
-        className="glass-dark rounded-[40px] border border-white/5 p-8 relative overflow-hidden"
-      >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] -translate-y-1/2 translate-x-1/2" />
+    <div className="min-h-screen bg-black overflow-x-hidden pb-32" ref={containerRef}>
+      {/* Cinematic Hero Header */}
+      <section className="relative min-h-[50vh] md:min-h-[70vh] flex items-center justify-center overflow-hidden py-20 md:py-32">
+        {/* Dynamic Mesh Background */}
+        <div className={cn(
+          "absolute inset-0 transition-colors duration-1000 bg-gradient-to-tr opacity-40",
+          timeBackground
+        )} />
         
-        <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-          <div className="relative group">
-            <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-white/5 ring-8 ring-primary/5 group-hover:ring-primary/10 transition-all duration-500">
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
-          </div>
+        {/* Animated Particles & Glows */}
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 md:w-96 md:h-96 bg-primary/20 rounded-full blur-[80px] md:blur-[120px] animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-72 h-72 md:w-96 md:h-96 bg-purple-500/20 rounded-full blur-[80px] md:blur-[120px] animate-pulse-slow" />
+        </div>
+
+        <div className="relative z-10 flex flex-col items-center text-center px-4 md:px-6 w-full">
+          <GlowingAvatar src={user.avatar} name={user.name} />
           
-          <div className="flex-1 text-center md:text-left space-y-4">
-            <div>
-              <h1 className="text-4xl font-black text-white tracking-tighter leading-none mb-2">{user.name}</h1>
-              <p className="text-zinc-500 font-medium">Customer ID: {authUser?.uid.slice(0, 8)}</p>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8 md:mt-12 space-y-4 md:space-y-6 w-full max-w-4xl"
+          >
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 mb-2 md:mb-4">
+              <PremiumBadge text="Elite Member" icon={Crown} color="bg-primary/20 text-primary border-primary/20" />
+              <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-500 border-emerald-500/10" />
             </div>
             
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
-                <Mail className="text-primary" size={16} />
-                <span className="text-xs font-bold text-white/80">{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-2xl border border-white/5">
-                <Phone className="text-primary" size={16} />
-                <span className="text-xs font-bold text-white/80">{user.phone}</span>
-              </div>
-            </div>
-          </div>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] md:leading-none px-2">
+              {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-400 to-zinc-600 block sm:inline-block mt-2 sm:mt-0">{user.name.split(' ')[0]}</span>
+            </h1>
+            <p className="text-zinc-500 font-bold uppercase tracking-[0.2em] md:tracking-[0.4em] text-[10px] md:text-sm">
+              {userData?.title || 'Midnight Food Explorer'} • Level {Math.floor((userData?.points || 0) / 100) + 1}
+            </p>
+          </motion.div>
+        </div>
 
-          <button 
-            onClick={() => setIsEditing(true)}
-            className="w-full md:w-auto px-8 py-4 bg-primary text-white rounded-3xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
-          >
-            Edit Profile
-          </button>
+        {/* Parallax Gradient Overlay */}
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent" />
+      </section>
+
+      {/* Floating Stats Rail */}
+      <div className="relative -mt-8 md:-mt-20 z-20 px-0 overflow-x-auto scrollbar-hide pb-6 md:pb-10">
+        <div className="flex gap-4 px-6 md:justify-center min-w-max">
+          {stats.map((stat, idx) => (
+            <StatCard key={stat.label} {...stat} delay={0.4 + (idx * 0.1)} />
+          ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex p-2 bg-white/5 border border-white/5 rounded-[2rem] gap-2">
-        <button 
-          onClick={() => setActiveTab('personal')}
-          className={cn(
-            "flex-1 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'personal' ? "bg-white text-black shadow-lg" : "text-zinc-500 hover:text-white"
-          )}
-        >
-          Details
-        </button>
-        <button 
-          onClick={() => setActiveTab('orders')}
-          className={cn(
-            "flex-1 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'orders' ? "bg-white text-black shadow-lg" : "text-zinc-500 hover:text-white"
-          )}
-        >
-          Orders
-        </button>
-        <button 
-          onClick={() => setActiveTab('wishlist')}
-          className={cn(
-            "flex-1 py-4 rounded-[1.5rem] text-xs font-black uppercase tracking-widest transition-all",
-            activeTab === 'wishlist' ? "bg-white text-black shadow-lg" : "text-zinc-500 hover:text-white"
-          )}
-        >
-          Wishlist
-        </button>
-      </div>
+      <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-12">
+        {/* Main Interface Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Loyalty & AI */}
+          <div className="lg:col-span-4 space-y-8">
+            {/* Loyalty Engine */}
+            <motion.div
+              initial={{ x: -50, opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 relative overflow-hidden"
+            >
+              <div className="relative z-10 flex flex-col items-center text-center sm:text-left">
+                <div className="w-full flex justify-between items-center mb-6 md:mb-8">
+                  <h3 className="text-lg md:text-xl font-black text-white tracking-tight italic">LOYALTY ENGINE</h3>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                    <TrendingUp size={12} className="text-primary" />
+                    <span className="text-[9px] md:text-[10px] font-black text-primary uppercase">Tier: Gold</span>
+                  </div>
+                </div>
+
+                <LoyaltyProgressRing percentage={loyaltyStats.progress} />
+
+                <div className="w-full mt-8 p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Next Milestone</span>
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">{loyaltyStats.nextTier} Status</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-primary"
+                      initial={{ width: 0 }}
+                      whileInView={{ width: `${loyaltyStats.progress}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400 font-bold leading-relaxed">
+                    Complete <span className="text-white italic">{loyaltyStats.ordersLeft} more orders</span> to unlock Platinum benefits including free midnight deliveries.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* AI Smart Recommendation */}
+            {aiRec && (
+              <motion.div
+                initial={{ x: -50, opacity: 0 }}
+                whileInView={{ x: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+              >
+                <AiRecommendationCard 
+                  recommendation={aiRec.recommendation}
+                  item={aiRec.item}
+                  onAddToCart={() => {}} 
+                  onViewDetails={() => {}}
+                />
+              </motion.div>
+            )}
+            
+            {/* Install PWA Prompt */}
+            {isInstallable && (
+              <SmartActionCard 
+                label="Install Desktop App" 
+                icon={Smartphone} 
+                onClick={install}
+                color="bg-primary/10 border-primary/20"
+              />
+            )}
+          </div>
+
+          {/* Right Column: Dynamic Content Tabs */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="flex p-1.5 md:p-2 bg-black/80 border border-white/10 rounded-full sticky top-4 z-40 backdrop-blur-xl mx-4 lg:mx-0">
+              {(['personal', 'orders', 'wishlist'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "flex-1 py-3 md:py-4 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] transition-all relative overflow-hidden",
+                    activeTab === tab ? "text-black" : "text-zinc-500 hover:text-zinc-300"
+                  )}
+                >
+                  {activeTab === tab && (
+                    <motion.div 
+                      layoutId="tab-bg"
+                      className="absolute inset-0 bg-white"
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10">{tab}</span>
+                </button>
+              ))}
+            </div>
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
         {activeTab === 'personal' ? (
           <motion.div 
             key="personal"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -20 }}
             className="space-y-8"
           >
-            <div className="glass-dark rounded-[2.5rem] border border-white/5 p-8 space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                  <MapPin size={24} />
-                </div>
+            <div className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-10 space-y-8 md:space-y-10">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-bold text-white">Default Delivery Address</h3>
-                  <p className="text-xs text-zinc-500 font-medium">Where we deliver your fresh bakes</p>
+                  <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter">Personal Identity</h3>
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Private Information</p>
                 </div>
-              </div>
-              
-              <div className="p-6 bg-[#0a0a0a] rounded-3xl border border-white/5">
-                <p className="text-zinc-400 font-medium leading-relaxed">
-                  {user.address}
-                </p>
+                <motion.button 
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  onClick={() => setIsEditing(true)}
+                  className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors shrink-0"
+                >
+                  <Edit2 className="w-5 h-5 md:w-6 md:h-6" />
+                </motion.button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Frosty Points</p>
-                  <p className="text-2xl font-black text-white">450</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                <div className="space-y-6">
+                  <div className="flex gap-4 items-start group">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                      <User size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Full Name</p>
+                      <p className="text-lg font-bold text-white">{user.name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start group">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                      <Mail size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Email Protocol</p>
+                      <p className="text-lg font-bold text-white">{user.email}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-1">Total Orders</p>
-                  <p className="text-2xl font-black text-white">{recentOrders.length}</p>
+
+                <div className="space-y-6">
+                  <div className="flex gap-4 items-start group">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                      <Phone size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Secure Line</p>
+                      <p className="text-lg font-bold text-white">{user.phone}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start group">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                      <MapPin size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Primary Base</p>
+                      <p className="text-sm font-bold text-white leading-relaxed line-clamp-2">{user.address}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="glass-dark rounded-[2.5rem] border border-white/5 p-8 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                  <MessageCircle size={24} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">Help & Support</h3>
-                  <p className="text-xs text-zinc-500 font-medium">Need help with an order or have a question?</p>
-                </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button 
-                  onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')}
-                  className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2"
-                >
-                  <MessageCircle size={16} />
-                  Chat on WhatsApp
-                </button>
-                <button 
-                  onClick={() => window.location.href = `tel:${RESTAURANT_WHATSAPP}`}
-                  className="flex-1 py-4 bg-white/5 border border-white/5 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-                >
-                  <Phone size={16} />
-                  Call Us
-                </button>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button 
-                onClick={handleLogout}
-                className="flex-1 py-5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3"
-              >
-                <LogOut size={18} />
-                Logout
-              </button>
-              <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-zinc-500 hover:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest transition-all active:scale-95"
-              >
-                Account Settings
-              </button>
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-8">
+              <SmartActionCard label="Account Settings" icon={Settings} onClick={() => setIsSettingsOpen(true)} />
+              <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
+              <SmartActionCard label="Share Profile" icon={Share2} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
+              <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />
             </div>
           </motion.div>
         ) : activeTab === 'orders' ? (
           <motion.div 
             key="orders"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
           >
             {recentOrders.length === 0 ? (
-              <div className="glass-dark rounded-[2.5rem] border border-white/5 p-12 text-center space-y-4">
-                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700">
-                  <ShoppingBag size={40} />
+              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
+                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700 animate-pulse">
+                  <ShoppingBag size={48} />
                 </div>
-                <h3 className="text-xl font-bold text-white">No orders yet</h3>
-                <p className="text-zinc-500 text-sm max-w-xs mx-auto">Freshly baked treats are just a few clicks away!</p>
-                <Link 
-                  to="/" 
-                  className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest mt-4 shadow-lg shadow-primary/20"
+                <div className="space-y-2">
+                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">NO MISSION DATA</h3>
+                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">Your order history is a blank canvas. Start your first mission now.</p>
+                </div>
+                <Button 
+                  onClick={() => navigate('/')}
+                  variant="primary"
+                  className="px-12 py-5 rounded-3xl"
                 >
-                  Start Ordering
-                </Link>
+                  Initiate First Order
+                </Button>
               </div>
             ) : (
-              recentOrders.map((order) => (
-                <Link 
-                  key={order.id} 
-                  to={`/order-tracking/${order.id}`}
-                  className="block glass-dark rounded-3xl border border-white/5 p-6 hover:border-primary/30 transition-all group"
+              recentOrders.map((order, idx) => (
+                <motion.div
+                  key={order.id}
+                  initial={{ x: 30, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: idx * 0.1 }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
-                        <ShoppingBag size={24} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-black text-white tracking-tight">Order #{order.id?.toString().slice(0, 6) || 'N/A'}</h4>
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest",
-                            getStatusColor(order.status)
-                          )}>
-                            {(order.status || 'pending').replace(/-/g, ' ')}
-                          </span>
+                  <Link 
+                    to={`/order-tracking/${order.id}`}
+                    className="block glass-dark rounded-[2.5rem] border border-white/5 p-8 hover:border-primary/30 hover:bg-white/[0.02] transition-all group overflow-hidden relative"
+                  >
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all scale-150 rotate-12">
+                      <ShoppingBag size={120} />
+                    </div>
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
+                      <div className="flex items-center gap-6">
+                        <div className={cn(
+                          "w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
+                          getStatusColor(order.status)
+                        )}>
+                          <Clock size={32} />
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-widest">
-                          <div className="flex items-center gap-1">
-                            <Clock size={10} />
-                            {formatDate(order.created_at)}
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-2xl font-black text-white tracking-tighter">MISSION #{order.id.slice(0, 6).toUpperCase()}</h4>
+                            <span className={cn(
+                              "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/10 shadow-sm",
+                              getStatusColor(order.status)
+                            )}>
+                              {order.status.replace(/_/g, ' ')}
+                            </span>
                           </div>
-                          <span>•</span>
-                          <span>{(order.items || []).length} Items</span>
+                          <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-2">
+                            <span className="flex items-center gap-1.5"><Calendar size={12} /> {formatDate(order.created_at)}</span>
+                            <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+                            <span>{order.items.length} SQUAD MEMBERS (ITEMS)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-12 border-t md:border-t-0 border-white/5 pt-6 md:pt-0">
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Payload</p>
+                          <p className="text-3xl font-black text-white tabular-nums">₹{order.total}</p>
+                        </div>
+                        <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-600 group-hover:text-primary group-hover:bg-primary/10 transition-all group-hover:translate-x-2">
+                          <ChevronRight size={28} />
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-black text-white">₹{order.total}</p>
-                      <ChevronRight className="w-5 h-5 text-zinc-700 ml-auto mt-1 group-hover:text-primary transition-all group-hover:translate-x-1" />
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
+                </motion.div>
               ))
             )}
           </motion.div>
@@ -515,24 +797,31 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-6"
+            className="space-y-8"
           >
-            {wishlist.length === 0 ? (
-              <div className="glass-dark rounded-[2.5rem] border border-white/5 p-12 text-center space-y-4">
-                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700">
-                  <Heart size={40} />
+             <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-3xl font-black text-white tracking-tighter">Vault (Wishlist)</h3>
+                  <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] mt-1">Saved delicacies</p>
                 </div>
-                <h3 className="text-xl font-bold text-white">Your wishlist is empty</h3>
-                <p className="text-zinc-500 text-sm max-w-xs mx-auto">Save your favorite items for later!</p>
-                <Link 
-                  to="/" 
-                  className="inline-block px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest mt-4 shadow-lg shadow-primary/20"
-                >
-                  Explore Menu
-                </Link>
+                <div className="px-4 py-2 bg-pink-500/10 rounded-full border border-pink-500/20 flex items-center gap-2">
+                  <Heart size={14} className="text-pink-500 fill-pink-500" />
+                  <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest">{wishlist.length} Items</span>
+                </div>
+              </div>
+
+            {wishlist.length === 0 ? (
+              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
+                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700">
+                  <Heart size={48} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic text-zinc-800">VAULT IS EMPTY</h3>
+                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">You haven't locked any items in your vault yet.</p>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {wishlist.map((item) => (
                   <FoodCard key={item.id} item={item} />
                 ))}
@@ -541,6 +830,9 @@ export const Profile: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  </div>
+</div>
 
       {/* Edit Modal */}
       <AnimatePresence>
@@ -562,8 +854,8 @@ export const Profile: React.FC = () => {
               <div className="relative z-10 flex flex-col h-full">
                 <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Profile</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Update your information</p>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Identity</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
                   </div>
                   <button 
                     onClick={() => setIsEditing(false)} 
@@ -588,7 +880,7 @@ export const Profile: React.FC = () => {
                     </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Phone Number</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Direct Contact</label>
                   <input 
                     type="text" 
                     required
@@ -600,7 +892,7 @@ export const Profile: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Delivery Address</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Primary HQ (Address)</label>
                   <textarea 
                     required
                     value={formData.address}
@@ -645,29 +937,28 @@ export const Profile: React.FC = () => {
               className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-8 mt-4">
+                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-6">
                   <div>
-                    <h3 className="text-5xl font-black text-white tracking-tighter leading-none">Account<br />Center</h3>
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.4em] mt-4">Manage Control Panel</p>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
                   </div>
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-16 h-16 rounded-[2rem] bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all hover:bg-white/10"
+                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
                   >
-                    <X size={28} />
+                    <X size={24} />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-12 scrollbar-hide pb-32 md:pb-6">
-                
-                {/* Notifications Section */}
-                <div className="space-y-8">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Notification Preferences</h4>
+                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 scrollbar-hide pb-32 md:pb-6">
+                {/* Notifications Section skipped */}
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
-                      <div className="space-y-1">
-                        <p className="text-lg font-black text-white leading-tight">Order Status Updates</p>
-                        <p className="text-xs text-zinc-500 font-medium">Real-time alerts for your orders</p>
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-sm font-bold text-white">Order Status Updates</p>
+                        <p className="text-[10px] text-zinc-500">Real-time alerts for your orders</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -675,21 +966,21 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, orderUpdates: !settingsData.notifications.orderUpdates }
                         })}
                         className={cn(
-                          "w-14 h-8 rounded-full transition-all relative",
+                          "w-12 h-6 rounded-full transition-all relative",
                           settingsData.notifications.orderUpdates ? "bg-primary" : "bg-zinc-800"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-6 h-6 rounded-full bg-white shadow-lg transition-all",
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
                           settingsData.notifications.orderUpdates ? "right-1" : "left-1"
                         )} />
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5">
-                      <div className="space-y-1">
-                        <p className="text-lg font-black text-white leading-tight">Promotional Offers</p>
-                        <p className="text-xs text-zinc-500 font-medium">New discounts and seasonal treats</p>
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div>
+                        <p className="text-sm font-bold text-white">Promotional Offers</p>
+                        <p className="text-[10px] text-zinc-500">New discounts and seasonal treats</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -697,12 +988,12 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, promotions: !settingsData.notifications.promotions }
                         })}
                         className={cn(
-                          "w-14 h-8 rounded-full transition-all relative",
+                          "w-12 h-6 rounded-full transition-all relative",
                           settingsData.notifications.promotions ? "bg-primary" : "bg-zinc-800"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-6 h-6 rounded-full bg-white shadow-lg transition-all",
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
                           settingsData.notifications.promotions ? "right-1" : "left-1"
                         )} />
                       </button>
@@ -711,54 +1002,26 @@ export const Profile: React.FC = () => {
                 </div>
 
                 {/* Data Section */}
-                <div className="space-y-8">
-                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Data & Portability</h4>
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Data & Portability</h4>
                   <div className="flex flex-col gap-4">
                     <button 
                       onClick={handleExportData}
-                      className="w-full flex items-center justify-between p-6 bg-white/5 rounded-3xl border border-white/5 hover:bg-white/10 transition-all group"
+                      className="w-full flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors group"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                          <ShoppingBag size={24} />
+                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                          <ShoppingBag size={20} />
                         </div>
                         <div className="text-left">
-                          <p className="text-lg font-black text-white">Export Order History</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black mt-0.5">Download as JSON</p>
+                          <p className="text-sm font-bold text-white">Export Order History</p>
+                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Download as JSON</p>
                         </div>
                       </div>
-                      <ChevronRight size={20} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <ChevronRight size={16} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
                     </button>
                   </div>
                 </div>
-
-                {/* App Installation Section - Only show if not installed */}
-                {!isStandalone && (
-                  <div className="space-y-8">
-                    <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">App Experience</h4>
-                    <button 
-                      onClick={install}
-                      className="w-full flex items-center justify-between p-6 bg-primary/10 rounded-3xl border border-primary/20 hover:bg-primary/20 transition-all group active:scale-[0.98]"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-white">
-                          <Smartphone size={24} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-lg font-black text-white">Install Frosty Bite</p>
-                          <p className="text-[10px] text-zinc-400 uppercase tracking-[0.2em] font-black mt-0.5">Faster access & offline mode</p>
-                        </div>
-                      </div>
-                      <div className={cn(
-                        "flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-                        isInstallable ? "bg-primary text-white shadow-lg shadow-primary/30" : "bg-zinc-800 text-zinc-500"
-                      )}>
-                        {isInstallable ? 'Ready' : 'Wait...'}
-                        <ChevronRight size={14} />
-                      </div>
-                    </button>
-                  </div>
-                )}
 
                 {/* Danger Zone */}
                 <div className="space-y-6 pt-4">
@@ -773,12 +1036,12 @@ export const Profile: React.FC = () => {
                 </div>
               </div>
 
-                <div className="sticky bottom-0 left-0 right-0 p-8 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-[#0a0a0a]/90 backdrop-blur-3xl border-t border-white/5 flex gap-4 shrink-0">
+              <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-full py-6 rounded-[2.5rem] bg-white/10 text-white font-black uppercase text-sm tracking-[0.4em] hover:bg-white/15 transition-all active:scale-[0.96] shadow-2xl border border-white/5"
+                    className="w-full py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95"
                   >
-                    DONE
+                    Done
                   </button>
                 </div>
               </div>
@@ -788,7 +1051,7 @@ export const Profile: React.FC = () => {
       </AnimatePresence>
 
       {/* ThemeSettingsPanel removed */}
-    </motion.div>
+    </div>
   );
 };
 

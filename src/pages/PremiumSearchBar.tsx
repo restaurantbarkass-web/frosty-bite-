@@ -14,7 +14,7 @@ import {
   Cpu,
   QrCode
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../lib/utils';
 
 interface PremiumSearchBarProps {
   onSearch: (query: string) => void;

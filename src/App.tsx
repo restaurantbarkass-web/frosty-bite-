@@ -4,6 +4,7 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
@@ -15,12 +16,13 @@ import { IntroSplash } from './components/IntroSplash';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { Instagram, MessageCircle } from 'lucide-react';
+import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { useAuth } from './context/AuthContext';
 
 // Lazy load pages for performance
 import Home from './pages/HomePage';
@@ -47,11 +49,13 @@ import { useMenu } from './context/MenuContext';
 
 // Forced rebuild for artifact detection
 function AppContent() {
+  const { user, isVerified, isAdmin } = useAuth();
   const { isCartOpen, setIsCartOpen } = useCart();
   const { items, loading: menuLoading } = useMenu();
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [showVerificationBanner, setShowVerificationBanner] = useState(true);
   const [showSplash, setShowSplash] = useState(() => {
     // Show splash only once per session
     try {
@@ -164,6 +168,22 @@ function AppContent() {
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
       <Toaster position="top-right" />
       
+      {user && !isVerified && !isAdmin && showVerificationBanner && (
+        <div className="bg-primary text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-between relative z-[100]">
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={14} />
+            <span>Protect your account: Please verify your email address</span>
+          </div>
+          <button 
+            onClick={() => setShowVerificationBanner(false)}
+            className="p-1 hover:bg-white/10 rounded-full"
+          >
+            <span className="sr-only">Close</span>
+            ×
+          </button>
+        </div>
+      )}
+
       {quotaExceeded && (
         <div className="bg-amber-500 text-black px-4 py-2 text-center text-[10px] font-black uppercase tracking-widest relative z-[100]">
           ⚠️ Database limit reached! Showing cached menu. New orders may be limited.
@@ -221,12 +241,12 @@ function AppContent() {
                 } />
                 <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
                 <Route path="/admin/*" element={
-                  <ProtectedRoute allowedRoles={['admin']} autoLogout={true}>
+                  <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
                     <AdminLayout />
                   </ProtectedRoute>
                 } />
                 <Route path="/rider/*" element={
-                  <ProtectedRoute allowedRoles={['rider']}>
+                  <ProtectedRoute allowedRoles={['rider']} requireVerification={true}>
                     <RiderPanel />
                   </ProtectedRoute>
                 } />
@@ -350,15 +370,17 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <AuthProvider>
-          <MenuProvider>
-            <NotificationProvider>
-              <CartProvider>
-                <AppContent />
-              </CartProvider>
-            </NotificationProvider>
-          </MenuProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <MenuProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <AppContent />
+                </CartProvider>
+              </NotificationProvider>
+            </MenuProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </Router>
     </ErrorBoundary>
   );
