@@ -15,6 +15,29 @@ import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
 
+// Variants for staggered animations
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1]
+    }
+  }
+};
+
 // Home Page Component
 export const Home: React.FC = () => {
   const location = useLocation();
@@ -204,7 +227,12 @@ export const Home: React.FC = () => {
   }, [displayItems, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen pb-20">
+    <motion.div 
+      className="min-h-screen pb-20"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Hero Section */}
       <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden">
         <img 
@@ -218,8 +246,7 @@ export const Home: React.FC = () => {
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
+            variants={itemVariants}
             className="flex justify-center mb-12"
           >
             <div className="relative group">
@@ -235,25 +262,20 @@ export const Home: React.FC = () => {
             </div>
           </motion.div>
             <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
+            variants={itemVariants}
             className="text-5xl sm:text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
           >
             Frosty <span className="font-sans font-black NOT-italic text-primary block md:inline">Bite</span>
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            variants={itemVariants}
             className="text-muted text-lg md:text-xl mb-10 max-w-2xl mx-auto"
           >
             Artisan bakery and frosty treats. Freshly baked delights from our oven to your heart.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
+            variants={itemVariants}
             className="max-w-xl mx-auto"
           >
             <PremiumSearchBar 
@@ -543,7 +565,7 @@ export const Home: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 };
 

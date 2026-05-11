@@ -180,6 +180,15 @@ function AppContent() {
   }, []);
 
 
+  useEffect(() => {
+    // Scroll to top on route change
+    window.scrollTo(0, 0);
+    // If lenis is active, also tell it to reset
+    if ((window as any).lenis) {
+      (window as any).lenis.scrollTo(0, { immediate: true });
+    }
+  }, [location.pathname]);
+
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
@@ -260,13 +269,16 @@ function AppContent() {
         </AnimatePresence>
 
         <Suspense fallback={<PageLoader />}>
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ 
+                duration: 0.3,
+                ease: "easeOut"
+              }}
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes location={location}>
