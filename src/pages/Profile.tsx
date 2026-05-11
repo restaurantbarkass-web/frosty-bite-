@@ -367,6 +367,28 @@ export const Profile: React.FC = () => {
     navigate('/login');
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Frosty Bite | ' + user.name,
+      text: `Check out ${user.name}'s profile on Frosty Bite!`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast.success('Shared successfully');
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Profile link copied to clipboard');
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        toast.error('Could not share profile');
+      }
+    }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authUser) return;
@@ -705,7 +727,7 @@ export const Profile: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-8">
               <SmartActionCard label="Account Settings" icon={Settings} onClick={() => setIsSettingsOpen(true)} />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
-              <SmartActionCard label="Share Profile" icon={Share2} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
+              <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
               <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />
             </div>
           </motion.div>
