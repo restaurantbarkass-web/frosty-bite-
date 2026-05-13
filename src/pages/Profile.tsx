@@ -7,13 +7,14 @@ import {
   Gift, Percent, Settings, ArrowUpRight, Sparkles, TrendingUp,
   Crown, Wallet, Briefcase, Zap, Bell, Award, Coffee, IceCream,
   Pizza, Flame, Moon, Sun, CloudRain, Shield, Camera, 
-  Share2, HeartHandshake, HelpCircle, Layout, Calendar
+  Share2, HeartHandshake, HelpCircle, Layout, Calendar,
+  Sparkles as SparkleIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
 import { db } from '../firebase';
-import { doc, collection, query, where, orderBy, limit, updateDoc } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -33,27 +34,68 @@ import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
 
-// --- STYLIZED COMPONENTS ---
+import { AvatarEditor } from '../components/AvatarEditor';
+import { createAvatar } from '@dicebear/core';
+import * as adventurer from '@dicebear/adventurer';
 
-const GlowingAvatar = ({ src, name }: { src: string; name: string }) => (
-  <div className="relative group perspective-1000">
-    <div className="absolute -inset-1.5 bg-gradient-to-r from-primary via-purple-500 to-cyan-500 rounded-full blur opacity-75 group-hover:opacity-100 animate-spin-slow transition duration-1000" />
-    <motion.div 
-      whileHover={{ scale: 1.05, rotateY: 10 }}
-      className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-black overflow-hidden"
-    >
-      <img 
-        src={src} 
-        alt={name} 
-        className="w-full h-full object-cover rounded-full"
-        referrerPolicy="no-referrer"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center pb-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Camera size={16} className="text-white" />
-      </div>
-    </motion.div>
-  </div>
-);
+// --- STYLIZED COMPONENTS ---
+const BAKERY_PROPS: any = {
+  croissant: '🥐',
+  cupcake: '🧁',
+  chef_hat: '👩‍🍳',
+  coffee_mug: '☕',
+  whisk: '🥣',
+  cake_slice: '🍰'
+};
+
+const GlowingAvatar = ({ src, name, svg, config, onEdit }: { src: string; name: string; svg?: string; config?: any; onEdit?: () => void }) => {
+  const currentProp = config?.options?.bakeryTheme?.[0] || 'none';
+  
+  return (
+    <div className="relative group perspective-1000">
+      <div className="absolute -inset-1.5 bg-gradient-to-r from-bakery-pink via-bakery-chocolate/20 to-bakery-beige rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000" />
+      <motion.div 
+        animate={{ 
+          y: [0, -8, 0]
+        }}
+        transition={{
+          duration: 5,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        whileHover={{ scale: 1.05 }}
+        onClick={onEdit}
+        className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-white overflow-hidden cursor-pointer shadow-2xl border-4 border-white"
+      >
+        {svg ? (
+          <div 
+            className="w-full h-full scale-125 translate-y-3"
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
+        ) : (
+          <img 
+            src={src} 
+            alt={name} 
+            className="w-full h-full object-cover rounded-full"
+            referrerPolicy="no-referrer"
+          />
+        )}
+        
+        {currentProp !== 'none' && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none flex items-center justify-center">
+             <span className="text-4xl md:text-6xl drop-shadow-2xl animate-bounce-slow mt-16 mr-16">
+               {BAKERY_PROPS[currentProp]}
+             </span>
+          </div>
+        )}
+
+        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Camera size={20} className="text-white drop-shadow-md" />
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary' }: { text: string; icon: any; color?: string }) => (
   <motion.div 
@@ -161,6 +203,7 @@ export const Profile: React.FC = () => {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<FoodItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist' | 'rewards'>('personal');
@@ -394,11 +437,14 @@ export const Profile: React.FC = () => {
       const currentBalance = userData?.wallet_balance || 0;
       await updateDoc(userDocRef, {
         wallet_balance: currentBalance + 500,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       toast.success('₹500 added to your wallet!');
     } catch (error: any) {
       console.error('Error adding funds:', error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+      }
       toast.error('Failed to add funds');
     }
   };
@@ -440,7 +486,7 @@ export const Profile: React.FC = () => {
         full_name: formData.name,
         phone: formData.phone,
         address: formData.address,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       
       setIsEditing(false);
@@ -458,7 +504,7 @@ export const Profile: React.FC = () => {
       const userDocRef = doc(db, 'users', authUser.uid);
       await updateDoc(userDocRef, { 
         settings: newSettings,
-        updated_at: new Date().toISOString()
+        updated_at: serverTimestamp()
       });
       
       setSettingsData(newSettings);
@@ -507,7 +553,8 @@ export const Profile: React.FC = () => {
         await updateDoc(userDocRef, { 
           deleted: true,
           deleted_at: new Date().toISOString(),
-          status: 'deactivated'
+          status: 'deactivated',
+          updated_at: serverTimestamp()
         });
         
         alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
@@ -527,6 +574,12 @@ export const Profile: React.FC = () => {
     phone: userData?.phone || 'Not provided',
     address: userData?.address || 'No address saved',
     avatar: authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
+    avatarConfig: userData?.avatar_config,
+    aiUsageStats: userData?.ai_usage_stats,
+    avatarSvg: userData?.avatar_config ? createAvatar(adventurer, {
+      seed: userData.avatar_config.seed,
+      ...userData.avatar_config.options
+    }).toString() : null
   };
 
   const getStatusColor = (status: string) => {
@@ -560,6 +613,36 @@ export const Profile: React.FC = () => {
     );
   }
 
+  const handleSaveAvatar = async (avatarConfig: any) => {
+    if (!authUser) return;
+    try {
+      const userDocRef = doc(db, 'users', authUser.uid);
+      
+      // AI usage logic
+      let updatedAiUsage = avatarConfig.aiUsageStats || { count: 0, month: new Date().getMonth() };
+      const currentMonth = new Date().getMonth();
+      
+      // If month has changed, reset count
+      if (updatedAiUsage.month !== currentMonth) {
+        updatedAiUsage = { count: 0, month: currentMonth };
+      }
+
+      await updateDoc(userDocRef, {
+        avatar_config: {
+          seed: avatarConfig.seed,
+          options: avatarConfig.options
+        },
+        ai_usage_stats: updatedAiUsage,
+        updated_at: serverTimestamp()
+      });
+      setIsAvatarEditorOpen(false);
+      toast.success('Avatar style applied!');
+    } catch (error: any) {
+      console.error('Error saving avatar:', error);
+      toast.error('Failed to save avatar');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black overflow-x-hidden pb-32" ref={containerRef}>
       {/* Cinematic Hero Header */}
@@ -577,7 +660,13 @@ export const Profile: React.FC = () => {
         </div>
 
         <div className="relative z-10 flex flex-col items-center text-center px-4 md:px-6 w-full">
-          <GlowingAvatar src={user.avatar} name={user.name} />
+          <GlowingAvatar 
+            src={user.avatar} 
+            name={user.name} 
+            svg={user.avatarSvg || undefined}
+            config={user.avatarConfig}
+            onEdit={() => setIsAvatarEditorOpen(true)}
+          />
           
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -994,7 +1083,6 @@ export const Profile: React.FC = () => {
                              onClick={() => handleClaimGift(gift.id)}
                              disabled={isLocked || !canAfford || gift.stock <= 0}
                              variant={isLocked ? "outline" : canAfford ? "primary" : "ghost"}
-                             size="sm"
                              className="rounded-2xl px-6 h-12"
                            >
                              {isLocked ? 'Locked' : gift.stock <= 0 ? 'Out of Stock' : canAfford ? 'Claim Reward' : 'Points Needed'}
@@ -1244,6 +1332,17 @@ export const Profile: React.FC = () => {
         onClose={() => setShowUnlockModal(false)}
         tierName={newTierName}
         themeColor={badgeConfigs.find(c => c.tierName === newTierName)?.themeColor}
+      />
+
+      <AvatarEditor 
+        isOpen={isAvatarEditorOpen}
+        onClose={() => setIsAvatarEditorOpen(false)}
+        onSave={handleSaveAvatar}
+        initialConfig={{
+          seed: user.avatarConfig?.seed,
+          options: user.avatarConfig?.options,
+          aiUsageStats: user.aiUsageStats
+        }}
       />
     </div>
   );

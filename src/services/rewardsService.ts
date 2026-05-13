@@ -8,12 +8,15 @@ import {
   getDoc, 
   updateDoc, 
   setDoc,
+  addDoc,
+  deleteDoc,
   serverTimestamp,
   increment,
   runTransaction
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from './firestoreService';
+import { toast } from 'react-hot-toast';
 
 export interface BadgeConfig {
   id: string;

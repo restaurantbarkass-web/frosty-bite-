@@ -33,6 +33,7 @@ interface GiftReward {
   requiredTier: string;
   stock: number;
   active: boolean;
+  costPoints?: number;
 }
 
 const DEFAULT_BADGES: Partial<BadgeConfig>[] = [
@@ -157,6 +158,17 @@ export const RewardsManager: React.FC = () => {
     }
   };
 
+  const handleDeleteBadge = async (id: string) => {
+    if (!window.confirm('Delete this tier configuration?')) return;
+    try {
+      await deleteDoc(doc(db, 'badge_configs', id));
+      toast.success('Tier deleted');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to delete tier');
+    }
+  };
+
   const handleDeleteGift = async (id: string) => {
     if (!window.confirm('Delete this gift?')) return;
     try {
@@ -261,10 +273,9 @@ export const RewardsManager: React.FC = () => {
                     ))}
                   </div>
 
-                  <div className="flex justify-center md:justify-start gap-3">
+                   <div className="flex justify-center md:justify-start gap-3">
                     <Button 
                       variant="ghost" 
-                      size="sm" 
                       onClick={() => {
                         setIsEditingBadge(badge.id);
                         setBadgeForm(badge);
@@ -275,7 +286,6 @@ export const RewardsManager: React.FC = () => {
                     </Button>
                     <Button 
                       variant="ghost" 
-                      size="sm" 
                       onClick={() => handleDeleteBadge(badge.id)}
                       className="rounded-xl hover:bg-red-500/10 text-red-500"
                     >
@@ -317,10 +327,9 @@ export const RewardsManager: React.FC = () => {
                     <span>Cost: <span className="text-white">{gift.costPoints || 0} pts</span></span>
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                   <div className="flex gap-2 pt-2">
                     <Button 
                       variant="ghost" 
-                      size="sm" 
                       onClick={() => {
                         setIsEditingGift(gift.id);
                         setGiftForm(gift);
@@ -331,7 +340,6 @@ export const RewardsManager: React.FC = () => {
                     </Button>
                     <Button 
                       variant="ghost" 
-                      size="sm" 
                       onClick={() => handleDeleteGift(gift.id)}
                       className="rounded-xl hover:bg-red-500/10 text-red-500"
                     >

@@ -72,6 +72,11 @@ service cloud.firestore {
              (!('referral_count' in data) || (data.referral_count is number && data.referral_count >= 0)) &&
              (!('review_count' in data) || (data.review_count is number && data.review_count >= 0)) &&
              (!('title' in data) || (data.title is string && data.title.size() <= 100)) &&
+             (!('deleted' in data) || data.deleted is bool) &&
+             (!('deleted_at' in data) || (data.deleted_at is string && data.deleted_at.size() <= 100)) &&
+             (!('status' in data) || (data.status is string && data.status.size() <= 50)) &&
+             (!('avatar_config' in data) || data.avatar_config is map) &&
+             (!('ai_usage_stats' in data) || data.ai_usage_stats is map) &&
              (data.updated_at == request.time);
     }
 
@@ -185,7 +190,7 @@ service cloud.firestore {
         incoming().role == 'customer' || isAdmin()
       );
       allow update: if (isOwner(userId) || isAdmin()) && (
-        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance', 'badge_tier', 'total_orders', 'lifetime_spend', 'activity_streak', 'referral_count', 'review_count', 'title', 'points'])) ||
+        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance', 'badge_tier', 'total_orders', 'lifetime_spend', 'activity_streak', 'referral_count', 'review_count', 'title', 'points', 'deleted', 'deleted_at', 'status', 'avatar_config', 'ai_usage_stats'])) ||
         isAdmin()
       ) && isValidUser(incoming());
     }

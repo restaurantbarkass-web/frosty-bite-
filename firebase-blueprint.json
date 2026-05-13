@@ -21,6 +21,8 @@
         "referral_count": { "type": "number" },
         "review_count": { "type": "number" },
         "title": { "type": "string" },
+        "avatar_config": { "type": "object" },
+        "ai_usage_stats": { "type": "object" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
