@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { HfInference } from "@huggingface/inference";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 let hf: HfInference | null = null;
+let genAI: GoogleGenAI | null = null;
 
 function getHF() {
   if (!hf) {
@@ -20,6 +22,14 @@ function getHF() {
     hf = new HfInference(process.env.HF_TOKEN);
   }
   return hf;
+}
+
+function getGenAI() {
+  if (!genAI) {
+    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return genAI;
 }
 
 async function startServer() {
@@ -39,39 +49,84 @@ async function startServer() {
     res.json({ status: "ok", env: process.env.NODE_ENV });
   });
 
-  // AI Generation Endpoint - use post directly
+  // AI Generation Endpoint
   app.post("/api/generate-avatar", async (req, res) => {
     console.log(`${new Date().toISOString()} - Processing avatar generation request: ${req.method} ${req.url}`);
     try {
       const { prompt } = req.body;
-      
-      if (!process.env.HF_TOKEN) {
-        console.error("Missing HF_TOKEN");
-        return res.status(400).json({ error: "HF_TOKEN not configured" });
+      let imageResult = null;
+
+      // 1. Try Hugging Face First
+      if (process.env.HF_TOKEN) {
+        try {
+          console.log("Attempting Hugging Face generation...");
+          const hfResult = await getHF().textToImage({
+            model: "stabilityai/stable-diffusion-xl-base-1.0",
+            inputs: prompt || `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`,
+          });
+          
+          if (hfResult) {
+            let buffer: Buffer;
+            if (typeof (hfResult as any).arrayBuffer === 'function') {
+              const ab = await (hfResult as any).arrayBuffer();
+              buffer = Buffer.from(ab);
+            } else {
+              buffer = Buffer.from(hfResult as any);
+            }
+            imageResult = `data:image/png;base64,${buffer.toString('base64')}`;
+            console.log("HF generation successful");
+          }
+        } catch (hfError) {
+          console.error("HF Generation failed:", hfError);
+        }
       }
 
-      console.log("Attempting Hugging Face generation...");
-      const result = await getHF().textToImage({
-        model: "stabilityai/stable-diffusion-xl-base-1.0",
-        inputs: prompt || `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`,
-      });
-      
-      if (!result) throw new Error("Hugging Face returned no result");
+      // 2. Fallback to Gemini if HF failed or not configured
+      if (!imageResult && process.env.GEMINI_API_KEY) {
+        try {
+          console.log("Attempting Gemini fallback...");
+          const result = await getGenAI().models.generateContent({
+            model: "gemini-1.5-flash", // Use stable model
+            contents: [{
+              role: 'user',
+              parts: [{
+                text: `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
+                 Style: kawaii, pastel colors, thick lines. 
+                 The prompt: ${prompt || 'Cute bakery mascot'}
+                 Return ONLY the SVG code, no markdown, no explanations. 
+                 The SVG should be square (viewBox="0 0 512 512").`
+              }]
+            }]
+          });
 
-      let buffer: Buffer;
-      if (typeof (result as any).arrayBuffer === 'function') {
-        const ab = await (result as any).arrayBuffer();
-        buffer = Buffer.from(ab);
-      } else {
-        buffer = Buffer.from(result as any);
+          const svgCode = result.text.replace(/```svg|```|```html/g, "").trim();
+          if (svgCode && svgCode.includes('<svg')) {
+            imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
+            console.log("Gemini fallback successful");
+          }
+        } catch (geminiError: any) {
+          console.error("Gemini fallback failed:", geminiError);
+          // Check for quota error
+          if (geminiError.message?.includes('429') || geminiError.status === 429) {
+            return res.status(429).json({ 
+              error: "AI Quota Reached", 
+              message: "Our AI bakers are resting! Please try again in a few minutes or create your avatar manually." 
+            });
+          }
+        }
       }
-      
-      const imageResult = `data:image/png;base64,${buffer.toString('base64')}`;
-      console.log("HF generation successful");
+
+      if (!imageResult) {
+        throw new Error("AI services currently busy. Please try manual creation!");
+      }
+
       res.json({ image: imageResult });
     } catch (error: any) {
       console.error("Final avatar generation error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(error.status || 500).json({ 
+        error: error.name || "Generation Error", 
+        message: error.message 
+      });
     }
   });
 

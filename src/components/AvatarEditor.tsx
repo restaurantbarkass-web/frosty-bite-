@@ -6,7 +6,6 @@ import { X, RefreshCw, Check, Undo, Redo, Sparkles, Camera, Upload, Wand2, Loade
 import { Button } from './Button';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
-import { GoogleGenAI } from "@google/genai";
 
 interface AvatarEditorProps {
   isOpen: boolean;
@@ -167,38 +166,33 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         if (aiRes.ok && aiData.image) {
           setGeneratedImageUrl(aiData.image);
           setStep('ai_result');
-          console.log("HF generation successful via backend");
+          console.log("Avatar generation successful via backend");
         } else {
-          console.warn(`HF backend failed with status ${aiRes.status}, falling back to Gemini in frontend...`);
-          throw new Error("Backend failed");
+          // Robust error cleaning for 429 or other API errors
+          let errorMessage = aiData.message || aiData.error || "Generation failed";
+          
+          if (aiRes.status === 429 || errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
+            errorMessage = "AI bakers are at full capacity! Please try manual design or wait a few minutes.";
+          }
+          
+          throw new Error(errorMessage);
         }
-      } catch (backendError) {
-        // Fallback to Gemini directly in frontend
-        console.log("Attempting Gemini fallback in frontend...");
+      } catch (error: any) {
+        // Final catch for network or other issues
+        console.error("Avatar Lab Error:", error);
+        let finalMessage = error.message || "An unexpected error occurred in the lab.";
         
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [
-            `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
-             Vibe requirements: ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes.
-             Style: kawaii, pastel colors, thick lines. 
-             The character should be holding a piece of bread or coffee or a sweet treat.
-             Return ONLY the SVG code, no markdown, no explanations. 
-             The SVG should be square (viewBox="0 0 512 512").`
-          ]
+        // Final sanity check: if the message looks like JSON, don't show it raw
+        if (finalMessage.startsWith('{') || finalMessage.includes('"error"')) {
+           finalMessage = "AI Busy: Our creative robots are currently overloaded. Please try again soon!";
+        }
+        
+        toast.error(finalMessage, { 
+          id: 'avatar-error', 
+          duration: 5000, 
+          icon: '🥐' 
         });
-
-        const svgCode = result.text.replace(/```svg|```|```html/g, "").trim();
-        
-        if (!svgCode || !svgCode.includes('<svg')) {
-          throw new Error("Gemini failed to generate valid SVG");
-        }
-
-        const imageResult = `data:image/svg+xml;base64,${btoa(svgCode)}`;
-        setGeneratedImageUrl(imageResult);
-        setStep('ai_result');
-        console.log("Gemini fallback successful in frontend");
+        setStep('welcome');
       }
     } catch (error: any) {
       console.error(error);
