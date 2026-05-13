@@ -279,7 +279,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-white/20 backdrop-blur-2xl"
+        className="absolute inset-0 bg-black/60 backdrop-blur-xl"
       />
       
       <AnimatePresence mode="wait">
@@ -290,23 +290,23 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 1.1, y: -20 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] p-10 md:p-14 text-center overflow-hidden shadow-2xl flex flex-col items-center justify-center"
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-card md:rounded-[3rem] p-10 md:p-14 text-center overflow-hidden border border-border shadow-2xl flex flex-col items-center justify-center"
           >
             <div className="absolute top-0 right-0 p-8">
                <motion.div animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}>
-                 <Sparkles size={24} className="text-bakery-chocolate opacity-20" />
+                 <Sparkles size={24} className="text-primary opacity-20" />
                </motion.div>
             </div>
 
             <div className="relative z-10 w-full flex flex-col items-center">
               <div className="mb-8">
-                 <div className="w-12 h-12 bg-bakery-pink/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                 <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                     <span className="text-2xl">🧁</span>
                  </div>
-                 <h1 className="text-4xl font-black text-bakery-chocolate tracking-tight mb-2">
+                 <h1 className="text-4xl font-black text-white tracking-tight mb-2">
                    Create Your<br/>Bakery Avatar
                  </h1>
-                 <p className="text-bakery-chocolate/60 text-sm font-medium">
+                 <p className="text-muted text-sm font-medium">
                    Let's build your cozy<br/>bakery identity ✨
                  </p>
               </div>
@@ -314,7 +314,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
               <motion.div 
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative w-64 h-64 bg-white/50 rounded-full border-4 border-white shadow-xl overflow-hidden mb-12 flex items-center justify-center"
+                className="relative w-64 h-64 bg-secondary rounded-full border-4 border-border shadow-xl overflow-hidden mb-12 flex items-center justify-center"
               >
                  <div 
                    className="w-full h-full scale-110 translate-y-4"
@@ -332,7 +332,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                     setSelfieFile(null);
                     setStep('vibe_selection');
                   }}
-                  className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
+                  className="w-full rounded-2xl h-16 bg-primary hover:bg-primary/90 text-white font-bold text-base shadow-lg shadow-primary/20"
                 >
                   Enter Stylist Lab
                 </Button>
@@ -347,14 +347,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   />
                   <Button 
                     variant="outline"
-                    className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
+                    className="w-full rounded-2xl h-16 border-2 border-border bg-secondary hover:border-primary/30 text-white font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
                   >
-                    <Wand2 size={20} className="text-[#E8928A]" />
+                    <Wand2 size={20} className="text-primary" />
                     AI Magic Avatar
                   </Button>
                 </div>
                 
-                <p className="text-[10px] text-bakery-chocolate/40 font-bold uppercase tracking-widest mt-2">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-2">
                   AI Attempts: {aiUsage.count}/3
                 </p>
               </div>
@@ -368,16 +368,16 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-[85vh] bg-[#FFFBF2] md:rounded-[3rem] p-8 md:p-10 overflow-hidden flex flex-col"
+            className="relative z-10 w-full md:max-w-md h-full md:h-[85vh] bg-card md:rounded-[3rem] p-8 md:p-10 border border-border overflow-hidden flex flex-col"
           >
             <div className="mb-8 text-center">
-              <div className="w-12 h-12 bg-bakery-pink/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <Sparkles size={24} className="text-[#E8928A]" />
+              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <Sparkles size={24} className="text-primary" />
               </div>
-              <h3 className="text-3xl font-black text-bakery-chocolate tracking-tight mb-2">
+              <h3 className="text-3xl font-black text-white tracking-tight mb-2">
                 Choose Your<br/>Avatar Vibe ✨
               </h3>
-              <p className="text-bakery-chocolate/50 text-sm font-medium">
+              <p className="text-muted text-sm font-medium">
                 Pick a mood that fits your<br/>bakery personality
               </p>
             </div>
@@ -393,14 +393,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleVibeSelect(vibe.id)}
-                    className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-bakery-chocolate/5 shadow-sm group hover:border-[#E8928A] transition-colors text-left"
+                    className="flex items-center gap-4 p-4 bg-secondary rounded-3xl border border-border shadow-sm group hover:border-primary transition-colors text-left"
                   >
-                    <div className="w-14 h-14 rounded-2xl bg-bakery-cream flex items-center justify-center text-3xl shadow-inner">
+                    <div className="w-14 h-14 rounded-2xl bg-card flex items-center justify-center text-3xl shadow-inner border border-border">
                        {vibe.icon}
                     </div>
                     <div>
-                      <span className="block text-sm font-black text-bakery-chocolate uppercase tracking-widest">{vibe.label}</span>
-                      <span className="block text-[10px] font-bold text-bakery-chocolate/40 leading-tight mt-0.5">{vibe.description}</span>
+                      <span className="block text-sm font-black text-white uppercase tracking-widest">{vibe.label}</span>
+                      <span className="block text-[10px] font-bold text-muted leading-tight mt-0.5">{vibe.description}</span>
                     </div>
                   </motion.button>
                 ))}
@@ -411,14 +411,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
               <Button 
                 variant="outline" 
                 onClick={() => setStep('welcome')}
-                className="flex-1 rounded-2xl h-14 border-2 border-bakery-chocolate/5 text-bakery-chocolate font-bold text-sm"
+                className="flex-1 rounded-2xl h-14 border-2 border-border text-white font-bold text-sm bg-secondary"
               >
                 Back
               </Button>
               <Button 
                 variant="primary" 
                 onClick={() => handleVibeSelect('random')}
-                className="flex-1 rounded-2xl h-14 bg-bakery-chocolate text-white font-bold text-sm"
+                className="flex-1 rounded-2xl h-14 bg-white text-black font-bold text-sm"
               >
                 Surprise Me 🎲
               </Button>
@@ -432,19 +432,19 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] flex flex-col items-center justify-center p-12 text-center"
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-card md:rounded-[3rem] border border-border flex flex-col items-center justify-center p-12 text-center shadow-2xl"
           >
             <div className="relative mb-8">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute -inset-8 rounded-full border-t-2 border-bakery-chocolate/20"
+                className="absolute -inset-8 rounded-full border-t-2 border-primary/30"
               />
-              <div className="relative w-48 h-48 bg-white rounded-full p-4 border border-bakery-chocolate/5 flex items-center justify-center overflow-hidden shadow-xl">
+              <div className="relative w-48 h-48 bg-secondary rounded-full p-4 border border-border flex items-center justify-center overflow-hidden shadow-xl">
                  <div className="w-full h-full scale-110 translate-y-4" dangerouslySetInnerHTML={{ __html: avatarSvg }} />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight animate-pulse">
+            <h3 className="text-2xl font-black text-white tracking-tight animate-pulse">
               Baking your identity...
             </h3>
           </motion.div>
@@ -456,15 +456,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] flex flex-col items-center justify-center p-12 text-center"
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-card md:rounded-[3rem] border border-border flex flex-col items-center justify-center p-12 text-center shadow-2xl"
           >
             <div className="relative mb-8">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                className="absolute -inset-8 rounded-full border-t-2 border-[#E8928A]"
+                className="absolute -inset-8 rounded-full border-t-2 border-primary"
               />
-              <div className="relative w-48 h-48 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-xl border-4 border-white">
+              <div className="relative w-48 h-48 bg-secondary rounded-full flex items-center justify-center overflow-hidden shadow-xl border-4 border-border">
                  <motion.div
                    animate={{ scale: [1, 1.1, 1] }}
                    transition={{ duration: 2, repeat: Infinity }}
@@ -474,7 +474,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                  </motion.div>
               </div>
             </div>
-            <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight mb-4">
+            <h3 className="text-2xl font-black text-white tracking-tight mb-4">
               Cooking your foodie avatar...
             </h3>
             <div className="flex gap-2">
@@ -489,7 +489,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                  </motion.span>
                ))}
             </div>
-            <p className="mt-8 text-bakery-chocolate/40 text-xs font-medium italic">
+            <p className="mt-8 text-muted text-xs font-medium italic">
               Our AI is hand-crafting a unique style for you
             </p>
           </motion.div>
@@ -501,16 +501,16 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1 }}
-            className="relative z-10 w-full md:max-w-2xl h-full md:h-auto bg-[#FFF9F0] md:rounded-[4rem] p-8 md:p-20 text-center overflow-hidden flex flex-col items-center justify-center"
+            className="relative z-10 w-full md:max-w-2xl h-full md:h-auto bg-card md:rounded-[4rem] p-8 md:p-20 text-center overflow-hidden flex flex-col items-center justify-center border border-border shadow-2xl"
           >
-            <h3 className="text-5xl md:text-6xl font-[1000] text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.1)] tracking-tight mb-12 flex items-center gap-4">
+            <h3 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-12 flex items-center gap-4">
               Your AI Avatar <span className="animate-pulse">✨</span>
             </h3>
 
             <motion.div 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-[3.5rem] border-[16px] border-white shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] overflow-hidden mb-20 bg-white"
+              className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-[3.5rem] border-[12px] border-secondary shadow-2xl overflow-hidden mb-20 bg-secondary"
             >
               <img src={generatedImageUrl!} alt="AI Avatar" className="w-full h-full object-cover" />
             </motion.div>
@@ -525,13 +525,13 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   avatar_vibe: selectedVibe,
                   isAI: true
                 })}
-                className="w-full h-24 rounded-[2.5rem] bg-white text-bakery-chocolate font-black uppercase tracking-[0.3em] text-sm md:text-lg shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all flex items-center justify-center border border-white/50"
+                className="w-full h-20 rounded-[2rem] bg-primary text-white font-black uppercase tracking-[0.2em] text-sm md:text-base shadow-xl shadow-primary/20 hover:bg-primary/90 transition-all flex items-center justify-center"
                >
                 Keep this Avatar
                </motion.button>
                <button 
                 onClick={() => setStep('welcome')}
-                className="text-[10px] md:text-xs font-black text-bakery-chocolate/20 uppercase tracking-[0.3em] hover:text-bakery-chocolate transition-colors"
+                className="text-xs font-black text-muted uppercase tracking-[0.2em] hover:text-white transition-colors"
                >
                 Try Different Photo
                </button>
@@ -545,42 +545,42 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-[90vh] bg-[#FFFBF2] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col"
+            className="relative z-10 w-full md:max-w-md h-full md:h-[90vh] bg-card md:rounded-[3rem] shadow-2xl border border-border overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="p-6 flex items-center justify-between border-b border-bakery-chocolate/5 bg-white/50 backdrop-blur-md">
+            <div className="p-6 flex items-center justify-between border-b border-border bg-secondary/50 backdrop-blur-md">
               <button 
                 onClick={() => setStep('vibe_selection')}
-                className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-bakery-chocolate/40 hover:text-bakery-chocolate border border-bakery-chocolate/5"
+                className="w-10 h-10 rounded-2xl bg-secondary shadow-sm flex items-center justify-center text-muted hover:text-white border border-border transition-colors"
               >
                 <Undo size={18} />
               </button>
-              <h3 className="text-lg font-black text-bakery-chocolate tracking-tight">Your Avatar</h3>
+              <h3 className="text-lg font-black text-white tracking-tight">Your Avatar</h3>
               <button 
                 onClick={() => setStep('gallery')}
-                className="w-10 h-10 rounded-2xl bg-bakery-chocolate flex items-center justify-center text-white shadow-md active:scale-90 transition-transform"
+                className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center text-white shadow-md active:scale-90 transition-transform"
               >
                 <Check size={18} />
               </button>
             </div>
 
             {/* Preview Section */}
-            <div className="relative h-[40%] flex items-center justify-center bg-gradient-to-b from-white to-bakery-cream overflow-hidden">
+            <div className="relative h-[40%] flex items-center justify-center bg-gradient-to-b from-secondary to-card overflow-hidden">
                <div className="absolute top-4 left-6 flex flex-col gap-3">
-                  <button onClick={handleRandomize} className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-bakery-chocolate/40 hover:text-bakery-chocolate transition-colors border border-bakery-chocolate/5">
+                  <button onClick={handleRandomize} className="w-10 h-10 rounded-full bg-secondary shadow-sm flex items-center justify-center text-muted hover:text-white transition-colors border border-border">
                     <RefreshCw size={18} />
                   </button>
                </div>
                <div className="absolute top-4 right-6 flex flex-col gap-3">
-                   <div className="w-10 h-10 rounded-full bg-bakery-pink/20 flex items-center justify-center">
-                    <Sparkles size={18} className="text-[#E8928A]" />
+                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <Sparkles size={18} className="text-primary" />
                    </div>
                </div>
 
                <motion.div 
                  animate={{ y: [0, -8, 0] }}
                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                 className="relative w-56 h-56 bg-white rounded-full border-4 border-white shadow-2xl overflow-hidden flex items-center justify-center"
+                 className="relative w-56 h-56 bg-secondary rounded-full border-4 border-border shadow-2xl overflow-hidden flex items-center justify-center"
                >
                   <div className="w-full h-full scale-125 translate-y-6" dangerouslySetInnerHTML={{ __html: avatarSvg }} />
                   {currentProp !== 'none' && (
@@ -597,9 +597,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             </div>
 
             {/* Controls */}
-            <div className="flex-1 flex flex-col bg-white rounded-t-[3rem] shadow-[0_-20px_40px_rgba(74,49,44,0.05)] overflow-hidden">
+            <div className="flex-1 flex flex-col bg-secondary rounded-t-[3rem] shadow-[0_-20px_40px_rgba(0,0,0,0.3)] overflow-hidden border-t border-border">
                {/* Categories */}
-               <div className="flex overflow-x-auto scrollbar-hide py-6 px-8 gap-4 bg-white border-b border-bakery-chocolate/5">
+               <div className="flex overflow-x-auto scrollbar-hide py-6 px-8 gap-4 bg-card border-b border-border">
                 {CATEGORIES.map((cat, idx) => (
                   <button
                     key={cat.id}
@@ -610,8 +610,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                     )}
                   >
                     <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-all shadow-sm border border-bakery-chocolate/5",
-                      activeCategory === cat.id ? "bg-[#E8928A] text-white shadow-lg shadow-[#E8928A]/20" : "bg-bakery-beige text-bakery-chocolate"
+                      "w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-all shadow-sm border",
+                      activeCategory === cat.id ? "bg-primary text-white shadow-lg shadow-primary/20 border-primary" : "bg-secondary text-white border-border"
                     )}>
                       {cat.id === 'bakeryTheme' ? '🥨' : 
                        cat.id === 'shirt' ? '👕' : 
@@ -623,13 +623,13 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                        cat.id === 'skinColor' ? '👤' :
                        '✨'}
                     </div>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-bakery-chocolate truncate max-w-[80px]">{cat.label}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-white truncate max-w-[80px]">{cat.label}</span>
                   </button>
                 ))}
               </div>
 
                {/* Grid */}
-               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-bakery-cream/30">
+               <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-card">
                   <div className="grid grid-cols-4 gap-3">
                     {activeCategory === 'bakeryTheme' ? (
                        CATEGORIES.find(c => c.id === 'bakeryTheme')?.options.map((option) => (
@@ -638,10 +638,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                             onClick={() => handleOptionSelect('bakeryTheme', option)}
                             className={cn(
                               "aspect-square rounded-2xl border-2 transition-all flex items-center justify-center text-2xl shadow-sm",
-                              config.bakeryTheme?.[0] === option ? "border-[#E8928A] bg-white scale-105" : "border-bakery-chocolate/5 bg-white hover:border-bakery-chocolate/20"
+                              config.bakeryTheme?.[0] === option ? "border-primary bg-secondary scale-105" : "border-border bg-secondary/50 hover:border-muted"
                             )}
                           >
-                            {option === 'none' ? <X size={16} className="text-bakery-chocolate/20" /> : BAKERY_PROPS[option]}
+                            {option === 'none' ? <X size={16} className="text-muted" /> : BAKERY_PROPS[option]}
                           </button>
                        ))
                     ) : (
@@ -654,10 +654,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                                onClick={() => handleOptionSelect(activeCategory, option)}
                                className={cn(
                                  "aspect-square rounded-2xl border-2 transition-all p-1.5 flex items-center justify-center",
-                                 isSelected ? "border-[#E8928A] scale-110" : "border-transparent"
+                                 isSelected ? "border-primary scale-110" : "border-transparent"
                                )}
                              >
-                                <div className="w-full h-full rounded-xl shadow-inner border border-black/5" style={{ backgroundColor: `#${option}` }} />
+                                <div className="w-full h-full rounded-xl shadow-inner border border-white/10" style={{ backgroundColor: `#${option}` }} />
                              </button>
                            );
                         }
@@ -672,8 +672,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                             key={option}
                             onClick={() => handleOptionSelect(activeCategory, option)}
                             className={cn(
-                              "aspect-square rounded-2xl border-2 transition-all p-1 overflow-hidden bg-white shadow-sm",
-                              isSelected ? "border-[#E8928A] bg-[#E8928A]/5 scale-105" : "border-bakery-chocolate/5 hover:border-bakery-chocolate/20"
+                              "aspect-square rounded-2xl border-2 transition-all p-1 overflow-hidden bg-secondary shadow-sm",
+                              isSelected ? "border-primary bg-primary/10 scale-105" : "border-border hover:border-muted"
                             )}
                           >
                             <div 
@@ -696,15 +696,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] p-8 md:p-12 overflow-hidden flex flex-col"
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-card md:rounded-[3rem] p-8 md:p-12 border border-border overflow-hidden flex flex-col shadow-2xl"
           >
-            <div className="absolute inset-0 bg-gradient-to-b from-bakery-pink/20 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
             
             <div className="relative z-10 text-center mb-8">
-              <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight mb-2">
-                So Many Cute Avatars<br/>You Can Create! ✨
+              <h3 className="text-2xl font-black text-white tracking-tight mb-2">
+                So Many Cute Options!<br/>Check These Out ✨
               </h3>
-              <p className="text-bakery-chocolate/40 text-[10px] font-bold uppercase tracking-widest">Your cinematic bakery collection</p>
+              <p className="text-muted text-[10px] font-bold uppercase tracking-widest">Your signature bakery look</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-8 flex-1">
@@ -714,11 +714,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: i * 0.1 }}
-                  className="aspect-square bg-white border border-bakery-chocolate/5 rounded-3xl shadow-sm overflow-hidden flex items-center justify-center p-2 relative group"
+                  className="aspect-square bg-secondary border border-border rounded-3xl shadow-sm overflow-hidden flex items-center justify-center p-2 relative group"
                 >
                    <div className="w-full h-full scale-125 translate-y-3" dangerouslySetInnerHTML={{ __html: i === 0 ? avatarSvg : galleryPreviews[i-1] || avatarSvg }} />
-                   <div className="absolute top-2 right-2 p-1 bg-bakery-pink/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Sparkles size={12} className="text-bakery-chocolate" />
+                   <div className="absolute top-2 right-2 p-1 bg-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Sparkles size={12} className="text-primary" />
                    </div>
                 </motion.div>
               ))}
@@ -734,13 +734,13 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   avatar_vibe: selectedVibe,
                   aiUsageStats: aiUsage
                 })}
-                className="w-full h-16 rounded-2xl bg-bakery-chocolate text-white font-bold text-base shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                className="w-full h-16 rounded-2xl bg-white text-black font-bold text-base shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
                >
                 Save My Identity
                </Button>
                <button 
                 onClick={() => setStep('editor')}
-                className="text-[10px] font-black text-bakery-chocolate/40 uppercase tracking-widest hover:text-bakery-chocolate transition-colors"
+                className="text-[10px] font-black text-muted uppercase tracking-widest hover:text-white transition-colors"
                >
                 ← Back to Edit
                </button>
