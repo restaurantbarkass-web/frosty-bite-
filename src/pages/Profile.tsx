@@ -694,7 +694,7 @@ export const Profile: React.FC = () => {
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-          toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your environment settings.", { id: loadingToast });
+          toast.error("Cloudinary keys missing! Please ensure you've added VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings > Environment Variables, then REFRESH this page.", { id: loadingToast, duration: 8000 });
           return;
         }
 

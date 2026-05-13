@@ -100,8 +100,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
       if (!cloudName || !uploadPreset) {
         setStep('welcome');
-        toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your environment settings.", {
-          duration: 6000,
+        toast.error("Cloudinary keys missing! Please ensure you've added VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings > Environment Variables, then REFRESH this page.", {
+          duration: 8000,
           icon: '🔑'
         });
         return;
@@ -154,6 +154,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }
   };
 
+  const handleSaveWrapper = async (avatarConfig: any) => {
+    try {
+      await onSave(avatarConfig);
+    } catch (err) {
+      console.error("Save error:", err);
+      // toast is handled in parent mostly, but we catch it here to prevent unhandled rejection
+    }
+  };
+
   const galleryPreviews = useMemo(() => {
     return [
       createAvatar(adventurer, { seed: '1', hair: ['long01'], hairColor: ['d5b08b'], mouth: ['variant01'] } as any).toString(),
@@ -178,11 +187,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }).toString();
   }, [seed, config]);
 
-  const handleVibeSelect = (vibeId: string) => {
+  const handleVibeSelect = async (vibeId: string) => {
     setSelectedVibe(vibeId);
     
     if (selfieFile) {
-      generateAIAvatar(vibeId);
+      try {
+        await generateAIAvatar(vibeId);
+      } catch (err) {
+        console.error("Vibe selection AI error:", err);
+      }
       return;
     }
 
@@ -483,7 +496,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             <div className="flex flex-col gap-4 w-full">
                <Button 
                 variant="primary" 
-                onClick={() => onSave({ 
+                onClick={() => handleSaveWrapper({ 
                   avatar_url: generatedImageUrl,
                   avatar_style: 'chibi_ai',
                   avatar_vibe: selectedVibe,
@@ -691,7 +704,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             <div className="relative z-10 flex flex-col gap-4">
                <Button 
                 variant="primary" 
-                onClick={() => onSave({ 
+                onClick={() => handleSaveWrapper({ 
                   seed, 
                   options: config, 
                   svg: avatarSvg,
