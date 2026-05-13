@@ -1,8 +1,7 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { HfInference } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -14,8 +13,24 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-const hf = new HfInference(process.env.HF_TOKEN);
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+let hf: HfInference | null = null;
+let genAI: any = null;
+
+function getHF() {
+  if (!hf) {
+    if (!process.env.HF_TOKEN) throw new Error("HF_TOKEN missing");
+    hf = new HfInference(process.env.HF_TOKEN);
+  }
+  return hf;
+}
+
+function getGenAI() {
+  if (!genAI) {
+    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
+    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  }
+  return genAI;
+}
 
 async function startServer() {
   // Improved Request logging
@@ -54,7 +69,7 @@ async function startServer() {
 
       try {
         console.log("Attempting Hugging Face generation...");
-        const result = await hf.textToImage({
+        const result = await getHF().textToImage({
           model: "stabilityai/stable-diffusion-xl-base-1.0",
           inputs: prompt || `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`,
         });
@@ -78,18 +93,19 @@ async function startServer() {
 
       if (fallbackToGemini) {
         console.log("Attempting Gemini fallback...");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
-        const result = await model.generateContent([
-          `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
-           Style: kawaii, pastel colors, thick lines. 
-           The character should be holding a piece of bread or coffee.
-           Return ONLY the SVG code, no markdown, no explanations. 
-           The SVG should be square (viewBox="0 0 512 512").`
-        ]);
+        const result = await getGenAI().models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
+             Style: kawaii, pastel colors, thick lines. 
+             The character should be holding a piece of bread or coffee.
+             Return ONLY the SVG code, no markdown, no explanations. 
+             The SVG should be square (viewBox="0 0 512 512").`
+          ]
+        });
 
-        const response = await result.response;
-        const svgCode = response.text().replace(/```svg|```|```html/g, "").trim();
+        const svgCode = result.text.replace(/```svg|```|```html/g, "").trim();
         
         if (!svgCode || !svgCode.includes('<svg')) {
           throw new Error("Gemini failed to generate valid SVG");
@@ -112,6 +128,7 @@ async function startServer() {
 
   // Vite middleware
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -120,6 +137,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    // Catch-all route for SPA
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
