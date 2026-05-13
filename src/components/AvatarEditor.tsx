@@ -71,6 +71,28 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [selectedVibe, setSelectedVibe] = useState<string | null>(null);
   const [isAiWizard, setIsAiWizard] = useState(false);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image too large (max 5MB)");
+      return;
+    }
+
+    if (aiUsage.count >= 3) {
+      toast.error("AI Generation limit reached (3 per account)");
+      return;
+    }
+
+    setSelfieFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setIsAiWizard(true);
+    setStep('vibe_selection');
+  };
 
   const generateAIAvatar = async (vibeId: string) => {
     const vibe = VIBES.find(v => v.id === vibeId);
@@ -80,8 +102,35 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       setStep('ai_loading');
       setIsGenerating(true);
 
+      let selfieUrl = null;
+
+      // STEP 4 — UPLOAD TO CLOUDINARY
+      if (selfieFile) {
+        if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+          console.error("Cloudinary keys missing");
+        } else {
+          try {
+            const formData = new FormData();
+            formData.append("file", selfieFile);
+            formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+            const cloudRes = await fetch(
+              `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+              {
+                method: "POST",
+                body: formData,
+              }
+            );
+            const cloudData = await cloudRes.json();
+            selfieUrl = cloudData.secure_url;
+            console.log("Selfie uploaded to Cloudinary:", selfieUrl);
+          } catch (cloudErr) {
+            console.error("Cloudinary error:", cloudErr);
+          }
+        }
+      }
+
       // We send the vibe and prompt directly to our backend
-      // Our backend handles HF or Gemini fallback automatically
       try {
         const aiRes = await fetch("/api/generate-avatar", {
           method: "POST",
@@ -89,6 +138,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
           body: JSON.stringify({
             userId: user?.uid,
             vibe: vibeId,
+            imageUrl: selfieUrl,
             prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe`
           }),
         });
@@ -284,17 +334,22 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   Enter Stylist Lab
                 </Button>
 
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setIsAiWizard(true);
-                    setStep('vibe_selection');
-                  }}
-                  className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
-                >
-                  <Wand2 size={20} className="text-[#E8928A]" />
-                  AI Magic Avatar
-                </Button>
+                <div className="relative group w-full">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    onChange={handleSelfieUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <Button 
+                    variant="outline"
+                    className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
+                  >
+                    <Wand2 size={20} className="text-[#E8928A]" />
+                    AI Magic Avatar
+                  </Button>
+                </div>
                 
                 <p className="text-[10px] text-bakery-chocolate/40 font-bold uppercase tracking-widest mt-2">
                   AI Attempts: {aiUsage.count}/3
@@ -412,15 +467,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                    transition={{ duration: 2, repeat: Infinity }}
                    className="text-6xl"
                  >
-                   🍜
+                   🧁
                  </motion.div>
               </div>
             </div>
             <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight mb-4">
-              Cooking your foodie avatar...
+              Baking your chibi avatar...
             </h3>
             <div className="flex gap-2">
-               {['✨', '☕', '🥐'].map((emoji, i) => (
+               {['🧁', '✨', '☕'].map((emoji, i) => (
                  <motion.span
                    key={i}
                    animate={{ y: [0, -10, 0], opacity: [0.3, 1, 0.3] }}

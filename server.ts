@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { HfInference } from "@huggingface/inference";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
@@ -53,13 +54,62 @@ async function startServer() {
   app.post("/api/generate-avatar", async (req, res) => {
     console.log(`${new Date().toISOString()} - Processing avatar generation request: ${req.method} ${req.url}`);
     try {
-      const { prompt, vibe } = req.body;
+      const { prompt, vibe, imageUrl } = req.body;
       let imageResult = null;
 
-      console.log(`Generation started for vibe: ${vibe || 'none'}, prompt: ${prompt || 'default'}`);
+      console.log(`Generation started for vibe: ${vibe || 'none'}, prompt: ${prompt || 'default'}, hasImage: ${!!imageUrl}`);
 
-      // 1. Try Hugging Face First if Token exists
-      if (process.env.HF_TOKEN && process.env.HF_TOKEN.length > 5) {
+      // 1. Try Gemini Vision if Image is provided (Multimodal is better for "inspired by selfie")
+      if (imageUrl && process.env.GEMINI_API_KEY) {
+        try {
+          console.log("Attempting Gemini Vision generation...");
+          const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+          
+          let parts = [];
+          
+          try {
+            const imgRes = await fetch(imageUrl);
+            const arrayBuffer = await imgRes.arrayBuffer();
+            const base64Data = Buffer.from(arrayBuffer).toString('base64');
+            const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+            
+            parts.push({
+              inlineData: {
+                data: base64Data,
+                mimeType: mimeType
+              }
+            });
+          } catch (fetchErr) {
+            console.error("Failed to fetch image for Gemini, proceeding with text only:", fetchErr);
+          }
+          
+          const genPrompt = `Create a cute bakery-themed chibi avatar inspired by this person.
+                 Anime-inspired, Kawaii style.
+                 Big expressive eyes, soft pastel colors.
+                 Holding a cupcake, croissant, or coffee mug.
+                 Cozy bakery vibe with a cute hoodie.
+                 Minimalist SVG with thick clean lines.
+                 Return ONLY the valid SVG code. No markdown, no explanations. 
+                 The SVG must be square (viewBox="0 0 512 512").`;
+          
+          parts.push({ text: genPrompt });
+
+          const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+          const response = await result.response;
+          const text = response.text();
+          const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
+          
+          if (svgCode && svgCode.includes('<svg')) {
+            imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
+            console.log("Gemini Vision/Text successful");
+          }
+        } catch (geminiError: any) {
+          console.error("Gemini Vision/Text failed:", geminiError.message || geminiError);
+        }
+      }
+
+      // 2. Fallback to Hugging Face if image is NOT provided or Gemini failed
+      if (!imageResult && process.env.HF_TOKEN && process.env.HF_TOKEN.length > 5) {
         try {
           console.log("Attempting Hugging Face generation...");
           const hfResult = await getHF().textToImage({
@@ -147,15 +197,28 @@ async function startServer() {
   } else {
     // Production: serve static files and catch-all for SPA
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    
+    if (fs.existsSync(distPath)) {
+      console.log(`[Production] Serving static files from: ${distPath}`);
+      app.use(express.static(distPath));
+    } else {
+      console.error(`[Production] CRITICAL: dist directory NOT found at ${distPath}`);
+    }
     
     // Explicitly handle SPA fallback in production - must be AFTER static files
-    app.get('*', (req, res) => {
+    // Express 5 strictly requires *all for catch-all behavior in some environments
+    app.get('*all', (req, res) => {
       // Direct file check to avoid infinite loops if a 404'd asset is requested
-      if (req.url.includes('.')) {
+      if (req.url.includes('.') && !req.url.endsWith('.html')) {
         return res.status(404).end();
       }
-      res.sendFile(path.join(distPath, 'index.html'));
+      
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("Application shell not found. Please wait for build to complete.");
+      }
     });
   }
 

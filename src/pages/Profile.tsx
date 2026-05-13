@@ -16,7 +16,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
 import { db } from '../firebase';
-import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -32,6 +32,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
 
+import { supabase } from '../lib/supabase';
 import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
@@ -694,7 +695,7 @@ export const Profile: React.FC = () => {
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-          toast.error("Cloudinary keys missing! Please ensure you've added VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings > Environment Variables, then REFRESH this page.", { id: loadingToast, duration: 8000 });
+          toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings.", { id: loadingToast, duration: 8000 });
           return;
         }
 
@@ -710,25 +711,16 @@ export const Profile: React.FC = () => {
           }
         );
 
-        let cloudData;
-        try {
-          const text = await cloudRes.text();
-          cloudData = text ? JSON.parse(text) : {};
-        } catch (e) {
-          cloudData = {};
-        }
+        const cloudData = await cloudRes.json();
 
         if (!cloudRes.ok) {
           throw new Error(cloudData.error?.message || `Failed to store AI avatar in cloud (${cloudRes.status})`);
         }
         
         finalAvatarUrl = cloudData.secure_url;
-        if (!finalAvatarUrl) {
-          throw new Error("Cloudinary missing URL after upload");
-        }
       }
 
-      // AI usage logic
+      // 1. Update Firebase (Firestore)
       let updatedAiUsage = avatarConfig.aiUsageStats || { count: userData?.avatar_generation_count || 0, month: new Date().getMonth() };
       
       if (avatarConfig.isAI) {
@@ -736,8 +728,6 @@ export const Profile: React.FC = () => {
       }
 
       const currentMonth = new Date().getMonth();
-      
-      // If month has changed, reset count
       if (updatedAiUsage.month !== currentMonth) {
         updatedAiUsage = { count: updatedAiUsage.count, month: currentMonth };
       }
@@ -757,18 +747,33 @@ export const Profile: React.FC = () => {
           seed: avatarConfig.seed,
           options: avatarConfig.options
         };
-        // If they chose a new DiceBear avatar, clear the AI one
         updateData.avatar_url = null;
         updateData.avatar_style = 'dicebear';
-        updateData.avatar_vibe = avatarConfig.avatar_vibe;
       }
 
       await updateDoc(userDocRef, updateData);
+
+      // 2. Update Supabase (Parallel saving as requested)
+      if (supabase) {
+        try {
+          await supabase
+            .from('users')
+            .update({ 
+               avatar_url: finalAvatarUrl || null,
+               updated_at: new Date().toISOString()
+            })
+            .eq('id', authUser.uid);
+          console.log("Supabase synced successfully");
+        } catch (sErr) {
+          console.warn("Supabase sync failed (silent):", sErr);
+        }
+      }
+
       setIsAvatarEditorOpen(false);
-      toast.success('Avatar style applied!', { id: loadingToast });
+      toast.success('Avatar style applied everywhere! ✨', { id: loadingToast });
     } catch (error: any) {
       console.error('Error saving avatar:', error);
-      toast.error('Failed to save avatar', { id: loadingToast });
+      toast.error(error.message || 'Failed to save avatar', { id: loadingToast });
     }
   };
 
