@@ -136,6 +136,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         throw new Error("Cloudinary response missing image URL");
       }
 
+      // Check backend health before calling AI
+      try {
+        const healthRes = await fetch("/api/health");
+        if (!healthRes.ok) console.warn("Backend health check failed, but proceeding anyway...");
+      } catch (e) {
+        console.warn("Backend health check unreachable:", e);
+      }
+
       const aiRes = await fetch("/api/generate-avatar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,6 +158,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       try {
         const text = await aiRes.text();
         aiData = text ? JSON.parse(text) : {};
+        if (aiRes.status === 405) {
+          console.error("405 Method Not Allowed received. It seems the backend route is not accepting POST or being proxied incorrectly.");
+        }
       } catch (e) {
         aiData = {};
       }
