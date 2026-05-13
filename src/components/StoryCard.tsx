@@ -76,6 +76,24 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
         {type === 'rank' && (
           <div className="flex flex-col items-center gap-16 w-full">
             <div className="text-primary font-black text-4xl uppercase tracking-[0.5em] mb-4">LOYALTY STATUS</div>
+            
+            {/* Added Avatar in Rank Story */}
+            <div className="relative mb-8">
+              <div className="absolute -inset-4 bg-primary/20 rounded-full blur-2xl" />
+              <div className="relative w-48 h-48 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white p-1">
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  className={cn(
+                    "w-full h-full object-cover",
+                    !user.avatar_url && "scale-140 translate-y-3"
+                  )} 
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+
             <div className="relative w-full max-w-2xl bg-white/[0.03] border border-white/10 rounded-[5rem] p-20 backdrop-blur-3xl overflow-hidden">
                <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
                   <Crown size={200} className="text-white" />
@@ -103,6 +121,23 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
           <div className="flex flex-col items-center gap-12 w-full">
             <div className="text-cyan-400 font-black text-4xl uppercase tracking-[0.5em]">AI FOOD PERSONALITY</div>
             
+            {/* Added Avatar in Personality Story */}
+            <div className="relative">
+              <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-2xl animate-pulse" />
+              <div className="relative w-48 h-48 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white p-1">
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  className={cn(
+                    "w-full h-full object-cover",
+                    !user.avatar_url && "scale-140 translate-y-3"
+                  )} 
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            </div>
+
             <div className="relative w-full max-w-2xl h-[800px] flex flex-col items-center justify-center p-20 rounded-[5rem] overflow-hidden">
                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-500/20 to-cyan-500/30 blur-[100px]" />
                

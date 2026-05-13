@@ -640,7 +640,7 @@ export const Profile: React.FC = () => {
     phone: userData?.phone || 'Not provided',
     address: userData?.address || 'No address saved',
     avatar_url: userData?.avatar_url,
-    avatar: userData?.avatar_url || authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
+    avatar: userData?.avatar_url || (userData?.avatar_config ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.avatar_config.seed}${Object.entries(userData.avatar_config.options || {}).map(([k, v]) => `&${k}=${Array.isArray(v) ? v[0] : v}`).join('')}` : authUser?.photoURL) || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
     avatarConfig: userData?.avatar_config,
     aiUsageStats: userData?.ai_usage_stats || { count: userData?.avatar_generation_count || 0, month: new Date().getMonth() },
     avatarSvg: userData?.avatar_config ? createAvatar(adventurer, {
