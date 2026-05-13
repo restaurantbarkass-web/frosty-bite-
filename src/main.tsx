@@ -42,67 +42,28 @@ function safeReload() {
   }
 }
 
-/* ---------------- CLEAR OLD CACHES ---------------- */
+/* ---------------- SERVICE WORKER CLEANUP ---------------- */
+
+// Aggressively unregister all service workers to fix cache/websocket issues
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().then((success) => {
+        if (success) console.log('Successfully unregistered service worker');
+      });
+    }
+  });
+}
+
+/* ---------------- CLEAR ALL CACHES ---------------- */
 
 if ('caches' in window) {
   caches.keys().then((keys) => {
     keys.forEach((key) => {
-      if (!key.includes('frosty-v4')) {
-        caches.delete(key);
-      }
-    });
-  });
-}
-
-/* ---------------- SERVICE WORKER ---------------- */
-
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', async () => {
-    try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
-
-      console.log('SW registered');
-
-      /* CHECK FOR UPDATES */
-
-      reg.update().catch(err => console.warn('SW Update failed:', err));
-
-      setInterval(() => {
-        reg.update().catch(err => console.warn('SW Update failed:', err));
-      }, 60000);
-
-      /* HANDLE NEW VERSION */
-
-      reg.onupdatefound = () => {
-        const newWorker = reg.installing;
-
-        if (!newWorker) return;
-
-        newWorker.onstatechange = () => {
-          if (
-            newWorker.state === 'installed' &&
-            navigator.serviceWorker.controller
-          ) {
-            console.log('New version available');
-
-            setTimeout(() => {
-              safeReload();
-            }, 1500);
-          }
-        };
-      };
-
-      /* ANDROID CUSTOM TAB FIX */
-
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          reg.update();
-        }
+      caches.delete(key).then(() => {
+        console.log('Cleared cache:', key);
       });
-
-    } catch (err) {
-      console.error('SW failed:', err);
-    }
+    });
   });
 }
 
