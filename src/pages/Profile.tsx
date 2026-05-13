@@ -632,19 +632,30 @@ export const Profile: React.FC = () => {
 
       // If it's a new AI generation (base64), we MUST upload it to Cloudinary first
       if (avatarConfig.isAI && finalAvatarUrl?.startsWith('data:')) {
+        const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+        const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+        if (!cloudName || !uploadPreset) {
+          throw new Error("Cloudinary configuration missing. Please check your settings.");
+        }
+
         const formData = new FormData();
         formData.append("file", finalAvatarUrl);
-        formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+        formData.append("upload_preset", uploadPreset);
 
         const cloudRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
           {
             method: "POST",
             body: formData,
           }
         );
 
-        if (!cloudRes.ok) throw new Error("Failed to store AI avatar in cloud");
+        if (!cloudRes.ok) {
+          const errorData = await cloudRes.json().catch(() => ({}));
+          throw new Error(errorData.error?.message || "Failed to store AI avatar in cloud");
+        }
+        
         const cloudData = await cloudRes.json();
         finalAvatarUrl = cloudData.secure_url;
       }

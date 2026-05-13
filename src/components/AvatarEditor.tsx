@@ -72,6 +72,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       setIsGenerating(true);
 
       // Step 4: Upload Selfie to Cloudinary
+      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+        throw new Error("Cloudinary configuration missing. Please check your settings.");
+      }
+
       const formData = new FormData();
       formData.append("file", file);
       formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
@@ -84,7 +88,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         }
       );
 
-      if (!cloudRes.ok) throw new Error("Failed to upload to Cloudinary");
+      if (!cloudRes.ok) {
+        const errorData = await cloudRes.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || "Failed to upload to Cloudinary");
+      }
+      
       const cloudData = await cloudRes.json();
       const selfieUrl = cloudData.secure_url;
 

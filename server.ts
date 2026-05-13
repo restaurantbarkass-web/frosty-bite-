@@ -15,6 +15,15 @@ app.use(express.json());
 const hf = new HfInference(process.env.HF_TOKEN);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+// Health Check
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    hfConfigured: !!process.env.HF_TOKEN,
+    geminiConfigured: !!process.env.GEMINI_API_KEY
+  });
+});
+
 // AI Generation Endpoint
 app.post("/api/generate-avatar", async (req, res) => {
   try {
