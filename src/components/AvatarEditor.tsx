@@ -6,6 +6,7 @@ import { X, RefreshCw, Check, Undo, Redo, Sparkles, Camera, Upload, Wand2, Loade
 import { Button } from './Button';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
+import { GoogleGenAI } from "@google/genai";
 
 interface AvatarEditorProps {
   isOpen: boolean;
@@ -144,37 +145,61 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         console.warn("Backend health check unreachable:", e);
       }
 
-      const aiRes = await fetch("/api/generate-avatar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: selfieUrl,
-          userId: user?.uid,
-          prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
-        }),
-      });
-
-      let aiData;
       try {
-        const text = await aiRes.text();
-        aiData = text ? JSON.parse(text) : {};
-        if (aiRes.status === 405) {
-          console.error("405 Method Not Allowed received. It seems the backend route is not accepting POST or being proxied incorrectly.");
+        const aiRes = await fetch("/api/generate-avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: selfieUrl,
+            userId: user?.uid,
+            prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
+          }),
+        });
+
+        const aiDataText = await aiRes.text();
+        let aiData: any;
+        try {
+          aiData = aiDataText ? JSON.parse(aiDataText) : {};
+        } catch (e) {
+          aiData = {};
         }
-      } catch (e) {
-        aiData = {};
-      }
 
-      if (!aiRes.ok) {
-        throw new Error(aiData.error || `AI Generation failed (${aiRes.status})`);
-      }
+        if (aiRes.ok && aiData.image) {
+          setGeneratedImageUrl(aiData.image);
+          setStep('ai_result');
+          console.log("HF generation successful via backend");
+        } else {
+          console.warn(`HF backend failed with status ${aiRes.status}, falling back to Gemini in frontend...`);
+          throw new Error("Backend failed");
+        }
+      } catch (backendError) {
+        // Fallback to Gemini directly in frontend
+        console.log("Attempting Gemini fallback in frontend...");
+        
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const result = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
+             Vibe requirements: ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes.
+             Style: kawaii, pastel colors, thick lines. 
+             The character should be holding a piece of bread or coffee or a sweet treat.
+             Return ONLY the SVG code, no markdown, no explanations. 
+             The SVG should be square (viewBox="0 0 512 512").`
+          ]
+        });
 
-      if (!aiData.image) {
-        throw new Error("No image was returned from the AI lab");
-      }
+        const svgCode = result.text.replace(/```svg|```|```html/g, "").trim();
+        
+        if (!svgCode || !svgCode.includes('<svg')) {
+          throw new Error("Gemini failed to generate valid SVG");
+        }
 
-      setGeneratedImageUrl(aiData.image);
-      setStep('ai_result');
+        const imageResult = `data:image/svg+xml;base64,${btoa(svgCode)}`;
+        setGeneratedImageUrl(imageResult);
+        setStep('ai_result');
+        console.log("Gemini fallback successful in frontend");
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Something went wrong");
