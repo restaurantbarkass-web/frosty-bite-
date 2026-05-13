@@ -142,12 +142,7 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     
-    // Explicitly handle SPA fallback in production - must be AFTER static files
-    app.get('*', (req, res, next) => {
-      // Don't catch API routes or files with extensions
-      if (req.url.startsWith('/api/') || req.url.includes('.')) {
-        return next();
-      }
+    app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
