@@ -38,14 +38,16 @@ function getGenAI() {
 async function startServer() {
   // Improved Request logging
   app.use((req, res, next) => {
-    const isApi = req.url.startsWith("/api/");
-    const isImportant = !req.url.includes("/src/") && !req.url.includes("/node_modules/") && !req.url.includes("@vite");
+    // In Express, req.path is the best way to check for routing
+    const isApi = req.path.startsWith("/api/");
+    const isImportant = !req.path.includes("/src/") && !req.path.includes("/node_modules/") && !req.path.includes("@vite");
     
     if (isApi || isImportant) {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+      console.log(`${new Date().toISOString()} - [${req.method}] ${req.path}`);
     }
     next();
   });
+
 
   // Health Check
   app.get("/api/health", (req, res) => {
@@ -54,131 +56,125 @@ async function startServer() {
 
   // AI Generation Endpoint
   app.post("/api/generate-avatar", async (req, res) => {
-    console.log(`${new Date().toISOString()} - Processing avatar generation request: ${req.method} ${req.url}`);
+    const { prompt, vibe, imageUrl, userId } = req.body;
+    console.log(`[AI Avatar Request] User: ${userId}, Prompt: ${prompt ? prompt.substring(0, 50) : 'none'}, Vibe: ${vibe}`);
+
     try {
-      const { prompt, vibe, imageUrl } = req.body;
-      let imageResult = null;
+      let imageResult: string | null = null;
+      const genAI = getGenAI();
 
-      console.log(`Generation started for vibe: ${vibe || 'none'}, prompt: ${prompt || 'default'}, hasImage: ${!!imageUrl}`);
-
-      // 1. Try Gemini Vision if Image is provided (Multimodal is better for "inspired by selfie")
-      if (imageUrl && process.env.GEMINI_API_KEY) {
+      // 1. Try Gemini Vision if an image is provided
+      if (imageUrl && imageUrl.startsWith('http')) {
+        console.log(`[Gemini] Attempting vision analysis on: ${imageUrl}`);
         try {
-          console.log("Attempting Gemini Vision generation...");
-          
-          const imgRes = await fetch(imageUrl);
-          const arrayBuffer = await imgRes.arrayBuffer();
-          const base64Data = Buffer.from(arrayBuffer).toString('base64');
-          const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
-          
-          const promptText = `Create a cute bakery-themed chibi avatar inspired by this person.
-                 Anime-inspired, Kawaii style.
-                 Big expressive eyes, soft pastel colors.
-                 Holding a cupcake, croissant, or coffee mug.
-                 Cozy bakery vibe with a cute hoodie.
-                 Minimalist SVG with thick clean lines.
-                 Return ONLY the valid SVG code. No markdown, no explanations. 
-                 The SVG must be square (viewBox="0 0 512 512").`;
+          const fetchRes = await fetch(imageUrl);
+          const buffer = await fetchRes.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
-          const result = await getGenAI().models.generateContent({
+          const visionRes = await genAI.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: { 
+            contents: {
               parts: [
-                { inlineData: { data: base64Data, mimeType } },
-                { text: promptText }
-              ] 
+                { text: `Describe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.` },
+                {
+                  inlineData: {
+                    data: base64,
+                    mimeType: mimeType
+                  }
+                }
+              ]
             }
           });
-          const text = result.text;
-          const svgCode = text?.replace(/```svg|```|```html|```xml|```/g, "").trim();
-          
-          if (svgCode && svgCode.includes('<svg')) {
-            imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
-            console.log("Gemini Vision/Text successful");
+
+          const refinedPrompt = visionRes.text || prompt;
+          console.log(`[Gemini] Refined Prompt: ${refinedPrompt?.substring(0, 50)}...`);
+
+          // Call HF with refined prompt if available
+          if (process.env.HF_TOKEN && process.env.HF_TOKEN.length > 5) {
+            const hf = getHF();
+            console.log(`[HF] Calling Stable Diffusion with refined prompt`);
+            const hfResult = await hf.textToImage({
+              model: "stabilityai/stable-diffusion-xl-base-1.0",
+              inputs: refinedPrompt || "Cute bakery chibi avatar",
+              parameters: {
+                negative_prompt: "blurry, low quality, distorted, photo, realistic",
+                width: 512,
+                height: 512,
+              }
+            });
+
+            const hfBuffer = await hfResult.arrayBuffer();
+            imageResult = `data:image/png;base64,${Buffer.from(hfBuffer).toString('base64')}`;
           }
-        } catch (geminiError: any) {
-          console.error("Gemini Vision/Text failed:", geminiError.message || geminiError);
+        } catch (visionError) {
+          console.error(`[AI Error] Gemini Vision/HF flow failed:`, visionError);
         }
       }
 
-      // 2. Fallback to Hugging Face if image is NOT provided or Gemini failed
+      // 2. Fallback to HF Text-to-Image Directly
       if (!imageResult && process.env.HF_TOKEN && process.env.HF_TOKEN.length > 5) {
+        console.log(`[HF] Attempting direct text-to-image fallback`);
         try {
-          console.log("Attempting Hugging Face generation...");
-          const hfResult = await getHF().textToImage({
+          const hf = getHF();
+          const result = await hf.textToImage({
             model: "stabilityai/stable-diffusion-xl-base-1.0",
-            inputs: prompt || `Cute foodie chibi avatar, anime style, holding bakery item, pastel colors, cozy vibe`,
+            inputs: prompt || "Cute bakery-themed chibi avatar, anime style, high quality",
+            parameters: {
+              negative_prompt: "photorealistic, real person, blurry",
+              width: 512,
+              height: 512,
+            }
           });
           
-          if (hfResult) {
-            let buffer: Buffer;
-            if (typeof (hfResult as any).arrayBuffer === 'function') {
-              const ab = await (hfResult as any).arrayBuffer();
-              buffer = Buffer.from(ab);
-            } else {
-              buffer = Buffer.from(hfResult as any);
-            }
-            imageResult = `data:image/png;base64,${buffer.toString('base64')}`;
-            console.log("HF generation successful");
-          }
+          const buffer = await result.arrayBuffer();
+          imageResult = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+          console.log(`[HF] Direct generation successful`);
         } catch (hfError) {
-          console.error("HF Generation failed:", hfError);
+          console.error(`[AI Error] HF Direct failed:`, hfError);
         }
       }
 
-      // 2. Fallback to Gemini if HF failed or not configured
-      if (!imageResult && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 5) {
+      // 3. Last fallback: SVG via Gemini
+      if (!imageResult && process.env.GEMINI_API_KEY) {
+        console.log(`[Gemini] All image generators failed. Falling back to SVG.`);
         try {
-          console.log("Attempting Gemini fallback...");
-          const genPrompt = `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
-                 Style: kawaii, pastel colors, thick lines. 
-                 Context: ${prompt || 'Cute bakery mascot'}
-                 Return ONLY the SVG code, no markdown, no explanations. 
-                 The SVG should be square (viewBox="0 0 512 512").`;
-          
-          const result = await getGenAI().models.generateContent({
+          const result = await genAI.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: genPrompt
+            contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
           });
-          const text = result.text;
-          const svgCode = text?.replace(/```svg|```|```html|```xml|```/g, "").trim();
+          
+          const text = result.text || '';
+          const svgCode = text.match(/<svg[\s\S]*<\/svg>/)?.[0] || text.replace(/```svg|```|```html|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
             imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
-            console.log("Gemini fallback successful");
-          } else {
-             console.warn("Gemini returned invalid SVG, text length:", text?.length);
+            console.log(`[Gemini] SVG fallback successful`);
           }
-        } catch (geminiError: any) {
-          console.error("Gemini fallback failed:", geminiError.message || geminiError);
+        } catch (svgError) {
+          console.error(`[AI Error] SVG fallback failed:`, svgError);
         }
       }
 
-      // 3. Final Fallback: DiceBear (Programmatic)
+      // 4. Ultimate Fallback: DiceBear
       if (!imageResult) {
-        console.log("Using DiceBear final fallback...");
-        // Use a shorter seed for better DiceBear predictability
-        const seedBase = vibe || prompt || 'default';
-        const seed = `${seedBase}-${Date.now()}`.slice(0, 32); 
-        // Using adventurer style for "bakery/foodie" vibe
-        imageResult = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
+        console.log(`[Fallback] Using DiceBear as ultimate fallback`);
+        const seedVal = `${userId || 'anon'}-${Date.now()}`;
+        imageResult = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seedVal}`;
       }
 
       res.json({ image: imageResult });
-    } catch (error: any) {
-      console.error("Final avatar generation error:", error);
-      res.status(500).json({ 
-        error: "Generation Error", 
-        message: "Our AI bakers are busy, but we've prepped a special surprise for you!" 
-      });
+
+    } catch (error) {
+      console.error("[Fatal AI Error]:", error);
+      res.status(500).json({ error: "Server error during generation" });
     }
   });
 
-  // Catch other API methods for the same route to explicitly return 405
   app.all("/api/generate-avatar", (req, res) => {
-    console.warn(`${new Date().toISOString()} - 405 Method Not Allowed: ${req.method} ${req.url}`);
     res.status(405).json({ error: "Method Not Allowed - use POST" });
   });
+
 
   // Vite middleware or static files
   if (process.env.NODE_ENV !== "production") {
@@ -201,18 +197,24 @@ async function startServer() {
     
     // Explicitly handle SPA fallback in production - must be AFTER static files
     app.get('*', (req, res) => {
+      // If it's an API route that reached here, it's a 404
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: `API endpoint ${req.path} not found` });
+      }
+
       // Direct file check to avoid infinite loops if a 404'd asset is requested
       if (req.path.includes('.') && !req.path.endsWith('.html')) {
         return res.status(404).end();
       }
       
-      const indexPath = path.join(distPath, 'index.html');
+      const indexPath = path.resolve(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
         res.status(404).send("Application shell not found. Please wait for build to complete.");
       }
     });
+
   }
 
   app.listen(PORT, "0.0.0.0", () => {

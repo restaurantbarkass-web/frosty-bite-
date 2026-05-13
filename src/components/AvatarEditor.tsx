@@ -142,9 +142,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         body: JSON.stringify({
           imageUrl: selfieUrl,
           userId: user?.uid,
+          vibe: vibeId,
           prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
         }),
       });
+
 
       let aiData;
       try {
