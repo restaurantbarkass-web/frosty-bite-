@@ -37,21 +37,35 @@ app.post("/api/generate-avatar", async (req, res) => {
     let fallbackToGemini = false;
 
     try {
-      // Step 7: Generate Chibi Avatar with Hugging Face
+      // Generate Chibi Avatar with Hugging Face
+      console.log("Generating image with prompt:", prompt);
       const result = await hf.textToImage({
         model: "stabilityai/stable-diffusion-xl-base-1.0",
         inputs: prompt || `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`,
-      }) as unknown as Blob;
+      });
       
-      const buffer = await result.arrayBuffer();
-      imageResult = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
+      if (!result) {
+        throw new Error("Hugging Face returned no result");
+      }
+
+      // Handle both Blob (browser/modern node) and Buffer (legacy node)
+      let buffer: Buffer;
+      if (typeof (result as any).arrayBuffer === 'function') {
+        const ab = await (result as any).arrayBuffer();
+        buffer = Buffer.from(ab);
+      } else {
+        buffer = Buffer.from(result as any);
+      }
+      
+      imageResult = `data:image/png;base64,${buffer.toString('base64')}`;
+      console.log("Successfully generated image from HF");
     } catch (error) {
       console.error("HF Generation failed, falling back to Gemini:", error);
       fallbackToGemini = true;
     }
 
     if (fallbackToGemini) {
-      // Step 8: Fallback to Gemini - Generate a high-quality SVG Chibi
+      console.log("Using Gemini fallback...");
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const result = await model.generateContent([
@@ -62,8 +76,19 @@ app.post("/api/generate-avatar", async (req, res) => {
          The SVG should be square (viewBox="0 0 512 512").`
       ]);
 
-      const svgCode = result.response.text().replace(/```svg|```/g, "").trim();
+      const response = await result.response;
+      const svgCode = response.text().replace(/```svg|```|```html/g, "").trim();
+      
+      if (!svgCode || !svgCode.includes('<svg')) {
+        throw new Error("Gemini failed to generate valid SVG");
+      }
+
       imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
+      console.log("Successfully generated image from Gemini");
+    }
+
+    if (!imageResult) {
+      throw new Error("Failed to generate any image result");
     }
 
     res.json({ image: imageResult });

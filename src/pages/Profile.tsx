@@ -710,13 +710,22 @@ export const Profile: React.FC = () => {
           }
         );
 
+        let cloudData;
+        try {
+          const text = await cloudRes.text();
+          cloudData = text ? JSON.parse(text) : {};
+        } catch (e) {
+          cloudData = {};
+        }
+
         if (!cloudRes.ok) {
-          const errorData = await cloudRes.json().catch(() => ({}));
-          throw new Error(errorData.error?.message || "Failed to store AI avatar in cloud");
+          throw new Error(cloudData.error?.message || `Failed to store AI avatar in cloud (${cloudRes.status})`);
         }
         
-        const cloudData = await cloudRes.json();
         finalAvatarUrl = cloudData.secure_url;
+        if (!finalAvatarUrl) {
+          throw new Error("Cloudinary missing URL after upload");
+        }
       }
 
       // AI usage logic

@@ -119,13 +119,22 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         }
       );
 
+      let cloudData;
+      try {
+        const text = await cloudRes.text();
+        cloudData = text ? JSON.parse(text) : {};
+      } catch (e) {
+        cloudData = {};
+      }
+
       if (!cloudRes.ok) {
-        const errorData = await cloudRes.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || "Failed to upload to Cloudinary");
+        throw new Error(cloudData.error?.message || `Cloudinary upload failed (${cloudRes.status})`);
       }
       
-      const cloudData = await cloudRes.json();
       const selfieUrl = cloudData.secure_url;
+      if (!selfieUrl) {
+        throw new Error("Cloudinary response missing image URL");
+      }
 
       const aiRes = await fetch("/api/generate-avatar", {
         method: "POST",
@@ -137,12 +146,22 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         }),
       });
 
-      if (!aiRes.ok) {
-        const err = await aiRes.json();
-        throw new Error(err.error || "AI Generation failed");
+      let aiData;
+      try {
+        const text = await aiRes.text();
+        aiData = text ? JSON.parse(text) : {};
+      } catch (e) {
+        aiData = {};
       }
 
-      const aiData = await aiRes.json();
+      if (!aiRes.ok) {
+        throw new Error(aiData.error || `AI Generation failed (${aiRes.status})`);
+      }
+
+      if (!aiData.image) {
+        throw new Error("No image was returned from the AI lab");
+      }
+
       setGeneratedImageUrl(aiData.image);
       setStep('ai_result');
     } catch (error: any) {
