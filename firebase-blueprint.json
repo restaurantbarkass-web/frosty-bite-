@@ -22,6 +22,9 @@
         "review_count": { "type": "number" },
         "title": { "type": "string" },
         "avatar_config": { "type": "object" },
+        "avatar_url": { "type": "string" },
+        "avatar_style": { "type": "string" },
+        "avatar_generation_count": { "type": "number" },
         "ai_usage_stats": { "type": "object" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }

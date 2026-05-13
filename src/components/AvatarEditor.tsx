@@ -2,16 +2,21 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { createAvatar } from '@dicebear/core';
 import * as adventurer from '@dicebear/adventurer';
-import { X, RefreshCw, Check, Undo, Redo, Sparkles } from 'lucide-react';
+import { X, RefreshCw, Check, Undo, Redo, Sparkles, Camera, Upload, Wand2, Loader2 } from 'lucide-react';
 import { Button } from './Button';
 import { cn } from '../lib/utils';
+import toast from 'react-hot-toast';
 
 interface AvatarEditorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (avatarConfig: any) => void;
   initialConfig?: any;
+  user?: any;
 }
+
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 
 const CATEGORIES = [
   { id: 'hair', label: 'Hair', options: [
@@ -42,13 +47,74 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   isOpen, 
   onClose, 
   onSave, 
-  initialConfig 
+  initialConfig,
+  user
 }) => {
-  const [step, setStep] = useState<'welcome' | 'style' | 'loading' | 'editor' | 'gallery'>(initialConfig?.seed ? 'editor' : 'welcome');
+  const [step, setStep] = useState<'welcome' | 'style' | 'loading' | 'editor' | 'gallery' | 'ai_loading' | 'ai_result'>(initialConfig?.seed ? 'editor' : 'welcome');
   const [seed, setSeed] = useState(initialConfig?.seed || Math.random().toString());
   const [config, setConfig] = useState<any>(initialConfig?.options || {});
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
-  const [aiUsage, setAiUsage] = useState(initialConfig?.aiUsageStats || { count: 0, month: new Date().getMonth() });
+  const [aiUsage, setAiUsage] = useState(initialConfig?.aiUsageStats || { count: user?.avatar_generation_count || 0, month: new Date().getMonth() });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+
+  const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (aiUsage.count >= 3) {
+      toast.error("AI Generation limit reached (3 per account)");
+      return;
+    }
+
+    try {
+      setStep('ai_loading');
+      setIsGenerating(true);
+
+      // Step 4: Upload Selfie to Cloudinary
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!cloudRes.ok) throw new Error("Failed to upload to Cloudinary");
+      const cloudData = await cloudRes.json();
+      const selfieUrl = cloudData.secure_url;
+
+      // Step 5 & 6: Call Backend for AI Generation
+      const aiRes = await fetch("/api/generate-avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: selfieUrl,
+          userId: user?.uid,
+          prompt: `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`
+        }),
+      });
+
+      if (!aiRes.ok) {
+        const err = await aiRes.json();
+        throw new Error(err.error || "AI Generation failed");
+      }
+
+      const aiData = await aiRes.json();
+      setGeneratedImageUrl(aiData.image);
+      setStep('ai_result');
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Something went wrong");
+      setStep('welcome');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const galleryPreviews = useMemo(() => {
     return [
@@ -179,13 +245,36 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                  </div>
               </motion.div>
               
-              <Button 
-                variant="primary" 
-                onClick={() => setStep('style')}
-                className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
-              >
-                Get Started
-              </Button>
+              <div className="flex flex-col gap-3 w-full">
+                <Button 
+                  variant="primary" 
+                  onClick={() => setStep('style')}
+                  className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
+                >
+                  Enter Stylist Lab
+                </Button>
+
+                <div className="relative group w-full">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSelfieUpload}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    disabled={aiUsage.count >= 3}
+                  />
+                  <Button 
+                    variant="outline"
+                    className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
+                  >
+                    <Wand2 size={20} className="text-[#E8928A]" />
+                    AI Magic Avatar
+                  </Button>
+                </div>
+                
+                <p className="text-[10px] text-bakery-chocolate/40 font-bold uppercase tracking-widest mt-2">
+                  AI Attempts: {aiUsage.count}/3
+                </p>
+              </div>
             </div>
           </motion.div>
         )}
@@ -267,6 +356,93 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight animate-pulse">
               Baking your identity...
             </h3>
+          </motion.div>
+        )}
+
+        {step === 'ai_loading' && (
+          <motion.div
+            key="ai_loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] flex flex-col items-center justify-center p-12 text-center"
+          >
+            <div className="relative mb-8">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-8 rounded-full border-t-2 border-[#E8928A]"
+              />
+              <div className="relative w-48 h-48 bg-white rounded-full flex items-center justify-center overflow-hidden shadow-xl border-4 border-white">
+                 <motion.div
+                   animate={{ scale: [1, 1.1, 1] }}
+                   transition={{ duration: 2, repeat: Infinity }}
+                   className="text-6xl"
+                 >
+                   🍜
+                 </motion.div>
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight mb-4">
+              Cooking your foodie avatar...
+            </h3>
+            <div className="flex gap-2">
+               {['✨', '☕', '🥐'].map((emoji, i) => (
+                 <motion.span
+                   key={i}
+                   animate={{ y: [0, -10, 0], opacity: [0.3, 1, 0.3] }}
+                   transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
+                   className="text-2xl"
+                 >
+                   {emoji}
+                 </motion.span>
+               ))}
+            </div>
+            <p className="mt-8 text-bakery-chocolate/40 text-xs font-medium italic">
+              Our AI is hand-crafting a unique style for you
+            </p>
+          </motion.div>
+        )}
+
+        {step === 'ai_result' && (
+          <motion.div
+            key="ai_result"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] p-10 md:p-14 text-center overflow-hidden shadow-2xl flex flex-col items-center justify-center"
+          >
+            <h3 className="text-3xl font-black text-bakery-chocolate tracking-tight mb-8">
+              Your AI Avatar ✨
+            </h3>
+
+            <motion.div 
+              initial={{ rotate: -5, scale: 0.8 }}
+              animate={{ rotate: 0, scale: 1 }}
+              className="relative w-72 h-72 rounded-[3rem] border-8 border-white shadow-2xl overflow-hidden mb-12"
+            >
+              <img src={generatedImageUrl!} alt="AI Avatar" className="w-full h-full object-cover" />
+            </motion.div>
+
+            <div className="flex flex-col gap-4 w-full">
+               <Button 
+                variant="primary" 
+                onClick={() => onSave({ 
+                  avatar_url: generatedImageUrl,
+                  avatar_style: 'chibi_ai',
+                  isAI: true
+                })}
+                className="w-full h-16 rounded-2xl bg-bakery-chocolate text-white font-bold text-base shadow-lg"
+               >
+                Keep this Avatar
+               </Button>
+               <button 
+                onClick={() => setStep('welcome')}
+                className="text-[10px] font-black text-bakery-chocolate/40 uppercase tracking-widest hover:text-bakery-chocolate transition-colors"
+               >
+                Try Different Photo
+               </button>
+            </div>
           </motion.div>
         )}
 

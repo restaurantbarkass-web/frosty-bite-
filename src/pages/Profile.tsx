@@ -48,8 +48,9 @@ const BAKERY_PROPS: any = {
   cake_slice: '🍰'
 };
 
-const GlowingAvatar = ({ src, name, svg, config, onEdit }: { src: string; name: string; svg?: string; config?: any; onEdit?: () => void }) => {
+const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: string; name: string; svg?: string; config?: any; onEdit?: () => void, avatarUrl?: string }) => {
   const currentProp = config?.options?.bakeryTheme?.[0] || 'none';
+  const isAI = !!avatarUrl;
   
   return (
     <div className="relative group perspective-1000">
@@ -67,7 +68,14 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit }: { src: string; name: 
         onClick={onEdit}
         className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-white overflow-hidden cursor-pointer shadow-2xl border-4 border-white"
       >
-        {svg ? (
+        {isAI ? (
+           <img 
+            src={avatarUrl} 
+            alt={name} 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
+        ) : svg ? (
           <div 
             className="w-full h-full scale-125 translate-y-3"
             dangerouslySetInnerHTML={{ __html: svg }}
@@ -81,7 +89,7 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit }: { src: string; name: 
           />
         )}
         
-        {currentProp !== 'none' && (
+        {!isAI && currentProp !== 'none' && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none flex items-center justify-center">
              <span className="text-4xl md:text-6xl drop-shadow-2xl animate-bounce-slow mt-16 mr-16">
                {BAKERY_PROPS[currentProp]}
@@ -573,9 +581,10 @@ export const Profile: React.FC = () => {
     email: authUser?.email || 'No email provided',
     phone: userData?.phone || 'Not provided',
     address: userData?.address || 'No address saved',
-    avatar: authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
+    avatar_url: userData?.avatar_url,
+    avatar: userData?.avatar_url || authUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
     avatarConfig: userData?.avatar_config,
-    aiUsageStats: userData?.ai_usage_stats,
+    aiUsageStats: userData?.ai_usage_stats || { count: userData?.avatar_generation_count || 0, month: new Date().getMonth() },
     avatarSvg: userData?.avatar_config ? createAvatar(adventurer, {
       seed: userData.avatar_config.seed,
       ...userData.avatar_config.options
@@ -615,31 +624,70 @@ export const Profile: React.FC = () => {
 
   const handleSaveAvatar = async (avatarConfig: any) => {
     if (!authUser) return;
+    const loadingToast = toast.loading('Applying your new identity...');
     try {
       const userDocRef = doc(db, 'users', authUser.uid);
       
+      let finalAvatarUrl = avatarConfig.avatar_url;
+
+      // If it's a new AI generation (base64), we MUST upload it to Cloudinary first
+      if (avatarConfig.isAI && finalAvatarUrl?.startsWith('data:')) {
+        const formData = new FormData();
+        formData.append("file", finalAvatarUrl);
+        formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
+
+        const cloudRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        if (!cloudRes.ok) throw new Error("Failed to store AI avatar in cloud");
+        const cloudData = await cloudRes.json();
+        finalAvatarUrl = cloudData.secure_url;
+      }
+
       // AI usage logic
-      let updatedAiUsage = avatarConfig.aiUsageStats || { count: 0, month: new Date().getMonth() };
+      let updatedAiUsage = avatarConfig.aiUsageStats || { count: userData?.avatar_generation_count || 0, month: new Date().getMonth() };
+      
+      if (avatarConfig.isAI) {
+        updatedAiUsage.count = (userData?.avatar_generation_count || 0) + 1;
+      }
+
       const currentMonth = new Date().getMonth();
       
       // If month has changed, reset count
       if (updatedAiUsage.month !== currentMonth) {
-        updatedAiUsage = { count: 0, month: currentMonth };
+        updatedAiUsage = { count: updatedAiUsage.count, month: currentMonth };
       }
 
-      await updateDoc(userDocRef, {
-        avatar_config: {
+      const updateData: any = {
+        updated_at: serverTimestamp(),
+        ai_usage_stats: updatedAiUsage,
+        avatar_generation_count: updatedAiUsage.count
+      };
+
+      if (avatarConfig.isAI) {
+        updateData.avatar_url = finalAvatarUrl;
+        updateData.avatar_style = avatarConfig.avatar_style;
+      } else {
+        updateData.avatar_config = {
           seed: avatarConfig.seed,
           options: avatarConfig.options
-        },
-        ai_usage_stats: updatedAiUsage,
-        updated_at: serverTimestamp()
-      });
+        };
+        // If they chose a new DiceBear avatar, clear the AI one
+        updateData.avatar_url = null;
+        updateData.avatar_style = 'dicebear';
+      }
+
+      await updateDoc(userDocRef, updateData);
       setIsAvatarEditorOpen(false);
-      toast.success('Avatar style applied!');
+      toast.success('Avatar style applied!', { id: loadingToast });
     } catch (error: any) {
       console.error('Error saving avatar:', error);
-      toast.error('Failed to save avatar');
+      toast.error('Failed to save avatar', { id: loadingToast });
     }
   };
 
@@ -664,6 +712,7 @@ export const Profile: React.FC = () => {
             src={user.avatar} 
             name={user.name} 
             svg={user.avatarSvg || undefined}
+            avatarUrl={user.avatar_url}
             config={user.avatarConfig}
             onEdit={() => setIsAvatarEditorOpen(true)}
           />
@@ -1338,10 +1387,11 @@ export const Profile: React.FC = () => {
         isOpen={isAvatarEditorOpen}
         onClose={() => setIsAvatarEditorOpen(false)}
         onSave={handleSaveAvatar}
+        user={userData}
         initialConfig={{
-          seed: user.avatarConfig?.seed,
-          options: user.avatarConfig?.options,
-          aiUsageStats: user.aiUsageStats
+          seed: userData?.avatar_config?.seed || user.avatarConfig?.seed,
+          options: userData?.avatar_config?.options || user.avatarConfig?.options,
+          aiUsageStats: userData?.ai_usage_stats || user.aiUsageStats
         }}
       />
     </div>
