@@ -53,16 +53,18 @@ async function startServer() {
   app.post("/api/generate-avatar", async (req, res) => {
     console.log(`${new Date().toISOString()} - Processing avatar generation request: ${req.method} ${req.url}`);
     try {
-      const { prompt } = req.body;
+      const { prompt, vibe } = req.body;
       let imageResult = null;
 
-      // 1. Try Hugging Face First
-      if (process.env.HF_TOKEN) {
+      console.log(`Generation started for vibe: ${vibe || 'none'}, prompt: ${prompt || 'default'}`);
+
+      // 1. Try Hugging Face First if Token exists
+      if (process.env.HF_TOKEN && process.env.HF_TOKEN.length > 5) {
         try {
           console.log("Attempting Hugging Face generation...");
           const hfResult = await getHF().textToImage({
             model: "stabilityai/stable-diffusion-xl-base-1.0",
-            inputs: prompt || `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`,
+            inputs: prompt || `Cute foodie chibi avatar, anime style, holding bakery item, pastel colors, cozy vibe`,
           });
           
           if (hfResult) {
@@ -82,16 +84,17 @@ async function startServer() {
       }
 
       // 2. Fallback to Gemini if HF failed or not configured
-      if (!imageResult && process.env.GEMINI_API_KEY) {
+      if (!imageResult && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 5) {
         try {
           console.log("Attempting Gemini fallback...");
           const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
-          const result = await model.generateContent(`Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
+          const genPrompt = `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
                  Style: kawaii, pastel colors, thick lines. 
-                 The prompt: ${prompt || 'Cute bakery mascot'}
+                 Context: ${prompt || 'Cute bakery mascot'}
                  Return ONLY the SVG code, no markdown, no explanations. 
-                 The SVG should be square (viewBox="0 0 512 512").`);
-
+                 The SVG should be square (viewBox="0 0 512 512").`;
+          
+          const result = await model.generateContent(genPrompt);
           const response = await result.response;
           const text = response.text();
           const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
@@ -99,17 +102,21 @@ async function startServer() {
           if (svgCode && svgCode.includes('<svg')) {
             imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
             console.log("Gemini fallback successful");
+          } else {
+             console.warn("Gemini returned invalid SVG, text length:", text.length);
           }
         } catch (geminiError: any) {
-          console.error("Gemini fallback failed:", geminiError);
+          console.error("Gemini fallback failed:", geminiError.message || geminiError);
         }
       }
 
       // 3. Final Fallback: DiceBear (Programmatic)
       if (!imageResult) {
         console.log("Using DiceBear final fallback...");
-        const seed = prompt || `user-${Date.now()}`;
-        // Using adventurern style for "bakery/foodie" vibe
+        // Use a shorter seed for better DiceBear predictability
+        const seedBase = vibe || prompt || 'default';
+        const seed = `${seedBase}-${Date.now()}`.slice(0, 32); 
+        // Using adventurer style for "bakery/foodie" vibe
         imageResult = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
       }
 
@@ -142,7 +149,12 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     
+    // Explicitly handle SPA fallback in production - must be AFTER static files
     app.get('*', (req, res) => {
+      // Direct file check to avoid infinite loops if a 404'd asset is requested
+      if (req.url.includes('.')) {
+        return res.status(404).end();
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

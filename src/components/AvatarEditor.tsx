@@ -70,24 +70,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [selectedVibe, setSelectedVibe] = useState<string | null>(null);
-  const [selfieFile, setSelfieFile] = useState<File | null>(null);
-
-  const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (aiUsage.count >= 3) {
-      toast.error("AI Generation limit reached (3 per account)");
-      return;
-    }
-
-    setSelfieFile(file);
-    setStep('vibe_selection');
-  };
+  const [isAiWizard, setIsAiWizard] = useState(false);
 
   const generateAIAvatar = async (vibeId: string) => {
-    if (!selfieFile) return;
-    
     const vibe = VIBES.find(v => v.id === vibeId);
     if (!vibe) return;
 
@@ -95,63 +80,16 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       setStep('ai_loading');
       setIsGenerating(true);
 
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-      if (!cloudName || !uploadPreset) {
-        setStep('welcome');
-        toast.error("Cloudinary keys missing! Please ensure you've added VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings > Environment Variables, then REFRESH this page.", {
-          duration: 8000,
-          icon: '🔑'
-        });
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("file", selfieFile);
-      formData.append("upload_preset", uploadPreset);
-
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      let cloudData;
-      try {
-        const text = await cloudRes.text();
-        cloudData = text ? JSON.parse(text) : {};
-      } catch (e) {
-        cloudData = {};
-      }
-
-      if (!cloudRes.ok) {
-        throw new Error(cloudData.error?.message || `Cloudinary upload failed (${cloudRes.status})`);
-      }
-      
-      const selfieUrl = cloudData.secure_url;
-      if (!selfieUrl) {
-        throw new Error("Cloudinary response missing image URL");
-      }
-
-      // Check backend health before calling AI
-      try {
-        const healthRes = await fetch("/api/health");
-        if (!healthRes.ok) console.warn("Backend health check failed, but proceeding anyway...");
-      } catch (e) {
-        console.warn("Backend health check unreachable:", e);
-      }
-
+      // We send the vibe and prompt directly to our backend
+      // Our backend handles HF or Gemini fallback automatically
       try {
         const aiRes = await fetch("/api/generate-avatar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            imageUrl: selfieUrl,
             userId: user?.uid,
-            prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
+            vibe: vibeId,
+            prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe`
           }),
         });
 
@@ -169,12 +107,12 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
           console.log("Avatar generation successful via backend");
         } else {
           // The backend now always returns something or a clean error
-          const errorMessage = aiData.message || aiData.error || "Generation failed";
+          const errorMessage = aiData.message || aiData.error || "The oven is pre-heating. Try again in a moment!";
           throw new Error(errorMessage);
         }
       } catch (backendError: any) {
         console.error("Avatar Lab Error:", backendError);
-        toast.error(backendError.message || "The AI Oven is a bit hot! Try again in a minute.", {
+        toast.error(backendError.message || "Our AI bakers are a bit busy. Try again soon!", {
           id: 'avatar-error',
           icon: '🥐'
         });
@@ -182,7 +120,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       }
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Something went wrong");
+      toast.error(error.message || "Something went wrong in the lab");
       setStep('welcome');
     } finally {
       setIsGenerating(false);
@@ -225,12 +163,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const handleVibeSelect = async (vibeId: string) => {
     setSelectedVibe(vibeId);
     
-    if (selfieFile) {
-      try {
-        await generateAIAvatar(vibeId);
-      } catch (err) {
-        console.error("Vibe selection AI error:", err);
-      }
+    if (isAiWizard) {
+      await generateAIAvatar(vibeId);
       return;
     }
 
@@ -342,7 +276,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 <Button 
                   variant="primary" 
                   onClick={() => {
-                    setSelfieFile(null);
+                    setIsAiWizard(false);
                     setStep('vibe_selection');
                   }}
                   className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
@@ -350,22 +284,17 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   Enter Stylist Lab
                 </Button>
 
-                <div className="relative group w-full">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSelfieUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    disabled={aiUsage.count >= 3}
-                  />
-                  <Button 
-                    variant="outline"
-                    className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
-                  >
-                    <Wand2 size={20} className="text-[#E8928A]" />
-                    AI Magic Avatar
-                  </Button>
-                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setIsAiWizard(true);
+                    setStep('vibe_selection');
+                  }}
+                  className="w-full rounded-2xl h-16 border-2 border-[#4A312C]/10 hover:border-[#4A312C]/30 bg-white text-bakery-chocolate font-bold text-base shadow-sm gap-3 group-hover:scale-[1.02] transition-transform"
+                >
+                  <Wand2 size={20} className="text-[#E8928A]" />
+                  AI Magic Avatar
+                </Button>
                 
                 <p className="text-[10px] text-bakery-chocolate/40 font-bold uppercase tracking-widest mt-2">
                   AI Attempts: {aiUsage.count}/3
