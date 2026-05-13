@@ -70,18 +70,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [selectedVibe, setSelectedVibe] = useState<string | null>(null);
-  const [isAiWizard, setIsAiWizard] = useState(false);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image too large (max 5MB)");
-      return;
-    }
 
     if (aiUsage.count >= 3) {
       toast.error("AI Generation limit reached (3 per account)");
@@ -89,12 +82,12 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }
 
     setSelfieFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-    setIsAiWizard(true);
     setStep('vibe_selection');
   };
 
   const generateAIAvatar = async (vibeId: string) => {
+    if (!selfieFile) return;
+    
     const vibe = VIBES.find(v => v.id === vibeId);
     if (!vibe) return;
 
@@ -102,75 +95,78 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       setStep('ai_loading');
       setIsGenerating(true);
 
-      let selfieUrl = null;
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-      // STEP 4 — UPLOAD TO CLOUDINARY
-      if (selfieFile) {
-        if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-          console.error("Cloudinary keys missing");
-        } else {
-          try {
-            const formData = new FormData();
-            formData.append("file", selfieFile);
-            formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-            const cloudRes = await fetch(
-              `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-              {
-                method: "POST",
-                body: formData,
-              }
-            );
-            const cloudData = await cloudRes.json();
-            selfieUrl = cloudData.secure_url;
-            console.log("Selfie uploaded to Cloudinary:", selfieUrl);
-          } catch (cloudErr) {
-            console.error("Cloudinary error:", cloudErr);
-          }
-        }
-      }
-
-      // We send the vibe and prompt directly to our backend
-      try {
-        const aiRes = await fetch("/api/generate-avatar", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user?.uid,
-            vibe: vibeId,
-            imageUrl: selfieUrl,
-            prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe`
-          }),
-        });
-
-        const aiDataText = await aiRes.text();
-        let aiData: any;
-        try {
-          aiData = aiDataText ? JSON.parse(aiDataText) : {};
-        } catch (e) {
-          aiData = {};
-        }
-
-        if (aiRes.ok && aiData.image) {
-          setGeneratedImageUrl(aiData.image);
-          setStep('ai_result');
-          console.log("Avatar generation successful via backend");
-        } else {
-          // The backend now always returns something or a clean error
-          const errorMessage = aiData.message || aiData.error || "The oven is pre-heating. Try again in a moment!";
-          throw new Error(errorMessage);
-        }
-      } catch (backendError: any) {
-        console.error("Avatar Lab Error:", backendError);
-        toast.error(backendError.message || "Our AI bakers are a bit busy. Try again soon!", {
-          id: 'avatar-error',
-          icon: '🥐'
-        });
+      if (!cloudName || !uploadPreset) {
         setStep('welcome');
+        toast.error("Cloudinary keys missing! Please ensure you've added VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in Settings > Environment Variables, then REFRESH this page.", {
+          duration: 8000,
+          icon: '🔑'
+        });
+        return;
       }
+
+      const formData = new FormData();
+      formData.append("file", selfieFile);
+      formData.append("upload_preset", uploadPreset);
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      let cloudData;
+      try {
+        const text = await cloudRes.text();
+        cloudData = text ? JSON.parse(text) : {};
+      } catch (e) {
+        cloudData = {};
+      }
+
+      if (!cloudRes.ok) {
+        throw new Error(cloudData.error?.message || `Cloudinary upload failed (${cloudRes.status})`);
+      }
+      
+      const selfieUrl = cloudData.secure_url;
+      if (!selfieUrl) {
+        throw new Error("Cloudinary response missing image URL");
+      }
+
+      const aiRes = await fetch("/api/generate-avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl: selfieUrl,
+          userId: user?.uid,
+          prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
+        }),
+      });
+
+      let aiData;
+      try {
+        const text = await aiRes.text();
+        aiData = text ? JSON.parse(text) : {};
+      } catch (e) {
+        aiData = {};
+      }
+
+      if (!aiRes.ok) {
+        throw new Error(aiData.error || `AI Generation failed (${aiRes.status})`);
+      }
+
+      if (!aiData.image) {
+        throw new Error("No image was returned from the AI lab");
+      }
+
+      setGeneratedImageUrl(aiData.image);
+      setStep('ai_result');
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Something went wrong in the lab");
+      toast.error(error.message || "Something went wrong");
       setStep('welcome');
     } finally {
       setIsGenerating(false);
@@ -213,8 +209,12 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   const handleVibeSelect = async (vibeId: string) => {
     setSelectedVibe(vibeId);
     
-    if (isAiWizard) {
-      await generateAIAvatar(vibeId);
+    if (selfieFile) {
+      try {
+        await generateAIAvatar(vibeId);
+      } catch (err) {
+        console.error("Vibe selection AI error:", err);
+      }
       return;
     }
 
@@ -326,7 +326,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 <Button 
                   variant="primary" 
                   onClick={() => {
-                    setIsAiWizard(false);
+                    setSelfieFile(null);
                     setStep('vibe_selection');
                   }}
                   className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
@@ -338,9 +338,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   <input
                     type="file"
                     accept="image/*"
-                    capture="user"
                     onChange={handleSelfieUpload}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    disabled={aiUsage.count >= 3}
                   />
                   <Button 
                     variant="outline"
@@ -467,15 +467,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                    transition={{ duration: 2, repeat: Infinity }}
                    className="text-6xl"
                  >
-                   🧁
+                   🍜
                  </motion.div>
               </div>
             </div>
             <h3 className="text-2xl font-black text-bakery-chocolate tracking-tight mb-4">
-              Baking your chibi avatar...
+              Cooking your foodie avatar...
             </h3>
             <div className="flex gap-2">
-               {['🧁', '✨', '☕'].map((emoji, i) => (
+               {['✨', '☕', '🥐'].map((emoji, i) => (
                  <motion.span
                    key={i}
                    animate={{ y: [0, -10, 0], opacity: [0.3, 1, 0.3] }}
