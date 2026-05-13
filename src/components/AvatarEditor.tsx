@@ -279,7 +279,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-[#4A312C]/40 backdrop-blur-md"
+        className="absolute inset-0 bg-white/20 backdrop-blur-2xl"
       />
       
       <AnimatePresence mode="wait">
@@ -501,36 +501,37 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.1 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] p-10 md:p-14 text-center overflow-hidden shadow-2xl flex flex-col items-center justify-center"
+            className="relative z-10 w-full md:max-w-2xl h-full md:h-auto bg-[#FFF9F0] md:rounded-[4rem] p-8 md:p-20 text-center overflow-hidden flex flex-col items-center justify-center"
           >
-            <h3 className="text-3xl font-black text-bakery-chocolate tracking-tight mb-8">
-              Your AI Avatar ✨
+            <h3 className="text-5xl md:text-6xl font-[1000] text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.1)] tracking-tight mb-12 flex items-center gap-4">
+              Your AI Avatar <span className="animate-pulse">✨</span>
             </h3>
 
             <motion.div 
-              initial={{ rotate: -5, scale: 0.8 }}
-              animate={{ rotate: 0, scale: 1 }}
-              className="relative w-72 h-72 rounded-[3rem] border-8 border-white shadow-2xl overflow-hidden mb-12"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-[3.5rem] border-[16px] border-white shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] overflow-hidden mb-20 bg-white"
             >
               <img src={generatedImageUrl!} alt="AI Avatar" className="w-full h-full object-cover" />
             </motion.div>
 
-            <div className="flex flex-col gap-4 w-full">
-               <Button 
-                variant="primary" 
+            <div className="flex flex-col gap-6 w-full max-w-md">
+               <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleSaveWrapper({ 
                   avatar_url: generatedImageUrl,
                   avatar_style: 'chibi_ai',
                   avatar_vibe: selectedVibe,
                   isAI: true
                 })}
-                className="w-full h-16 rounded-2xl bg-bakery-chocolate text-white font-bold text-base shadow-lg"
+                className="w-full h-24 rounded-[2.5rem] bg-white text-bakery-chocolate font-black uppercase tracking-[0.3em] text-sm md:text-lg shadow-[0_4px_20px_rgba(0,0,0,0.05)] hover:shadow-xl transition-all flex items-center justify-center border border-white/50"
                >
                 Keep this Avatar
-               </Button>
+               </motion.button>
                <button 
                 onClick={() => setStep('welcome')}
-                className="text-[10px] font-black text-bakery-chocolate/40 uppercase tracking-widest hover:text-bakery-chocolate transition-colors"
+                className="text-[10px] md:text-xs font-black text-bakery-chocolate/20 uppercase tracking-[0.3em] hover:text-bakery-chocolate transition-colors"
                >
                 Try Different Photo
                </button>
