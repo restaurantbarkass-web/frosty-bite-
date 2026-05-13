@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { HfInference } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 let hf: HfInference | null = null;
-let genAI: GoogleGenerativeAI | null = null;
+let genAI: GoogleGenAI | null = null;
 
 function getHF() {
   if (!hf) {
@@ -27,8 +27,10 @@ function getHF() {
 
 function getGenAI() {
   if (!genAI) {
-    if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("GEMINI_API_KEY environment variable is required");
+    console.log(`Initializing Gemini with key: ${key.slice(0, 4)}...${key.slice(-4)}`);
+    genAI = new GoogleGenAI({ apiKey: key });
   }
   return genAI;
 }
@@ -94,9 +96,8 @@ async function startServer() {
           
           parts.push({ text: genPrompt });
 
-          const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-          const response = await result.response;
-          const text = response.text();
+          const result = await model.generateContent(parts);
+          const text = result.text;
           const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
@@ -145,8 +146,7 @@ async function startServer() {
                  The SVG should be square (viewBox="0 0 512 512").`;
           
           const result = await model.generateContent(genPrompt);
-          const response = await result.response;
-          const text = response.text();
+          const text = result.text;
           const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
