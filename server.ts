@@ -200,10 +200,9 @@ async function startServer() {
     }
     
     // Explicitly handle SPA fallback in production - must be AFTER static files
-    // Express 5 strictly requires *all for catch-all behavior in some environments
-    app.get('*all', (req, res) => {
+    app.get('*', (req, res) => {
       // Direct file check to avoid infinite loops if a 404'd asset is requested
-      if (req.url.includes('.') && !req.url.endsWith('.html')) {
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
         return res.status(404).end();
       }
       
