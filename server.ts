@@ -65,27 +65,13 @@ async function startServer() {
       if (imageUrl && process.env.GEMINI_API_KEY) {
         try {
           console.log("Attempting Gemini Vision generation...");
-          const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
           
-          let parts = [];
+          const imgRes = await fetch(imageUrl);
+          const arrayBuffer = await imgRes.arrayBuffer();
+          const base64Data = Buffer.from(arrayBuffer).toString('base64');
+          const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
           
-          try {
-            const imgRes = await fetch(imageUrl);
-            const arrayBuffer = await imgRes.arrayBuffer();
-            const base64Data = Buffer.from(arrayBuffer).toString('base64');
-            const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
-            
-            parts.push({
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType
-              }
-            });
-          } catch (fetchErr) {
-            console.error("Failed to fetch image for Gemini, proceeding with text only:", fetchErr);
-          }
-          
-          const genPrompt = `Create a cute bakery-themed chibi avatar inspired by this person.
+          const promptText = `Create a cute bakery-themed chibi avatar inspired by this person.
                  Anime-inspired, Kawaii style.
                  Big expressive eyes, soft pastel colors.
                  Holding a cupcake, croissant, or coffee mug.
@@ -93,12 +79,18 @@ async function startServer() {
                  Minimalist SVG with thick clean lines.
                  Return ONLY the valid SVG code. No markdown, no explanations. 
                  The SVG must be square (viewBox="0 0 512 512").`;
-          
-          parts.push({ text: genPrompt });
 
-          const result = await model.generateContent(parts);
+          const result = await getGenAI().models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: { 
+              parts: [
+                { inlineData: { data: base64Data, mimeType } },
+                { text: promptText }
+              ] 
+            }
+          });
           const text = result.text;
-          const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
+          const svgCode = text?.replace(/```svg|```|```html|```xml|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
             imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
@@ -138,22 +130,24 @@ async function startServer() {
       if (!imageResult && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 5) {
         try {
           console.log("Attempting Gemini fallback...");
-          const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
           const genPrompt = `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
                  Style: kawaii, pastel colors, thick lines. 
                  Context: ${prompt || 'Cute bakery mascot'}
                  Return ONLY the SVG code, no markdown, no explanations. 
                  The SVG should be square (viewBox="0 0 512 512").`;
           
-          const result = await model.generateContent(genPrompt);
+          const result = await getGenAI().models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: genPrompt
+          });
           const text = result.text;
-          const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
+          const svgCode = text?.replace(/```svg|```|```html|```xml|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
             imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
             console.log("Gemini fallback successful");
           } else {
-             console.warn("Gemini returned invalid SVG, text length:", text.length);
+             console.warn("Gemini returned invalid SVG, text length:", text?.length);
           }
         } catch (geminiError: any) {
           console.error("Gemini fallback failed:", geminiError.message || geminiError);
