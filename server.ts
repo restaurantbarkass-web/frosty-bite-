@@ -49,13 +49,9 @@ async function startServer() {
     res.json({ status: "ok", env: process.env.NODE_ENV });
   });
 
-  // AI Generation Endpoint - more robust matching
-  app.all("/api/generate-avatar", async (req, res) => {
-    if (req.method !== "POST") {
-      return res.status(405).json({ error: "Method Not Allowed - use POST" });
-    }
-    
-    console.log("Processing avatar generation request from client...");
+  // AI Generation Endpoint - use post directly
+  app.post("/api/generate-avatar", async (req, res) => {
+    console.log(`${new Date().toISOString()} - Processing avatar generation request: ${req.method} ${req.url}`);
     try {
       const { imageUrl, prompt, userId } = req.body;
       
@@ -126,6 +122,12 @@ async function startServer() {
     }
   });
 
+  // Catch other API methods for the same route to explicitly return 405
+  app.all("/api/generate-avatar", (req, res) => {
+    console.warn(`${new Date().toISOString()} - 405 Method Not Allowed: ${req.method} ${req.url}`);
+    res.status(405).json({ error: "Method Not Allowed - use POST" });
+  });
+
   // Vite middleware
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
@@ -137,8 +139,9 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // Catch-all route for SPA
-    app.get('*', (req, res) => {
+    // Catch-all route for SPA (Express 5 uses *all)
+    app.get('*all', (req, res) => {
+      console.log(`Catch-all hit for: ${req.url}, serving index.html`);
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

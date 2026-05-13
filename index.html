@@ -14,6 +14,26 @@
     <link rel="icon" href="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" />
     <title>Frosty Bite</title>
     <meta name="description" content="Artisan bakery and frosty treats">
+    <script>
+      // Suppress Vite WebSocket errors in dev environment as HMR is disabled
+      window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason && (
+          (event.reason.message && event.reason.message.includes('WebSocket')) || 
+          (typeof event.reason === 'string' && event.reason.includes('WebSocket'))
+        )) {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      });
+      // Also catch console errors from Vite if they are intrusive
+      const originalConsoleError = console.error;
+      console.error = (...args) => {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('[vite] failed to connect to websocket')) {
+          return;
+        }
+        originalConsoleError.apply(console, args);
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
