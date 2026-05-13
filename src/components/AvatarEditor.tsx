@@ -43,6 +43,18 @@ const BAKERY_PROPS: any = {
   cake_slice: '🍰'
 };
 
+const VIBES = [
+  { id: 'bakery_buddy', label: 'Bakery Buddy', icon: '🥐', description: 'Warm hoodie, fresh croissant, friendly vibes' },
+  { id: 'strawberry_dream', label: 'Strawberry Dream', icon: '🍓', description: 'Pink pastels, sweet dessert, soft blush' },
+  { id: 'cozy_cafe', label: 'Cozy Cafe', icon: '☕', description: 'Coffee cup, oversized sweater, warm lighting' },
+  { id: 'bubble_tea', label: 'Bubble Tea Mood', icon: '🧋', description: 'Cozy aesthetics, soft colors, boba love' },
+  { id: 'kawaii_core', label: 'Kawaii Core', icon: '✨', description: 'Big expressive eyes, sparkling joy, ultra cute' },
+  { id: 'soft_girl', label: 'Soft Girl', icon: '🥐', description: 'Floral patterns, gentle pastels, dainty vibes' },
+  { id: 'cozy_boy', label: 'Cozy Boy', icon: '🧸', description: 'Minimalist beanies, flannel, relaxed mood' },
+  { id: 'anime_hero', label: 'Anime Hero', icon: '🐱', description: 'Dynamic style, adventurous spirit, bold lines' },
+  { id: 'pastry_princess', label: 'Pastry Princess', icon: '👑', description: 'Elegant tiara, royal sweets, sophisticated' },
+];
+
 export const AvatarEditor: React.FC<AvatarEditorProps> = ({ 
   isOpen, 
   onClose, 
@@ -50,15 +62,17 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   initialConfig,
   user
 }) => {
-  const [step, setStep] = useState<'welcome' | 'style' | 'loading' | 'editor' | 'gallery' | 'ai_loading' | 'ai_result'>(initialConfig?.seed ? 'editor' : 'welcome');
+  const [step, setStep] = useState<'welcome' | 'vibe_selection' | 'loading' | 'editor' | 'gallery' | 'ai_loading' | 'ai_result'>(initialConfig?.seed ? 'editor' : 'welcome');
   const [seed, setSeed] = useState(initialConfig?.seed || Math.random().toString());
   const [config, setConfig] = useState<any>(initialConfig?.options || {});
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [aiUsage, setAiUsage] = useState(initialConfig?.aiUsageStats || { count: user?.avatar_generation_count || 0, month: new Date().getMonth() });
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [selectedVibe, setSelectedVibe] = useState<string | null>(null);
+  const [selfieFile, setSelfieFile] = useState<File | null>(null);
 
-  const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -67,6 +81,16 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       return;
     }
 
+    setSelfieFile(file);
+    setStep('vibe_selection');
+  };
+
+  const generateAIAvatar = async (vibeId: string) => {
+    if (!selfieFile) return;
+    
+    const vibe = VIBES.find(v => v.id === vibeId);
+    if (!vibe) return;
+
     try {
       setStep('ai_loading');
       setIsGenerating(true);
@@ -74,7 +98,6 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
       const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-      // Step 4: Upload Selfie to Cloudinary
       if (!cloudName || !uploadPreset) {
         setStep('welcome');
         toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your environment settings.", {
@@ -85,7 +108,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       }
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", selfieFile);
       formData.append("upload_preset", uploadPreset);
 
       const cloudRes = await fetch(
@@ -104,14 +127,13 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       const cloudData = await cloudRes.json();
       const selfieUrl = cloudData.secure_url;
 
-      // Step 5 & 6: Call Backend for AI Generation
       const aiRes = await fetch("/api/generate-avatar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageUrl: selfieUrl,
           userId: user?.uid,
-          prompt: `Cute foodie chibi avatar, anime style, oversized hoodie, holding bubble tea, pastel colors, cozy cafe vibe`
+          prompt: `Cute bakery-themed chibi avatar, ${vibe.label} aesthetic, anime-inspired, soft pastel colors, big expressive eyes, holding a pastry, cozy cafe vibe, mobile app profile picture`
         }),
       });
 
@@ -156,24 +178,31 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }).toString();
   }, [seed, config]);
 
-  const handleStyleSelect = (style: string) => {
+  const handleVibeSelect = (vibeId: string) => {
+    setSelectedVibe(vibeId);
+    
+    if (selfieFile) {
+      generateAIAvatar(vibeId);
+      return;
+    }
+
     setStep('loading');
     
-    // Apply baseline styles based on selection
+    // Apply baseline styles based on selection (for DiceBear fallback/path)
     const newConfig: any = {};
-    if (style === 'feminine') {
+    if (vibeId === 'soft_girl' || vibeId === 'pastry_princess') {
       newConfig.hair = ['long01'];
       newConfig.hairColor = ['d5b08b'];
       newConfig.skinColor = ['f2d3b1'];
       newConfig.shirt = ['variant01'];
       newConfig.bakeryTheme = ['cupcake'];
-    } else if (style === 'masculine') {
+    } else if (vibeId === 'cozy_boy' || vibeId === 'bakery_buddy') {
       newConfig.hair = ['short05'];
       newConfig.hairColor = ['4a312c'];
       newConfig.skinColor = ['ebbe9d'];
       newConfig.shirt = ['variant03'];
       newConfig.bakeryTheme = ['croissant'];
-    } else if (style === 'neutral') {
+    } else if (vibeId === 'cozy_cafe' || vibeId === 'bubble_tea') {
       newConfig.hair = ['short10'];
       newConfig.hairColor = ['6a4e35'];
       newConfig.skinColor = ['cfaba4'];
@@ -264,7 +293,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
               <div className="flex flex-col gap-3 w-full">
                 <Button 
                   variant="primary" 
-                  onClick={() => setStep('style')}
+                  onClick={() => {
+                    setSelfieFile(null);
+                    setStep('vibe_selection');
+                  }}
                   className="w-full rounded-2xl h-16 bg-[#E8928A] hover:bg-[#D67C74] text-white font-bold text-base shadow-lg shadow-[#E8928A]/30"
                 >
                   Enter Stylist Lab
@@ -295,59 +327,67 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
           </motion.div>
         )}
 
-        {step === 'style' && (
+        {step === 'vibe_selection' && (
           <motion.div
-            key="style"
+            key="vibe_selection"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="relative z-10 w-full md:max-w-md h-full md:h-auto bg-[#FFFBF2] md:rounded-[3rem] p-8 md:p-12 overflow-hidden flex flex-col"
+            className="relative z-10 w-full md:max-w-md h-full md:h-[85vh] bg-[#FFFBF2] md:rounded-[3rem] p-8 md:p-10 overflow-hidden flex flex-col"
           >
-            <div className="mb-10 text-center">
+            <div className="mb-8 text-center">
+              <div className="w-12 h-12 bg-bakery-pink/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <Sparkles size={24} className="text-[#E8928A]" />
+              </div>
               <h3 className="text-3xl font-black text-bakery-chocolate tracking-tight mb-2">
-                Choose Your<br/>Avatar Style
+                Choose Your<br/>Avatar Vibe ✨
               </h3>
               <p className="text-bakery-chocolate/50 text-sm font-medium">
-                Pick your style, we'll<br/>recommend the best for you
+                Pick a mood that fits your<br/>bakery personality
               </p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 flex-1">
-              {[
-                { id: 'feminine', label: 'Feminine', icon: createAvatar(adventurer, { seed: 'fem_base', hair: ['long01'], hairColor: ['4a312c'] } as any).toString() },
-                { id: 'masculine', label: 'Masculine', icon: createAvatar(adventurer, { seed: 'mas_base', hair: ['short05'], hairColor: ['4a312c'] } as any).toString() },
-                { id: 'neutral', label: 'Neutral', icon: createAvatar(adventurer, { seed: 'neu_base', hair: ['short10'], hairColor: ['4a312c'] } as any).toString() },
-                { id: 'random', label: 'Random', icon: '🎲' }
-              ].map((style, idx) => (
-                <motion.button
-                  key={style.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleStyleSelect(style.id)}
-                  className="flex flex-col items-center justify-center p-4 bg-white rounded-3xl border border-bakery-chocolate/5 shadow-sm group"
-                >
-                  <div className="w-24 h-24 rounded-2xl bg-bakery-cream overflow-hidden mb-3 relative flex items-center justify-center">
-                    {style.id === 'random' ? (
-                       <span className="text-4xl">{style.icon}</span>
-                    ) : (
-                       <div className="w-full h-full scale-125 translate-y-2" dangerouslySetInnerHTML={{ __html: style.icon }} />
-                    )}
-                  </div>
-                  <span className="text-xs font-bold text-bakery-chocolate">{style.label}</span>
-                </motion.button>
-              ))}
+            <div className="flex-1 overflow-y-auto px-1 custom-scrollbar pb-6">
+              <div className="grid grid-cols-1 gap-3">
+                {VIBES.map((vibe, idx) => (
+                  <motion.button
+                    key={vibe.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleVibeSelect(vibe.id)}
+                    className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-bakery-chocolate/5 shadow-sm group hover:border-[#E8928A] transition-colors text-left"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-bakery-cream flex items-center justify-center text-3xl shadow-inner">
+                       {vibe.icon}
+                    </div>
+                    <div>
+                      <span className="block text-sm font-black text-bakery-chocolate uppercase tracking-widest">{vibe.label}</span>
+                      <span className="block text-[10px] font-bold text-bakery-chocolate/40 leading-tight mt-0.5">{vibe.description}</span>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
             </div>
             
-            <Button 
-                variant="primary" 
+            <div className="pt-6 flex gap-3">
+              <Button 
+                variant="outline" 
                 onClick={() => setStep('welcome')}
-                className="mt-12 w-full rounded-2xl h-16 bg-bakery-chocolate hover:bg-bakery-chocolate/90 text-white font-bold text-base shadow-lg"
+                className="flex-1 rounded-2xl h-14 border-2 border-bakery-chocolate/5 text-bakery-chocolate font-bold text-sm"
               >
-                Continue
-            </Button>
+                Back
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={() => handleVibeSelect('random')}
+                className="flex-1 rounded-2xl h-14 bg-bakery-chocolate text-white font-bold text-sm"
+              >
+                Surprise Me 🎲
+              </Button>
+            </div>
           </motion.div>
         )}
 
@@ -446,6 +486,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 onClick={() => onSave({ 
                   avatar_url: generatedImageUrl,
                   avatar_style: 'chibi_ai',
+                  avatar_vibe: selectedVibe,
                   isAI: true
                 })}
                 className="w-full h-16 rounded-2xl bg-bakery-chocolate text-white font-bold text-base shadow-lg"
@@ -473,7 +514,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             {/* Header */}
             <div className="p-6 flex items-center justify-between border-b border-bakery-chocolate/5 bg-white/50 backdrop-blur-md">
               <button 
-                onClick={() => setStep('style')}
+                onClick={() => setStep('vibe_selection')}
                 className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-bakery-chocolate/40 hover:text-bakery-chocolate border border-bakery-chocolate/5"
               >
                 <Undo size={18} />
@@ -654,6 +695,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                   seed, 
                   options: config, 
                   svg: avatarSvg,
+                  avatar_vibe: selectedVibe,
                   aiUsageStats: aiUsage
                 })}
                 className="w-full h-16 rounded-2xl bg-bakery-chocolate text-white font-bold text-base shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"

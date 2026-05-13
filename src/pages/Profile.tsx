@@ -742,6 +742,7 @@ export const Profile: React.FC = () => {
       if (avatarConfig.isAI) {
         updateData.avatar_url = finalAvatarUrl;
         updateData.avatar_style = avatarConfig.avatar_style;
+        updateData.avatar_vibe = avatarConfig.avatar_vibe;
       } else {
         updateData.avatar_config = {
           seed: avatarConfig.seed,
@@ -750,6 +751,7 @@ export const Profile: React.FC = () => {
         // If they chose a new DiceBear avatar, clear the AI one
         updateData.avatar_url = null;
         updateData.avatar_style = 'dicebear';
+        updateData.avatar_vibe = avatarConfig.avatar_vibe;
       }
 
       await updateDoc(userDocRef, updateData);
