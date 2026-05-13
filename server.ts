@@ -36,30 +36,34 @@ function getGenAI() {
 }
 
 async function startServer() {
-  // Improved Request logging
+  // Ultra-precise Request logging for debugging 405/404 issues
   app.use((req, res, next) => {
-    // In Express, req.path is the best way to check for routing
-    const isApi = req.path.startsWith("/api/");
-    const isImportant = !req.path.includes("/src/") && !req.path.includes("/node_modules/") && !req.path.includes("@vite");
-    
-    if (isApi || isImportant) {
-      console.log(`${new Date().toISOString()} - [${req.method}] ${req.path}`);
-    }
+    const fullUrl = req.originalUrl || req.url;
+    console.log(`[REQ] ${new Date().toISOString()} - ${req.method} ${fullUrl}`);
     next();
   });
 
 
   // Health Check
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV });
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV, 
+      hasHf: !!process.env.HF_TOKEN, 
+      hasGemini: !!process.env.GEMINI_API_KEY 
+    });
   });
 
   // AI Generation Endpoint
   app.post("/api/generate-avatar", async (req, res) => {
     const { prompt, vibe, imageUrl, userId } = req.body;
-    console.log(`[AI Avatar Request] User: ${userId}, Prompt: ${prompt ? prompt.substring(0, 50) : 'none'}, Vibe: ${vibe}`);
+    console.log(`[AI Avatar Request] User: ${userId}, Path: ${req.path}, Method: ${req.method}`);
 
     try {
+      if (!process.env.HF_TOKEN && !process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "AI services not configured" });
+      }
+      
       let imageResult: string | null = null;
       const genAI = getGenAI();
 
@@ -165,14 +169,19 @@ async function startServer() {
 
       res.json({ image: imageResult });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Fatal AI Error]:", error);
-      res.status(500).json({ error: "Server error during generation" });
+      res.status(500).json({ error: "Server error during generation", details: error.message });
     }
   });
 
-  app.all("/api/generate-avatar", (req, res) => {
-    res.status(405).json({ error: "Method Not Allowed - use POST" });
+  // Comprehensive 404/405 handler for API
+  app.all("/api/*", (req, res) => {
+    const fullPath = req.originalUrl.split('?')[0];
+    if (req.method !== "POST" && (fullPath === "/api/generate-avatar" || fullPath === "/api/generate-avatar/")) {
+      return res.status(405).json({ error: "Method Not Allowed - use POST" });
+    }
+    res.status(404).json({ error: `API Endpoint ${fullPath} not found` });
   });
 
 
@@ -186,7 +195,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Production: serve static files and catch-all for SPA
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(process.cwd(), "dist");
     
     if (fs.existsSync(distPath)) {
       console.log(`[Production] Serving static files from: ${distPath}`);
@@ -195,19 +204,19 @@ async function startServer() {
       console.error(`[Production] CRITICAL: dist directory NOT found at ${distPath}`);
     }
     
-    // Explicitly handle SPA fallback in production - must be AFTER static files
-    app.get('*', (req, res) => {
+    // Catch-all route for SPA fallback
+    app.get("*", (req, res) => {
       // If it's an API route that reached here, it's a 404
-      if (req.path.startsWith('/api/')) {
+      if (req.path.startsWith("/api/")) {
         return res.status(404).json({ error: `API endpoint ${req.path} not found` });
       }
 
-      // Direct file check to avoid infinite loops if a 404'd asset is requested
-      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+      // If it looks like a file request but wasn't served by express.static, 404 it
+      if (req.path.includes(".") && !req.path.endsWith(".html")) {
         return res.status(404).end();
       }
       
-      const indexPath = path.resolve(distPath, 'index.html');
+      const indexPath = path.resolve(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {

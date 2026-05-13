@@ -147,13 +147,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         }),
       });
 
-
       let aiData;
-      try {
+      const contentType = aiRes.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        aiData = await aiRes.json();
+      } else {
         const text = await aiRes.text();
-        aiData = text ? JSON.parse(text) : {};
-      } catch (e) {
-        aiData = {};
+        console.error("Server returned non-JSON response:", text.substring(0, 200));
+        throw new Error(`Server Error: Received unexpected response format (${aiRes.status})`);
       }
 
       if (!aiRes.ok) {
