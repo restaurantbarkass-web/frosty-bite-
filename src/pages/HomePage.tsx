@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, smoothScroll } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
@@ -67,8 +67,7 @@ export const Home: React.FC = () => {
       const queryValue = e.detail;
       if (queryValue !== searchQuery) {
         setSearchQuery(queryValue);
-        const element = document.getElementById('menu-section');
-        element?.scrollIntoView({ behavior: 'smooth' });
+        smoothScroll.toElement('#menu-section', { offset: -100 });
       }
     };
 
@@ -86,8 +85,7 @@ export const Home: React.FC = () => {
     if (queryStr && queryStr !== searchQuery) {
       setSearchQuery(queryStr);
       setTimeout(() => {
-        const element = document.getElementById('menu-section');
-        element?.scrollIntoView({ behavior: 'smooth' });
+        smoothScroll.toElement('#menu-section', { offset: -100 });
       }, 500);
     }
   }, [location.search, searchQuery]);
@@ -282,8 +280,7 @@ export const Home: React.FC = () => {
               onSearch={(q) => {
                 setSearchQuery(q);
                 setTimeout(() => {
-                  const element = document.getElementById('menu-section');
-                  element?.scrollIntoView({ behavior: 'smooth' });
+                  smoothScroll.toElement('#menu-section', { offset: -100 });
                 }, 100);
               }}
               onFocusChange={(focused) => {
@@ -544,19 +541,13 @@ export const Home: React.FC = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
-                onClick={() => {
-                  const el = document.getElementById('menu-section');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => smoothScroll.toElement('#menu-section', { offset: -100 })}
                 className="px-8 py-4 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/20 hover:scale-105 transition-all"
               >
                 View Our Menu
               </button>
               <button 
-                onClick={() => {
-                  const el = document.getElementById('reviews');
-                  el?.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => smoothScroll.toElement('#reviews', { offset: -100 })}
                 className="px-8 py-4 bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-white/10 transition-all"
               >
                 About Us

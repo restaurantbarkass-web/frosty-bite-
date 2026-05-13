@@ -73,9 +73,12 @@ function AppContent() {
 
   useEffect(() => {
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.5,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
       smoothWheel: true,
+      wheelMultiplier: 1.1,
       touchMultiplier: 2,
       infinite: false,
     });
@@ -88,30 +91,33 @@ function AppContent() {
     rafId = requestAnimationFrame(raf);
 
     const handleScrollToTop = () => {
-      console.log('Scroll to top call');
-      const target = document.getElementById('profile-greeting') || 0;
-      
-      if (lenis && typeof lenis.scrollTo === 'function') {
-        lenis.scrollTo(target, { 
-          duration: 1.5,
-          easing: (t: number) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t) 
-        });
-      } else {
-        if (typeof target === 'number') {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          target.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
+      lenis.scrollTo(0, { 
+        duration: 1.5,
+        easing: (t: number) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t) 
+      });
     };
-    window.addEventListener('scroll-to-top', handleScrollToTop);
     
-    // Also export it globally for easy access
+    const handleScrollToElement = (e: any) => {
+      const target = e.detail?.target;
+      if (!target) return;
+      
+      lenis.scrollTo(target, {
+        offset: e.detail?.offset || 0,
+        duration: e.detail?.duration || 1.5,
+        easing: e.detail?.easing || ((t: number) => t === 1 ? 1 : 1 - Math.pow(2, -10 * t))
+      });
+    };
+
+    window.addEventListener('scroll-to-top', handleScrollToTop);
+    window.addEventListener('scroll-to-element', handleScrollToElement);
+    
+    // Export globally
     (window as any).lenis = lenis;
 
     return () => {
       cancelAnimationFrame(rafId);
       window.removeEventListener('scroll-to-top', handleScrollToTop);
+      window.removeEventListener('scroll-to-element', handleScrollToElement);
       lenis.destroy();
     };
   }, []);

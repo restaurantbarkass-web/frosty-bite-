@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, smoothScroll } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
@@ -127,7 +127,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             onClick={(e) => {
               if (location.pathname === '/') {
                 e.preventDefault();
-                window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                smoothScroll.toTop();
               }
             }}
           >
@@ -164,7 +164,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                     onClick={(e) => {
                       if (location.pathname === link.path) {
                         e.preventDefault();
-                        window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                        smoothScroll.toTop();
                       }
                     }}
                     className="flex items-center"
@@ -181,7 +181,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   onClick={(e) => {
                     if (location.pathname === link.path) {
                       e.preventDefault();
-                      window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                      smoothScroll.toTop();
                     }
                   }}
                   className={cn(

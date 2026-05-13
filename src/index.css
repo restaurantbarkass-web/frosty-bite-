@@ -42,11 +42,13 @@
 
 @layer base {
   html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto !important;
   }
   body {
     @apply bg-background text-foreground antialiased;
     overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
