@@ -8,8 +8,10 @@ import {
   Crown, Wallet, Briefcase, Zap, Bell, Award, Coffee, IceCream,
   Pizza, Flame, Moon, Sun, CloudRain, Shield, Camera, 
   Share2, HeartHandshake, HelpCircle, Layout, Calendar,
-  Sparkles as SparkleIcon
+  Sparkles as SparkleIcon, Instagram, Download
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { StoryCard } from '../components/StoryCard';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
@@ -204,6 +206,7 @@ export const Profile: React.FC = () => {
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const storyRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
   const { notifications } = useNotifications();
   
@@ -213,6 +216,9 @@ export const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareType, setShareType] = useState<'avatar' | 'rank' | 'personality'>('avatar');
+  const [isSharing, setIsSharing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist' | 'rewards'>('personal');
   const { install, isStandalone, isInstallable } = usePWA();
@@ -483,6 +489,58 @@ export const Profile: React.FC = () => {
       }
     }
   };
+  
+  const handleShareStory = async () => {
+    if (!storyRef.current) return;
+    
+    const loadingToast = toast.loading('Baking your story card...');
+    setIsSharing(true);
+    
+    try {
+      // Short delay to ensure any dynamic assets are ready
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const dataUrl = await toPng(storyRef.current, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#000',
+      });
+      
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `frosty-bite-story-${shareType}.png`, { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'My Frosty Bite Identity',
+            text: 'Check out my level on Frosty Bite! ✨',
+          });
+          toast.success('Ready to share!', { id: loadingToast });
+        } catch (shareErr: any) {
+          if (shareErr.name === 'AbortError') {
+            toast.dismiss(loadingToast);
+          } else {
+            throw shareErr;
+          }
+        }
+      } else {
+        // Fallback for desktop: download
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `frosty-bite-${shareType}-${Date.now()}.png`;
+        link.click();
+        toast.success('Story card saved! Now upload it to Instagram STORIES ✨', { id: loadingToast });
+      }
+      setIsShareModalOpen(false);
+    } catch (err) {
+      console.error('Sharing failed:', err);
+      toast.error('Failed to generate story card. Please try again.', { id: loadingToast });
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -636,7 +694,8 @@ export const Profile: React.FC = () => {
         const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
         if (!cloudName || !uploadPreset) {
-          throw new Error("Cloudinary configuration missing. Please check your settings.");
+          toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your environment settings.", { id: loadingToast });
+          return;
         }
 
         const formData = new FormData();
@@ -932,6 +991,7 @@ export const Profile: React.FC = () => {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
               <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-primary/5 group-hover:bg-primary/10" />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
+              <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-gradient-to-tr from-purple-500/10 to-pink-500/10 border-pink-500/10" />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
               <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />
             </div>
@@ -1405,6 +1465,116 @@ export const Profile: React.FC = () => {
           aiUsageStats: userData?.ai_usage_stats || user.aiUsageStats
         }}
       />
+
+      {/* Share Story Modal */}
+      <AnimatePresence>
+        {isShareModalOpen && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsShareModalOpen(false)}
+              className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[3rem] shadow-2xl p-8 overflow-hidden"
+            >
+              <div className="relative z-10 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-3xl font-black text-white tracking-tighter">Share to Story</h3>
+                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Select Card Style</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsShareModalOpen(false)} 
+                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {(['avatar', 'rank', 'personality'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setShareType(type)}
+                      className={cn(
+                        "p-6 rounded-[2rem] border transition-all flex items-center justify-between group",
+                        shareType === type ? "bg-primary border-primary" : "bg-white/5 border-white/5 hover:bg-white/10"
+                      )}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center",
+                          shareType === type ? "bg-white text-primary" : "bg-white/5 text-zinc-400 group-hover:text-white"
+                        )}>
+                          {type === 'avatar' && <User size={20} />}
+                          {type === 'rank' && <Crown size={20} />}
+                          {type === 'personality' && <Sparkles size={20} />}
+                        </div>
+                        <div className="text-left">
+                          <p className={cn("text-sm font-bold uppercase tracking-widest", shareType === type ? "text-white" : "text-white")}>
+                            {type === 'avatar' ? 'Foodie Identity' : type === 'rank' ? 'Loyalty Progress' : 'AI Food Personality'}
+                          </p>
+                          <p className={cn("text-[10px] font-bold uppercase opacity-60 tracking-widest", shareType === type ? "text-white" : "text-zinc-500")}>
+                            9:16 Instagram Ready
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={20} className={cn(shareType === type ? "text-white" : "text-zinc-700")} />
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  onClick={handleShareStory}
+                  disabled={isSharing}
+                  variant="primary"
+                  className="w-full py-6 rounded-[2rem] text-sm font-black tracking-[0.2em]"
+                >
+                  {isSharing ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      GENERATING...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Instagram size={20} />
+                      GENERATE & SHARE
+                    </div>
+                  )}
+                </Button>
+                
+                <p className="text-[10px] text-center text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
+                  Generates a premium vertical card <br /> perfect for Instagram Stories.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Off-screen story card for rendering */}
+      <div className="fixed -left-[2000px] top-0 pointer-events-none" aria-hidden="true">
+        <div ref={storyRef}>
+          <StoryCard 
+            user={{
+              name: user.name,
+              avatar: user.avatar,
+              avatar_url: user.avatar_url,
+              title: userData?.title,
+              level: Math.floor((userData?.points || 0) / 100) + 1,
+              points: userData?.points || 0,
+              tier: userData?.badge_tier || 'Foodie Starter'
+            }}
+            type={shareType}
+          />
+        </div>
+      </div>
     </div>
   );
 };

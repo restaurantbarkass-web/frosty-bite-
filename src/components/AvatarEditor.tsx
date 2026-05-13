@@ -71,17 +71,25 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
       setStep('ai_loading');
       setIsGenerating(true);
 
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
       // Step 4: Upload Selfie to Cloudinary
-      if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-        throw new Error("Cloudinary configuration missing. Please check your settings.");
+      if (!cloudName || !uploadPreset) {
+        setStep('welcome');
+        toast.error("Cloudinary keys missing! Please add VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET to your environment settings.", {
+          duration: 6000,
+          icon: '🔑'
+        });
+        return;
       }
 
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+      formData.append("upload_preset", uploadPreset);
 
       const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         {
           method: "POST",
           body: formData,
