@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { HfInference } from "@huggingface/inference";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 let hf: HfInference | null = null;
-let genAI: GoogleGenAI | null = null;
+let genAI: GoogleGenerativeAI | null = null;
 
 function getHF() {
   if (!hf) {
@@ -27,7 +27,7 @@ function getHF() {
 function getGenAI() {
   if (!genAI) {
     if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
-    genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   }
   return genAI;
 }
@@ -85,47 +85,40 @@ async function startServer() {
       if (!imageResult && process.env.GEMINI_API_KEY) {
         try {
           console.log("Attempting Gemini fallback...");
-          const result = await getGenAI().models.generateContent({
-            model: "gemini-1.5-flash", // Use stable model
-            contents: [{
-              role: 'user',
-              parts: [{
-                text: `Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
+          const model = getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+          const result = await model.generateContent(`Generate a high-quality, cute, minimalist SVG chibi avatar for a foodie user. 
                  Style: kawaii, pastel colors, thick lines. 
                  The prompt: ${prompt || 'Cute bakery mascot'}
                  Return ONLY the SVG code, no markdown, no explanations. 
-                 The SVG should be square (viewBox="0 0 512 512").`
-              }]
-            }]
-          });
+                 The SVG should be square (viewBox="0 0 512 512").`);
 
-          const svgCode = result.text.replace(/```svg|```|```html/g, "").trim();
+          const response = await result.response;
+          const text = response.text();
+          const svgCode = text.replace(/```svg|```|```html|```xml|```/g, "").trim();
+          
           if (svgCode && svgCode.includes('<svg')) {
             imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;
             console.log("Gemini fallback successful");
           }
         } catch (geminiError: any) {
           console.error("Gemini fallback failed:", geminiError);
-          // Check for quota error
-          if (geminiError.message?.includes('429') || geminiError.status === 429) {
-            return res.status(429).json({ 
-              error: "AI Quota Reached", 
-              message: "Our AI bakers are resting! Please try again in a few minutes or create your avatar manually." 
-            });
-          }
         }
       }
 
+      // 3. Final Fallback: DiceBear (Programmatic)
       if (!imageResult) {
-        throw new Error("AI services currently busy. Please try manual creation!");
+        console.log("Using DiceBear final fallback...");
+        const seed = prompt || `user-${Date.now()}`;
+        // Using adventurern style for "bakery/foodie" vibe
+        imageResult = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
       }
 
       res.json({ image: imageResult });
     } catch (error: any) {
       console.error("Final avatar generation error:", error);
-      res.status(error.status || 500).json({ 
-        error: error.name || "Generation Error", 
-        message: error.message 
+      res.status(500).json({ 
+        error: "Generation Error", 
+        message: "Our AI bakers are busy, but we've prepped a special surprise for you!" 
       });
     }
   });
@@ -136,7 +129,7 @@ async function startServer() {
     res.status(405).json({ error: "Method Not Allowed - use POST" });
   });
 
-  // Vite middleware
+  // Vite middleware or static files
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
@@ -145,11 +138,16 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
+    // Production: serve static files and catch-all for SPA
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    // Catch-all route for SPA (Express 5 uses *all)
-    app.get('*all', (req, res) => {
-      console.log(`Catch-all hit for: ${req.url}, serving index.html`);
+    
+    // Explicitly handle SPA fallback in production - must be AFTER static files
+    app.get('*', (req, res, next) => {
+      // Don't catch API routes or files with extensions
+      if (req.url.startsWith('/api/') || req.url.includes('.')) {
+        return next();
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -168,29 +168,15 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
           setStep('ai_result');
           console.log("Avatar generation successful via backend");
         } else {
-          // Robust error cleaning for 429 or other API errors
-          let errorMessage = aiData.message || aiData.error || "Generation failed";
-          
-          if (aiRes.status === 429 || errorMessage.includes('429') || errorMessage.toLowerCase().includes('quota')) {
-            errorMessage = "AI bakers are at full capacity! Please try manual design or wait a few minutes.";
-          }
-          
+          // The backend now always returns something or a clean error
+          const errorMessage = aiData.message || aiData.error || "Generation failed";
           throw new Error(errorMessage);
         }
-      } catch (error: any) {
-        // Final catch for network or other issues
-        console.error("Avatar Lab Error:", error);
-        let finalMessage = error.message || "An unexpected error occurred in the lab.";
-        
-        // Final sanity check: if the message looks like JSON, don't show it raw
-        if (finalMessage.startsWith('{') || finalMessage.includes('"error"')) {
-           finalMessage = "AI Busy: Our creative robots are currently overloaded. Please try again soon!";
-        }
-        
-        toast.error(finalMessage, { 
-          id: 'avatar-error', 
-          duration: 5000, 
-          icon: '🥐' 
+      } catch (backendError: any) {
+        console.error("Avatar Lab Error:", backendError);
+        toast.error(backendError.message || "The AI Oven is a bit hot! Try again in a minute.", {
+          id: 'avatar-error',
+          icon: '🥐'
         });
         setStep('welcome');
       }
