@@ -1,9 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ShoppingCart, Info, Star, Clock } from 'lucide-react';
-import { FoodItem } from '../../types';
-import { AiRecommendationResponse } from '../../services/searchService';
-import { cn } from '../../lib/utils';
+import { FoodItem } from './types';
+import { AiRecommendationResponse } from './services/searchService';
+import { cn } from './lib/utils';
 
 interface AiRecommendationCardProps {
   recommendation: AiRecommendationResponse;

@@ -108,6 +108,7 @@ async function startServer() {
               }
             });
 
+            // @ts-ignore
             const hfBuffer = await hfResult.arrayBuffer();
             imageResult = `data:image/png;base64,${Buffer.from(hfBuffer).toString('base64')}`;
           }
@@ -131,6 +132,7 @@ async function startServer() {
             }
           });
           
+          // @ts-ignore
           const buffer = await result.arrayBuffer();
           imageResult = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`;
           console.log(`[HF] Direct generation successful`);

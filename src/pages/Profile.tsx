@@ -1577,6 +1577,8 @@ export const Profile: React.FC = () => {
               name: user.name,
               avatar: user.avatar,
               avatar_url: user.avatar_url,
+              avatarSvg: user.avatarSvg,
+              vibe: userData?.avatar_vibe,
               title: userData?.title,
               level: Math.floor((userData?.points || 0) / 100) + 1,
               points: userData?.points || 0,

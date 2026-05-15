@@ -512,7 +512,12 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
               animate={{ y: 0, opacity: 1 }}
               className="relative w-80 h-80 md:w-[450px] md:h-[450px] rounded-[3.5rem] border-[12px] border-secondary shadow-2xl overflow-hidden mb-20 bg-secondary"
             >
-              <img src={generatedImageUrl!} alt="AI Avatar" className="w-full h-full object-cover" />
+              <img 
+                src={generatedImageUrl!} 
+                alt="AI Avatar" 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer"
+              />
             </motion.div>
 
             <div className="flex flex-col gap-6 w-full max-w-md">

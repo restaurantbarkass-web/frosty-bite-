@@ -7,6 +7,8 @@ interface StoryCardProps {
     name: string;
     avatar: string;
     avatar_url?: string;
+    avatarSvg?: string | null;
+    vibe?: string | null;
     title?: string;
     level: number;
     points: number;
@@ -46,16 +48,23 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
             <div className="relative">
               <div className="absolute -inset-8 bg-gradient-to-tr from-primary via-purple-500 to-cyan-500 rounded-full blur-3xl opacity-50 animate-pulse" />
               <div className="relative w-[600px] h-[600px] rounded-full border-[10px] border-white shadow-2xl overflow-hidden bg-white p-2">
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className={cn(
-                    "w-full h-full object-cover",
-                    !user.avatar_url && "scale-125 translate-y-8"
-                  )} 
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                />
+                {user.avatarSvg ? (
+                  <div 
+                    className="w-full h-full scale-125 translate-y-8"
+                    dangerouslySetInnerHTML={{ __html: user.avatarSvg }}
+                  />
+                ) : (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    className={cn(
+                      "w-full h-full object-cover",
+                      !user.avatar_url && "scale-125 translate-y-8"
+                    )} 
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
               <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white rounded-[3rem] shadow-2xl flex items-center justify-center border-8 border-black">
                 <Award className="text-primary w-24 h-24" />
@@ -81,16 +90,23 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
             <div className="relative mb-8">
               <div className="absolute -inset-4 bg-primary/20 rounded-full blur-2xl" />
               <div className="relative w-48 h-48 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white p-1">
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className={cn(
-                    "w-full h-full object-cover",
-                    !user.avatar_url && "scale-140 translate-y-3"
-                  )} 
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                />
+                {user.avatarSvg ? (
+                  <div 
+                    className="w-full h-full scale-140 translate-y-3"
+                    dangerouslySetInnerHTML={{ __html: user.avatarSvg }}
+                  />
+                ) : (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    className={cn(
+                      "w-full h-full object-cover",
+                      !user.avatar_url && "scale-140 translate-y-3"
+                    )} 
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
             </div>
 
@@ -125,16 +141,23 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
             <div className="relative">
               <div className="absolute -inset-4 bg-cyan-500/20 rounded-full blur-2xl animate-pulse" />
               <div className="relative w-48 h-48 rounded-full border-4 border-white shadow-xl overflow-hidden bg-white p-1">
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className={cn(
-                    "w-full h-full object-cover",
-                    !user.avatar_url && "scale-140 translate-y-3"
-                  )} 
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                />
+                {user.avatarSvg ? (
+                  <div 
+                    className="w-full h-full scale-140 translate-y-3"
+                    dangerouslySetInnerHTML={{ __html: user.avatarSvg }}
+                  />
+                ) : (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name} 
+                    className={cn(
+                      "w-full h-full object-cover",
+                      !user.avatar_url && "scale-140 translate-y-3"
+                    )} 
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </div>
             </div>
 
@@ -149,7 +172,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ user, type }) => {
                   <div className="space-y-4">
                     <p className="text-white/60 font-medium text-4xl italic">"Your vibe is"</p>
                     <h2 className="text-white font-black text-8xl tracking-tighter italic uppercase leading-tight">
-                       The Midnight <br /> <span className="text-primary">Croissant</span> King
+                       {user.vibe ? user.vibe.replace(/_/g, ' ') : 'The Midnight Bakery'} <br /> <span className="text-primary">{user.title || 'Master'}</span>
                     </h2>
                   </div>
                   
