@@ -106,6 +106,7 @@ export const Home: React.FC = () => {
   }, []);
 
   const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
+  const { user } = useAuth();
   const { addToCart, setIsCartOpen } = useCart();
 
   const handleChipClick = (rec: string) => {
