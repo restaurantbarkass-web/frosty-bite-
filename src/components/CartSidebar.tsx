@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Minus, Plus, Trash2, ShoppingBag, AlertTriangle, Check, Sparkles } from 'lucide-react';
-import { useCart } from '../context/CartContext';
+import { useCartState, useCartActions } from '../context/CartContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
@@ -9,7 +9,8 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { supabase } from '../supabase';
 
 export const CartSidebar: React.FC = () => {
-  const { cart, updateQuantity, removeFromCart, totalPrice, totalItems, isCartOpen: isOpen, setIsCartOpen } = useCart();
+  const { cart, totalPrice, totalItems, isCartOpen: isOpen } = useCartState();
+  const { updateQuantity, removeFromCart, setIsCartOpen } = useCartActions();
   const navigate = useNavigate();
   const { isOrderingOpen } = useAppConfig();
 

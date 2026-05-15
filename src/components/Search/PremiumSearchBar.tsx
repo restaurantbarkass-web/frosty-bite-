@@ -52,6 +52,7 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load recent searches on mount
   useEffect(() => {
@@ -69,6 +70,20 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
   useEffect(() => {
     if (initialQuery !== undefined) setQuery(initialQuery);
   }, [initialQuery]);
+
+  // Debounced search logic for live filtering if needed, 
+  // but here onSearch usually triggers a scroll in Home, so we keep it manual or debounced.
+  useEffect(() => {
+    if (query !== initialQuery && isFocused) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            onSearch(query);
+        }, 500);
+    }
+    return () => {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [query, onSearch, initialQuery, isFocused]);
 
   // Animated Placeholder Typing Effect
   useEffect(() => {

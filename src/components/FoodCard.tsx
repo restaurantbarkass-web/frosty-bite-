@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2, Sparkles } from 'lucide-react';
 import { FoodItem } from '../types';
-import { useCart } from '../context/CartContext';
+import { useCartActions } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -23,6 +23,8 @@ interface FoodCardProps {
   showBuyNow?: boolean;
 }
 
+import { OptimizedImage } from './ui/OptimizedImage';
+
 export const FoodCard: React.FC<FoodCardProps> = memo(({ 
   item, 
   variant = 'default', 
@@ -30,7 +32,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   onClick,
   showBuyNow = false
 }) => {
-  const { addToCart, setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen } = useCartActions();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -201,6 +203,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             triggerClassName="w-full h-full"
           />
+
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           
           <div className="absolute top-5 right-5 flex flex-col gap-2">

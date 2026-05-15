@@ -11,6 +11,8 @@ interface BannerCarouselProps {
   onNavigate: (url: string) => void;
 }
 
+import { OptimizedImage } from './ui/OptimizedImage';
+
 export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApplyCoupon, onNavigate }) => {
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -57,7 +59,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApply
           className="flex h-full w-full transition-transform duration-700 ease-in-out"
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
-          {banners.map((banner) => (
+          {banners.map((banner, i) => (
             <div
               key={banner.id}
               className="relative h-full w-full flex-shrink-0 cursor-pointer overflow-hidden group"
@@ -66,11 +68,14 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApply
                 if (banner.auto_apply_coupon) onApplyCoupon(banner.auto_apply_coupon);
               }}
             >
-              <img 
+              <OptimizedImage 
                 src={banner.image_url} 
                 alt={banner.title} 
+                containerClassName="h-full w-full"
                 className="h-full w-full object-cover transition-transform duration-[3000ms] group-hover:scale-110 brightness-75"
+                priority={i === 0}
               />
+
               
               {/* Overlay Gradient */}
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent p-8 flex flex-col justify-end">

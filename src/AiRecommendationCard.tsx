@@ -1,30 +1,28 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ShoppingCart, Info, Star, Clock } from 'lucide-react';
-import { FoodItem } from './types';
-import { AiRecommendationResponse } from './services/searchService';
-import { cn } from './lib/utils';
+import { FoodItem } from '../../types';
+import { AiRecommendationResponse } from '../../services/searchService';
+import { cn } from '../../lib/utils';
 
 interface AiRecommendationCardProps {
   recommendation: AiRecommendationResponse;
   item: FoodItem;
   onAddToCart: () => void;
   onViewDetails: () => void;
-  className?: string;
 }
 
 export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
   recommendation,
   item,
   onAddToCart,
-  onViewDetails,
-  className
+  onViewDetails
 }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("relative group w-full", className)}
+      className="relative group w-full"
     >
       {/* Glow Effect */}
       <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-[2.5rem] blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />

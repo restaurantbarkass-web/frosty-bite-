@@ -176,7 +176,7 @@ async function startServer() {
   });
 
   // Comprehensive 404/405 handler for API
-  app.all("/api/*", (req, res) => {
+  app.all("/api/(.*)", (req, res) => {
     const fullPath = req.originalUrl.split('?')[0];
     if (req.method !== "POST" && (fullPath === "/api/generate-avatar" || fullPath === "/api/generate-avatar/")) {
       return res.status(405).json({ error: "Method Not Allowed - use POST" });
@@ -205,7 +205,7 @@ async function startServer() {
     }
     
     // Catch-all route for SPA fallback
-    app.get("*", (req, res) => {
+    app.get("(.*)", (req, res) => {
       // If it's an API route that reached here, it's a 404
       if (req.path.startsWith("/api/")) {
         return res.status(404).json({ error: `API endpoint ${req.path} not found` });

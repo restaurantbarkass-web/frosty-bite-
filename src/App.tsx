@@ -26,7 +26,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 
 // Lazy load pages for performance
-import Home from './pages/HomePage';
+const Home = lazy(() => import('./pages/HomePage'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const UPICheckout = lazy(() => import('./pages/UPICheckout'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking'));

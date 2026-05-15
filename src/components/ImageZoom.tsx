@@ -11,6 +11,8 @@ interface ImageZoomProps {
   triggerClassName?: string;
 }
 
+import { OptimizedImage } from './ui/OptimizedImage';
+
 export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, triggerClassName }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scale, setScale] = useState(1);
@@ -132,12 +134,13 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
         className={cn("relative group cursor-zoom-in overflow-hidden", triggerClassName)}
         onClick={toggleZoom}
       >
-        <img 
+        <OptimizedImage 
           src={src} 
           alt={alt} 
-          className={cn("transition-transform duration-700 group-hover:scale-105", className)} 
-          referrerPolicy="no-referrer"
+          containerClassName="w-full h-full"
+          className={cn("transition-transform duration-700 group-hover:scale-110", className)} 
         />
+
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}

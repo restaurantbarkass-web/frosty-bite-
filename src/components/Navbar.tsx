@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search, Gift, Command } from 'lucide-react';
-import { useCart } from '../context/CartContext';
+import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
@@ -11,7 +11,7 @@ import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
 
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
-  const { totalItems } = useCart();
+  const { totalItems } = useCartState();
   const { user, role, isAdmin, isRider } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();

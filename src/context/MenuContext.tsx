@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
@@ -84,28 +84,27 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({
     fetchMenu();
   }, []);
 
-  const safeItems = Array.isArray(items)
-    ? items
-    : [];
+  const categories = useMemo(() => {
+    const safeItems = Array.isArray(items) ? items : [];
+    return [
+      'All',
+      ...Array.from(
+        new Set(
+          safeItems.map((i) => i.category)
+        )
+      ),
+    ].filter(Boolean) as string[];
+  }, [items]);
 
-  const categories = [
-    'All',
-    ...Array.from(
-      new Set(
-        safeItems.map((i) => i.category)
-      )
-    ),
-  ].filter(Boolean) as string[];
+  const value = useMemo(() => ({
+    items: Array.isArray(items) ? items : [],
+    loading,
+    categories,
+    refreshMenu: fetchMenu,
+  }), [items, loading, categories]);
 
   return (
-    <MenuContext.Provider
-      value={{
-        items: safeItems,
-        loading,
-        categories,
-        refreshMenu: fetchMenu,
-      }}
-    >
+    <MenuContext.Provider value={value}>
       {children}
     </MenuContext.Provider>
   );

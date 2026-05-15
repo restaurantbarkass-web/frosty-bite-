@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard, Gift } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
+import { useCartState } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,7 +10,7 @@ import { LottieOfferButton } from './LottieOfferButton';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
-  const { totalItems } = useCart();
+  const { totalItems } = useCartState();
   const { unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
