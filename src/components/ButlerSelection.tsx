@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext';
 
 export const ButlerSelection: React.FC = () => {
   const { items } = useMenu();
-  const { user } = useAuth();
   const [recommendation, setRecommendation] = useState<AiRecommendationResponse | null>(null);
   const [recommendedItem, setRecommendedItem] = useState<FoodItem | null>(null);
   const [loading, setLoading] = useState(true);

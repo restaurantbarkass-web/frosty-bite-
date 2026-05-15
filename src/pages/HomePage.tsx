@@ -372,7 +372,7 @@ export const Home: React.FC = () => {
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tap to speak with the Butler</p>
               </div>
             </div>
-            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Powered by Gemini-3 Flash</span>
+            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Powered by Frosty Bite</span>
           </div>
 
           <div className="flex flex-wrap gap-3">
