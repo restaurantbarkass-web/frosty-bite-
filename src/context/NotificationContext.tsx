@@ -221,14 +221,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       );
       
       const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) return;
+
       const batch = writeBatch(db);
-      
       querySnapshot.forEach((doc) => {
         batch.update(doc.ref, { read: true });
       });
       
       await batch.commit();
+      toast.success('All notifications marked as read');
     } catch (error) {
+      console.error('Error marking all as read:', error);
+      toast.error('Failed to mark notifications as read');
       handleFirestoreError(authInstance, error, OperationType.WRITE, path);
     }
   }, [user, authInstance]);
