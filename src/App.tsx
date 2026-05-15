@@ -146,6 +146,7 @@ function AppContent() {
   }, [showSplash]);
 
   const [isSearchOverlayScan, setIsSearchOverlayScan] = useState(false);
+  const [initialSearchQuery, setInitialSearchQuery] = useState('');
 
   useEffect(() => {
     const handleSearchState = (e: any) => {
@@ -160,6 +161,7 @@ function AppContent() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsSearchOverlayScan(false);
+        setInitialSearchQuery('');
         setIsSearchOverlayOpen(true);
       }
       if (e.key === 'Escape') {
@@ -169,6 +171,7 @@ function AppContent() {
 
     const handleGlobalSearch = (e: any) => {
         setIsSearchOverlayScan(!!e.detail?.scan);
+        setInitialSearchQuery(e.detail?.query || '');
         setIsSearchOverlayOpen(true);
     };
 
@@ -258,9 +261,13 @@ function AppContent() {
       
       <SearchOverlay 
         isOpen={isSearchOverlayOpen} 
-        onClose={() => setIsSearchOverlayOpen(false)} 
+        onClose={() => {
+            setIsSearchOverlayOpen(false);
+            setInitialSearchQuery('');
+        }} 
         allItems={items}
         initialScan={isSearchOverlayScan}
+        initialQuery={initialSearchQuery}
       />
       
       <main className={cn(

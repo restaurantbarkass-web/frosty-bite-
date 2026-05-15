@@ -30,9 +30,16 @@ interface SearchOverlayProps {
   onClose: () => void;
   allItems: FoodItem[];
   initialScan?: boolean;
+  initialQuery?: string;
 }
 
-export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, allItems, initialScan }) => {
+export const SearchOverlay: React.FC<SearchOverlayProps> = ({ 
+  isOpen, 
+  onClose, 
+  allItems, 
+  initialScan,
+  initialQuery = '' 
+}) => {
   const { 
     query, 
     setQuery, 
@@ -59,6 +66,11 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({ isOpen, onClose, a
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
+      if (initialQuery) {
+          setQuery(initialQuery);
+          performSearch(initialQuery);
+      }
+      
       if (initialScan) {
           handleQRSearch();
       } else {
