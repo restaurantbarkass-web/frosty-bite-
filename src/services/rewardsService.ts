@@ -204,7 +204,8 @@ export const rewardsService = {
           points: increment(-(giftData.costPoints || 0)),
           claimedGifts: Array.isArray(userData.claimedGifts) 
             ? [...userData.claimedGifts, { giftId, claimedAt: new Date().toISOString() }]
-            : [{ giftId, claimedAt: new Date().toISOString() }]
+            : [{ giftId, claimedAt: new Date().toISOString() }],
+          updated_at: serverTimestamp()
         });
 
         transaction.update(giftRef, {

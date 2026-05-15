@@ -174,12 +174,11 @@ service cloud.firestore {
                     incoming().created_at == request.time &&
                     isValidNotification(incoming());
       allow update: if (isAdmin() || isOwner(existing().user_id)) && 
-                    isValidNotification(incoming()) &&
-                    incoming().user_id == existing().user_id &&
-                    incoming().created_at == existing().created_at &&
                     (
                       // Action: Mark as Read
-                      incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['read']) &&
+                       incoming().read is bool) ||
+                      isAdmin()
                     );
       allow delete: if isAdmin() || isOwner(existing().user_id);
     }
