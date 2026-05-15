@@ -23,53 +23,68 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!src) {
+      setError(true);
+      return;
+    }
+
+    // Reset states when src changes
     setIsLoaded(false);
     setError(false);
+    
+    // Check if image is already cached
+    const img = new Image();
+    img.src = src;
+    if (img.complete) {
+      setIsLoaded(true);
+    }
   }, [src]);
+
+  if (!src) {
+    return (
+      <div className={cn("bg-zinc-900 flex items-center justify-center overflow-hidden", containerClassName)}>
+        <span className="text-[8px] font-black uppercase text-zinc-700 italic tracking-widest">Image missing</span>
+      </div>
+    );
+  }
 
   return (
     <div 
       className={cn(
-        "relative overflow-hidden",
+        "relative overflow-hidden w-full h-full",
         !isLoaded && !error && fallbackColor,
         containerClassName
       )}
     >
-      <AnimatePresence>
-        {!isLoaded && !error && (
-          <motion.div
-            initial={{ opacity: 0.6 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-gradient-to-br from-secondary/50 to-secondary animate-pulse"
-          />
-        )}
-      </AnimatePresence>
+      {/* Loading Pulse */}
+      {!isLoaded && !error && (
+        <div className="absolute inset-0 bg-zinc-900 animate-pulse transition-opacity duration-300" />
+      )}
 
-      <motion.img
+      <img
         src={src}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
         // @ts-ignore
         fetchpriority={priority ? "high" : "auto"}
         onLoad={() => setIsLoaded(true)}
-        onError={() => setError(true)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isLoaded ? 1 : 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        onError={(e) => {
+          console.error("Image load fail:", src);
+          setError(true);
+        }}
         className={cn(
-          "w-full h-full object-cover",
-          isLoaded ? "blur-0" : "blur-lg scale-105",
-          "transition-[filter,transform] duration-500",
+          "w-full h-full object-cover transition-opacity duration-500",
+          isLoaded ? "opacity-100" : "opacity-0",
           className
         )}
+        referrerPolicy="no-referrer"
         {...props}
       />
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-secondary/20 p-4 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-            Image failed to load
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm border border-white/5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 italic">
+            Preview Unavailable
           </span>
         </div>
       )}
