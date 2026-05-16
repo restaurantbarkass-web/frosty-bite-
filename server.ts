@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { HfInference } from "@huggingface/inference";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -16,7 +16,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 let hf: HfInference | null = null;
-let genAI: GoogleGenerativeAI | null = null;
+let genAI: GoogleGenAI | null = null;
 
 function getHF() {
   if (!hf) {
@@ -28,15 +28,30 @@ function getHF() {
 
 function getGenAI() {
   if (!genAI) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("GEMINI_API_KEY environment variable is required");
-    console.log(`[Gemini] Initializing with key: ${key.slice(0, 4)}...${key.slice(-4)}`);
-    genAI = new GoogleGenerativeAI(key);
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    if (!key) {
+      console.error("[Gemini] CRITICAL: No API key found in environment");
+      throw new Error("GEMINI_API_KEY environment variable is required.");
+    }
+    console.log(`[Gemini] Initializing with identified key (starts with: ${key.substring(0, 4)}...)`);
+    genAI = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return genAI;
 }
 
 async function startServer() {
+  console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
+  console.log(`[Server] HF_TOKEN present: ${!!process.env.HF_TOKEN}`);
+  console.log(`[Server] GEMINI_API_KEY present: ${!!process.env.GEMINI_API_KEY}`);
+  console.log(`[Server] GOOGLE_API_KEY present: ${!!process.env.GOOGLE_API_KEY}`);
+
   // Ultra-precise Request logging for debugging 405/404 issues
   app.use((req, res, next) => {
     console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -54,12 +69,27 @@ async function startServer() {
     }
 
     try {
-      const genAIClient = getGenAI();
-      const model = genAIClient.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
-      });
+      let genAIClient;
+      try {
+        genAIClient = getGenAI();
+      } catch (keyError) {
+        console.warn("[Butler Rec] API Key missing, providing premium fallback.");
+        return res.json({
+          bestMatchId: null,
+          reason: "Seeking our finest?",
+          intent: "Generic Inquiry",
+          alternatives: [],
+          isEmotionalMatch: false,
+          occasionDetected: "Special Moment",
+          moodDetected: "Refined",
+          recommendationType: "standard",
+          butlerResponse: "My refined palate is currently being tuned. Please explore our curated menu below."
+        });
+      }
 
+      const modelName = "gemini-3-flash-preview";
+      console.log(`[Butler Rec] Calling Gemini (${modelName})... Query: ${query}`);
+      
       const prompt = `
         User Search Query: "${query}"
         Available Menu Items (IDs are strings): ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided."}
@@ -81,17 +111,34 @@ async function startServer() {
         }
       `;
 
-      console.log(`[Butler Rec] Calling Gemini 1.5 Flash... Query: ${query}`);
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.1, 
-        }
-      });
+      let response;
+      try {
+        response = await genAIClient.models.generateContent({
+          model: modelName,
+          contents: [{ 
+            role: 'user', 
+            parts: [{ text: `System: You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.\n\n${prompt}` }] 
+          }],
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.1, 
+          }
+        });
+      } catch (genError: any) {
+        console.warn(`[Butler Rec] Primary model failed, trying fallback...`, genError.message);
+        response = await genAIClient.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [{ 
+            role: 'user', 
+            parts: [{ text: prompt + "\nRespond with valid JSON." }] 
+          }],
+          config: {
+            temperature: 0.2,
+          }
+        });
+      }
       
-      const response = await result.response;
-      const output = response.text();
+      const output = response.text || '';
       console.log(`[Butler Rec] Success. Response Length: ${output.length}`);
 
       try {
@@ -140,8 +187,13 @@ async function startServer() {
     }
 
     try {
-      const genAIClient = getGenAI();
-      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
+      let genAIClient;
+      try {
+        genAIClient = getGenAI();
+      } catch (e) {
+        console.warn("[Butler Suggestions] Key missing, using static fallback.");
+        return res.json({ suggestions: ["Chocolate Truffle Cake", "Bento Cakes for Birthday", "Fresh Sourdough Bread"] });
+      }
 
       const prompt = `
         Search Term: "${searchTerm}"
@@ -150,12 +202,15 @@ async function startServer() {
         Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
       `;
 
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+      const response = await genAIClient.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: `System: You are the Frosty Bite Butler suggestions engine.\n\n${prompt}` }] }],
+        config: { 
+          responseMimeType: "application/json" 
+        }
       });
       
-      const output = result.response.text();
+      const output = response.text || '';
       try {
         const data = JSON.parse(output);
         res.json(data);
@@ -190,11 +245,25 @@ async function startServer() {
     app.use(vite.middlewares);
 
     // Dev SPA Fallback
-    app.get("*", async (req, res, next) => {
+    app.get("*all", async (req, res, next) => {
       if (req.originalUrl.startsWith("/api/")) return next();
       
       const parsedPath = path.parse(req.path);
-      if (parsedPath.ext && !parsedPath.ext.startsWith('.html')) return next();
+      // In dev mode, if Vite didn't handle a file with extension, we should be careful
+      if (parsedPath.ext && !parsedPath.ext.startsWith('.html')) {
+        // DO NOT serve source files as-is. They must be transformed by Vite.
+        if (['.tsx', '.ts', '.jsx', '.js', '.css'].includes(parsedPath.ext.toLowerCase())) {
+           return next(); 
+        }
+
+        const srcPath = path.join(process.cwd(), req.path);
+        if (fs.existsSync(srcPath)) {
+          console.log(`[Dev] Serving static asset as-is: ${req.path}`);
+          return res.sendFile(srcPath);
+        }
+        console.warn(`[Dev] Missing asset requested or Vite skip: ${req.path}`);
+        return next();
+      }
 
       try {
         const template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
@@ -219,7 +288,7 @@ async function startServer() {
       
       let imageResult: string | null = null;
       const genAIClient = getGenAI();
-      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const modelName = "gemini-1.5-flash";
 
       // 1. Try Gemini Vision if an image is provided
       if (imageUrl && imageUrl.startsWith('http')) {
@@ -230,11 +299,12 @@ async function startServer() {
           const base64 = Buffer.from(buffer).toString('base64');
           const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
-          const visionRes = await model.generateContent({
+          const response = await genAIClient.models.generateContent({
+            model: "gemini-3-flash-preview",
             contents: [{
               role: 'user',
               parts: [
-                { text: `Describe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.` },
+                { text: `System: Analyze the provided image and generate a creative prompt.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.` },
                 {
                   inlineData: {
                     data: base64,
@@ -245,7 +315,7 @@ async function startServer() {
             }]
           });
 
-          const refinedPrompt = visionRes.response.text() || prompt;
+          const refinedPrompt = response.text || prompt;
           console.log(`[Gemini] Refined Prompt: ${refinedPrompt?.substring(0, 50)}...`);
 
           // Call HF with refined prompt if available
@@ -299,9 +369,12 @@ async function startServer() {
       if (!imageResult && process.env.GEMINI_API_KEY) {
         console.log(`[Gemini] All image generators failed. Falling back to SVG.`);
         try {
-          const result = await model.generateContent(`Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`);
+          const response = await genAIClient.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
+          });
           
-          const text = result.response.text() || '';
+          const text = response.text || '';
           const svgCode = text.match(/<svg[\s\S]*<\/svg>/)?.[0] || text.replace(/```svg|```|```html|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {
@@ -344,7 +417,7 @@ async function startServer() {
     app.use(express.static(distPath, { index: false }));
     
     // SPA Fallback for production
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
       // API routes should not fall through to index.html
       if (req.originalUrl.startsWith("/api/")) {
         return res.status(404).json({ error: "API endpoint not found" });

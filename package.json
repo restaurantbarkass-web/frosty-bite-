@@ -13,12 +13,14 @@
     "@dicebear/adventurer": "^9.4.2",
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",
-    "@google/genai": "^1.52.0",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^2.3.0",
     "@huggingface/inference": "^4.13.15",
     "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.105.1",
+    "@tailwindcss/vite": "4.0.12",
     "@types/express": "^5.0.6",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
@@ -44,20 +46,17 @@
     "react-swipeable": "^7.0.2",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
+    "tailwindcss": "4.0.12",
     "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
     "vite": "6.2.2"
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
-    "@tailwindcss/vite": "4.0.12",
     "@types/canvas-confetti": "^1.9.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.21",
-    "tailwindcss": "4.0.12",
-    "typescript": "~5.8.2"
+    "@types/react-dom": "^19.0.0"
   }
 }
