@@ -48,12 +48,18 @@ export const useSearch = (allItems: FoodItem[]) => {
         
         // Fetch Smart AI Recommendation automatically while typing
         setIsProcessingRec(true);
+        const processingTimeout = setTimeout(() => {
+          setIsProcessingRec(false);
+        }, 15000); // 15s safety timeout
+
         searchService.getSmartRecommendation(query, allItems).then(rec => {
             setSmartRec(rec);
             setIsProcessingRec(false);
+            clearTimeout(processingTimeout);
         }).catch(() => {
             setSmartRec(null);
             setIsProcessingRec(false);
+            clearTimeout(processingTimeout);
         });
       } else {
         setAiSuggestions([]);

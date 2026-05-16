@@ -78,18 +78,22 @@ export const searchService = {
       });
 
       if (!response.ok) {
-        console.warn(`[Butler API] Status: ${response.status}. Falling back to keyword match.`);
+        const errorText = await response.text();
+        console.error(`[Butler API] Error ${response.status}:`, errorText);
         return null;
       }
       
       const recommendation = await response.json();
-      console.log('[Butler Rec] Success:', recommendation.bestMatchId);
+      console.log('[Butler Rec] AI Response Received:', recommendation);
       
       if (!recommendation || !recommendation.bestMatchId) return null;
 
-      // Verify item exists
-      const validItem = items.find(i => i.id === recommendation.bestMatchId);
-      if (!validItem) return null;
+      // Verify item exists - force string comparison
+      const validItem = items.find(i => String(i.id) === String(recommendation.bestMatchId));
+      if (!validItem) {
+        console.warn(`[Butler Rec] Recommended ID ${recommendation.bestMatchId} not found in current items list`);
+        return null;
+      }
 
       return recommendation;
     } catch (error) {

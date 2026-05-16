@@ -55,7 +55,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
   const { addToCart, setIsCartOpen } = useCart();
   const navigate = useNavigate();
-  const bestMatch = allItems.find(i => i.id === smartRec?.bestMatchId);
+  const bestMatch = allItems.find(i => String(i.id) === String(smartRec?.bestMatchId));
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
