@@ -1,5 +1,5 @@
 import express from "express";
-import app from "./app.ts";
+import app from "./server/app.ts";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -14,7 +14,7 @@ async function startServer() {
   // Workers must be imported to start
   console.log("[Server] Initializing workers...");
   try {
-    await import("./workers/avatar.worker");
+    await import("./server/workers/avatar.worker");
     console.log("[Server] Workers initialized.");
   } catch (err: any) {
     console.error("[Server] Worker initialization failed:", err.message);
