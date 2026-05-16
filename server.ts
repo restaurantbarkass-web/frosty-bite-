@@ -45,9 +45,7 @@ function getGenAI() {
 async function startServer() {
   // Ultra-precise Request logging for debugging 405/404 issues
   app.use((req, res, next) => {
-    const fullUrl = req.originalUrl || req.url;
-    const referrer = req.get('referrer') || 'no-referrer';
-    console.log(`[REQ] ${new Date().toISOString()} - ${req.method} ${fullUrl} (Referer: ${referrer})`);
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
     next();
   });
 
@@ -61,6 +59,34 @@ async function startServer() {
       hasGemini: !!process.env.GEMINI_API_KEY 
     });
   });
+
+  // Vite middleware or static files
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+      root: process.cwd(),
+    });
+    app.use(vite.middlewares);
+
+    // Dev SPA Fallback
+    app.get("*", async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api/")) return next();
+      
+      const parsedPath = path.parse(req.path);
+      if (parsedPath.ext && !parsedPath.ext.startsWith('.html')) return next();
+
+      try {
+        const template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (e) {
+        console.error("Vite Transform Error:", e);
+        next(e);
+      }
+    });
+  }
 
   // AI Generation Endpoint
   app.post("/api/generate-avatar", async (req, res) => {
@@ -193,64 +219,31 @@ async function startServer() {
     }
     res.status(404).json({ error: `API Endpoint ${fullPath} not found` });
   });
-
-
-  // Vite middleware or static files
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-      root: process.cwd(),
-    });
-    app.use(vite.middlewares);
-
-    // Dev SPA Fallback
-    app.get("*all", async (req, res, next) => {
-      if (req.originalUrl.startsWith("/api/")) return next();
-      
-      const parsedPath = path.parse(req.path);
-      if (parsedPath.ext && !parsedPath.ext.startsWith('.html')) return next();
-
-      try {
-        const template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
-        const html = await vite.transformIndexHtml(req.originalUrl, template);
-        res.status(200).set({ "Content-Type": "text/html" }).end(html);
-      } catch (e) {
-        console.error("Vite Transform Error:", e);
-        next(e);
-      }
-    });
-  } else {
-    // Production: serve static files and catch-all for SPA
+  
+  if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     
-    if (fs.existsSync(distPath)) {
-      console.log(`[Production] Serving static files from: ${distPath}`);
-      app.use(express.static(distPath, { index: false }));
-    } else {
-      console.warn(`[Production] WARNING: dist directory NOT found at ${distPath}. Build might be in progress.`);
-    }
+    // Serve static files from dist
+    app.use(express.static(distPath, { index: false }));
     
-    // Catch-all route for SPA fallback
-    app.get("*all", (req, res) => {
-      // If it's an API route that reached here, it's a 404
+    // SPA Fallback for production
+    app.get("*", (req, res) => {
+      // API routes should not fall through to index.html
       if (req.originalUrl.startsWith("/api/")) {
-        return res.status(404).json({ error: `API endpoint ${req.originalUrl} not found` });
+        return res.status(404).json({ error: "API endpoint not found" });
       }
 
-      // If it looks like a file request (has extension) but wasn't served by express.static, 404 it
-      // This prevents returning index.html for missing .js, .css, .tsx etc.
+      // Check for file extensions (prevent index.html for missing assets)
       const parsedPath = path.parse(req.path);
       if (parsedPath.ext && !['.html', '.php', '.asp'].includes(parsedPath.ext.toLowerCase())) {
         return res.status(404).end();
       }
-      
+
       const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        res.status(404).send("Application is starting... please refresh in a few seconds.");
+        res.status(404).send("Application shell not found.");
       }
     });
   }
