@@ -7,6 +7,8 @@ import { Button } from './Button';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
 
+import { useAuth } from '../context/AuthContext';
+
 interface AvatarEditorProps {
   isOpen: boolean;
   onClose: () => void;
@@ -62,6 +64,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   initialConfig,
   user
 }) => {
+  const { user: authUser } = useAuth();
   const [step, setStep] = useState<'welcome' | 'vibe_selection' | 'loading' | 'editor' | 'gallery' | 'ai_loading' | 'ai_result'>(initialConfig?.seed ? 'editor' : 'welcome');
   const [seed, setSeed] = useState(initialConfig?.seed || Math.random().toString());
   const [config, setConfig] = useState<any>(initialConfig?.options || {});
@@ -136,9 +139,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         throw new Error("Cloudinary response missing image URL");
       }
 
-      const aiRes = await fetch("/api/generate-avatar", {
+      const token = authUser ? await authUser.getIdToken() : null;
+
+      const aiRes = await fetch("/api/avatar/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           imageUrl: selfieUrl,
           userId: user?.uid,
@@ -161,17 +169,50 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         throw new Error(aiData.error || `AI Generation failed (${aiRes.status})`);
       }
 
-      if (!aiData.image) {
-        throw new Error("No image was returned from the AI lab");
+      if (!aiData.jobId) {
+        throw new Error("No job ID was returned from the AI lab");
       }
 
-      setGeneratedImageUrl(aiData.image);
-      setStep('ai_result');
+      // Start polling for job status
+      let pollCount = 0;
+      const maxPolls = 60; // 2 minutes
+      
+      const pollJob = async () => {
+        if (pollCount >= maxPolls) {
+          toast.error("Generation timed out. Please try again.");
+          setStep('welcome');
+          setIsGenerating(false);
+          return;
+        }
+
+        try {
+          const statusRes = await fetch(`/api/avatar/status/${aiData.jobId}`);
+          const statusData = await statusRes.json();
+
+          if (statusData.state === 'completed' && statusData.result?.url) {
+            setGeneratedImageUrl(statusData.result.url);
+            setStep('ai_result');
+            setIsGenerating(false);
+          } else if (statusData.state === 'failed') {
+            throw new Error("Background generation failed");
+          } else {
+            pollCount++;
+            setTimeout(pollJob, 2000);
+          }
+        } catch (pollErr: any) {
+          console.error("Polling error:", pollErr);
+          toast.error("Failed to check generation status");
+          setStep('welcome');
+          setIsGenerating(false);
+        }
+      };
+
+      pollJob();
+
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Something went wrong");
       setStep('welcome');
-    } finally {
       setIsGenerating(false);
     }
   };
