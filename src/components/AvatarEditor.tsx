@@ -169,46 +169,13 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         throw new Error(aiData.error || `AI Generation failed (${aiRes.status})`);
       }
 
-      if (!aiData.jobId) {
-        throw new Error("No job ID was returned from the AI lab");
+      if (aiData.status === 'completed' && aiData.url) {
+        setGeneratedImageUrl(aiData.url);
+        setStep('ai_result');
+        setIsGenerating(false);
+      } else {
+        throw new Error("No image URL was returned from the AI lab");
       }
-
-      // Start polling for job status
-      let pollCount = 0;
-      const maxPolls = 60; // 2 minutes
-      
-      const pollJob = async () => {
-        if (pollCount >= maxPolls) {
-          toast.error("Generation timed out. Please try again.");
-          setStep('welcome');
-          setIsGenerating(false);
-          return;
-        }
-
-        try {
-          const statusRes = await fetch(`/api/avatar/status/${aiData.jobId}`);
-          const statusData = await statusRes.json();
-
-          if (statusData.state === 'completed' && statusData.result?.url) {
-            setGeneratedImageUrl(statusData.result.url);
-            setStep('ai_result');
-            setIsGenerating(false);
-          } else if (statusData.state === 'failed') {
-            throw new Error("Background generation failed");
-          } else {
-            pollCount++;
-            setTimeout(pollJob, 2000);
-          }
-        } catch (pollErr: any) {
-          console.error("Polling error:", pollErr);
-          toast.error("Failed to check generation status");
-          setStep('welcome');
-          setIsGenerating(false);
-        }
-      };
-
-      pollJob();
-
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Something went wrong");

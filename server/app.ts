@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import butlerRoutes from "./routes/butler.routes";
+import avatarRoutes from "./routes/avatar.routes";
 
 const app = express();
 
@@ -27,6 +29,10 @@ app.get("/api/health", (req, res) => {
     hasGemini: !!process.env.GEMINI_API_KEY
   });
 });
+
+// Routes
+app.use("/api/butler", butlerRoutes);
+app.use("/api/avatar", avatarRoutes);
 
 // Comprehensive 404/405 handler for API
 app.all("/api/(.*)", (req, res) => {
