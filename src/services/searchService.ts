@@ -78,13 +78,18 @@ export const searchService = {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Butler API] Error ${response.status}:`, errorText);
+        let errorBody = "";
+        try {
+          errorBody = await response.text();
+        } catch (e) {
+          errorBody = "Could not read error response";
+        }
+        console.error(`[Butler API Error] Status: ${response.status}, Body: ${errorBody}`);
         return null;
       }
       
       const recommendation = await response.json();
-      console.log('[Butler Rec] AI Response Received:', recommendation);
+      console.log('[Butler Rec] AI Success Payload:', recommendation);
       
       if (!recommendation || !recommendation.bestMatchId) return null;
 

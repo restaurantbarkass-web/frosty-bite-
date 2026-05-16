@@ -465,7 +465,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                     <p className="text-gray-500 text-xs font-mono">Personalizing recommendations based on "{query}"</p>
                                   </div>
                                 </div>
-                              ) : smartRec && bestMatch ? (
+                              ) : smartRec ? (
                                 <motion.div 
                                   initial={{ opacity: 0 }}
                                   animate={{ opacity: 1 }}
@@ -474,72 +474,84 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   <div>
                                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-[10px] font-black text-primary uppercase tracking-widest mb-4">
                                       <Sparkles size={12} />
-                                      AI Best Match
+                                      AI concierge
                                     </div>
-                                    <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
-                                      "{smartRec.reason}"
-                                    </h3>
+                                    {bestMatch ? (
+                                      <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
+                                        "{smartRec.reason}"
+                                      </h3>
+                                    ) : (
+                                      <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
+                                        {smartRec.butlerResponse}
+                                      </h3>
+                                    )}
                                   </div>
 
-                                  <div 
-                                    onClick={() => {
-                                      navigate(`/product/${bestMatch.id}`);
-                                      onClose();
-                                    }}
-                                    className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
-                                  >
-                                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
-                                          <img 
-                                            src={bestMatch.image} 
-                                            alt={bestMatch.name} 
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                                            referrerPolicy="no-referrer"
-                                          />
-                                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                      </div>
-                                      <div className="flex-1 text-center sm:text-left">
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                                              <h4 className="text-xl font-black text-white">{bestMatch.name}</h4>
-                                              <span className="text-primary font-black text-lg">₹{bestMatch.price}</span>
-                                          </div>
-                                          <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
-                                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
-                                              <div className="flex gap-2">
-                                                {bestMatch.tags?.slice(0, 2).map(tag => (
-                                                  <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
-                                                ))}
-                                              </div>
-                                              
-                                              <div className="flex items-center gap-3 ml-auto">
-                                                <button 
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(`/product/${bestMatch.id}`);
-                                                    onClose();
-                                                  }}
-                                                  className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all"
-                                                >
-                                                    Details
-                                                </button>
-                                                <button 
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    addToCart(bestMatch);
-                                                    onClose();
-                                                    setIsCartOpen(true);
-                                                  }}
-                                                  className="px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-                                                >
-                                                    Buy Now
-                                                </button>
-                                              </div>
-                                          </div>
-                                      </div>
-                                  </div>
+                                  {bestMatch && (
+                                    <div 
+                                      onClick={() => {
+                                        navigate(`/product/${bestMatch.id}`);
+                                        onClose();
+                                      }}
+                                      className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
+                                    >
+                                        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
+                                            <img 
+                                              src={bestMatch.image} 
+                                              alt={bestMatch.name} 
+                                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                              referrerPolicy="no-referrer"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        </div>
+                                        <div className="flex-1 text-center sm:text-left">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                                <h4 className="text-xl font-black text-white">{bestMatch.name}</h4>
+                                                <span className="text-primary font-black text-lg">₹{bestMatch.price}</span>
+                                            </div>
+                                            <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
+                                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                                                <div className="flex gap-2">
+                                                  {bestMatch.tags?.slice(0, 2).map(tag => (
+                                                    <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
+                                                  ))}
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-3 ml-auto">
+                                                  <button 
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      navigate(`/product/${bestMatch.id}`);
+                                                      onClose();
+                                                    }}
+                                                    className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all"
+                                                  >
+                                                      Details
+                                                  </button>
+                                                  <button 
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      addToCart(bestMatch);
+                                                      onClose();
+                                                      setIsCartOpen(true);
+                                                    }}
+                                                    className="px-6 py-2.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+                                                  >
+                                                      Buy Now
+                                                  </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                  )}
+
+                                  {!bestMatch && smartRec.butlerResponse && (
+                                    <p className="text-gray-400 text-sm italic">
+                                      I couldn't find a direct match for this specific request, but please explore our exquisite collection below.
+                                    </p>
+                                  )}
                                 </motion.div>
-                              ) : (
-                                <p className="text-gray-500">No AI-specific matches found, showing best search matches.</p>
-                              )}
+                              ) : null}
                             </div>
                           </div>
                         </div>

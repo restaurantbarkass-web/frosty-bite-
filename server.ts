@@ -64,42 +64,54 @@ async function startServer() {
         User Search Query: "${query}"
         Available Menu Items (IDs are strings): ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided."}
 
-        Task: Match the user's intent to the best possible dessert or category.
-        Rules:
-        1. If a specific item matches well, return its ID in "bestMatchId".
-        2. If no item matches well, set "bestMatchId" to null.
-        3. "reason" must be a punchy, luxury-toned phrase (max 8 words).
-        4. "butlerResponse" should be 1-2 sophisticated sentences.
+        Task: Act as the "Frosty Bite Butler", a premium dessert concierge.
+        Analyze the search for intent, occasion, and emotional fit.
 
-        Return valid JSON only.
+        Respond with valid JSON:
+        {
+          "bestMatchId": "string-id-or-null",
+          "reason": "Dramatic phrase (max 8 words)",
+          "intent": "Occasion detected",
+          "alternatives": ["id1", "id2"],
+          "isEmotionalMatch": true,
+          "occasionDetected": "e.g. Birthday",
+          "moodDetected": "e.g. Celebratory",
+          "recommendationType": "one of: occasion, flavor, budget, trending, standard",
+          "butlerResponse": "1-2 sophisticated sentences."
+        }
       `;
 
-      console.log(`[Butler Rec] Calling Gemini 1.5 Flash...`);
+      console.log(`[Butler Rec] Calling Gemini 1.5 Flash... Query: ${query}`);
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          temperature: 0.2, // Lower temperature for more consistent JSON
+          temperature: 0.1, 
         }
       });
       
       const response = await result.response;
       const output = response.text();
-      console.log(`[Butler Rec] Raw Output: ${output}`);
+      console.log(`[Butler Rec] Success. Response Length: ${output.length}`);
 
       try {
-        // Robust JSON parse
-        let cleanJson = output.trim();
-        if (cleanJson.includes("```")) {
-           const match = cleanJson.match(/\{[\s\S]*\}/);
-           if (match) cleanJson = match[0];
-        }
-        
-        const data = JSON.parse(cleanJson);
-        res.json(data);
+        const data = JSON.parse(output);
+        // Ensure all fields exist
+        const sanitized = {
+          bestMatchId: data.bestMatchId || null,
+          reason: data.reason || "A choice of absolute distinction.",
+          intent: data.intent || "Luxury Exploration",
+          alternatives: data.alternatives || [],
+          isEmotionalMatch: !!data.isEmotionalMatch,
+          occasionDetected: data.occasionDetected || "Special Moment",
+          moodDetected: data.moodDetected || "Refined",
+          recommendationType: data.recommendationType || "standard",
+          butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
+        };
+        res.json(sanitized);
       } catch (parseError) {
-        console.error("[Butler Rec] JSON Parse failed. Output was:", output);
-        // Fallback response instead of 500
+        console.error("[Butler Rec] JSON Parse failed. Raw output:", output);
+        // Fallback response with the same shape
         res.json({
           bestMatchId: null,
           reason: "Seeking something truly special?",
@@ -109,7 +121,7 @@ async function startServer() {
           occasionDetected: "Unknown",
           moodDetected: "Curious",
           recommendationType: "standard",
-          butlerResponse: "I am ready to guide you to our finest delicacies. Please specify your preference."
+          butlerResponse: "My apologies, I am refining my palate. Please tell me more about what you desire."
         });
       }
     } catch (error: any) {
@@ -133,7 +145,8 @@ async function startServer() {
 
       const prompt = `
         Search Term: "${searchTerm}"
-        Predict 5 natural, high-intent search phrases for a premium bakery.
+        Available Menu Context: ${items && items.length > 0 ? JSON.stringify(items.slice(0, 20)) : "Bakery and cakes"}
+        Predict 5 natural, high-intent search phrases for this premium bakery.
         Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
       `;
 

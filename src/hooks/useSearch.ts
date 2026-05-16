@@ -41,34 +41,43 @@ export const useSearch = (allItems: FoodItem[]) => {
 
   // Debounced AI Suggestions & Smart Recommendation
   useEffect(() => {
+    let active = true;
+
     const timer = setTimeout(async () => {
       if (query.length > 2 && allItems.length > 0) {
         // Get Suggestions
-        searchService.getAiSuggestions(query, allItems).then(setAiSuggestions);
+        searchService.getAiSuggestions(query, allItems).then(s => {
+          if (active) setAiSuggestions(s);
+        });
         
         // Fetch Smart AI Recommendation automatically while typing
         setIsProcessingRec(true);
         const processingTimeout = setTimeout(() => {
-          setIsProcessingRec(false);
+          if (active) setIsProcessingRec(false);
         }, 15000); // 15s safety timeout
 
         searchService.getSmartRecommendation(query, allItems).then(rec => {
-            setSmartRec(rec);
-            setIsProcessingRec(false);
-            clearTimeout(processingTimeout);
+          if (!active) return;
+          setSmartRec(rec);
+          setIsProcessingRec(false);
+          clearTimeout(processingTimeout);
         }).catch(() => {
-            setSmartRec(null);
-            setIsProcessingRec(false);
-            clearTimeout(processingTimeout);
+          if (!active) return;
+          setSmartRec(null);
+          setIsProcessingRec(false);
+          clearTimeout(processingTimeout);
         });
       } else {
         setAiSuggestions([]);
         setSmartRec(null);
         setIsProcessingRec(false);
       }
-    }, 800); // Slightly faster debounce for better feel
+    }, 800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [query, allItems]);
 
   const performSearch = useCallback(async (searchTerm: string) => {
