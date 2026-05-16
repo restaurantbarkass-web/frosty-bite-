@@ -644,23 +644,43 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       </AnimatePresence>
                     </motion.div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-                      <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-gray-700">
-                        <Search size={48} />
+                    <div className="space-y-12">
+                      <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+                        <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-gray-700">
+                          <Search size={48} />
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-xl font-bold text-white">No exact results found</h3>
+                          <p className="text-gray-500 max-w-sm">
+                            We couldn't find an exact match for "{query}". <br/>
+                            But you might love these instead.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={clear}
+                          className="px-8 py-4 bg-primary/10 text-primary border border-primary/20 font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-primary/20 transition-all font-mono"
+                        >
+                          Clear Search
+                        </button>
                       </div>
-                      <div className="space-y-2">
-                        <h3 className="text-xl font-bold text-white">No results found</h3>
-                        <p className="text-gray-500 max-w-sm">
-                          We couldn't find anything matching "{query}". <br/>
-                          Try using more general terms or browse categories.
-                        </p>
+
+                      {/* Fallback items: items in the same category or popular items */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Sparkles size={16} className="text-primary" />
+                          <h3 className="text-[10px] font-black uppercase tracking-widest">Recommended for you</h3>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                          {allItems.slice(0, 4).map(item => (
+                            <FoodCard 
+                              key={item.id} 
+                              item={item} 
+                              onClick={onClose}
+                              showBuyNow={true}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <button 
-                        onClick={clear}
-                        className="px-8 py-4 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-accent transition-all"
-                      >
-                        Clear Search
-                      </button>
                     </div>
                   )}
                 </div>

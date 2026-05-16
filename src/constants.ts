@@ -74,5 +74,29 @@ export const MENU_ITEMS: FoodItem[] = [
     category: 'Beverages',
     stock_quantity: 30,
     available: true
+  },
+  {
+    id: '6',
+    name: 'Strawberry Bento Cake',
+    description: 'Miniature luxury cake with fresh strawberry cream and vanilla sponge. Perfect for personal celebrations.',
+    price: 450,
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=800',
+    category: 'Cakes',
+    tags: ['bento', 'mini', 'strawberry', 'trending'],
+    stock_quantity: 25,
+    available: true
+  },
+  {
+    id: '7',
+    name: 'Chocolate Truffle Bento',
+    description: 'Decadent dark chocolate bento cake with ganache filling. A tiny masterpiece of flavor.',
+    price: 480,
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1464195244916-405fa0a82545?auto=format&fit=crop&q=80&w=800',
+    category: 'Cakes',
+    tags: ['bento', 'chocolate', 'truffle', 'best-seller'],
+    stock_quantity: 20,
+    available: true
   }
 ];

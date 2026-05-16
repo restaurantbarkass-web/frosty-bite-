@@ -156,8 +156,17 @@ export const searchService = {
 
   // Basic ranking for non-AI fallback
   filterAndRankItems(items: FoodItem[], searchTerm: string): FoodItem[] {
-    const query = searchTerm.toLowerCase().trim();
-    if (!query) return [];
+    const rawQuery = searchTerm.toLowerCase().trim();
+    if (!rawQuery) return [];
+
+    // Basic singularization (removing trailing 's') for better plural/singular match
+    const queries = [rawQuery];
+    if (rawQuery.endsWith('s')) {
+      queries.push(rawQuery.substring(0, rawQuery.length - 1));
+    } else {
+      queries.push(rawQuery + 's');
+    }
+
     return items
       .map(item => {
         let score = 0;
@@ -166,12 +175,21 @@ export const searchService = {
         const description = (item.description || '').toLowerCase();
         const tags = (item.tags || []).map(t => t.toLowerCase());
 
-        if (name === query) score += 100;
-        else if (name.startsWith(query)) score += 50;
-        else if (name.includes(query)) score += 20;
-        if (category.includes(query)) score += 30;
-        if (tags.some(t => t.includes(query))) score += 25;
-        if (description.includes(query)) score += 10;
+        queries.forEach((q, idx) => {
+          const weight = idx === 0 ? 1 : 0.8; // Primary query has full weight
+
+          if (name === q) score += 100 * weight;
+          else if (name.startsWith(q)) score += 50 * weight;
+          else if (name.includes(q)) score += 20 * weight;
+          
+          if (category.includes(q)) score += 30 * weight;
+          if (tags.some(t => t.includes(q))) score += 25 * weight;
+          if (description.includes(q)) score += 10 * weight;
+        });
+
+        // Boost items with AI boosting
+        if (item.is_ai_boosted) score *= 1.2;
+
         return { item, score };
       })
       .filter(entry => entry.score > 0)
