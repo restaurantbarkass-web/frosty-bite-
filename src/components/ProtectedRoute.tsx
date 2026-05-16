@@ -7,7 +7,7 @@ import { logout } from '../firebase';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('customer' | 'admin' | 'rider')[];
+  allowedRoles?: ('customer' | 'admin')[];
   autoLogout?: boolean;
   requireVerification?: boolean;
 }
@@ -18,7 +18,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   autoLogout = false,
   requireVerification = false
 }) => {
-  const { user, loading, isAdmin, isRider, isCustomer, isVerified } = useAuth();
+  const { user, loading, isAdmin, isCustomer, isVerified } = useAuth();
   const location = useLocation();
 
   const navigate = useNavigate();
@@ -28,7 +28,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       if (allowedRoles) {
         const hasAccess = allowedRoles.some(r => {
           if (r === 'admin') return isAdmin;
-          if (r === 'rider') return isRider;
           if (r === 'customer') return isCustomer;
           return false;
         });
@@ -42,7 +41,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
          // Optionally force logout or just show block
       }
     }
-  }, [user, loading, allowedRoles, isAdmin, isRider, isCustomer, isVerified, requireVerification, autoLogout, navigate]);
+  }, [user, loading, allowedRoles, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate]);
 
   if (loading) {
     // ... same loading UI ...
@@ -100,7 +99,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (allowedRoles) {
     const hasAccess = allowedRoles.some(r => {
       if (r === 'admin') return isAdmin;
-      if (r === 'rider') return isRider;
       if (r === 'customer') return isCustomer;
       return false;
     });

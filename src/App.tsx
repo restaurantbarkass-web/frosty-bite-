@@ -32,7 +32,6 @@ const UPICheckout = lazy(() => import('./pages/UPICheckout'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking'));
 const AdminLayout = lazy(() => import('./pages/AdminLayout'));
 const Profile = lazy(() => import('./pages/Profile'));
-const RiderPanel = lazy(() => import('./pages/RiderPanel'));
 const Login = lazy(() => import('./pages/Login'));
 const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
@@ -314,11 +313,6 @@ function AppContent() {
                 <Route path="/admin/*" element={
                   <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
                     <AdminLayout />
-                  </ProtectedRoute>
-                } />
-                <Route path="/rider/*" element={
-                  <ProtectedRoute allowedRoles={['rider']} requireVerification={true}>
-                    <RiderPanel />
                   </ProtectedRoute>
                 } />
                 <Route path="/profile" element={

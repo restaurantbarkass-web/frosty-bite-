@@ -354,7 +354,10 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
             >
               <div className="h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
               
-              <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div 
+                className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[70vh] overflow-y-auto custom-scrollbar"
+                data-lenis-prevent
+              >
                 {/* Left Column: Recent & Trending */}
                 <div className="space-y-6">
                   {recentSearches.length > 0 && !query && (

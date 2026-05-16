@@ -15,14 +15,15 @@ import {
   addDoc, 
   Timestamp,
   writeBatch,
-  getDocs
+  getDocs,
+  serverTimestamp
 } from 'firebase/firestore';
 
 export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'order' | 'system' | 'rider';
+  type: 'order' | 'system';
   read: boolean;
   created_at: any; // Can be string or Timestamp
   user_id: string;
@@ -214,6 +215,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
     const path = 'notifications';
     try {
+      console.log(`Attempting to mark all notifications as read for user ${user.uid}`);
       const q = query(
         collection(db, path),
         where('user_id', '==', user.uid),
@@ -221,6 +223,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       );
       
       const querySnapshot = await getDocs(q);
+      console.log(`Found ${querySnapshot.size} unread notifications`);
       if (querySnapshot.empty) return;
 
       const batch = writeBatch(db);
@@ -229,10 +232,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
       
       await batch.commit();
+      console.log('Successfully committed batch update');
       toast.success('All notifications marked as read');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error marking all as read:', error);
-      toast.error('Failed to mark notifications as read');
+      const errorMessage = error?.message || String(error);
+      toast.error(`Failed to mark notifications as read: ${errorMessage}`);
       handleFirestoreError(authInstance, error, OperationType.WRITE, path);
     }
   }, [user, authInstance]);
@@ -243,7 +248,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       await addDoc(collection(db, path), {
         ...notif,
         read: false,
-        created_at: Timestamp.now()
+        created_at: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(authInstance, error, OperationType.CREATE, path);

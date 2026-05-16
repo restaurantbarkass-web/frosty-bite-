@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, Truck, AlertCircle, CheckCircle2, Search, Gift, Command } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
@@ -12,7 +12,7 @@ import { LottieOfferButton } from './LottieOfferButton';
 
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
-  const { user, role, isAdmin, isRider } = useAuth();
+  const { user, role, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

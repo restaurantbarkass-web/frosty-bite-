@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   ShoppingBag, 
   UtensilsCrossed, 
-  Bike, 
   BarChart3, 
   Settings, 
   ChevronLeft, 
@@ -38,7 +37,6 @@ const menuItems = [
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'banners', label: 'Banners', icon: Palette },
-  { id: 'riders', label: 'Riders', icon: Bike },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'search-analytics', label: 'Search Insights', icon: SearchIcon },
   { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
@@ -80,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         animate={isOpen ? 'open' : (window.innerWidth < 1024 ? 'closed' : 'desktop')}
         variants={sidebarVariants}
         className={cn(
-          "fixed inset-y-0 left-0 lg:relative z-[70] bg-[#0a0a0a] border-r border-white/10 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none",
+          "fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen z-[70] bg-[#0a0a0a] border-r border-white/10 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none",
           isCollapsed ? "lg:w-20" : "lg:w-[260px]"
         )}
       >
@@ -116,7 +114,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
 
-        <nav className="flex-1 px-4 mt-8 space-y-2 overflow-y-auto custom-scrollbar">
+        <nav 
+          className="flex-1 px-4 mt-8 space-y-2 overflow-y-auto custom-scrollbar"
+          data-lenis-prevent
+        >
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

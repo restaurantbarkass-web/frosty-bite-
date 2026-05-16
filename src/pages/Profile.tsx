@@ -248,8 +248,7 @@ export const Profile: React.FC = () => {
   const [settingsData, setSettingsData] = useState({
     notifications: {
       orderUpdates: true,
-      promotions: false,
-      riderChat: true
+      promotions: false
     },
     privacy: {
       shareActivity: false,

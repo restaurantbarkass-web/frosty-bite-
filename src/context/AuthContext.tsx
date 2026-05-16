@@ -2,19 +2,18 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
-import { ADMIN_EMAILS, RIDER_EMAILS, getRoleFromEmail } from '../constants';
+import { ADMIN_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import { safeFirestore } from '../services/firestoreService';
 
-type UserRole = 'customer' | 'admin' | 'rider';
+type UserRole = 'customer' | 'admin';
 
 interface AuthContextType {
   user: User | null;
   role: UserRole | null;
   loading: boolean;
   isAdmin: boolean;
-  isRider: boolean;
   isCustomer: boolean;
   isVerified: boolean;
   auth: any;
@@ -115,7 +114,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     auth,
     isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
-    isRider: role === 'rider' || (!!user?.email && RIDER_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
   }), [user, role, loading, isVerified]);
 

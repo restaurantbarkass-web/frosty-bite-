@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 import { rewardsService } from '../../services/rewardsService';
 
-import { Order, Rider } from '../../types';
+import { Order } from '../../types';
 import { ImageZoom } from '../ImageZoom';
 
 const StatusBadge = ({ order }: { order: Order }) => {
@@ -70,7 +70,6 @@ interface OrdersTableProps {
 
 export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loading: externalLoading }) => {
   const orders = Array.isArray(rawOrders) ? rawOrders : [];
-  const [riders, setRiders] = useState<Rider[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
@@ -102,42 +101,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
-
-    const fetchRiders = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('riders')
-          .select('*')
-          .order('name');
-        
-        if (error) throw error;
-        if (data) setRiders(data as Rider[]);
-      } catch (error) {
-        console.error('Error fetching riders from Supabase:', error);
-      } finally {
-        setInternalLoading(false);
-      }
-    };
-
-    fetchRiders();
-
-    // Subscribe to rider changes
-    const channel = supabase
-      .channel('riders_active')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'riders' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setRiders(prev => [...prev, payload.new as Rider].sort((a, b) => a.name.localeCompare(b.name)));
-        } else if (payload.eventType === 'UPDATE') {
-          setRiders(prev => prev.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r));
-        } else if (payload.eventType === 'DELETE') {
-          setRiders(prev => prev.filter(r => r.id !== payload.old.id));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    
+    setInternalLoading(false);
   }, []);
 
   const requestNotificationPermission = async () => {
@@ -481,48 +446,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     }
   };
 
-  const assignRider = async (orderId: string, riderId: string) => {
-    const rider = riders.find(r => r.id === riderId);
-    if (!rider) return;
-    const loadingToast = toast.loading(`Assigning ${rider.name}...`);
-
-    try {
-      const order = orders.find(o => o.id === orderId);
-      const updateData: any = { 
-        rider_id: rider.id,
-        rider_name: rider.name,
-        status: 'preparing',
-        updated_at: new Date().toISOString()
-      };
-
-      if (order && !order.estimated_delivery_time) {
-        updateData.estimated_delivery_time = 30;
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
-
-      if (error) throw error;
-
-      if (order && order.user_id !== 'guest' && order.user_id) {
-        addNotification({
-          title: 'Rider Assigned',
-          message: `${rider.name} has been assigned to your order.`,
-          type: 'rider',
-          user_id: order.user_id,
-          link: `/order-tracking/${orderId}`
-        });
-      }
-
-      toast.success(`Assigned to ${rider.name}`, { id: loadingToast });
-    } catch (error: any) {
-      console.error('Assign rider error:', error);
-      toast.error(error.message || 'Assignment failed', { id: loadingToast });
-    }
-  };
-
   const handlePrintKOT = (order: Order, isAuto: boolean = false) => {
     setPrintingOrder(order);
     if (isAuto) {
@@ -678,7 +601,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                   {getSortIcon('status')}
                 </div>
               </th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Rider</th>
               <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
@@ -778,16 +700,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                   <StatusBadge order={order} />
                 </td>
                 <td className="px-8 py-6">
-                  <select 
-                    className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-xs text-gray-300 focus:outline-none focus:border-primary/50 transition-all cursor-pointer"
-                    value={order.rider_id || ""}
-                    onChange={(e) => assignRider(order.id, e.target.value)}
-                  >
-                    <option value="" disabled>Assign Rider</option>
-                    {riders.map(r => (
-                      <option key={r.id} value={r.id} className="bg-[#111]">{r.name} ({r.status})</option>
-                    ))}
-                  </select>
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Self Delivery</span>
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-3">
@@ -877,25 +790,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                         </div>
                       )}
 
-                      {order.status === 'preparing' && !order.rider_id && (
+                      {order.status === 'preparing' && (
                         <div className="flex flex-col gap-2">
-                          <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest ml-1">Assign Delivery:</span>
-                          <select 
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[10px] font-bold text-gray-300 focus:outline-none focus:border-primary/50 transition-all cursor-pointer"
-                            value={order.rider_id || ""}
-                            onChange={(e) => assignRider(order.id, e.target.value)}
-                          >
-                            <option value="" disabled>Choose Rider</option>
-                            {riders.map(r => (
-                              <option key={r.id} value={r.id} className="bg-[#111]">{r.name} ({r.status})</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      {order.status === 'preparing' && order.rider_id && (
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest ml-1">Delivery Assigned to {order.rider_name}:</span>
                           <button 
                             onClick={() => updateStatus(order.id, 'out_for_delivery')}
                             className="flex-1 px-4 py-2 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-purple-600 transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
@@ -906,16 +802,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                         </div>
                       )}
 
-                      {(order.status === 'out_for_delivery' || (order.status === 'preparing' && order.rider_id)) && (
+                      {order.status === 'out_for_delivery' && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-zinc-400 bg-white/5 px-2 py-1 rounded-md border border-white/5">
-                            Rider: {order.rider_name || 'Assigned'}
-                          </span>
                           <button 
                             onClick={() => updateStatus(order.id, 'delivered')}
-                            className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-500 hover:text-white transition-all"
+                            className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                           >
-                            Force Deliver
+                            Mark Delivered
                           </button>
                         </div>
                       )}
@@ -1141,20 +1034,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                       );
                     })}
                   </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Assign Rider</label>
-                    <select 
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-300 focus:outline-none focus:border-primary/50 transition-all font-bold"
-                      value={order.rider_id || ""}
-                      onChange={(e) => assignRider(order.id, e.target.value)}
-                    >
-                      <option value="" disabled>Choose Rider</option>
-                      {riders.map(r => (
-                        <option key={r.id} value={r.id} className="bg-[#111]">{r.name} ({r.status})</option>
-                      ))}
-                    </select>
-                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -1244,7 +1123,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
               </div>
             )}
 
-            {order.status === 'preparing' && order.rider_id && (
+            {order.status === 'preparing' && (
               <div className="pt-2">
                 <button 
                   onClick={() => updateStatus(order.id, 'out_for_delivery')}
@@ -1252,6 +1131,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                 >
                   <Truck size={16} />
                   Dispatch Order
+                </button>
+              </div>
+            )}
+
+            {order.status === 'out_for_delivery' && (
+              <div className="pt-2">
+                <button 
+                  onClick={() => updateStatus(order.id, 'delivered')}
+                  className="w-full py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 size={16} />
+                  Mark Delivered
                 </button>
               </div>
             )}

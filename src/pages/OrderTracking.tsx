@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, Truck, CheckCircle, MapPin, Phone, MessageCircle, User as UserIcon, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { supabase } from '../supabase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
-import { Order, Rider } from '../types';
+import { Order } from '../types';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
 import { ReviewForm } from '../components/ReviewForm';
-
-const MapView = React.lazy(() => import('../components/rider/MapView').then(m => ({ default: m.MapView })));
 
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { RESTAURANT_WHATSAPP } from '../constants';
@@ -17,11 +15,9 @@ import { RESTAURANT_WHATSAPP } from '../constants';
 const STATUS_ANIMATIONS: Record<string, string> = {
   pending: LOTTIE_ANIMATIONS.PROCESSING,
   confirmed: LOTTIE_ANIMATIONS.PROCESSING,
-  assigned: LOTTIE_ANIMATIONS.PROCESSING,
   preparing: LOTTIE_ANIMATIONS.COOKING,
-  out_for_delivery: LOTTIE_ANIMATIONS.DELIVERY_TRUCK,
   delivered: LOTTIE_ANIMATIONS.SUCCESS_CHECK,
-  cancelled: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json", // We can use something else or fallback
+  cancelled: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json",
 };
 
 const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
@@ -41,28 +37,12 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
       <CheckCircle className="text-primary" size={64} strokeWidth={1.5} />
     </motion.div>
   ),
-  assigned: (
-    <motion.div
-      animate={{ y: [0, -10, 0] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <UserIcon className="text-primary" size={64} strokeWidth={1.5} />
-    </motion.div>
-  ),
   preparing: (
     <motion.div
       animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.05, 1] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
       <ChefHat className="text-primary" size={64} strokeWidth={1.5} />
-    </motion.div>
-  ),
-  out_for_delivery: (
-    <motion.div
-      animate={{ x: [-20, 20, -20] }}
-      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-    >
-      <Truck className="text-primary" size={64} strokeWidth={1.5} />
     </motion.div>
   ),
   delivered: (
@@ -92,9 +72,7 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
 const STATUS_STEPS = [
   { id: 'pending', label: 'Pending', icon: Package, description: 'Waiting for payment confirmation' },
   { id: 'confirmed', label: 'Confirmed', icon: CheckCircle, description: 'Payment confirmed, preparing order' },
-  { id: 'assigned', label: 'Rider Assigned', icon: UserIcon, description: 'A rider is coming to pick up' },
   { id: 'preparing', label: 'Preparing', icon: Package, description: 'Chef is working their magic' },
-  { id: 'out_for_delivery', label: 'Out for Delivery', icon: Truck, description: 'Rider is on the way' },
   { id: 'delivered', label: 'Delivered', icon: CheckCircle, description: 'Enjoy your meal!' },
 ];
 
@@ -102,7 +80,6 @@ export const OrderTracking: React.FC = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
-  const [rider, setRider] = useState<Rider | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [countdown, setCountdown] = useState<string | null>(null);
@@ -114,7 +91,7 @@ export const OrderTracking: React.FC = () => {
   useEffect(() => {
     if (!orderId) return;
 
-    const fetchOrderAndRider = async () => {
+    const fetchOrder = async () => {
       try {
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
@@ -125,23 +102,15 @@ export const OrderTracking: React.FC = () => {
         if (orderError) throw orderError;
         if (orderData) {
           setOrder(orderData as Order);
-          if (orderData.rider_id) {
-            const { data: riderData } = await supabase
-              .from('riders')
-              .select('*')
-              .eq('id', orderData.rider_id)
-              .single();
-            if (riderData) setRider(riderData as Rider);
-          }
         }
       } catch (err) {
-        console.error('Error fetching order/rider:', err);
+        console.error('Error fetching order:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrderAndRider();
+    fetchOrder();
 
     // Subscribe to order changes
     const orderChannel = supabase
@@ -152,24 +121,9 @@ export const OrderTracking: React.FC = () => {
         table: 'orders',
         filter: `id=eq.${orderId}`
       }, (payload) => {
-        const newOrder = payload.new as Order;
-        setOrder(newOrder);
-        
-        // If rider assigned/changed, we might need to subscribe to rider too
-        if (newOrder.rider_id) {
-          fetchRider(newOrder.rider_id);
-        }
+        setOrder(payload.new as Order);
       })
       .subscribe();
-
-    const fetchRider = async (riderId: string) => {
-      const { data } = await supabase
-        .from('riders')
-        .select('*')
-        .eq('id', riderId)
-        .single();
-      if (data) setRider(data as Rider);
-    };
 
     // Review check - Try Supabase
     const checkReview = async () => {
@@ -193,27 +147,6 @@ export const OrderTracking: React.FC = () => {
       supabase.removeChannel(orderChannel);
     };
   }, [orderId]);
-
-  // Subscribe to rider location updates if rider exists
-  useEffect(() => {
-    if (!rider?.id) return;
-
-    const riderChannel = supabase
-      .channel(`tracking_rider_${rider.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'riders',
-        filter: `id=eq.${rider.id}`
-      }, (payload) => {
-        setRider(payload.new as Rider);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(riderChannel);
-    };
-  }, [rider?.id]);
 
   // Use a ref-like approach for getRemainingTime to avoid it changing on every render
   const getRemainingTime = React.useCallback(() => {
@@ -453,79 +386,16 @@ export const OrderTracking: React.FC = () => {
             </div>
           </div>
 
-          {/* Delivery OTP Section */}
-          {order.status === 'out_for_delivery' && order.delivery_otp && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-dark p-8 rounded-3xl border-2 border-primary/30 bg-primary/5 text-center space-y-4"
-            >
-              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto text-primary">
-                <CheckCircle size={32} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black tracking-tight text-white mb-1">Delivery OTP</h3>
-                <p className="text-zinc-500 text-sm">Share this code with the rider to confirm delivery</p>
-              </div>
-              <div className="flex justify-center gap-3">
-                {String(order.delivery_otp || '').split('').map((digit, i) => (
-                  <div key={i} className="w-12 h-16 bg-zinc-900 border border-white/10 rounded-xl flex items-center justify-center text-3xl font-black text-primary shadow-xl">
-                    {digit}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Rider Info */}
-          {rider ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-dark p-6 rounded-3xl border border-border flex items-center justify-between"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 bg-secondary rounded-full flex items-center justify-center overflow-hidden">
-                  <UserIcon size={30} className="text-muted" />
-                </div>
-                <div>
-                  <h4 className="font-bold">{rider.name}</h4>
-                  <p className="text-muted text-xs">Your Delivery Partner</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <a 
-                  href={`tel:${rider.phone || ''}`}
-                  className="p-4 bg-primary/10 text-primary rounded-2xl hover:bg-primary/20 transition-colors"
-                  title="Call Rider"
-                >
-                  <Phone size={20} />
-                </a>
-                <button 
-                  onClick={() => sendWhatsAppMessage(rider.phone || '', `Hello ${rider.name}, I'm checking on my Frosty Bite order #${orderId}.`)}
-                  className="p-4 bg-emerald-500/10 text-emerald-500 rounded-2xl hover:bg-emerald-500/20 transition-colors"
-                  title="WhatsApp Rider"
-                >
-                  <MessageCircle size={20} />
-                </button>
-              </div>
-            </motion.div>
-          ) : (
-            <div className="glass-dark p-6 rounded-3xl border border-border text-center">
-              <p className="text-muted text-sm">Searching for a nearby rider...</p>
-            </div>
-          )}
+          {/* Order Details Footer */}
+          <div className="glass-dark p-6 rounded-3xl border border-border text-center">
+            <p className="text-muted text-sm italic">Enjoy your Frosty Bite! Stay hungry.</p>
+          </div>
         </div>
 
-        {/* Map Placeholder */}
+        {/* Order Details */}
         <div className="space-y-8">
-          <div className="aspect-square rounded-3xl overflow-hidden relative border border-border shadow-2xl bg-zinc-900">
-            <React.Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}>
-              <MapView 
-                riderLocation={rider?.location || null} 
-                customerLocation={order.delivery_location || null} 
-              />
-            </React.Suspense>
+          <div className="glass-dark p-6 rounded-3xl border border-border">
+            <p className="text-muted text-sm text-center">Wait while restaurant prepares your order...</p>
           </div>
 
           <div className="glass-dark p-6 rounded-3xl border border-border">

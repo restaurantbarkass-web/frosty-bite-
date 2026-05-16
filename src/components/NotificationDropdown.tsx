@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, Check, ShoppingBag, Truck, Info, X, MessageCircle } from 'lucide-react';
+import { Bell, Check, ShoppingBag, Info, X, MessageCircle } from 'lucide-react';
 import { useNotifications, Notification } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,6 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
   const getIcon = (type: string) => {
     switch (type) {
       case 'order': return <ShoppingBag size={14} className="text-primary" />;
-      case 'rider': return <Truck size={14} className="text-blue-500" />;
       default: return <Info size={14} className="text-zinc-500" />;
     }
   };

@@ -25,11 +25,5 @@ export const whatsappService = {
     const message = "Hi Frosty Bite! I'd like to ask about...";
     const encodedMessage = encodeURIComponent(message);
     window.open(`https://wa.me/${this.PHONE_NUMBER}?text=${encodedMessage}`, '_blank');
-  },
-  
-  contactRider(riderPhone: string, orderId: string) {
-    const message = `Hi, I'm checking on my order #${orderId}.`;
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${riderPhone}?text=${encodedMessage}`, '_blank');
   }
 };

@@ -14,7 +14,6 @@ export const Notifications: React.FC = () => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'order': return <ShoppingBag size={20} className="text-primary" />;
-      case 'rider': return <Truck size={20} className="text-blue-500" />;
       default: return <Info size={20} className="text-zinc-500" />;
     }
   };

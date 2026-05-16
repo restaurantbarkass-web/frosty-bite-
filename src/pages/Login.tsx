@@ -18,7 +18,7 @@ import { Button } from '../components/Button';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, isRider } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   // UI State
   const [method, setMethod] = useState<'password' | 'link'>('password');
@@ -35,10 +35,9 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (user) {
       if (isAdmin) navigate('/admin');
-      else if (isRider) navigate('/rider');
       else navigate('/');
     }
-  }, [user, isAdmin, isRider, navigate]);
+  }, [user, isAdmin, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -30,7 +30,14 @@ function getGenAI() {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error("GEMINI_API_KEY environment variable is required");
     console.log(`Initializing Gemini with key: ${key.slice(0, 4)}...${key.slice(-4)}`);
-    genAI = new GoogleGenAI({ apiKey: key });
+    genAI = new GoogleGenAI({ 
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return genAI;
 }
@@ -39,7 +46,8 @@ async function startServer() {
   // Ultra-precise Request logging for debugging 405/404 issues
   app.use((req, res, next) => {
     const fullUrl = req.originalUrl || req.url;
-    console.log(`[REQ] ${new Date().toISOString()} - ${req.method} ${fullUrl}`);
+    const referrer = req.get('referrer') || 'no-referrer';
+    console.log(`[REQ] ${new Date().toISOString()} - ${req.method} ${fullUrl} (Referer: ${referrer})`);
     next();
   });
 
@@ -178,7 +186,7 @@ async function startServer() {
   });
 
   // Comprehensive 404/405 handler for API
-  app.all("/api/(.*)", (req, res) => {
+  app.all("/api/*all", (req, res) => {
     const fullPath = req.originalUrl.split('?')[0];
     if (req.method !== "POST" && (fullPath === "/api/generate-avatar" || fullPath === "/api/generate-avatar/")) {
       return res.status(405).json({ error: "Method Not Allowed - use POST" });
@@ -201,28 +209,30 @@ async function startServer() {
     
     if (fs.existsSync(distPath)) {
       console.log(`[Production] Serving static files from: ${distPath}`);
-      app.use(express.static(distPath));
+      app.use(express.static(distPath, { index: false }));
     } else {
-      console.error(`[Production] CRITICAL: dist directory NOT found at ${distPath}`);
+      console.warn(`[Production] WARNING: dist directory NOT found at ${distPath}. Build might be in progress.`);
     }
     
     // Catch-all route for SPA fallback
-    app.get("(.*)", (req, res) => {
+    app.get("*all", (req, res) => {
       // If it's an API route that reached here, it's a 404
-      if (req.path.startsWith("/api/")) {
-        return res.status(404).json({ error: `API endpoint ${req.path} not found` });
+      if (req.originalUrl.startsWith("/api/")) {
+        return res.status(404).json({ error: `API endpoint ${req.originalUrl} not found` });
       }
 
-      // If it looks like a file request but wasn't served by express.static, 404 it
-      if (req.path.includes(".") && !req.path.endsWith(".html")) {
+      // If it looks like a file request (has extension) but wasn't served by express.static, 404 it
+      // This prevents returning index.html for missing .js, .css, .tsx etc.
+      const parsedPath = path.parse(req.path);
+      if (parsedPath.ext && !['.html', '.php', '.asp'].includes(parsedPath.ext.toLowerCase())) {
         return res.status(404).end();
       }
       
-      const indexPath = path.resolve(distPath, "index.html");
+      const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        res.status(404).send("Application shell not found. Please wait for build to complete.");
+        res.status(404).send("Application is starting... please refresh in a few seconds.");
       }
     });
 

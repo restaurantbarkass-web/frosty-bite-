@@ -26,9 +26,7 @@ export interface Order {
   customerName?: string; // Add optional for backward compatibility / mixed casing
   items: any[];
   total: number;
-  status: 'awaiting_payment' | 'pending' | 'confirmed' | 'assigned' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
-  rider_id?: string;
-  rider_name?: string;
+  status: 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   delivery_location?: {
     lat: number;
     lng: number;
@@ -37,7 +35,6 @@ export interface Order {
   updated_at?: string;
   address: string;
   phone: string;
-  delivery_otp?: string;
   notes?: string;
   payment_method?: 'cash' | 'online' | 'upi' | 'cod';
   payment_status?: 'pending' | 'paid' | 'pending_verification' | 'failed';
@@ -52,24 +49,12 @@ export interface Order {
   estimated_arrival?: string; // ISO date string
 }
 
-export interface Rider {
-  id: string;
-  name: string;
-  status: 'online' | 'offline' | 'busy' | 'on-delivery';
-  location: {
-    lat: number;
-    lng: number;
-  };
-  email: string;
-  phone?: string;
-}
-
 export interface User {
   uid: string;
   full_name: string;
   email: string;
   address: string;
-  role: 'customer' | 'admin' | 'rider';
+  role: 'customer' | 'admin';
 }
 
 export interface Banner {

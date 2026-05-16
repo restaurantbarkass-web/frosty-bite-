@@ -40,7 +40,7 @@ export const Admins: React.FC = () => {
           <div>
             <h3 className="text-lg font-bold text-white">Role Management</h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Admins can manage customer lists and assign rider roles within the dashboard.
+              Admins can manage customer lists and oversee all operations within the dashboard.
             </p>
           </div>
         </div>

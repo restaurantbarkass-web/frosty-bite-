@@ -57,23 +57,6 @@ export const AdminLayout: React.FC = () => {
       case 'rewards': return <Rewards />;
       case 'coupons': return <Coupons />;
       case 'banners': return <BannerManager />;
-      case 'riders': return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-          <div className="w-24 h-24 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500">
-            <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-          </div>
-          <div className="text-center">
-            <h2 className="text-3xl font-bold mb-2">Rider Management</h2>
-            <p className="text-gray-500 max-w-md mx-auto">
-              The rider management module is currently under development. 
-              We are building a powerful system to track and manage your delivery fleet in real-time.
-            </p>
-          </div>
-          <div className="px-6 py-2 bg-orange-500/20 text-orange-500 rounded-full text-sm font-bold uppercase tracking-widest animate-pulse">
-            Coming Soon
-          </div>
-        </div>
-      );
       case 'analytics': return <Analytics />;
       case 'search-analytics': return <SearchAnalytics />;
       default: return <Dashboard />;

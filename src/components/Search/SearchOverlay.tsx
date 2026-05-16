@@ -58,10 +58,18 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   const bestMatch = allItems.find(i => i.id === smartRec?.bestMatchId);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  // Scroll to top when query or results change
+  useEffect(() => {
+    if (query && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [query, results.length]);
 
   // Focus input when opened
   useEffect(() => {
@@ -320,7 +328,11 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
           </AnimatePresence>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div 
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto custom-scrollbar"
+            data-lenis-prevent
+          >
             <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
               
               {!query && (

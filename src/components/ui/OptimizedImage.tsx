@@ -66,7 +66,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         alt={alt}
         loading={priority ? "eager" : "lazy"}
         // @ts-ignore
-        fetchpriority={priority ? "high" : "auto"}
+        fetchPriority={priority ? "high" : "auto"}
         onLoad={() => setIsLoaded(true)}
         onError={(e) => {
           console.error("Image load fail:", src);

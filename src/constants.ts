@@ -6,20 +6,14 @@ export const ADMIN_EMAILS = [
   "restaurantbarkass@gmail.com"
 ];
 
-export const RIDER_EMAILS = [
-  "rider1@gmail.com",
-  "delivery@frostybite.com"
-];
-
 export const RESTAURANT_WHATSAPP = "917735800239"; 
 export const RESTAURANT_LOCATION = { lat: 20.2961, lng: 85.8245 };
 
-export type UserRole = 'admin' | 'rider' | 'customer';
+export type UserRole = 'admin' | 'customer';
 
 export const getRoleFromEmail = (email: string | null): UserRole => {
   if (!email) return 'customer';
   if (ADMIN_EMAILS.includes(email.toLowerCase())) return 'admin';
-  if (RIDER_EMAILS.includes(email.toLowerCase())) return 'rider';
   return 'customer';
 };
 
