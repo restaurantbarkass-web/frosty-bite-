@@ -142,7 +142,11 @@ async function startServer() {
 
       const result = await model.generateContent(prompt);
       const output = result.response.text();
-      const suggestions = output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
+      // Clean up numbered lists or prefixes like "1. ", "- ", etc.
+      const suggestions = output.split('\n')
+        .filter(s => s.trim().length > 0)
+        .map(s => s.replace(/^\d+\.\s*/, '').replace(/^- \s*/, '').trim())
+        .slice(0, 5);
       
       res.json({ suggestions });
     } catch (error: any) {
