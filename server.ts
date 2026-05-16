@@ -61,57 +61,60 @@ async function startServer() {
       });
 
       const prompt = `
-        User Search: "${query}"
-        Menu Reference: ${items && items.length > 0 ? JSON.stringify(items) : "No specific menu items provided. Suggest categories of premium cakes and pastries."}
+        User Search Query: "${query}"
+        Available Menu Items (IDs are strings): ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided."}
 
-        Task: Act as the "Frosty Bite Butler", a premium dessert concierge.
-        Analyze the search for:
-        - Occasion: (e.g., anniversary, birthday, romantic)
-        - Mood: (e.g., celebratory, cozy, luxury)
-        - Budget: (Is price mentioned or implied?)
-        - Flavor Profile: (Chocolate, fruity, etc.)
+        Task: Match the user's intent to the best possible dessert or category.
+        Rules:
+        1. If a specific item matches well, return its ID in "bestMatchId".
+        2. If no item matches well, set "bestMatchId" to null.
+        3. "reason" must be a punchy, luxury-toned phrase (max 8 words).
+        4. "butlerResponse" should be 1-2 sophisticated sentences.
 
-        IMPORTANT: If a masterpiece has "is_ai_boosted: true", it should be given slight preference if it matches the general vibe.
-
-        Respond ONLY with a JSON object:
-        {
-          "bestMatchId": "string-id-of-the-item-or-null",
-          "reason": "Dramatic, punchy reason (max 8 words)",
-          "intent": "e.g., Anniversary Celebration",
-          "alternatives": ["id1", "id2"],
-          "isEmotionalMatch": true/false,
-          "occasionDetected": "string",
-          "moodDetected": "string",
-          "budgetDetected": "string or null",
-          "recommendationType": "one of: occasion, flavor, budget, trending, standard",
-          "butlerResponse": "A premium, sophisticated greeting and recommendation (2 sentences). Use words like 'exquisite', 'divine', 'perfectly suited'."
-        }
+        Return valid JSON only.
       `;
 
-      console.log(`[Butler Rec] Sending request to Gemini...`);
+      console.log(`[Butler Rec] Calling Gemini 1.5 Flash...`);
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
+          temperature: 0.2, // Lower temperature for more consistent JSON
         }
       });
       
-      const output = result.response.text();
-      console.log(`[Butler Rec] AI Output: ${output.substring(0, 100)}...`);
-      
+      const response = await result.response;
+      const output = response.text();
+      console.log(`[Butler Rec] Raw Output: ${output}`);
+
       try {
-        let jsonStr = output.trim();
-        if (jsonStr.startsWith("```")) {
-           jsonStr = jsonStr.replace(/^```json\s*/, "").replace(/```$/, "").trim();
+        // Robust JSON parse
+        let cleanJson = output.trim();
+        if (cleanJson.includes("```")) {
+           const match = cleanJson.match(/\{[\s\S]*\}/);
+           if (match) cleanJson = match[0];
         }
-        res.json(JSON.parse(jsonStr));
+        
+        const data = JSON.parse(cleanJson);
+        res.json(data);
       } catch (parseError) {
-        console.error("[Butler Rec Error] JSON Parse failed:", output);
-        res.status(500).json({ error: "Failed to parse AI response" });
+        console.error("[Butler Rec] JSON Parse failed. Output was:", output);
+        // Fallback response instead of 500
+        res.json({
+          bestMatchId: null,
+          reason: "Seeking something truly special?",
+          intent: "Generic Inquiry",
+          alternatives: [],
+          isEmotionalMatch: false,
+          occasionDetected: "Unknown",
+          moodDetected: "Curious",
+          recommendationType: "standard",
+          butlerResponse: "I am ready to guide you to our finest delicacies. Please specify your preference."
+        });
       }
     } catch (error: any) {
-      console.error("[Butler Rec Error]:", error);
-      res.status(500).json({ error: "Butler service error", details: error.message });
+      console.error("[Butler Rec Fatal Error]:", error);
+      res.status(500).json({ error: "Butler service unavailable", details: error.message });
     }
   });
 
@@ -120,7 +123,7 @@ async function startServer() {
     const { searchTerm, items } = req.body;
     console.log(`[Butler Suggestions] Term: "${searchTerm}"`);
 
-    if (!searchTerm || searchTerm.length < 2) {
+    if (!searchTerm || searchTerm.trim().length < 2) {
       return res.status(400).json({ error: "Invalid search term" });
     }
 
@@ -130,27 +133,26 @@ async function startServer() {
 
       const prompt = `
         Search Term: "${searchTerm}"
-        Menu Reference: ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided. Predict popular bakery items like Truffle Cake, Bento Cakes, Sourdough Breads."}
-
-        As a bakery AI concierge, predict the user's intent and provide 5 smart search suggestions.
-        Suggestions should be natural, high-intent phrases like "Best velvet cake for anniversary" or "Sweet pastries for evening coffee".
-        Respond ONLY with a list of suggestions separated by newlines.
+        Predict 5 natural, high-intent search phrases for a premium bakery.
+        Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
       `;
 
-      console.log(`[Butler Suggestions] Calling Gemini...`);
-      const result = await model.generateContent(prompt);
-      const output = result.response.text();
-      console.log(`[Butler Suggestions] Output length: ${output.length}`);
-      // Clean up numbered lists or prefixes like "1. ", "- ", etc.
-      const suggestions = output.split('\n')
-        .filter(s => s.trim().length > 0)
-        .map(s => s.replace(/^\d+\.\s*/, '').replace(/^- \s*/, '').trim())
-        .slice(0, 5);
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      });
       
-      res.json({ suggestions });
+      const output = result.response.text();
+      try {
+        const data = JSON.parse(output);
+        res.json(data);
+      } catch (e) {
+        // Fallback for suggestions
+        res.json({ suggestions: ["Chocolate Truffle Cake", "Bento Cakes for Birthday", "Fresh Sourdough Bread"] });
+      }
     } catch (error: any) {
       console.error("[Butler Suggestions Error]:", error);
-      res.status(500).json({ error: "Suggestions error", details: error.message });
+      res.json({ suggestions: ["Red Velvet", "Pastries", "Cakes"] }); // Graceful fallback
     }
   });
 

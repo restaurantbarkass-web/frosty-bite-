@@ -77,8 +77,13 @@ export const searchService = {
         body: JSON.stringify({ query, items: relevantItems })
       });
 
-      if (!response.ok) throw new Error('Butler API failed');
+      if (!response.ok) {
+        console.warn(`[Butler API] Status: ${response.status}. Falling back to keyword match.`);
+        return null;
+      }
+      
       const recommendation = await response.json();
+      console.log('[Butler Rec] Success:', recommendation.bestMatchId);
       
       if (!recommendation || !recommendation.bestMatchId) return null;
 
