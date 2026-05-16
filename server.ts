@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { HfInference } from "@huggingface/inference";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import cors from "cors";
 
@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 let hf: HfInference | null = null;
-let genAI: GoogleGenAI | null = null;
+let genAI: GoogleGenerativeAI | null = null;
 
 function getHF() {
   if (!hf) {
@@ -29,15 +29,8 @@ function getGenAI() {
   if (!genAI) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error("GEMINI_API_KEY environment variable is required");
-    console.log(`Initializing Gemini with key: ${key.slice(0, 4)}...${key.slice(-4)}`);
-    genAI = new GoogleGenAI({ 
-      apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+    console.log(`[Gemini] Initializing with key: ${key.slice(0, 4)}...${key.slice(-4)}`);
+    genAI = new GoogleGenerativeAI(key);
   }
   return genAI;
 }
@@ -53,24 +46,20 @@ async function startServer() {
   // AI Butler Smart Recommendation Endpoint
   app.post("/api/butler/recommend", async (req, res) => {
     const { query, items } = req.body;
+    console.log(`[Butler Rec] Request received. Query: "${query}", Items count: ${items?.length || 0}`);
     
     if (!query || query.trim().length < 2) {
       return res.status(400).json({ error: "Invalid query" });
     }
 
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Gemini API key not configured" });
-      }
-
-      const genAI = getGenAI();
-      const result = await genAI.models.generateContent({ 
+      const genAIClient = getGenAI();
+      const model = genAIClient.getGenerativeModel({ 
         model: "gemini-1.5-flash",
-        config: {
-          responseMimeType: "application/json",
-          systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
-        },
-        contents: `
+        systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
+      });
+
+      const prompt = `
         User Search: "${query}"
         Menu: ${JSON.stringify(items)}
 
@@ -96,20 +85,35 @@ async function startServer() {
           "recommendationType": "one of: occasion, flavor, budget, trending, standard",
           "butlerResponse": "A premium, sophisticated greeting and recommendation (2 sentences). Use words like 'exquisite', 'divine', 'perfectly suited'."
         }
-      `
-      });
+      `;
 
-      const output = result.text || "";
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      });
+      
+      const output = result.response.text();
+      console.log(`[Butler Rec] AI generated response successfully`);
       
       try {
-        const cleaned = output.replace(/```json|```/g, '').trim();
-        res.json(JSON.parse(cleaned));
+        // Robust JSON extraction
+        let jsonStr = output;
+        const jsonMatch = output.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[0];
+        } else {
+          jsonStr = output.replace(/```json|```/g, '').trim();
+        }
+        
+        res.json(JSON.parse(jsonStr));
       } catch (parseError) {
-        console.error("[Butler Error] JSON Parse failed:", output);
+        console.error("[Butler Rec Error] JSON Parse failed. Original output:", output);
         res.status(500).json({ error: "Failed to parse AI response" });
       }
     } catch (error: any) {
-      console.error("[Butler Error]:", error);
+      console.error("[Butler Rec Error]:", error);
       res.status(500).json({ error: "Butler service error", details: error.message });
     }
   });
@@ -117,35 +121,32 @@ async function startServer() {
   // AI Butler Suggestions Endpoint
   app.post("/api/butler/suggestions", async (req, res) => {
     const { searchTerm, items } = req.body;
+    console.log(`[Butler Suggestions] Term: "${searchTerm}"`);
 
     if (!searchTerm || searchTerm.length < 2) {
       return res.status(400).json({ error: "Invalid search term" });
     }
 
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Gemini API key not configured" });
-      }
+      const genAIClient = getGenAI();
+      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      const genAI = getGenAI();
-      const result = await genAI.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: `
+      const prompt = `
         Search Term: "${searchTerm}"
         Menu Reference: ${JSON.stringify(items)}
 
         As a bakery AI concierge, predict the user's intent and provide 5 smart search suggestions.
         Suggestions should be natural, high-intent phrases like "Best velvet cake for anniversary" or "Sweet pastries for evening coffee".
         Respond ONLY with a list of suggestions separated by newlines.
-      `
-      });
+      `;
 
-      const output = result.text || "";
+      const result = await model.generateContent(prompt);
+      const output = result.response.text();
       const suggestions = output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
       
       res.json({ suggestions });
     } catch (error: any) {
-      console.error("[Suggestions Error]:", error);
+      console.error("[Butler Suggestions Error]:", error);
       res.status(500).json({ error: "Suggestions error", details: error.message });
     }
   });
@@ -199,7 +200,8 @@ async function startServer() {
       }
       
       let imageResult: string | null = null;
-      const genAI = getGenAI();
+      const genAIClient = getGenAI();
+      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       // 1. Try Gemini Vision if an image is provided
       if (imageUrl && imageUrl.startsWith('http')) {
@@ -210,9 +212,9 @@ async function startServer() {
           const base64 = Buffer.from(buffer).toString('base64');
           const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
-          const visionRes = await genAI.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: {
+          const visionRes = await model.generateContent({
+            contents: [{
+              role: 'user',
               parts: [
                 { text: `Describe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.` },
                 {
@@ -222,10 +224,10 @@ async function startServer() {
                   }
                 }
               ]
-            }
+            }]
           });
 
-          const refinedPrompt = visionRes.text || prompt;
+          const refinedPrompt = visionRes.response.text() || prompt;
           console.log(`[Gemini] Refined Prompt: ${refinedPrompt?.substring(0, 50)}...`);
 
           // Call HF with refined prompt if available
@@ -279,12 +281,9 @@ async function startServer() {
       if (!imageResult && process.env.GEMINI_API_KEY) {
         console.log(`[Gemini] All image generators failed. Falling back to SVG.`);
         try {
-          const result = await genAI.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
-          });
+          const result = await model.generateContent(`Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`);
           
-          const text = result.text || '';
+          const text = result.response.text() || '';
           const svgCode = text.match(/<svg[\s\S]*<\/svg>/)?.[0] || text.replace(/```svg|```|```html|```/g, "").trim();
           
           if (svgCode && svgCode.includes('<svg')) {

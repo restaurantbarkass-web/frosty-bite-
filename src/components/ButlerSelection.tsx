@@ -44,13 +44,33 @@ export const ButlerSelection: React.FC = () => {
           if (item) {
             setRecommendation(rec);
             setRecommendedItem(item);
+          } else {
+            throw new Error("Recommended item not found in local menu");
           }
+        } else {
+          throw new Error("No recommendation from Butler");
         }
       } catch (error) {
-        console.error("Butler featured rec failed:", error);
+        console.error("Butler featured rec failed, using fallback:", error);
+        // Fallback to a random recommended item or just the first item
+        const fallbackItem = items.find(i => i.is_recommended) || items[0];
+        if (fallbackItem) {
+          setRecommendedItem(fallbackItem);
+          setRecommendation({
+            bestMatchId: fallbackItem.id,
+            reason: "Timeless classic choice",
+            intent: "Luxury Indulgence",
+            alternatives: [],
+            isEmotionalMatch: true,
+            occasionDetected: "Special Moment",
+            moodDetected: "Luxurious",
+            recommendationType: "trending",
+            butlerResponse: "Although my neural archives are currently updating, this exquisite selection remains the pinnacle of our collection today."
+          });
+        }
       } finally {
         clearInterval(interval);
-        setTimeout(() => setLoading(false), 1000); // Small delay for smooth transition
+        setTimeout(() => setLoading(false), 800);
       }
     };
 

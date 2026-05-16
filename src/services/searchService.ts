@@ -59,7 +59,7 @@ export const searchService = {
 
     try {
       // Get a broad set of items to give the AI context
-      const relevantItems = items.filter(i => i.available).slice(0, 100).map(i => ({
+      const relevantItems = items.filter(i => i.available !== false).slice(0, 100).map(i => ({
         id: i.id,
         name: i.name,
         category: i.category,
