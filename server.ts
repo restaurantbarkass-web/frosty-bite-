@@ -50,6 +50,106 @@ async function startServer() {
   });
 
 
+  // AI Butler Smart Recommendation Endpoint
+  app.post("/api/butler/recommend", async (req, res) => {
+    const { query, items } = req.body;
+    
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({ error: "Invalid query" });
+    }
+
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key not configured" });
+      }
+
+      const genAI = getGenAI();
+      const result = await genAI.models.generateContent({ 
+        model: "gemini-1.5-flash",
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
+        },
+        contents: `
+        User Search: "${query}"
+        Menu: ${JSON.stringify(items)}
+
+        Task: Act as the "Frosty Bite Butler", a premium dessert concierge.
+        Analyze the search for:
+        - Occasion: (e.g., anniversary, birthday, romantic)
+        - Mood: (e.g., celebratory, cozy, luxury)
+        - Budget: (Is price mentioned or implied?)
+        - Flavor Profile: (Chocolate, fruity, etc.)
+
+        IMPORTANT: If a masterpiece has "is_ai_boosted: true", it should be given slight preference if it matches the general vibe.
+
+        Respond ONLY with a JSON object:
+        {
+          "bestMatchId": "id-of-item",
+          "reason": "Dramatic, punchy reason (max 8 words)",
+          "intent": "e.g., Anniversary Celebration",
+          "alternatives": ["id1", "id2"],
+          "isEmotionalMatch": true/false,
+          "occasionDetected": "string",
+          "moodDetected": "string",
+          "budgetDetected": "string or null",
+          "recommendationType": "one of: occasion, flavor, budget, trending, standard",
+          "butlerResponse": "A premium, sophisticated greeting and recommendation (2 sentences). Use words like 'exquisite', 'divine', 'perfectly suited'."
+        }
+      `
+      });
+
+      const output = result.text || "";
+      
+      try {
+        const cleaned = output.replace(/```json|```/g, '').trim();
+        res.json(JSON.parse(cleaned));
+      } catch (parseError) {
+        console.error("[Butler Error] JSON Parse failed:", output);
+        res.status(500).json({ error: "Failed to parse AI response" });
+      }
+    } catch (error: any) {
+      console.error("[Butler Error]:", error);
+      res.status(500).json({ error: "Butler service error", details: error.message });
+    }
+  });
+
+  // AI Butler Suggestions Endpoint
+  app.post("/api/butler/suggestions", async (req, res) => {
+    const { searchTerm, items } = req.body;
+
+    if (!searchTerm || searchTerm.length < 2) {
+      return res.status(400).json({ error: "Invalid search term" });
+    }
+
+    try {
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key not configured" });
+      }
+
+      const genAI = getGenAI();
+      const result = await genAI.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: `
+        Search Term: "${searchTerm}"
+        Menu Reference: ${JSON.stringify(items)}
+
+        As a bakery AI concierge, predict the user's intent and provide 5 smart search suggestions.
+        Suggestions should be natural, high-intent phrases like "Best velvet cake for anniversary" or "Sweet pastries for evening coffee".
+        Respond ONLY with a list of suggestions separated by newlines.
+      `
+      });
+
+      const output = result.text || "";
+      const suggestions = output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
+      
+      res.json({ suggestions });
+    } catch (error: any) {
+      console.error("[Suggestions Error]:", error);
+      res.status(500).json({ error: "Suggestions error", details: error.message });
+    }
+  });
+
   // Health Check
   app.get("/api/health", (req, res) => {
     res.json({ 

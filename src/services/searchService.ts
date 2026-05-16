@@ -1,8 +1,8 @@
 import { supabase } from '../supabase';
-import { GoogleGenAI } from '@google/genai';
 import { FoodItem } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// AI is now handled server-side to keep API keys secure
+// const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export interface SearchHistory {
   id?: string;
@@ -38,20 +38,15 @@ export const searchService = {
     try {
       const menuReference = items.map(i => ({ name: i.name, category: i.category, tags: i.tags })).slice(0, 60);
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `
-          Search Term: "${searchTerm}"
-          Menu Reference: ${JSON.stringify(menuReference)}
-
-          As a bakery AI concierge, predict the user's intent and provide 5 smart search suggestions.
-          Suggestions should be natural, high-intent phrases like "Best velvet cake for anniversary" or "Sweet pastries for evening coffee".
-          Respond ONLY with a list of suggestions separated by newlines.
-        `
+      const response = await fetch('/api/butler/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchTerm, items: menuReference })
       });
-      
-      const output = response.text || '';
-      return output.split('\n').filter(s => s.trim().length > 0).slice(0, 5);
+
+      if (!response.ok) throw new Error('AI Suggestion API failed');
+      const data = await response.json();
+      return data.suggestions || [];
     } catch (error) {
       console.error('AI Suggestion Error:', error);
       return [];
@@ -76,63 +71,22 @@ export const searchService = {
         is_ai_boosted: i.is_ai_boosted
       }));
 
-      const response = await ai.models.generateContent({ 
-        model: "gemini-3-flash-preview",
-        contents: [{
-          role: "user",
-          parts: [{
-            text: `
-              User Search: "${query}"
-              Menu: ${JSON.stringify(relevantItems)}
-
-              Task: Act as the "Frosty Bite Butler", a premium dessert concierge.
-              Analyze the search for:
-              - Occasion: (e.g., anniversary, birthday, romantic)
-              - Mood: (e.g., celebratory, cozy, luxury)
-              - Budget: (Is price mentioned or implied?)
-              - Flavor Profile: (Chocolate, fruity, etc.)
-
-              IMPORTANT: If a masterpiece has "is_ai_boosted: true", it should be given slight preference if it matches the general vibe.
-
-              Respond ONLY with a JSON object:
-              {
-                "bestMatchId": "id-of-item",
-                "reason": "Dramatic, punchy reason (max 8 words)",
-                "intent": "e.g., Anniversary Celebration",
-                "alternatives": ["id1", "id2"],
-                "isEmotionalMatch": true/false,
-                "occasionDetected": "string",
-                "moodDetected": "string",
-                "budgetDetected": "string or null",
-                "recommendationType": "one of: occasion, flavor, budget, trending, standard",
-                "butlerResponse": "A premium, sophisticated greeting and recommendation (2 sentences). Use words like 'exquisite', 'divine', 'perfectly suited'."
-              }
-            `
-          }]
-        }],
-        config: {
-          systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
-          responseMimeType: "application/json"
-        }
+      const response = await fetch('/api/butler/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, items: relevantItems })
       });
 
-      const resultText = response.text || '';
-      try {
-        const cleaned = resultText.replace(/```json|```/g, '').trim();
-        if (!cleaned || cleaned === 'null') return null;
-        
-        const recommendation = JSON.parse(cleaned) as AiRecommendationResponse;
-        if (!recommendation || !recommendation.bestMatchId) return null;
+      if (!response.ok) throw new Error('Butler API failed');
+      const recommendation = await response.json();
+      
+      if (!recommendation || !recommendation.bestMatchId) return null;
 
-        // Verify item exists
-        const validItem = items.find(i => i.id === recommendation.bestMatchId);
-        if (!validItem) return null;
+      // Verify item exists
+      const validItem = items.find(i => i.id === recommendation.bestMatchId);
+      if (!validItem) return null;
 
-        return recommendation;
-      } catch (e) {
-        console.error('JSON Parse Error in AI Butler:', e);
-        return null;
-      }
+      return recommendation;
     } catch (error) {
       console.error('Smart Rec Error:', error);
       return null;
