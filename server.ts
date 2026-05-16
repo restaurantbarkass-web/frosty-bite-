@@ -201,8 +201,26 @@ async function startServer() {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+      root: process.cwd(),
     });
     app.use(vite.middlewares);
+
+    // Dev SPA Fallback
+    app.get("*all", async (req, res, next) => {
+      if (req.originalUrl.startsWith("/api/")) return next();
+      
+      const parsedPath = path.parse(req.path);
+      if (parsedPath.ext && !parsedPath.ext.startsWith('.html')) return next();
+
+      try {
+        const template = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+        const html = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (e) {
+        console.error("Vite Transform Error:", e);
+        next(e);
+      }
+    });
   } else {
     // Production: serve static files and catch-all for SPA
     const distPath = path.join(process.cwd(), "dist");
@@ -235,7 +253,6 @@ async function startServer() {
         res.status(404).send("Application is starting... please refresh in a few seconds.");
       }
     });
-
   }
 
   app.listen(PORT, "0.0.0.0", () => {
