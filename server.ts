@@ -12,7 +12,8 @@ const app = express();
 const PORT = 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
 let hf: HfInference | null = null;
 let genAI: GoogleGenerativeAI | null = null;
@@ -61,7 +62,7 @@ async function startServer() {
 
       const prompt = `
         User Search: "${query}"
-        Menu: ${JSON.stringify(items)}
+        Menu Reference: ${items && items.length > 0 ? JSON.stringify(items) : "No specific menu items provided. Suggest categories of premium cakes and pastries."}
 
         Task: Act as the "Frosty Bite Butler", a premium dessert concierge.
         Analyze the search for:
@@ -74,7 +75,7 @@ async function startServer() {
 
         Respond ONLY with a JSON object:
         {
-          "bestMatchId": "id-of-item",
+          "bestMatchId": "string-id-of-the-item-or-null",
           "reason": "Dramatic, punchy reason (max 8 words)",
           "intent": "e.g., Anniversary Celebration",
           "alternatives": ["id1", "id2"],
@@ -87,6 +88,7 @@ async function startServer() {
         }
       `;
 
+      console.log(`[Butler Rec] Sending request to Gemini...`);
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
@@ -95,21 +97,16 @@ async function startServer() {
       });
       
       const output = result.response.text();
-      console.log(`[Butler Rec] AI generated response successfully`);
+      console.log(`[Butler Rec] AI Output: ${output.substring(0, 100)}...`);
       
       try {
-        // Robust JSON extraction
-        let jsonStr = output;
-        const jsonMatch = output.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonStr = jsonMatch[0];
-        } else {
-          jsonStr = output.replace(/```json|```/g, '').trim();
+        let jsonStr = output.trim();
+        if (jsonStr.startsWith("```")) {
+           jsonStr = jsonStr.replace(/^```json\s*/, "").replace(/```$/, "").trim();
         }
-        
         res.json(JSON.parse(jsonStr));
       } catch (parseError) {
-        console.error("[Butler Rec Error] JSON Parse failed. Original output:", output);
+        console.error("[Butler Rec Error] JSON Parse failed:", output);
         res.status(500).json({ error: "Failed to parse AI response" });
       }
     } catch (error: any) {
@@ -133,15 +130,17 @@ async function startServer() {
 
       const prompt = `
         Search Term: "${searchTerm}"
-        Menu Reference: ${JSON.stringify(items)}
+        Menu Reference: ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided. Predict popular bakery items like Truffle Cake, Bento Cakes, Sourdough Breads."}
 
         As a bakery AI concierge, predict the user's intent and provide 5 smart search suggestions.
         Suggestions should be natural, high-intent phrases like "Best velvet cake for anniversary" or "Sweet pastries for evening coffee".
         Respond ONLY with a list of suggestions separated by newlines.
       `;
 
+      console.log(`[Butler Suggestions] Calling Gemini...`);
       const result = await model.generateContent(prompt);
       const output = result.response.text();
+      console.log(`[Butler Suggestions] Output length: ${output.length}`);
       // Clean up numbered lists or prefixes like "1. ", "- ", etc.
       const suggestions = output.split('\n')
         .filter(s => s.trim().length > 0)
