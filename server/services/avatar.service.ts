@@ -15,14 +15,17 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
       const base64 = Buffer.from(buffer).toString('base64');
       const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
-      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent([
-        `System: Analyze the provided image and generate a creative prompt.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.`,
-        { inlineData: { data: base64, mimeType } }
-      ]);
-      const response = result.response;
+      const response = await genAIClient.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            { text: `System: Analyze the provided image and generate a creative prompt.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output only a refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}.` },
+            { inlineData: { data: base64, mimeType } }
+          ]
+        }
+      });
 
-      const refinedPrompt = cleanJsonResponse(response.text() || prompt);
+      const refinedPrompt = cleanJsonResponse(response.text || prompt);
       
       if (process.env.HF_TOKEN) {
         const hfClient = getHF();
@@ -52,10 +55,11 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
 
     // 3. SVG Fallback
     if (!imageResult && process.env.GEMINI_API_KEY) {
-      const model = genAIClient.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const result = await model.generateContent(`Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`);
-      const response = result.response;
-      const text = response.text() || '';
+      const response = await genAIClient.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
+      });
+      const text = response.text || '';
       const svgCode = text.match(/<svg[\s\S]*<\/svg>/)?.[0] || text.replace(/```svg|```|```html|```/g, "").trim();
       if (svgCode && svgCode.includes('<svg')) {
         imageResult = `data:image/svg+xml;base64,${Buffer.from(svgCode).toString('base64')}`;

@@ -14,14 +14,7 @@ export interface ButlerRecommendation {
 
 export async function getSmartRecommendation(query: string, items: any[]): Promise<ButlerRecommendation> {
   const genAI = getGenAI();
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1,
-    }
-  });
-
+  
   const prompt = `
     User Search Query: "${query}"
     Available Menu Items (IDs are strings): ${items && items.length > 0 ? JSON.stringify(items) : "No direct menu provided."}
@@ -46,16 +39,25 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
 
   let response;
   try {
-    const result = await model.generateContent(`System: You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.\n\n${prompt}`);
-    response = result.response;
+    response = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `System: You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.\n\n${prompt}`,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.1,
+      }
+    });
   } catch (error: any) {
     console.warn(`[RecommendationService] Primary model failed, trying fallback: ${error.message}`);
-    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-    const result = await fallbackModel.generateContent(prompt + "\nRespond with valid JSON only.");
-    response = result.response;
+    // Using flash lite as fallback
+    response = await genAI.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: prompt + "\nRespond with valid JSON only.",
+      config: { temperature: 0.2 }
+    });
   }
 
-  const output = cleanJsonResponse(response.text() || '');
+  const output = cleanJsonResponse(response.text || '');
   const data = JSON.parse(output);
 
   return {
@@ -73,13 +75,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
 
 export async function getSearchSuggestions(searchTerm: string, items: any[]): Promise<string[]> {
   const genAI = getGenAI();
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-    }
-  });
-
+  
   const prompt = `
     Search Term: "${searchTerm}"
     Available Menu Context: ${items && items.length > 0 ? JSON.stringify(items.slice(0, 20)) : "Bakery and cakes"}
@@ -87,10 +83,13 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
     Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
   `;
 
-  const result = await model.generateContent(`System: You are the Frosty Bite Butler suggestions engine.\n\n${prompt}`);
-  const response = result.response;
+  const response = await genAI.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `System: You are the Frosty Bite Butler suggestions engine.\n\n${prompt}`,
+    config: { responseMimeType: "application/json" }
+  });
 
-  const output = cleanJsonResponse(response.text() || '');
+  const output = cleanJsonResponse(response.text || '');
   const data = JSON.parse(output);
   return data.suggestions || [];
 }

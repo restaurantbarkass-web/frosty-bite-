@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-let genAI: GoogleGenerativeAI | null = null;
+let genAI: GoogleGenAI | null = null;
 
 export function getGenAI() {
   if (!genAI) {
@@ -8,7 +8,14 @@ export function getGenAI() {
     if (!key) {
       throw new Error("GEMINI_API_KEY environment variable is required.");
     }
-    genAI = new GoogleGenerativeAI(key);
+    genAI = new GoogleGenAI({ 
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return genAI;
 }
