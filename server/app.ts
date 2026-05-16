@@ -35,7 +35,7 @@ app.use("/api/butler", butlerRoutes);
 app.use("/api/avatar", avatarRoutes);
 
 // Comprehensive 404/405 handler for API
-app.all("/api/(.*)", (req, res) => {
+app.all("/api/*all", (req, res) => {
   res.status(404).json({ error: `API Endpoint ${req.originalUrl} not found` });
 });
 
