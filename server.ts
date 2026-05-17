@@ -32,7 +32,7 @@ async function startServer() {
     app.use(express.static(distPath));
     
     // API routes are already handled in app.ts, this is the fallback for SPA
-    app.get("/:any*", (req, res, next) => {
+    app.get(/.*/, (req, res, next) => {
       // If it looks like an API call but wasn't caught, return 404
       if (req.url.startsWith('/api/')) return next();
       
@@ -40,6 +40,7 @@ async function startServer() {
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
+        console.warn(`[Server] Fallback triggered but index.html not found at ${indexPath}`);
         next();
       }
     });
