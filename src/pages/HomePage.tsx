@@ -14,8 +14,29 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
-import { ButlerSelection } from '../components/ButlerSelection';
-import { useCart } from '../context/CartContext';
+
+// Variants for staggered animations
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.5,
+      ease: [0.22, 1, 0.36, 1]
+    }
+  }
+};
 
 // Home Page Component
 export const Home: React.FC = () => {
@@ -107,25 +128,6 @@ export const Home: React.FC = () => {
 
   const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
   const { user } = useAuth();
-  const { addToCart, setIsCartOpen } = useCart();
-
-  const handleChipClick = (rec: string) => {
-    setSearchQuery(rec);
-    // Open search overlay with this query
-    window.dispatchEvent(new CustomEvent('open-search', { detail: { query: rec } }));
-  };
-
-  useEffect(() => {
-    const handleAddToCartFeatured = (e: any) => {
-      const item = e.detail;
-      if (item) {
-        addToCart(item);
-        setIsCartOpen(true);
-      }
-    };
-    window.addEventListener('add-to-cart-featured', handleAddToCartFeatured);
-    return () => window.removeEventListener('add-to-cart-featured', handleAddToCartFeatured);
-  }, [addToCart, setIsCartOpen]);
 
   useEffect(() => {
     if (!user) {
@@ -225,7 +227,12 @@ export const Home: React.FC = () => {
   }, [displayItems, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen pb-20">
+    <motion.div 
+      className="min-h-screen pb-20"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Hero Section */}
       <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden">
         <img 
@@ -239,8 +246,7 @@ export const Home: React.FC = () => {
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
+            variants={itemVariants}
             className="flex justify-center mb-12"
           >
             <div className="relative group">
@@ -256,25 +262,20 @@ export const Home: React.FC = () => {
             </div>
           </motion.div>
             <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
+            variants={itemVariants}
             className="text-5xl sm:text-7xl md:text-[10rem] font-serif italic text-white tracking-tighter leading-none mb-12"
           >
             Frosty <span className="font-sans font-black NOT-italic text-primary block md:inline">Bite</span>
           </motion.h1>
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            variants={itemVariants}
             className="text-muted text-lg md:text-xl mb-10 max-w-2xl mx-auto"
           >
             Artisan bakery and frosty treats. Freshly baked delights from our oven to your heart.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
+            variants={itemVariants}
             className="max-w-xl mx-auto"
           >
             <PremiumSearchBar 
@@ -349,49 +350,35 @@ export const Home: React.FC = () => {
           ))}
         </div>
 
-        {/* Frosty Butler Section */}
-        <ButlerSelection />
-
-        {/* AI Quick Suggestions */}
+        {/* AI Recommendations */}
         <motion.section
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          className="mb-16 p-8 glass-dark rounded-[2.5rem] border border-primary/10 relative overflow-hidden"
+          className="mb-12 p-6 glass-dark rounded-3xl border border-primary/10"
         >
-          <div className="absolute top-0 right-0 p-6 opacity-5">
-             <Sparkles size={120} className="text-primary" />
-          </div>
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-white uppercase tracking-tight">AI Quick Suggestions</h2>
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tap to speak with the Butler</p>
-              </div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="text-primary" size={24} />
+              <h2 className="text-xl font-bold">AI Recommendations</h2>
             </div>
-            <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Powered by Frosty Bite</span>
+            <span className="text-xs text-muted">Powered by Frosty Bite</span>
           </div>
 
           <div className="flex flex-wrap gap-3">
             {isLoadingRecs ? (
               <div className="animate-pulse flex space-x-3">
-                {[1, 2, 3, 4].map(i => <div key={i} className="h-12 w-40 bg-white/5 rounded-2xl" />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-10 w-32 bg-white/5 rounded-full" />)}
               </div>
             ) : (
               aiRecs.map((rec, i) => (
-                <motion.button
+                <motion.div
                   key={i}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-6 py-3 bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/30 text-zinc-300 hover:text-primary rounded-2xl text-xs font-bold transition-all flex items-center gap-2 group"
-                  onClick={() => handleChipClick(rec)}
+                  whileHover={{ scale: 1.05 }}
+                  className="px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full text-sm font-medium cursor-pointer"
+                  onClick={() => setSearchQuery(rec)}
                 >
-                  <Search size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                   {rec}
-                </motion.button>
+                </motion.div>
               ))
             )}
           </div>
@@ -578,7 +565,7 @@ export const Home: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 };
 
