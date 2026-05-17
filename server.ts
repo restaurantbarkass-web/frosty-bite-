@@ -59,9 +59,9 @@ async function startServer() {
     app.use(express.static(distPath));
     
     // Explicit SPA fallback for non-API routes
-    app.get('*all', (req, res, next) => {
+    app.get('*', (req, res, next) => {
       // Don't intercept API requests here, they should have been handled by baseApp
-      if (req.path.startsWith('/api')) {
+      if (req.url.startsWith('/api')) {
         return next();
       }
 
