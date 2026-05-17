@@ -41,7 +41,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
   try {
     console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
     response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
       config: {
         systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -50,11 +50,13 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       }
     });
   } catch (error: any) {
-    console.warn(`[RecommendationService] Primary model failed, trying fallback: ${error.message} - Model: gemini-3-flash-preview`);
-    // Using flash lite as fallback
+    const isQuotaError = error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
+    console.warn(`[RecommendationService] Primary model failed${isQuotaError ? ' (QUOTA EXCEEDED)' : ''}: ${error.message}`);
+    
+    // Using flash preview as fallback
     try {
       response = await genAI.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: { 
           systemInstruction: "You are the Frosty Bite Butler. Respond with valid JSON only.",
@@ -63,6 +65,9 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       });
     } catch (fallbackError: any) {
       console.error(`[RecommendationService] Fallback also failed:`, fallbackError);
+      if (isQuotaError) {
+        throw new Error("The Butler is temporarily over-capacity. Please try again in a few moments or use the Search directly.");
+      }
       throw new Error(`AI generation failed: ${fallbackError.message}`);
     }
   }
@@ -98,7 +103,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
   `;
 
   const response = await genAI.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite",
     contents: prompt,
     config: { 
       systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
