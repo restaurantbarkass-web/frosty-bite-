@@ -4,7 +4,7 @@ import { getGenAI, cleanJsonResponse } from "../ai/gemini";
 export async function generateAvatarImage(data: { prompt: string; vibe?: string; imageUrl?: string; userId?: string }) {
   const { prompt, vibe, imageUrl, userId } = data;
   let imageResult: string | null = null;
-  const targetModel = "gemini-3-flash-preview"; // Use standard model alias from skill guidelines
+  const targetModel = "gemini-3-flash-preview"; // Using recommended flash-preview
 
   try {
     const genAIClient = getGenAI();
