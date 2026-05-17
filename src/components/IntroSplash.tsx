@@ -62,10 +62,10 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
                 <div className="flex flex-col items-center">
                   <Logo size="lg" className="mb-8" />
                   
-                    <h1 className="text-7xl md:text-9xl font-serif italic text-white tracking-tighter leading-none font-black">
+                    <h1 className="text-7xl md:text-9xl font-serif italic text-white tracking-tighter leading-none">
                       Frosty Bite
                     </h1>
-                  <p className="text-primary/80 font-sans font-bold tracking-[0.4em] uppercase text-xs md:text-sm">
+                  <p className="text-primary/80 font-bold tracking-[0.4em] uppercase text-sm md:text-base">
                     Artisan Bakery & Frozen Treats
                   </p>
                 </div>

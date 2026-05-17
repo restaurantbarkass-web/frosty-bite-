@@ -48,7 +48,7 @@ app.use("/api/butler", butlerRoutes);
 app.use("/api/avatar", avatarRoutes);
 
 // Comprehensive 404/405 handler for API
-app.use("/api/*", (req, res) => {
+app.use("/api", (req, res) => {
   console.warn(`[App] 404 hit for API route: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
     error: "Not Found",
