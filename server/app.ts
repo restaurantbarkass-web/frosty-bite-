@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
@@ -50,8 +50,16 @@ app.get("/ping", (req, res) => {
 });
 
 // Routes
-app.use("/butler", butlerRoutes);
-app.use("/avatar", avatarRoutes);
+const apiRouter = express.Router();
+apiRouter.get("/health", (req, res) => {
+  res.json({ status: "ok", time: new Date().toISOString() });
+});
+apiRouter.use("/butler", butlerRoutes);
+apiRouter.use("/avatar", avatarRoutes);
+
+// Mount the API router at both root and /api for maximum compatibility
+app.use("/api", apiRouter);
+app.use("/", apiRouter);
 
 // Comprehensive 404/405 handler for API
 app.use((req, res) => {
@@ -61,6 +69,15 @@ app.use((req, res) => {
     message: `API Endpoint ${req.originalUrl} not found`,
     path: req.originalUrl,
     method: req.method
+  });
+});
+
+// Global Error Handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error("[Global Error]", err);
+  res.status(err.status || 500).json({
+    error: "Internal Server Error",
+    message: err.message || "An unexpected error occurred"
   });
 });
 

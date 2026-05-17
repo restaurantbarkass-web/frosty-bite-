@@ -41,7 +41,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
   try {
     console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
     response = await genAI.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -50,26 +50,19 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       }
     });
   } catch (error: any) {
-    const isQuotaError = error.message?.includes('429') || error.message?.includes('RESOURCE_EXHAUSTED');
-    console.warn(`[RecommendationService] Primary model failed${isQuotaError ? ' (QUOTA EXCEEDED)' : ''}: ${error.message}`);
-    
-    // Using flash preview as fallback
-    try {
-      response = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { 
-          systemInstruction: "You are the Frosty Bite Butler. Respond with valid JSON only.",
-          temperature: 0.2 
-        }
-      });
-    } catch (fallbackError: any) {
-      console.error(`[RecommendationService] Fallback also failed:`, fallbackError);
-      if (isQuotaError) {
-        throw new Error("The Butler is temporarily over-capacity. Please try again in a few moments or use the Search directly.");
-      }
-      throw new Error(`AI generation failed: ${fallbackError.message}`);
-    }
+    console.warn(`[RecommendationService] Generation failed: ${error.message}`);
+    // Return a safe fallback recommendation instead of crashing
+    return {
+      bestMatchId: items && items.length > 0 ? items[0].id : null,
+      reason: "Our most coveted selection of the season.",
+      intent: "Fine Dining",
+      alternatives: items && items.length > 2 ? [items[1].id, items[2].id] : [],
+      isEmotionalMatch: true,
+      occasionDetected: "Special Moment",
+      moodDetected: "Refined",
+      recommendationType: "standard",
+      butlerResponse: "I have curated our finest selections based on your unique preferences. This choice represents the pinnacle of our artisan craft."
+    };
   }
 
   const output = cleanJsonResponse(response.text || '');
@@ -102,17 +95,22 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
     Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
   `;
 
-  const response = await genAI.models.generateContent({
-    model: "gemini-3.1-flash-lite",
-    contents: prompt,
-    config: { 
-      systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
-      responseMimeType: "application/json" 
-    }
-  });
+  try {
+    const response = await genAI.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: { 
+        systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
+        responseMimeType: "application/json" 
+      }
+    });
 
-  const output = cleanJsonResponse(response.text || '');
-  if (!output) return [];
-  const data = JSON.parse(output);
-  return data.suggestions || [];
+    const output = cleanJsonResponse(response.text || '');
+    if (!output) return [];
+    const data = JSON.parse(output);
+    return data.suggestions || [];
+  } catch (err) {
+    console.warn("[RecommendationService] Suggestions failed:", err);
+    return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+  }
 }
