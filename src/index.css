@@ -105,9 +105,11 @@
 @layer base {
   html {
     scroll-behavior: auto;
+    background-color: #000000 !important;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-black text-foreground antialiased;
+    background-color: #000000 !important;
     overscroll-behavior: none;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
