@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../firebase';
@@ -54,6 +54,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   const getNavLinks = React.useMemo(() => {
     const links = [
       { name: 'Home', path: '/', icon: Home },
+      { name: 'Butler', path: '#search', icon: Sparkles, onClick: onSearchClick },
       { 
         name: 'Offers', 
         path: '/offers', 
@@ -179,6 +180,11 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   key={link.path}
                   to={link.path}
                   onClick={(e) => {
+                    if ('onClick' in link && link.onClick) {
+                      e.preventDefault();
+                      link.onClick();
+                      return;
+                    }
                     if (location.pathname === link.path) {
                       e.preventDefault();
                       smoothScroll.toTop();
@@ -328,6 +334,11 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                       to={link.path}
                       onClick={(e) => {
                         setIsMobileMenuOpen(false);
+                        if ('onClick' in link && link.onClick) {
+                          e.preventDefault();
+                          link.onClick();
+                          return;
+                        }
                         if (location.pathname === link.path) {
                           e.preventDefault();
                           window.dispatchEvent(new CustomEvent('scroll-to-top'));

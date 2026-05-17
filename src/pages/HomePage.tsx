@@ -6,6 +6,7 @@ import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { BannerCarousel } from '../components/BannerCarousel';
+import { ButlerSelection } from '../components/ButlerSelection';
 import { getFoodRecommendations } from '../services/geminiService';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
@@ -314,6 +315,9 @@ export const Home: React.FC = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-12 relative z-20">
+        {/* Butler Selection - NEW PREMIUM SECTION */}
+        <ButlerSelection />
+
         {/* Orders Closed Banner */}
         <AnimatePresence>
           {!isOrderingOpen && (
@@ -349,40 +353,6 @@ export const Home: React.FC = () => {
             </button>
           ))}
         </div>
-
-        {/* AI Recommendations */}
-        <motion.section
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          className="mb-12 p-6 glass-dark rounded-3xl border border-primary/10"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="text-primary" size={24} />
-              <h2 className="text-xl font-bold">AI Recommendations</h2>
-            </div>
-            <span className="text-xs text-muted">Powered by Frosty Bite</span>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            {isLoadingRecs ? (
-              <div className="animate-pulse flex space-x-3">
-                {[1, 2, 3].map(i => <div key={i} className="h-10 w-32 bg-white/5 rounded-full" />)}
-              </div>
-            ) : (
-              aiRecs.map((rec, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ scale: 1.05 }}
-                  className="px-4 py-2 bg-primary/10 border border-primary/20 text-primary rounded-full text-sm font-medium cursor-pointer"
-                  onClick={() => setSearchQuery(rec)}
-                >
-                  {rec}
-                </motion.div>
-              ))
-            )}
-          </div>
-        </motion.section>
 
         {/* Previous Favorites */}
         {previousPurchases.length > 0 && (

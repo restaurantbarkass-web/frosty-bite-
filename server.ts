@@ -10,7 +10,7 @@ import fs from "fs";
 const PORT = 3000;
 
 async function startServer() {
-  const app = baseApp;
+  const app = express();
   
   console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
   console.log(`[Server] Gemini API Key present: ${!!process.env.GEMINI_API_KEY}`);
@@ -25,11 +25,16 @@ async function startServer() {
 
   // Serve static files in production or if dist exists
   const distPath = path.join(process.cwd(), "dist");
-  const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(path.join(distPath, "server.cjs"));
+  // Only enter production mode if NODE_ENV is set to production
+  const isProduction = process.env.NODE_ENV === "production";
   const hasDist = fs.existsSync(distPath);
 
   console.log(`[Server] Mode: ${isProduction ? 'Production' : 'Development'}`);
   console.log(`[Server] Dist folder exists: ${hasDist}`);
+
+  // Mounting baseApp which contains all /api routes
+  // It's important to mount this BEFORE Vite or static middlewares
+  app.use(baseApp);
 
   // Priority 1: Vite middleware for development (only if NOT in production)
   if (!isProduction) {
@@ -44,35 +49,42 @@ async function startServer() {
       app.use(vite.middlewares);
     } catch (err) {
       console.error("[Server] Failed to load Vite middleware, falling back to static:", err);
-      app.use(express.static(distPath));
+      if (hasDist) {
+        app.use(express.static(distPath));
+      }
     }
-  } else {
+  } else if (hasDist) {
     // Priority 2: Serve static files in production
     console.log(`[Server] Serving static files from ${distPath} (Production Mode)...`);
     app.use(express.static(distPath));
     
-    // API routes are already handled in app.ts. This is the fallback for SPA routing.
+    // Explicit SPA fallback for non-API routes
     app.get('*all', (req, res, next) => {
-      // Don't intercept API requests here, let them fall through to the 404 handler if they didn't match
+      // Don't intercept API requests here, they should have been handled by baseApp
       if (req.path.startsWith('/api')) {
         return next();
       }
 
-      // If it looks like a file request but wasn't caught by express.static, it might be a missing asset or a 404
-      if (req.path.includes('.') && !req.path.endsWith('.html')) {
-        console.warn(`[Server] Static asset not found: ${req.url}`);
-        return res.status(404).send("Not Found");
-      }
-
+      // Serve index.html for SPA routing
       const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
-        console.warn(`[Server] Fallback triggered but index.html not found at ${indexPath}`);
         next();
       }
     });
   }
+
+  // Final 404 handler for anything that fell through (including failed API calls)
+  app.use((req: Request, res: Response) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ 
+        error: "Not Found", 
+        message: `API Endpoint ${req.method} ${req.originalUrl} not found` 
+      });
+    }
+    res.status(404).send("Not Found");
+  });
 
   // Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
