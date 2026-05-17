@@ -52,7 +52,7 @@ async function startServer() {
     app.use(express.static(distPath));
     
     // API routes are already handled in app.ts. This is the fallback for SPA routing.
-    app.get('*', (req, res, next) => {
+    app.get('*all', (req, res, next) => {
       // Don't intercept API requests here, let them fall through to the 404 handler if they didn't match
       if (req.path.startsWith('/api')) {
         return next();
