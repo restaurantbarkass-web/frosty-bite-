@@ -22,7 +22,6 @@ import { Logo } from './components/Logo';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import Lenis from '@studio-freight/lenis';
 
-import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';

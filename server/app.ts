@@ -8,10 +8,15 @@ const app = express();
 // 1. Logging Middleware - run this first to see every request
 app.use((req, res, next) => {
   const start = Date.now();
-  console.log(`[Incoming] ${req.method} ${req.url}`);
+  const isApi = req.url.startsWith('/api/');
+  
+  if (isApi) {
+    console.log(`[Incoming] ${req.method} ${req.url}`);
+  }
+
   res.on('finish', () => {
     const duration = Date.now() - start;
-    if (req.url.startsWith('/api/')) {
+    if (isApi) {
       console.log(`[Response] ${req.method} ${req.url} -> ${res.statusCode} (${duration}ms)`);
     }
   });
