@@ -110,6 +110,10 @@
   @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
 }
 
+.glow-text {
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 0 40px rgba(249, 115, 22, 0.2);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
