@@ -25,19 +25,27 @@ async function startServer() {
 
   // Serve static files in production or if dist exists
   const distPath = path.join(process.cwd(), "dist");
-  const isProduction = process.env.NODE_ENV === "production";
+  const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(path.join(distPath, "server.cjs"));
   const hasDist = fs.existsSync(distPath);
+
+  console.log(`[Server] Mode: ${isProduction ? 'Production' : 'Development'}`);
+  console.log(`[Server] Dist folder exists: ${hasDist}`);
 
   // Priority 1: Vite middleware for development (only if NOT in production)
   if (!isProduction) {
     console.log("[Server] Mounting Vite middleware (Dev Mode)...");
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-      root: process.cwd(),
-    });
-    app.use(vite.middlewares);
+    try {
+      const { createServer: createViteServer } = await import("vite");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+        root: process.cwd(),
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.error("[Server] Failed to load Vite middleware, falling back to static:", err);
+      app.use(express.static(distPath));
+    }
   } else {
     // Priority 2: Serve static files in production
     console.log(`[Server] Serving static files from ${distPath} (Production Mode)...`);
@@ -48,6 +56,12 @@ async function startServer() {
       // Don't intercept API requests here, let them fall through to the 404 handler if they didn't match
       if (req.path.startsWith('/api')) {
         return next();
+      }
+
+      // If it looks like a file request but wasn't caught by express.static, it might be a missing asset or a 404
+      if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        console.warn(`[Server] Static asset not found: ${req.url}`);
+        return res.status(404).send("Not Found");
       }
 
       const indexPath = path.join(distPath, "index.html");
