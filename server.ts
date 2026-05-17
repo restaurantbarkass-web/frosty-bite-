@@ -1,5 +1,5 @@
-import express from "express";
-import app from "./server/app";
+import express, { Request, Response, NextFunction } from "express";
+import baseApp from "./server/app";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
@@ -9,6 +9,16 @@ dotenv.config();
 const PORT = 3000;
 
 async function startServer() {
+  const app = baseApp;
+  
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Only log API requests in detail to keep logs clean
+    if (req.url.startsWith('/api/')) {
+      console.log(`[Server] API Request: ${req.method} ${req.url}`);
+    }
+    next();
+  });
+
   console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
 
   // Serve static files in production or if dist exists
@@ -16,8 +26,8 @@ async function startServer() {
   const isProduction = process.env.NODE_ENV === "production";
   const hasDist = fs.existsSync(distPath);
 
-  // Priority 1: Vite middleware for development (only if dist doesn't exist or we're explicitly forcing dev)
-  if (!isProduction && !hasDist) {
+  // Priority 1: Vite middleware for development (only if NOT in production)
+  if (!isProduction) {
     console.log("[Server] Mounting Vite middleware (Dev Mode)...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
@@ -27,15 +37,14 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Priority 2: Serve static files in production or if dist exists
-    console.log(`[Server] Serving static files from ${distPath} (Production/Static Mode)...`);
+    // Priority 2: Serve static files in production
+    console.log(`[Server] Serving static files from ${distPath} (Production Mode)...`);
     app.use(express.static(distPath));
     
     // API routes are already handled in app.ts, this is the fallback for SPA
-    app.get(/.*/, (req, res, next) => {
-      // If it looks like an API call but wasn't caught, return 404
-      if (req.url.startsWith('/api/')) return next();
-      
+    // Use the string '*' which works for catch-all in Express 5 if handled correctly,
+    // or use the regex /^(?!\/api).*/ to skip API routes
+    app.get(/^(?!\/api).*/, (req, res, next) => {
       const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
