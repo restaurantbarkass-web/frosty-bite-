@@ -27,87 +27,74 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
   return (
     <motion.div
       initial={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 1.05 }}
-      transition={{ duration: 1.5, ease: [0.43, 0.13, 0.23, 0.96] }}
+      exit={{ opacity: 0, scale: 1.1 }}
+      transition={{ duration: 1, ease: "easeInOut" }}
       className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
       onClick={onComplete}
     >
-      {/* Background Video - Cinematic & Moody */}
+      {/* Background Video */}
       <div className="absolute inset-0">
         <video
           autoPlay
           loop
           muted
           playsInline
-          className="w-full h-full object-cover scale-110 brightness-[0.4]"
+          className="w-full h-full object-cover scale-105"
         >
           <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
         </video>
-        {/* Cinematic Overlays for Depth */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+        {/* Cinematic Overlays */}
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
       </div>
 
       {/* Brand Overlay */}
-      <div className="relative z-10 flex flex-col items-center max-w-4xl px-4">
+      <div className="relative z-10 text-center px-4">
         <AnimatePresence>
           {showContent && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 2 }}
-              className="relative flex flex-col items-center"
-            >
-              {/* Circular Logo - Matching the image */}
-              <motion.div 
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
-                className="relative mb-12"
-              >
-                <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-black border-2 border-white/20 p-2 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
-                  <img 
-                    src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
-                    alt="Frosty Bite Logo" 
-                    className="w-full h-full object-cover rounded-full"
-                  />
-                  {/* Subtle inner glow */}
-                  <div className="absolute inset-0 rounded-full shadow-[inset_0_0_40px_rgba(249,115,22,0.2)]" />
-                </div>
-              </motion.div>
-              
-              {/* Signature Large Typography */}
+            <div className="space-y-8">
               <motion.div
-                initial={{ opacity: 0, y: 40 }}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 1.5, ease: "easeOut" }}
-                className="text-center space-y-6"
+                transition={{ duration: 1 }}
+                className="space-y-12"
               >
-                <h1 className="text-7xl md:text-[140px] leading-tight font-serif italic tracking-tighter flex items-baseline justify-center gap-2">
-                  <span className="text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">Frosty</span>
-                  <span className="text-primary font-sans font-black not-italic drop-shadow-[0_10px_30px_rgba(249,115,22,0.3)]">Bite</span>
-                </h1>
-                
-                <p className="text-white/60 font-bold tracking-[0.6em] uppercase text-xs md:text-sm max-w-md mx-auto leading-relaxed">
-                  Artisan Bakery & Frozen Treats Crafted For Extraordinary Moments
-                </p>
+                <div className="flex flex-col items-center">
+                  <Logo size="lg" className="mb-8" />
+                  
+                    <h1 className="text-7xl md:text-9xl font-serif italic text-white tracking-tighter leading-none">
+                      Frosty Bite
+                    </h1>
+                  <p className="text-primary/80 font-bold tracking-[0.4em] uppercase text-sm md:text-base">
+                    Artisan Bakery & Frozen Treats
+                  </p>
+                </div>
+
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4, duration: 0.5 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onComplete}
+                  className="group relative px-10 py-5 bg-white text-black font-black rounded-full text-lg tracking-widest uppercase flex items-center gap-3 mx-auto shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-primary/40 transition-all"
+                >
+                  <span>Discover</span>
+                  <ArrowRight className="group-hover:translate-x-2 transition-transform" />
+                </motion.button>
               </motion.div>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Floating Interaction Hint */}
+      {/* Decorative Branding */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: showContent ? 0.4 : 0 }}
-        transition={{ delay: 3, duration: 1.5 }}
-        className="absolute bottom-12 flex flex-col items-center gap-4"
+        animate={{ opacity: 0.10 }}
+        className="absolute bottom-10 left-10 text-white font-black text-8xl pointer-events-none select-none"
       >
-        <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-white/50 to-transparent" />
-        <span className="text-white/40 text-[10px] tracking-[0.8em] uppercase font-bold animate-pulse">
-          Begin Experience
-        </span>
+        2026
       </motion.div>
     </motion.div>
   );
