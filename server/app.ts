@@ -8,17 +8,11 @@ const app = express();
 // 1. Logging Middleware - run this first to see every request
 app.use((req, res, next) => {
   const start = Date.now();
-  const isApi = req.url.startsWith('/api/');
+  console.log(`[App] Incoming Request: ${req.method} ${req.url}`);
   
-  if (isApi) {
-    console.log(`[Incoming] ${req.method} ${req.url}`);
-  }
-
   res.on('finish', () => {
     const duration = Date.now() - start;
-    if (isApi) {
-      console.log(`[Response] ${req.method} ${req.url} -> ${res.statusCode} (${duration}ms)`);
-    }
+    console.log(`[App] Response: ${req.method} ${req.url} -> ${res.statusCode} (${duration}ms)`);
   });
   next();
 });
@@ -30,12 +24,18 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "Accept"]
 }));
 
+// Route Debugger - log if we hit this area
+app.use("/avatar", (req, res, next) => {
+  console.log(`[App] Avatar route reached: ${req.method} ${req.url}`);
+  next();
+});
+
 // 3. Body Parsers - increased limit for safe AI context transmission
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Health Check
-app.get("/api/health", (req, res) => {
+app.get("/health", (req, res) => {
   console.log("[App] Health check hit");
   res.json({ 
     status: "ok", 
@@ -45,16 +45,16 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.get("/api/ping", (req, res) => {
+app.get("/ping", (req, res) => {
   res.send("pong");
 });
 
 // Routes
-app.use("/api/butler", butlerRoutes);
-app.use("/api/avatar", avatarRoutes);
+app.use("/butler", butlerRoutes);
+app.use("/avatar", avatarRoutes);
 
 // Comprehensive 404/405 handler for API
-app.use("/api", (req, res) => {
+app.use((req, res) => {
   console.warn(`[App] 404 hit for API route: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
     error: "Not Found",

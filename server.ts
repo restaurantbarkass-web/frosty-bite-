@@ -34,7 +34,7 @@ async function startServer() {
 
   // Mounting baseApp which contains all /api routes
   // It's important to mount this BEFORE Vite or static middlewares
-  app.use(baseApp);
+  app.use("/api", baseApp);
 
   // Priority 1: Vite middleware for development (only if NOT in production)
   if (!isProduction) {
