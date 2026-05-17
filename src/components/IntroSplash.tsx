@@ -28,57 +28,68 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
     <motion.div
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05 }}
-      transition={{ duration: 1.2, ease: [0.43, 0.13, 0.23, 0.96] }}
-      className="fixed inset-0 z-[1000] bg-[#000000] flex items-center justify-center overflow-hidden cursor-pointer"
+      transition={{ duration: 1.5, ease: [0.43, 0.13, 0.23, 0.96] }}
+      className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
       onClick={onComplete}
     >
-      {/* Cinematic Vignette */}
-      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] opacity-80" />
-      
-      {/* Subtle Radial Glow in Center */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.12)_0%,transparent_60%)]" />
+      {/* Background Video - Cinematic & Moody */}
+      <div className="absolute inset-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover scale-110 brightness-[0.4]"
+        >
+          <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
+        </video>
+        {/* Cinematic Overlays for Depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px]" />
+      </div>
 
       {/* Brand Overlay */}
-      <div className="relative z-10 flex flex-col items-center">
+      <div className="relative z-10 flex flex-col items-center max-w-4xl px-4">
         <AnimatePresence>
           {showContent && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ 
-                duration: 2.5, 
-                ease: [0.16, 1, 0.3, 1] 
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 2 }}
               className="relative flex flex-col items-center"
             >
-              {/* Outer Pulsing Glow behind Logo */}
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.3, 1],
-                  opacity: [0.15, 0.3, 0.15]
-                }}
-                transition={{ 
-                  duration: 5, 
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="absolute inset-0 bg-primary blur-[100px] rounded-full"
-              />
-              
-              <Logo size="lg" iconOnly className="relative z-20 scale-[2.5] md:scale-[3.5] shadow-[0_0_60px_rgba(249,115,22,0.1)]" />
-              
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1, duration: 1.5, ease: "easeOut" }}
-                className="mt-32 space-y-4 text-center"
+              {/* Circular Logo - Matching the image */}
+              <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
+                className="relative mb-12"
               >
-                <h1 className="text-white font-display text-4xl md:text-6xl tracking-[0.4em] uppercase opacity-95">
-                  Frosty Bite
+                <div className="w-48 h-48 md:w-64 md:h-64 rounded-full bg-black border-2 border-white/20 p-2 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
+                  <img 
+                    src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
+                    alt="Frosty Bite Logo" 
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                  {/* Subtle inner glow */}
+                  <div className="absolute inset-0 rounded-full shadow-[inset_0_0_40px_rgba(249,115,22,0.2)]" />
+                </div>
+              </motion.div>
+              
+              {/* Signature Large Typography */}
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 1.5, ease: "easeOut" }}
+                className="text-center space-y-6"
+              >
+                <h1 className="text-7xl md:text-[140px] leading-tight font-serif italic tracking-tighter flex items-baseline justify-center gap-2">
+                  <span className="text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]">Frosty</span>
+                  <span className="text-primary font-sans font-black not-italic drop-shadow-[0_10px_30px_rgba(249,115,22,0.3)]">Bite</span>
                 </h1>
-                <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-primary to-transparent mx-auto mt-6 opacity-30" />
-                <p className="text-primary/50 font-bold tracking-[0.8em] uppercase text-[9px] md:text-xs pt-4">
-                  Artisan Bakery & Frozen Treats
+                
+                <p className="text-white/60 font-bold tracking-[0.6em] uppercase text-xs md:text-sm max-w-md mx-auto leading-relaxed">
+                  Artisan Bakery & Frozen Treats Crafted For Extraordinary Moments
                 </p>
               </motion.div>
             </motion.div>
@@ -86,14 +97,17 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
         </AnimatePresence>
       </div>
 
-      {/* Luxury Hint */}
+      {/* Floating Interaction Hint */}
       <motion.div
         initial={{ opacity: 0 }}
-        animate={{ opacity: showContent ? 0.3 : 0 }}
-        transition={{ delay: 3, duration: 1 }}
-        className="absolute bottom-16 text-white/30 text-[9px] tracking-[0.6em] uppercase font-bold"
+        animate={{ opacity: showContent ? 0.4 : 0 }}
+        transition={{ delay: 3, duration: 1.5 }}
+        className="absolute bottom-12 flex flex-col items-center gap-4"
       >
-        Tap to Begin
+        <div className="w-[1px] h-12 bg-gradient-to-b from-transparent via-white/50 to-transparent" />
+        <span className="text-white/40 text-[10px] tracking-[0.8em] uppercase font-bold animate-pulse">
+          Begin Experience
+        </span>
       </motion.div>
     </motion.div>
   );
