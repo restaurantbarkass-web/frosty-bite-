@@ -5,28 +5,29 @@ import avatarRoutes from "./routes/avatar.routes";
 
 const app = express();
 
-// Security Middlewares
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-
-// Body Parsers - increased limit for safe AI context transmission
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ limit: '5mb', extended: true }));
-
-// Request Logging - detailed
+// 1. Logging Middleware - run this first to see every request
 app.use((req, res, next) => {
   const start = Date.now();
+  console.log(`[Incoming] ${req.method} ${req.url}`);
   res.on('finish', () => {
     const duration = Date.now() - start;
     if (req.url.startsWith('/api/')) {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+      console.log(`[Response] ${req.method} ${req.url} -> ${res.statusCode} (${duration}ms)`);
     }
   });
   next();
 });
+
+// 2. Security Middlewares
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+}));
+
+// 3. Body Parsers - increased limit for safe AI context transmission
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Health Check
 app.get("/api/health", (req, res) => {

@@ -41,7 +41,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
   try {
     console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
     response = await genAI.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -98,7 +98,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
   `;
 
   const response = await genAI.models.generateContent({
-    model: "gemini-flash-latest",
+    model: "gemini-1.5-flash",
     contents: prompt,
     config: { 
       systemInstruction: "You are the Frosty Bite Butler suggestions engine.",

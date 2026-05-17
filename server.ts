@@ -43,10 +43,13 @@ async function startServer() {
     console.log(`[Server] Serving static files from ${distPath} (Production Mode)...`);
     app.use(express.static(distPath));
     
-    // API routes are already handled in app.ts, this is the fallback for SPA
-    // Use the string '*' which works for catch-all in Express 5 if handled correctly,
-    // or use the regex /^(?!\/api).*/ to skip API routes
-    app.get(/^(?!\/api).*/, (req, res, next) => {
+    // API routes are already handled in app.ts. This is the fallback for SPA routing.
+    app.get('*', (req, res, next) => {
+      // Don't intercept API requests here, let them fall through to the 404 handler if they didn't match
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+
       const indexPath = path.join(distPath, "index.html");
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);

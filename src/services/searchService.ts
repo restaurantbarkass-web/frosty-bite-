@@ -40,7 +40,10 @@ export const searchService = {
       
       const response = await fetch('/api/butler/suggestions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ searchTerm, items: menuReference })
       });
 
@@ -73,7 +76,10 @@ export const searchService = {
 
       const response = await fetch('/api/butler/recommend', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({ query, items: relevantItems })
       });
 
