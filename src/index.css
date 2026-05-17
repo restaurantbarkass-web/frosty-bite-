@@ -50,9 +50,11 @@
 @layer base {
   html {
     scroll-behavior: auto !important;
+    background-color: #000000;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-black text-foreground antialiased;
+    background-color: #000000 !important;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

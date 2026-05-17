@@ -28,9 +28,9 @@ export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = fals
       <motion.div 
         whileHover={{ rotate: [-5, 5, -5, 0], scale: 1.1 }}
         className={cn(
-          "relative flex items-center justify-center rounded-xl overflow-hidden bg-white",
+          "relative flex items-center justify-center rounded-xl overflow-hidden bg-black/40 backdrop-blur-sm",
           size === 'sm' ? "w-8 h-8" : size === 'md' ? "w-10 h-10" : "w-16 h-16",
-          "shadow-lg shadow-primary/20"
+          "shadow-[0_0_20px_rgba(249,115,22,0.15)] border border-white/5"
         )}
       >
         <img 
