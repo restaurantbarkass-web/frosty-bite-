@@ -13,6 +13,7 @@ import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
+import { Onboarding } from './components/Onboarding';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -66,6 +67,18 @@ function AppContent() {
       console.warn('sessionStorage access failed:', e);
     }
     return false; // Default to false if we can't check, to avoid stuck splash
+  });
+
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Show onboarding only once per user
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return !localStorage.getItem('onboarding_seen');
+      }
+    } catch (e) {
+      console.warn('localStorage access failed:', e);
+    }
+    return false;
   });
 
   const location = useLocation();
@@ -211,9 +224,33 @@ function AppContent() {
   // Bottom nav and footer have their own hiding rules
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
+  useEffect(() => {
+    // API Connectivity Check
+    const checkConnectivity = async () => {
+      try {
+        console.log('[App] Probing API connectivity...');
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[App] API is reachable ✅', data);
+        } else {
+          console.error('[App] API returned error status ❌', res.status);
+        }
+      } catch (err) {
+        console.error('[App] API is UNREACHABLE ❌', err);
+      }
+    };
+    checkConnectivity();
+  }, []);
+
   const handleSplashComplete = useCallback(() => {
     sessionStorage.setItem('splash_seen', 'true');
     setShowSplash(false);
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    localStorage.setItem('onboarding_seen', 'true');
+    setShowOnboarding(false);
   }, []);
 
   const handleSwipeBack = (e: any, info: any) => {
@@ -275,7 +312,9 @@ function AppContent() {
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
         <AnimatePresence>
-          {showSplash && location.pathname === '/' && (
+          {showOnboarding ? (
+            <Onboarding onComplete={handleOnboardingComplete} />
+          ) : showSplash && location.pathname === '/' && (
             <IntroSplash onComplete={handleSplashComplete} />
           )}
         </AnimatePresence>

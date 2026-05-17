@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Archivo+Black&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Archivo+Black&family=Poppins:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -11,7 +11,14 @@
   --color-card: #141414;
   --color-border: #262626;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Luxury Onboarding Colors */
+  --color-bakery-warm: #2D1B14;
+  --color-bakery-pink: #FF8BA7;
+  --color-bakery-glow: #F97316;
+  --color-bakery-cream: #F3E5D8;
+
+  --font-sans: "Poppins", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
   --font-display: "Archivo Black", sans-serif;
 
   @keyframes shine {
