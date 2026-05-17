@@ -7,9 +7,10 @@ interface LogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   white?: boolean;
+  iconOnly?: boolean;
 }
 
-export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = false }) => {
+export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = false, iconOnly = false }) => {
   const logoUrl = "https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg";
   const sizes = {
     sm: 'text-lg',
@@ -48,21 +49,23 @@ export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = fals
         />
       </motion.div>
 
-      <div className="flex flex-col -space-y-1">
-        <span className={cn(
-          "font-black tracking-tighter italic uppercase",
-          sizes[size],
-          white ? "text-white" : "text-white"
-        )}>
-          Frosty<span className="text-primary italic">Bite</span>
-        </span>
-        <span className={cn(
-          "text-[8px] font-black uppercase tracking-[0.3em]",
-          white ? "text-white/40" : "text-zinc-500"
-        )}>
-          Artisan Bakery
-        </span>
-      </div>
+      {!iconOnly && (
+        <div className="flex flex-col -space-y-1">
+          <span className={cn(
+            "font-black tracking-tighter italic uppercase",
+            sizes[size],
+            white ? "text-white" : "text-white"
+          )}>
+            Frosty<span className="text-primary italic">Bite</span>
+          </span>
+          <span className={cn(
+            "text-[8px] font-black uppercase tracking-[0.3em]",
+            white ? "text-white/40" : "text-zinc-500"
+          )}>
+            Artisan Bakery
+          </span>
+        </div>
+      )}
     </div>
   );
 };
