@@ -1,25 +1,27 @@
 import express, { Request, Response, NextFunction } from "express";
+import dotenv from "dotenv";
+// Call dotenv.config() as early as possible
+dotenv.config();
+
 import baseApp from "./server/app";
 import path from "path";
 import fs from "fs";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const PORT = 3000;
 
 async function startServer() {
   const app = baseApp;
   
+  console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
+  console.log(`[Server] Gemini API Key present: ${!!process.env.GEMINI_API_KEY}`);
+  
   app.use((req: Request, res: Response, next: NextFunction) => {
-    // Only log API requests in detail to keep logs clean
+    // Log basic info for all requests
     if (req.url.startsWith('/api/')) {
-      console.log(`[Server] API Request: ${req.method} ${req.url}`);
+      console.log(`[Server] API: ${req.method} ${req.url}`);
     }
     next();
   });
-
-  console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
 
   // Serve static files in production or if dist exists
   const distPath = path.join(process.cwd(), "dist");
