@@ -17,6 +17,12 @@ export const FinishSignIn: React.FC = () => {
         if (isSignInWithEmailLink(auth, window.location.href)) {
           let email = window.localStorage.getItem('emailForSignIn');
           
+          // Try to get email from URL if localStorage is empty
+          if (!email) {
+            const urlParams = new URLSearchParams(window.location.search);
+            email = urlParams.get('email');
+          }
+          
           if (!email) {
             email = window.prompt('Please provide your email for confirmation');
           }

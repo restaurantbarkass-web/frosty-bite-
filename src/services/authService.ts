@@ -13,6 +13,7 @@ import { auth, db } from '../firebase';
 import { supabase } from '../supabase';
 import { getRoleFromEmail } from '../constants';
 import { safeFirestore } from './firestoreService';
+import { emailService } from './emailService';
 import { doc, serverTimestamp } from 'firebase/firestore';
 
 const googleProvider = new GoogleAuthProvider();
@@ -41,6 +42,9 @@ export const authService = {
       await this.syncUserWithDatabase(result.user, name);
       // Automatically send verification for 10/10 security
       await sendEmailVerification(result.user);
+      
+      // Send Welcome Email via Resend (Non-blocking)
+      emailService.sendWelcomeEmail(email, name || email.split('@')[0]);
     }
     return result;
   },
@@ -55,7 +59,8 @@ export const authService = {
   // Magic Link Login
   async sendSignInLink(email: string) {
     const actionCodeSettings = {
-      url: `${window.location.origin}/`,
+      // Point to our finishing page
+      url: `${window.location.origin}/finish-sign-in?email=${encodeURIComponent(email)}`,
       handleCodeInApp: true,
     };
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);

@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
+import emailRoutes from "./routes/email.routes";
 
 const app = express();
 
@@ -56,6 +57,7 @@ apiRouter.get("/health", (req, res) => {
 });
 apiRouter.use("/butler", butlerRoutes);
 apiRouter.use("/avatar", avatarRoutes);
+apiRouter.use("/email", emailRoutes);
 
 // Mount the API router at both root and /api for maximum compatibility
 app.use("/api", apiRouter);

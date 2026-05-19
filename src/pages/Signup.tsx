@@ -83,12 +83,13 @@ const Signup: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#050505]">
-      {/* Background Video */}
+      {/* Background Image */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img 
           src="https://images.unsplash.com/photo-1549590143-d5855148a9d5?auto=format&fit=crop&q=80&w=2000" 
           alt="Bakery Background" 
           className="w-full h-full object-cover opacity-40 blur-[2px] scale-105"
+          referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/90" />
       </div>
@@ -216,7 +217,7 @@ const Signup: React.FC = () => {
                 </button>
                 <button 
                   onClick={() => setMethod('link')}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`flex-1 py-2 text-[10px) font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   Email Link
                 </button>

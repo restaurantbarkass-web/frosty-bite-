@@ -47,8 +47,12 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
   };
 
   const getNavLinks = React.useMemo(() => {

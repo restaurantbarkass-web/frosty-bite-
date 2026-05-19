@@ -29,6 +29,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
+import { emailService } from '../services/emailService';
 import toast from 'react-hot-toast';
 import { cn } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -325,6 +326,7 @@ export const Checkout: React.FC = () => {
         delivery_location: formData.location || null,
         phone: formData.phone,
         customer_name: formData.name,
+        email: user?.email || null,
         notes: formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
@@ -359,6 +361,11 @@ export const Checkout: React.FC = () => {
             user_id: user.uid,
             link: `/upi-checkout/${orderId}`
           });
+        }
+
+        // Send Email Confirmation (Non-blocking)
+        if (user?.email) {
+          emailService.sendOrderConfirmation(user.email, orderId, finalPrice);
         }
 
         navigate(`/upi-checkout/${orderId}`, { 
@@ -411,6 +418,15 @@ export const Checkout: React.FC = () => {
         setConfirmedOrder(orderSummary);
         setShowConfirmation(true);
         openWhatsAppOrder(orderSummary);
+        
+        // Send Email Confirmation (Non-blocking)
+        if (user?.email) {
+          emailService.sendOrderConfirmation(user.email, orderId, finalPrice);
+        } else if (orderData.phone) {
+          // If guest, we might not have email but we have phone?
+          // Actually Checkout requires name/phone. Email comes from auth.
+        }
+        
         clearCart();
       }
     } catch (error: any) {

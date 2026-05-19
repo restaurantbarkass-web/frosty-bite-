@@ -16,7 +16,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isCustomer: boolean;
   isVerified: boolean;
-  auth: any;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isVerified = !!user?.emailVerified;
 
   useEffect(() => {
-    // 8-second safety timeout instead of 15
+    // 8-second safety timeout
     const timeoutId = setTimeout(() => {
       setLoading(false);
     }, 8000);
@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const determinedRole = getRoleFromEmail(firebaseUser.email);
         
-        // Firestore Sync (Using safeFirestore + hardened rules)
+        // Firestore Sync
         const userRef = doc(db, 'users', firebaseUser.uid);
         await safeFirestore.set(userRef, {
           uid: firebaseUser.uid,
@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Supabase role fetch failed:', err);
       }
 
-      // Fallback to Email Whitelist (No Firestore fallback)
+      // Fallback to Email Whitelist
       setRole(getRoleFromEmail(currentUser.email) as UserRole);
       setLoading(false);
     };
@@ -111,10 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     role,
     loading,
-    auth,
     isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
+    logout: async () => {
+      await auth.signOut();
+    }
   }), [user, role, loading, isVerified]);
 
   return (

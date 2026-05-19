@@ -8,6 +8,7 @@ import { KOTPrint } from './KOTPrint';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 import { rewardsService } from '../../services/rewardsService';
+import { emailService } from '../../services/emailService';
 
 import { Order } from '../../types';
 import { ImageZoom } from '../ImageZoom';
@@ -297,6 +298,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           user_id: order.user_id,
           link: `/order-tracking/${orderId}`
         });
+
+        // Send Order Confirmation Email via Resend
+        if (order.email) {
+          emailService.sendOrderConfirmation(order.email, orderId, order.total);
+        }
       }
 
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
@@ -384,6 +390,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           user_id: order.user_id,
           link: `/order-tracking/${id}`
         });
+        
+        // Send Delivery Status Email via Resend
+        if (order.email) {
+          if (newStatus === 'confirmed') {
+             emailService.sendOrderConfirmation(order.email, id, order.total);
+          } else {
+             emailService.sendDeliveryUpdate(order.email, id, newStatus.replace(/_/g, ' ').toUpperCase());
+          }
+        }
 
         // Trigger Rewards Engine on Delivery
         if (newStatus === 'delivered') {

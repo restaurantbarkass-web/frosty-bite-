@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { ShieldAlert } from 'lucide-react';
+
 import { logout } from '../firebase';
 
 interface ProtectedRouteProps {
@@ -36,7 +37,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           logout().then(() => navigate('/login', { replace: true }));
         }
       }
-
       if (requireVerification && !isVerified && !isAdmin) {
          // Optionally force logout or just show block
       }

@@ -276,8 +276,6 @@ const Login: React.FC = () => {
           <a href="#" className="hover:text-gray-400 transition-colors">Terms of Service</a>
         </div>
       </motion.div>
-
-      {/* Background Elements */}
     </div>
   );
 }
