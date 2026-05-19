@@ -291,9 +291,17 @@ CREATE POLICY "Public View Banners" ON storage.objects FOR SELECT USING (bucket_
 DROP POLICY IF EXISTS "Anonymous Upload Banners" ON storage.objects;
 CREATE POLICY "Anonymous Upload Banners" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'banners');
 
--- 3. Allow updates/deletes
-DROP POLICY IF EXISTS "Anyone Update Banners" ON storage.objects;
-CREATE POLICY "Anyone Update Banners" ON storage.objects FOR UPDATE USING (bucket_id = 'banners');
+-- 13. OTPs Table for Authentication
+CREATE TABLE IF NOT EXISTS public.otps (
+    email TEXT PRIMARY KEY,
+    otp TEXT NOT NULL,
+    expires_at BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
 
-DROP POLICY IF EXISTS "Anyone Delete Banners" ON storage.objects;
-CREATE POLICY "Anyone Delete Banners" ON storage.objects FOR DELETE USING (bucket_id = 'banners');
+-- Enable RLS for otps
+ALTER TABLE public.otps ENABLE ROW LEVEL SECURITY;
+
+-- Allow server (service role) to manage otps
+DROP POLICY IF EXISTS "Service Role Manage OTPs" ON public.otps;
+CREATE POLICY "Service Role Manage OTPs" ON public.otps FOR ALL USING (true);

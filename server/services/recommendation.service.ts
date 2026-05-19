@@ -37,11 +37,10 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
     }
   `;
 
-  let response;
   try {
     console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
-    response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+    const aiResponse = await genAI.models.generateContent({
+      model: "gemini-flash-latest",
       contents: prompt,
       config: {
         systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -49,6 +48,25 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
         temperature: 0.1,
       }
     });
+
+    const output = cleanJsonResponse(aiResponse.text || '');
+    if (!output) {
+      throw new Error("Empty response from AI");
+    }
+    
+    const data = JSON.parse(output);
+
+    return {
+      bestMatchId: data.bestMatchId || null,
+      reason: data.reason || "A choice of absolute distinction.",
+      intent: data.intent || "Luxury Exploration",
+      alternatives: data.alternatives || [],
+      isEmotionalMatch: !!data.isEmotionalMatch,
+      occasionDetected: data.occasionDetected || "Special Moment",
+      moodDetected: data.moodDetected || "Refined",
+      recommendationType: data.recommendationType || "standard",
+      butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
+    };
   } catch (error: any) {
     console.warn(`[RecommendationService] Generation failed: ${error.message}`);
     // Return a safe fallback recommendation instead of crashing
@@ -64,25 +82,6 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       butlerResponse: "I have curated our finest selections based on your unique preferences. This choice represents the pinnacle of our artisan craft."
     };
   }
-
-  const output = cleanJsonResponse(response.text || '');
-  if (!output) {
-    throw new Error("Empty response from AI");
-  }
-  
-  const data = JSON.parse(output);
-
-  return {
-    bestMatchId: data.bestMatchId || null,
-    reason: data.reason || "A choice of absolute distinction.",
-    intent: data.intent || "Luxury Exploration",
-    alternatives: data.alternatives || [],
-    isEmotionalMatch: !!data.isEmotionalMatch,
-    occasionDetected: data.occasionDetected || "Special Moment",
-    moodDetected: data.moodDetected || "Refined",
-    recommendationType: data.recommendationType || "standard",
-    butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
-  };
 }
 
 export async function getSearchSuggestions(searchTerm: string, items: any[]): Promise<string[]> {
@@ -97,7 +96,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-latest",
       contents: prompt,
       config: { 
         systemInstruction: "You are the Frosty Bite Butler suggestions engine.",

@@ -7,7 +7,7 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
 
   try {
     const genAIClient = getGenAI();
-    let targetModel = "gemini-3-flash-preview"; 
+    let targetModel = "gemini-flash-latest"; 
     
     // 1. Vision Analysis if image provided
     if (imageUrl && imageUrl.startsWith('http')) {

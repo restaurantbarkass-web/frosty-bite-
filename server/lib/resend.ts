@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
 
-if (!process.env.RESEND_API_KEY) {
-  console.warn('RESEND_API_KEY is not defined in environment variables');
+const apiKey = process.env.RESEND_API_KEY;
+
+if (!apiKey) {
+  console.warn('[Resend] RESEND_API_KEY is not defined. Email functionality will be disabled.');
 }
 
-export const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend might throw if apiKey is null/undefined in some versions, 
+// so we provide a placeholder or handle it.
+export const resend = new Resend(apiKey || 're_placeholder');

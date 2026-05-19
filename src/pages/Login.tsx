@@ -21,12 +21,14 @@ const Login: React.FC = () => {
   const { user, isAdmin } = useAuth();
   
   // UI State
-  const [method, setMethod] = useState<'password' | 'link'>('password');
+  const [method, setMethod] = useState<'password' | 'link' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
 
   // Form State
   const [email, setEmail] = useState('');
@@ -48,10 +50,19 @@ const Login: React.FC = () => {
       if (method === 'password') {
         await authService.handleEmailLogin(email, password);
         setSuccess('Logged in successfully!');
-      } else {
+      } else if (method === 'link') {
         await authService.sendSignInLink(email);
         setLinkSent(true);
         setSuccess('Sign-in link sent! Please check your email inbox.');
+      } else if (method === 'otp') {
+        if (!otpSent) {
+          await authService.sendOTP(email);
+          setOtpSent(true);
+          setSuccess('Login code sent! Please check your email.');
+        } else {
+          await authService.verifyOTP(email, otp);
+          setSuccess('Logged in successfully!');
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -185,16 +196,25 @@ const Login: React.FC = () => {
               {/* Method Toggle */}
               <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
                 <button 
+                  type="button"
                   onClick={() => setMethod('password')}
                   className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   Password
                 </button>
                 <button 
-                  onClick={() => setMethod('link')}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                  type="button"
+                  onClick={() => { setMethod('link'); setOtpSent(false); }}
+                  className={`flex-1 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
-                  Sign-in Link
+                  Link
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { setMethod('otp'); setOtpSent(false); }}
+                  className={`flex-1 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'otp' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  OTP
                 </button>
               </div>
 
@@ -205,10 +225,37 @@ const Login: React.FC = () => {
                   icon={Mail}
                   type="email"
                   value={email}
+                  disabled={otpSent && method === 'otp'}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
                 />
+                
+                {method === 'otp' && otpSent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <InputField 
+                      label="Verification Code"
+                      placeholder="123456"
+                      icon={Lock}
+                      type="text"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      required
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setOtpSent(false)}
+                      className="mt-2 text-[10px] text-orange-500 hover:text-orange-400 font-bold uppercase tracking-widest"
+                    >
+                      Change Email
+                    </button>
+                  </motion.div>
+                )}
+
                 {method === 'password' && (
                   <>
                     <InputField 
@@ -239,7 +286,9 @@ const Login: React.FC = () => {
                 )}
 
                 <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-                  {method === 'password' ? 'Login' : 'Send Sign-in Link'}
+                  {method === 'password' ? 'Login' : 
+                   method === 'link' ? 'Send Link' : 
+                   otpSent ? 'Verify OTP' : 'Send Code'}
                 </Button>
               </form>
 

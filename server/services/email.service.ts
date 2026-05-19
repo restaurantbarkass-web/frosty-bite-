@@ -35,7 +35,7 @@ export class EmailService {
   static async sendOrderEmail(email: string, orderId: string, amount: number) {
     try {
       const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <orders@resend.dev>',
+        from: 'Frosty Bite <onboarding@resend.dev>',
         to: email,
         subject: `Order Confirmed #${orderId} 🎉`,
         html: `
@@ -69,7 +69,7 @@ export class EmailService {
   static async sendDeliveryEmail(email: string, orderId: string, status: string) {
     try {
       const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <delivery@resend.dev>',
+        from: 'Frosty Bite <onboarding@resend.dev>',
         to: email,
         subject: `Order Status Update: ${status}`,
         html: `
@@ -92,6 +92,41 @@ export class EmailService {
       return data;
     } catch (error) {
       console.error('[EmailService] Error sending delivery email:', error);
+      throw error;
+    }
+  }
+
+  static async sendOTPEmail(email: string, otp: string) {
+    if (!process.env.RESEND_API_KEY) {
+      console.error('[EmailService] Cannot send OTP: RESEND_API_KEY is missing');
+      throw new Error('Email service configuration missing. Please check RESEND_API_KEY in Settings > Secrets.');
+    }
+
+    try {
+      const { data, error } = await resend.emails.send({
+        from: 'Frosty Bite <onboarding@resend.dev>',
+        to: email,
+        subject: `Your Login Code: ${otp}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px; text-align: center;">
+            <h2 style="color: #ea580c;">Login to Frosty Bite</h2>
+            <p style="font-size: 16px; color: #333;">Use the following code to complete your sign-in. This code will expire in 10 minutes.</p>
+            <div style="background-color: #f9fafb; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <span style="font-size: 32px; font-weight: bold; color: #ea580c; letter-spacing: 5px;">${otp}</span>
+            </div>
+            <p style="font-size: 14px; color: #666;">If you didn't request this code, you can safely ignore this email.</p>
+          </div>
+        `,
+      });
+
+      if (error) {
+        console.error('[EmailService] Resend Error (OTP):', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('[EmailService] Error sending OTP email:', error);
       throw error;
     }
   }

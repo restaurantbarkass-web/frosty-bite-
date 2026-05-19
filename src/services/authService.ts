@@ -7,7 +7,8 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   sendSignInLinkToEmail,
-  sendEmailVerification
+  sendEmailVerification,
+  signInWithCustomToken
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import { supabase } from '../supabase';
@@ -65,6 +66,55 @@ export const authService = {
     };
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);
     window.localStorage.setItem('emailForSignIn', email);
+  },
+
+  // Send OTP (Resend Backend)
+  async sendOTP(email: string) {
+    const response = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      throw new Error('Server returned an invalid response');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send OTP');
+    }
+    return data;
+  },
+
+  // Verify OTP and Sign In
+  async verifyOTP(email: string, otp: string) {
+    const response = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+    
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      throw new Error('Server returned an invalid response');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to verify OTP');
+    }
+
+    const result = await signInWithCustomToken(auth, data.token);
+    
+    if (result.user) {
+      await this.syncUserWithDatabase(result.user);
+    }
+    
+    return result;
   },
 
   // Google Login
