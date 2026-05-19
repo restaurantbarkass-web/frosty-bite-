@@ -4,10 +4,10 @@ import { getGenAI, cleanJsonResponse } from "../ai/gemini";
 export async function generateAvatarImage(data: { prompt: string; vibe?: string; imageUrl?: string; userId?: string }) {
   const { prompt, vibe, imageUrl, userId } = data;
   let imageResult: string | null = null;
-  const targetModel = "gemini-3-flash-preview"; // Using recommended flash-preview
 
   try {
     const genAIClient = getGenAI();
+    let targetModel = "gemini-3-flash-preview"; 
     
     // 1. Vision Analysis if image provided
     if (imageUrl && imageUrl.startsWith('http')) {
@@ -27,7 +27,11 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
           }
         });
 
-        let refinedPrompt = cleanJsonResponse(response.text || prompt);
+        if (!response.text) {
+          console.warn("[AvatarService] Gemini vision returned empty text, using baseline prompt");
+        }
+
+        let refinedPrompt = cleanJsonResponse(response.text || prompt || "Cute bakery-themed chibi avatar");
         // Extra cleanup to ensure no "Prompt:" or similar prefixes
         refinedPrompt = refinedPrompt.replace(/^(Prompt|Output|Refined Prompt|Image Prompt):/i, "").trim();
         

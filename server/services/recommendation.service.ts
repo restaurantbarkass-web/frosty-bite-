@@ -97,7 +97,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
 
   try {
     const response = await genAI.models.generateContent({
-      model: "gemini-3.1-flash-lite", // Using lite model for suggestions
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: { 
         systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
