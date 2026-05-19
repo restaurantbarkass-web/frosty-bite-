@@ -14,7 +14,10 @@ import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
+import { useCart } from '../context/CartContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
+import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 // Variants for staggered animations
 const containerVariants: any = {
@@ -227,6 +230,58 @@ export const Home: React.FC = () => {
     });
   }, [displayItems, selectedCategory, searchQuery]);
 
+  const { setAppliedCoupon, setIsCartOpen } = useCart();
+
+  const handleBannerCoupon = async (code: string) => {
+    try {
+      const { data: coupons, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', code.toUpperCase())
+        .eq('status', 'active')
+        .single();
+
+      if (error || !coupons) {
+        toast.error('Could not apply this coupon');
+        return;
+      }
+
+      // Check expiry
+      const expiryDate = new Date(coupons.expiry_date);
+      if (expiryDate < new Date()) {
+        toast.error('This coupon has expired');
+        return;
+      }
+
+      setAppliedCoupon({
+        id: coupons.id,
+        code: coupons.code,
+        value: coupons.value,
+        type: coupons.type,
+        free_item_id: coupons.free_item_id,
+        free_item_quantity: coupons.free_item_quantity,
+        gift_url: coupons.gift_url
+      });
+
+      toast.success(`${coupons.code} Applied Automatically! 🎉`, {
+        icon: '🎫',
+        duration: 4000
+      });
+
+      // Open cart to show the discount
+      setTimeout(() => setIsCartOpen(true), 1000);
+      
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.8 },
+        colors: ['#F97316', '#FFFFFF']
+      });
+    } catch (err) {
+      console.error('Error auto-applying coupon:', err);
+    }
+  };
+
   return (
     <motion.div 
       className="min-h-screen pb-20"
@@ -307,8 +362,7 @@ export const Home: React.FC = () => {
             banners={banners} 
             onNavigate={(url) => navigate(url)}
             onApplyCoupon={(code) => {
-              // We could handle coupon apply logic here or just navigate to products
-              navigate(`/?search=${code}`);
+              handleBannerCoupon(code);
             }}
           />
         </div>

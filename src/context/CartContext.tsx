@@ -7,6 +7,15 @@ interface CartStateContextType {
   totalItems: number;
   totalPrice: number;
   subtotal: number;
+  appliedCoupon: {
+    id: string;
+    code: string;
+    value: number;
+    type: 'percentage' | 'fixed' | 'free_item';
+    free_item_id?: string;
+    free_item_quantity?: number;
+    gift_url?: string;
+  } | null;
 }
 
 interface CartActionsContextType {
@@ -15,6 +24,7 @@ interface CartActionsContextType {
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
   setIsCartOpen: (open: boolean) => void;
+  setAppliedCoupon: (coupon: CartStateContextType['appliedCoupon']) => void;
 }
 
 const CartStateContext = createContext<CartStateContextType | undefined>(undefined);
@@ -23,6 +33,16 @@ const CartActionsContext = createContext<CartActionsContextType | undefined>(und
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CartStateContextType['appliedCoupon']>(null);
+
+  useEffect(() => {
+    // Load claimed coupon from localStorage if it exists
+    const claimedCode = localStorage.getItem('claimed_coupon_code');
+    if (claimedCode) {
+        // We might need to fetch the coupon data from supabase here to validate it
+        // But for now, let's just keep the setAppliedCoupon action available
+    }
+  }, []);
 
   const addToCart = React.useCallback((item: FoodItem) => {
     setCart(prev => {
@@ -61,23 +81,37 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItems = React.useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const subtotal = React.useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
-  const totalPrice = subtotal;
+  
+  const discountAmount = React.useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.type === 'percentage') {
+      return (subtotal * appliedCoupon.value) / 100;
+    }
+    if (appliedCoupon.type === 'fixed') {
+      return appliedCoupon.value;
+    }
+    return 0;
+  }, [subtotal, appliedCoupon]);
+
+  const totalPrice = Math.max(0, subtotal - discountAmount);
 
   const stateValue = React.useMemo(() => ({
     cart,
     isCartOpen,
     totalItems,
     totalPrice,
-    subtotal
-  }), [cart, isCartOpen, totalItems, totalPrice, subtotal]);
+    subtotal,
+    appliedCoupon
+  }), [cart, isCartOpen, totalItems, totalPrice, subtotal, appliedCoupon]);
 
   const actionsValue = React.useMemo(() => ({
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
-    setIsCartOpen
-  }), [addToCart, removeFromCart, updateQuantity, clearCart]);
+    setIsCartOpen,
+    setAppliedCoupon
+  }), [addToCart, removeFromCart, updateQuantity, clearCart, setAppliedCoupon]);
 
   return (
     <CartStateContext.Provider value={stateValue}>

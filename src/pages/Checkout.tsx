@@ -44,7 +44,7 @@ const MapSelector = React.lazy(() => import('../components/MapSelector').then(m 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cart, subtotal: cartSubtotal, clearCart } = useCart();
+  const { cart, subtotal: cartSubtotal, clearCart, appliedCoupon, setAppliedCoupon } = useCart();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const { isOrderingOpen, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm } = useAppConfig();
@@ -71,15 +71,6 @@ export const Checkout: React.FC = () => {
   const [showMap, setShowMap] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<{ 
-    id: string;
-    code: string; 
-    value: number; 
-    type: 'percentage' | 'fixed' | 'free_item';
-    free_item_id?: string;
-    free_item_quantity?: number;
-    gift_url?: string;
-  } | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   useEffect(() => {
@@ -230,6 +221,7 @@ export const Checkout: React.FC = () => {
   }, [location.state]);
 
   useEffect(() => {
+    // This local logic for 'claimed_coupon' might be redundant if handles globally
     const claimed = localStorage.getItem('claimed_coupon');
     if (claimed && !appliedCoupon) {
       handleApplyCoupon(claimed);

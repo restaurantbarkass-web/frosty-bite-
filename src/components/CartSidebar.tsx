@@ -9,7 +9,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { supabase } from '../supabase';
 
 export const CartSidebar: React.FC = () => {
-  const { cart, totalPrice, totalItems, isCartOpen: isOpen } = useCartState();
+  const { cart, totalPrice, subtotal, totalItems, appliedCoupon, isCartOpen: isOpen } = useCartState();
   const { updateQuantity, removeFromCart, setIsCartOpen } = useCartActions();
   const navigate = useNavigate();
   const { isOrderingOpen } = useAppConfig();
@@ -230,8 +230,14 @@ export const CartSidebar: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <span>Subtotal</span>
-                    <span>₹{totalPrice}</span>
+                    <span>₹{subtotal}</span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                      <span>Discount ({appliedCoupon.code})</span>
+                      <span>-₹{subtotal - totalPrice}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <span>Delivery Fee</span>
                     <span className="text-emerald-500">FREE</span>
