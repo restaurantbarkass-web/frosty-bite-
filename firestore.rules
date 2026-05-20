@@ -289,12 +289,14 @@ service cloud.firestore {
     // BADGE CONFIGS & GIFTS
     match /badge_configs/{badgeId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidBadgeConfig(incoming());
+      allow create, update: if isAdmin() && isValidBadgeConfig(incoming());
+      allow delete: if isAdmin();
     }
 
     match /gifts/{giftId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidGift(incoming());
+      allow create, update: if isAdmin() && isValidGift(incoming());
+      allow delete: if isAdmin();
     }
   }
 }
