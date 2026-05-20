@@ -80,29 +80,70 @@ export const authService = {
 
   // Verify OTP directly using Supabase client and sign in client-side to Firebase
   async verifyOTP(email: string, otp: string) {
-    let { data, error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: otp.trim(),
-      type: "email",
-    });
+    // We will try three different validation types because GoTrue scopes OTPs to specific actions:
+    // 1. "email" (standard passwordless OTP sign-in in some GoTrue setups)
+    // 2. "magiclink" (standard passwordless OTP / magiclink code)
+    // 3. "signup" (confirmation code for a new user registration)
+    
+    let data = null;
+    let error = null;
 
-    // Fallback for new users / signups in Supabase
-    if (error) {
-      console.log(`[AuthService] verifyOtp type 'email' failed: ${error.message}. Trying 'signup'...`);
-      const signupRes = await supabase.auth.verifyOtp({
+    console.log(`[AuthService] Attempting verifyOtp (type: email) for: ${email}`);
+    try {
+      const res = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: otp.trim(),
-        type: "signup",
+        type: "email",
       });
-      if (!signupRes.error) {
-        data = signupRes.data;
-        error = null;
+      data = res.data;
+      error = res.error;
+    } catch (e: any) {
+      error = e;
+    }
+
+    if (error) {
+      console.log(`[AuthService] verifyOtp (type: email) failed: ${error.message || error}. Trying magiclink...`);
+      try {
+        const res = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: otp.trim(),
+          type: "magiclink",
+        });
+        if (!res.error) {
+          data = res.data;
+          error = null;
+          console.log('[AuthService] verifyOtp (type: magiclink) succeeded!');
+        } else {
+          error = res.error;
+        }
+      } catch (e: any) {
+        error = e;
       }
     }
 
     if (error) {
-      console.log(error.message);
-      throw new Error(error.message);
+      console.log(`[AuthService] verifyOtp (type: magiclink) failed: ${error.message || error}. Trying signup...`);
+      try {
+        const res = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: otp.trim(),
+          type: "signup",
+        });
+        if (!res.error) {
+          data = res.data;
+          error = null;
+          console.log('[AuthService] verifyOtp (type: signup) succeeded!');
+        } else {
+          error = res.error;
+        }
+      } catch (e: any) {
+        error = e;
+      }
+    }
+
+    if (error) {
+      console.log(`[AuthService] All verification types failed. Error details:`, error.message || error);
+      throw new Error(error.message || 'Verification token is invalid or has expired');
     }
 
     console.log("Login success");
