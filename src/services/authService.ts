@@ -67,7 +67,7 @@ export const authService = {
   // Send OTP directly using Supabase client
   async sendOTP(email: string) {
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
+      email: email.trim().toLowerCase(),
     });
 
     if (error) {
@@ -79,87 +79,83 @@ export const authService = {
   },
 
   // Verify OTP directly using Supabase client and sign in client-side to Firebase
-  async verifyOTP(email: string, otp: string) {
-    // We will try three different validation types because GoTrue scopes OTPs to specific actions:
-    // 1. "email" (standard passwordless OTP sign-in in some GoTrue setups)
-    // 2. "magiclink" (standard passwordless OTP / magiclink code)
-    // 3. "signup" (confirmation code for a new user registration)
-    
-    let data = null;
-    let error = null;
+  async verifyOTP(email: string, otp: string, isSignupHint?: boolean) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
 
-    console.log(`[AuthService] Attempting verifyOtp (type: email) for: ${email}`);
-    try {
-      const res = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otp.trim(),
-        type: "email",
-      });
-      data = res.data;
-      error = res.error;
-    } catch (e: any) {
-      error = e;
-    }
+    let isNewUser = true;
 
-    if (error) {
-      console.log(`[AuthService] verifyOtp (type: email) failed: ${error.message || error}. Trying magiclink...`);
+    if (isSignupHint !== undefined) {
+      isNewUser = isSignupHint;
+    } else {
       try {
-        const res = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: otp.trim(),
-          type: "magiclink",
-        });
-        if (!res.error) {
-          data = res.data;
-          error = null;
-          console.log('[AuthService] verifyOtp (type: magiclink) succeeded!');
-        } else {
-          error = res.error;
+        const { data: existingSbUser } = await supabase
+          .from('users')
+          .select('email')
+          .eq('email', normalizedEmail)
+          .maybeSingle();
+        if (existingSbUser) {
+          isNewUser = false;
         }
-      } catch (e: any) {
-        error = e;
+      } catch (err) {
+        console.warn('[AuthService] Error checking user in local table:', err);
       }
     }
 
-    if (error) {
-      console.log(`[AuthService] verifyOtp (type: magiclink) failed: ${error.message || error}. Trying signup...`);
+    // Determine the optimal verification type order
+    // If the user does not exist, they are likely signing up (type: signup)
+    // If they exist, they are likely signing in (type: email or magiclink)
+    const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = isNewUser
+      ? ['signup', 'email', 'magiclink']
+      : ['email', 'magiclink', 'signup'];
+
+    console.log(`[AuthService] Verifying OTP for ${normalizedEmail}. Optimal types order:`, verificationTypes);
+
+    let supabaseAuthSession = null;
+    let lastError: any = null;
+
+    for (const verifyType of verificationTypes) {
       try {
-        const res = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: otp.trim(),
-          type: "signup",
+        console.log(`[AuthService] Trying verifyOtp with type: ${verifyType}`);
+        const { data: resData, error: resError } = await supabase.auth.verifyOtp({
+          email: normalizedEmail,
+          token: cleanOtp,
+          type: verifyType,
         });
-        if (!res.error) {
-          data = res.data;
-          error = null;
-          console.log('[AuthService] verifyOtp (type: signup) succeeded!');
+
+        if (!resError && resData?.user) {
+          console.log(`[AuthService] verifyOtp succeeded with type: ${verifyType}!`);
+          supabaseAuthSession = resData;
+          lastError = null;
+          break; // Succeeded!
         } else {
-          error = res.error;
+          lastError = resError || new Error(`No user returned for type ${verifyType}`);
+          console.log(`[AuthService] verifyOtp type ${verifyType} returned details:`, lastError.message || lastError);
         }
-      } catch (e: any) {
-        error = e;
+      } catch (err: any) {
+        lastError = err;
+        console.log(`[AuthService] verifyOtp type ${verifyType} threw exception:`, err);
       }
     }
 
-    if (error) {
-      console.log(`[AuthService] All verification types failed. Error details:`, error.message || error);
-      throw new Error(error.message || 'Verification token is invalid or has expired');
+    if (lastError || !supabaseAuthSession) {
+      throw new Error(lastError?.message || 'Verification token is invalid or has expired');
     }
 
     console.log("Login success");
 
     // Logging user to Firebase with a secure, deterministic client password
-    const securePassword = `frostybite_otp_${email.trim().split('@')[0]}_9823#$!`;
+    const securePassword = `frostybite_otp_${normalizedEmail.split('@')[0]}_9823#$!`;
     let result;
     try {
-      result = await signInWithEmailAndPassword(auth, email.trim(), securePassword);
+      result = await signInWithEmailAndPassword(auth, normalizedEmail, securePassword);
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found') || err.code === 'auth/invalid-credential') {
         console.log('[AuthService] User not existing/invalid, registering client-side under OTP login...');
         try {
-          result = await createUserWithEmailAndPassword(auth, email.trim(), securePassword);
+          result = await createUserWithEmailAndPassword(auth, normalizedEmail, securePassword);
           if (result && result.user) {
-            await updateProfile(result.user, { displayName: email.trim().split('@')[0] });
+            await updateProfile(result.user, { displayName: normalizedEmail.split('@')[0] });
           }
         } catch (signUpErr) {
           throw signUpErr;

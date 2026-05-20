@@ -69,7 +69,7 @@ const Login: React.FC = () => {
           setResendTimer(300); // 5 minutes standard timer
           setSuccess('Login code sent! Please check your email.');
         } else {
-          await authService.verifyOTP(email, otp);
+          await authService.verifyOTP(email, otp, false);
           setSuccess('Logged in successfully!');
         }
       }

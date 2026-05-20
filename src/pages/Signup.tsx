@@ -64,7 +64,7 @@ const Signup: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const result = await authService.verifyOTP(email, otp);
+      const result = await authService.verifyOTP(email, otp, true);
       
       // If we have a name, update the profile after OTP verification
       if (name && result.user) {
