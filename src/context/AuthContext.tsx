@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isVerified = !!user?.emailVerified;
+  const isVerified = !!user?.emailVerified || (!!user && localStorage.getItem(`verified_${user.uid}`) === 'true');
 
   useEffect(() => {
     // 8-second safety timeout

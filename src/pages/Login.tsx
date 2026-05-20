@@ -59,11 +59,18 @@ const Login: React.FC = () => {
     setSuccess(null);
     setIsLoading(true);
     try {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (method === 'password') {
+        if (!emailRegex.test(email.trim())) {
+          throw new Error('Please enter a valid email address (e.g., name@example.com)');
+        }
         await authService.handleEmailLogin(email, password);
         setSuccess('Logged in successfully!');
       } else if (method === 'otp') {
         if (!otpSent) {
+          if (!emailRegex.test(email.trim())) {
+            throw new Error('Please enter a valid email address (e.g., name@example.com)');
+          }
           await authService.sendOTP(email);
           setOtpSent(true);
           setResendTimer(300); // 5 minutes standard timer
@@ -87,6 +94,10 @@ const Login: React.FC = () => {
     setSuccess(null);
     setIsLoading(true);
     try {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Please enter a valid email address.');
+      }
       await authService.sendOTP(email);
       setResendTimer(300); // Restart 5 minutes countdown
       setSuccess('A new login code was sent! Please check your email.');
@@ -214,17 +225,25 @@ const Login: React.FC = () => {
             </div>
 
               <form onSubmit={handleEmailLogin} className="space-y-4">
-                <InputField 
-                  label="Email Address"
-                  placeholder="name@example.com"
-                  icon={Mail}
-                  type="email"
-                  value={email}
-                  disabled={otpSent && method === 'otp'}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
-                  required
-                />
+                {!(method === 'otp' && otpSent) ? (
+                  <InputField 
+                    label="Email Address"
+                    placeholder="name@example.com"
+                    icon={Mail}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center space-y-1.5">
+                    <p className="text-xs text-gray-400 uppercase tracking-widest font-black">Sending Code To</p>
+                    <p className="text-white font-bold text-base select-all break-all">
+                      {email}
+                    </p>
+                  </div>
+                )}
                 
                 {method === 'otp' && otpSent && (
                   <motion.div
@@ -233,13 +252,14 @@ const Login: React.FC = () => {
                   >
                     <InputField 
                       label="Verification Code"
-                      placeholder="123456"
+                      placeholder="401825"
                       icon={Lock}
                       type="text"
                       maxLength={6}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       required
+                      autoFocus
                     />
                     <div className="flex justify-between items-center mt-3 px-1">
                       <button 

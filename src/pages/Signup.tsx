@@ -49,6 +49,10 @@ const Signup: React.FC = () => {
       if (!email || (method === 'otp' && !name)) {
         throw new Error('Please fill in all required fields');
       }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Please enter a valid email address (e.g., name@example.com)');
+      }
       await authService.sendOTP(email);
       setOtpSent(true);
       setSuccess(`A 6-digit code has been sent to ${email}`);
@@ -91,6 +95,10 @@ const Signup: React.FC = () => {
     setSuccess(null);
     setIsLoading(true);
     try {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Please enter a valid email address (e.g., name@example.com)');
+      }
       await authService.handleSignup(email, password, name);
       setSuccess('Account created! Please check your email to verify your address.');
       setTimeout(() => navigate('/'), 2500);
@@ -217,13 +225,14 @@ const Signup: React.FC = () => {
               <form onSubmit={handleVerifyOTP} className="space-y-4">
                 <InputField 
                   label="Verification Code"
-                  placeholder="123456"
+                  placeholder="401825"
                   icon={ArrowRight}
                   type="text"
                   maxLength={6}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                   required
+                  autoFocus
                 />
                 <Button type="submit" isLoading={isLoading} icon={<CheckCircle2 size={18} />}>
                   Verify & Sign Up

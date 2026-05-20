@@ -166,7 +166,7 @@ export const authService = {
     }
 
     if (result && result.user) {
-      await this.syncUserWithDatabase(result.user);
+      await this.syncUserWithDatabase(result.user, undefined, true);
     }
     
     return result;
@@ -176,7 +176,7 @@ export const authService = {
   async loginWithGoogle() {
     const result = await signInWithPopup(auth, googleProvider);
     if (result.user) {
-      await this.syncUserWithDatabase(result.user);
+      await this.syncUserWithDatabase(result.user, undefined, true);
     }
     return result;
   },
@@ -187,8 +187,12 @@ export const authService = {
   },
 
   // Sync user with tables (Firestore + Supabase via Backend sync)
-  async syncUserWithDatabase(user: any, name?: string) {
+  async syncUserWithDatabase(user: any, name?: string, markVerified: boolean = false) {
     const determinedRole = getRoleFromEmail(user.email);
+
+    if (markVerified && user?.uid) {
+      localStorage.setItem(`verified_${user.uid}`, 'true');
+    }
 
     // 1. Backend Sync (Supabase + Welcome Email) - Production approach
     try {
@@ -196,11 +200,17 @@ export const authService = {
       const response = await fetch('/api/auth/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
+        body: JSON.stringify({ idToken, markVerified: markVerified || user.emailVerified })
       });
       
       if (!response.ok) {
         console.warn('[AuthService] Backend sync failed, falling back to direct sync');
+      } else if (markVerified) {
+        try {
+          await user.reload();
+        } catch (reloadErr) {
+          console.warn('[AuthService] Error reloading user:', reloadErr);
+        }
       }
     } catch (syncErr) {
       console.error('[AuthService] Sync error:', syncErr);
