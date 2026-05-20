@@ -66,78 +66,45 @@ export const authService = {
 
   // Send OTP directly using Supabase client
   async sendOTP(email: string) {
-    console.log('[AuthService] Sending OTP via Supabase client to:', email);
-    const { data, error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true
-      }
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
     });
 
     if (error) {
-      console.error('[AuthService] Supabase signInWithOtp error:', error);
-      throw new Error(error.message || 'Failed to send OTP verification code');
+      console.log(error.message);
+      throw new Error(error.message);
     }
-    return data;
+
+    console.log("OTP sent");
   },
 
   // Verify OTP directly using Supabase client and sign in client-side to Firebase
   async verifyOTP(email: string, otp: string) {
-    console.log('[AuthService] Verifying OTP directly with Supabase Client:', email);
-    
-    let sbData = null;
-    let sbError = null;
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: otp.trim(),
+      type: "email",
+    });
 
-    // Try type 'email'
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'email'
-      });
-      sbData = data;
-      sbError = error;
-    } catch (err: any) {
-      sbError = err;
+    if (error) {
+      console.log(error.message);
+      throw new Error(error.message);
     }
 
-    // Try type 'signup' fallback
-    if (sbError || !sbData?.user) {
-      console.log('[AuthService] type "email" verification failed, attempting type "signup" fallback...');
-      try {
-        const { data, error } = await supabase.auth.verifyOtp({
-          email,
-          token: otp,
-          type: 'signup'
-        });
-        if (!error && data?.user) {
-          sbData = data;
-          sbError = null;
-        }
-      } catch (err) {
-        // ignore signup err
-      }
-    }
-
-    if (sbError || !sbData?.user) {
-      console.error('[AuthService] Supabase OTP verification failed:', sbError);
-      throw new Error(sbError?.message || 'Invalid or expired login verification code');
-    }
-
-    console.log('[AuthService] Direct client-side Supabase verifyOtp success!', sbData);
+    console.log("Login success");
 
     // Logging user to Firebase with a secure, deterministic client password
-    const securePassword = `frostybite_otp_${email.split('@')[0]}_9823#$!`;
+    const securePassword = `frostybite_otp_${email.trim().split('@')[0]}_9823#$!`;
     let result;
     try {
-      result = await signInWithEmailAndPassword(auth, email, securePassword);
+      result = await signInWithEmailAndPassword(auth, email.trim(), securePassword);
     } catch (err: any) {
       if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found') || err.code === 'auth/invalid-credential') {
         console.log('[AuthService] User not existing/invalid, registering client-side under OTP login...');
         try {
-          result = await createUserWithEmailAndPassword(auth, email, securePassword);
+          result = await createUserWithEmailAndPassword(auth, email.trim(), securePassword);
           if (result && result.user) {
-            await updateProfile(result.user, { displayName: email.split('@')[0] });
+            await updateProfile(result.user, { displayName: email.trim().split('@')[0] });
           }
         } catch (signUpErr) {
           throw signUpErr;
