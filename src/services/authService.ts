@@ -102,12 +102,10 @@ export const authService = {
       }
     }
 
-    // Determine the optimal verification type order
-    // If the user does not exist, they are likely signing up (type: signup)
-    // If they exist, they are likely signing in (type: email or magiclink)
-    const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = isNewUser
-      ? ['signup', 'email', 'magiclink']
-      : ['email', 'magiclink', 'signup'];
+    // Determine the optimal verification type order.
+    // Since we send OTP via signInWithOtp, the GoTrue verification type is always 'email' (or 'magiclink').
+    // We try 'email' first to avoid invalidating the token with wrong type verification calls.
+    const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = ['email', 'magiclink', 'signup'];
 
     console.log(`[AuthService] Verifying OTP for ${normalizedEmail}. Optimal types order:`, verificationTypes);
 
