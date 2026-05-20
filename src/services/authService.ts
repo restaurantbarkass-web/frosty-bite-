@@ -64,107 +64,89 @@ export const authService = {
     window.localStorage.setItem('emailForSignIn', email);
   },
 
-  // Send OTP (Resend Backend)
+  // Send OTP directly using Supabase client
   async sendOTP(email: string) {
-    const response = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    
-    let data;
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        data = await response.json();
-      } catch (e) {
-        throw new Error('Failed to parse server response');
+    console.log('[AuthService] Sending OTP via Supabase client to:', email);
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true
       }
-    } else {
-      const text = await response.text();
-      console.error('[AuthService] Non-JSON response in sendOTP:', text.substring(0, 200));
-      throw new Error('Server returned an invalid non-JSON response from send-otp. Response: ' + text.substring(0, 300));
-    }
+    });
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to send OTP');
+    if (error) {
+      console.error('[AuthService] Supabase signInWithOtp error:', error);
+      throw new Error(error.message || 'Failed to send OTP verification code');
     }
     return data;
   },
 
-  // Verify OTP and Sign In
+  // Verify OTP directly using Supabase client and sign in client-side to Firebase
   async verifyOTP(email: string, otp: string) {
-    const response = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp })
-    });
+    console.log('[AuthService] Verifying OTP directly with Supabase Client:', email);
     
-    let data;
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        data = await response.json();
-      } catch (e) {
-        throw new Error('Failed to parse server response');
-      }
-    } else {
-      const text = await response.text();
-      console.error('[AuthService] Non-JSON response in verifyOTP:', text.substring(0, 200));
-      throw new Error('Server returned an invalid non-JSON response from verify-otp. Response: ' + text.substring(0, 300));
-    }
+    let sbData = null;
+    let sbError = null;
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to verify OTP');
-    }
-
-    let result;
-    if (data.clientAuthFallback) {
-      console.log('[AuthService] Using client-side deterministic auth fallback for OTP...');
-      const securePassword = `frostybite_otp_${email.split('@')[0]}_9823#$!`;
-      try {
-        // Try logging in existing user first
-        result = await signInWithEmailAndPassword(auth, email, securePassword);
-      } catch (err: any) {
-        if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found') || err.code === 'auth/invalid-credential') {
-          console.log('[AuthService] User not found/invalid credentials, creating/resetting user client-side under OTP login...');
-          // Since it's a verified OTP, make sure the user is created or updated
-          try {
-            result = await createUserWithEmailAndPassword(auth, email, securePassword);
-            if (result.user) {
-              await updateProfile(result.user, { displayName: email.split('@')[0] });
-            }
-          } catch (signUpErr) {
-            // Already exists or other issues, try normal login with this password, or throw
-            throw signUpErr;
-          }
-        } else {
-          throw err;
-        }
-      }
-    } else {
-      result = await signInWithCustomToken(auth, data.token);
-    }
-    
-    // Direct Client-Side Supabase Auth OTP verification helper as requested by user
+    // Try type 'email'
     try {
-      console.log('[AuthService] Verifying OTP directly with Supabase Client:', email);
-      const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
         type: 'email'
       });
-      if (sbError) {
-        console.warn('[AuthService] Direct client-side Supabase verifyOtp warning (might be using custom server delivery):', sbError.message);
-      } else {
-        console.log('[AuthService] Direct client-side Supabase verifyOtp success!', sbData);
-      }
-    } catch (sbErr: any) {
-      console.warn('[AuthService] Direct client-side Supabase verifyOtp exception:', sbErr);
+      sbData = data;
+      sbError = error;
+    } catch (err: any) {
+      sbError = err;
     }
-    
+
+    // Try type 'signup' fallback
+    if (sbError || !sbData?.user) {
+      console.log('[AuthService] type "email" verification failed, attempting type "signup" fallback...');
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token: otp,
+          type: 'signup'
+        });
+        if (!error && data?.user) {
+          sbData = data;
+          sbError = null;
+        }
+      } catch (err) {
+        // ignore signup err
+      }
+    }
+
+    if (sbError || !sbData?.user) {
+      console.error('[AuthService] Supabase OTP verification failed:', sbError);
+      throw new Error(sbError?.message || 'Invalid or expired login verification code');
+    }
+
+    console.log('[AuthService] Direct client-side Supabase verifyOtp success!', sbData);
+
+    // Logging user to Firebase with a secure, deterministic client password
+    const securePassword = `frostybite_otp_${email.split('@')[0]}_9823#$!`;
+    let result;
+    try {
+      result = await signInWithEmailAndPassword(auth, email, securePassword);
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found') || err.code === 'auth/invalid-credential') {
+        console.log('[AuthService] User not existing/invalid, registering client-side under OTP login...');
+        try {
+          result = await createUserWithEmailAndPassword(auth, email, securePassword);
+          if (result && result.user) {
+            await updateProfile(result.user, { displayName: email.split('@')[0] });
+          }
+        } catch (signUpErr) {
+          throw signUpErr;
+        }
+      } else {
+        throw err;
+      }
+    }
+
     if (result && result.user) {
       await this.syncUserWithDatabase(result.user);
     }
