@@ -148,6 +148,23 @@ export const authService = {
       result = await signInWithCustomToken(auth, data.token);
     }
     
+    // Direct Client-Side Supabase Auth OTP verification helper as requested by user
+    try {
+      console.log('[AuthService] Verifying OTP directly with Supabase Client:', email);
+      const { data: sbData, error: sbError } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email'
+      });
+      if (sbError) {
+        console.warn('[AuthService] Direct client-side Supabase verifyOtp warning (might be using custom server delivery):', sbError.message);
+      } else {
+        console.log('[AuthService] Direct client-side Supabase verifyOtp success!', sbData);
+      }
+    } catch (sbErr: any) {
+      console.warn('[AuthService] Direct client-side Supabase verifyOtp exception:', sbErr);
+    }
+    
     if (result && result.user) {
       await this.syncUserWithDatabase(result.user);
     }
