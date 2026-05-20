@@ -80,11 +80,25 @@ export const authService = {
 
   // Verify OTP directly using Supabase client and sign in client-side to Firebase
   async verifyOTP(email: string, otp: string) {
-    const { data, error } = await supabase.auth.verifyOtp({
+    let { data, error } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: otp.trim(),
       type: "email",
     });
+
+    // Fallback for new users / signups in Supabase
+    if (error) {
+      console.log(`[AuthService] verifyOtp type 'email' failed: ${error.message}. Trying 'signup'...`);
+      const signupRes = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otp.trim(),
+        type: "signup",
+      });
+      if (!signupRes.error) {
+        data = signupRes.data;
+        error = null;
+      }
+    }
 
     if (error) {
       console.log(error.message);
