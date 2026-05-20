@@ -1,3 +1,28 @@
+import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
+
+// Initialize environment variables first thing before routes are loaded
+const envPath = path.resolve(process.cwd(), ".env");
+const emgPath = path.resolve(process.cwd(), ".env.example");
+
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
+
+if (fs.existsSync(emgPath)) {
+  try {
+    const exampleConfig = dotenv.parse(fs.readFileSync(emgPath));
+    for (const k in exampleConfig) {
+      if (k.startsWith("SMTP_") || !process.env[k] || process.env[k] === "") {
+        process.env[k] = exampleConfig[k];
+      }
+    }
+  } catch (err) {
+    console.warn('[App] Error parsing .env.example:', err);
+  }
+}
+
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import butlerRoutes from "./routes/butler.routes";
@@ -5,6 +30,7 @@ import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
 
 const app = express();
+
 
 // 1. Logging Middleware - run this first to see every request
 app.use((req, res, next) => {

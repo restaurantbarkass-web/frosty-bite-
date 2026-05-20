@@ -32,9 +32,9 @@ function getTransporter() {
     tls: {
       rejectUnauthorized: false
     },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 8000,    // 8 seconds
-    socketTimeout: 15000,     // 15 seconds
+    connectionTimeout: 4000, // 4 seconds
+    greetingTimeout: 3000,    // 3 seconds
+    socketTimeout: 5000,     // 5 seconds
   });
 
   // Prevent uncaught transport exception from crashing node
