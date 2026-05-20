@@ -34,6 +34,7 @@ import { toast } from 'react-hot-toast';
 
 import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
 
 import { AvatarEditor } from '../components/AvatarEditor';
@@ -229,6 +230,8 @@ export const Profile: React.FC = () => {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [newTierName, setNewTierName] = useState('');
   const [prevTier, setPrevTier] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const currentTierConfig = useMemo(() => {
     return badgeConfigs.find(c => c.tierName === userData?.badge_tier) || {
@@ -612,24 +615,27 @@ export const Profile: React.FC = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (window.confirm("CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone. Are you absolutely sure?")) {
-      try {
-        const userDocRef = doc(db, 'users', authUser?.uid!);
-        await updateDoc(userDocRef, { 
-          deleted: true,
-          deleted_at: new Date().toISOString(),
-          status: 'deactivated',
-          updated_at: serverTimestamp()
-        });
-        
-        alert("Your account has been deactivated. Our team will process the final deletion within 24 hours.");
-        await handleLogout();
-      } catch (error: any) {
-        console.error("Account deletion failed:", error);
-        if (error.code === 'permission-denied') {
-          handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
-        }
+    setIsDeletingAccount(true);
+    try {
+      const userDocRef = doc(db, 'users', authUser?.uid!);
+      await updateDoc(userDocRef, { 
+        deleted: true,
+        deleted_at: new Date().toISOString(),
+        status: 'deactivated',
+        updated_at: serverTimestamp()
+      });
+      
+      setShowDeleteConfirm(false);
+      toast.success("Account deactivated. Data deletion in progress.");
+      await handleLogout();
+    } catch (error: any) {
+      console.error("Account deletion failed:", error);
+      if (error.code === 'permission-denied') {
+        handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
       }
+      toast.error("Failed to delete account");
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -773,6 +779,18 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black overflow-x-hidden pb-32" ref={containerRef}>
+      {/* Confirmation Modal for Account Deletion */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAccount}
+        title="Delete Account?"
+        description="CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone."
+        confirmText="Permanently Delete"
+        variant="danger"
+        isLoading={isDeletingAccount}
+      />
+
       {/* Cinematic Hero Header */}
       <section className="relative min-h-[50vh] md:min-h-[70vh] flex items-center justify-center overflow-hidden py-20 md:py-32">
         {/* Dynamic Mesh Background */}
@@ -1432,7 +1450,7 @@ export const Profile: React.FC = () => {
                 <div className="space-y-6 pt-4">
                   <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Danger Zone</h4>
                   <button 
-                     onClick={handleDeleteAccount}
+                     onClick={() => setShowDeleteConfirm(true)}
                     className="w-full h-16 border-2 border-red-500/20 rounded-2xl flex items-center justify-between px-6 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-widest"
                   >
                     Permanently Delete Account

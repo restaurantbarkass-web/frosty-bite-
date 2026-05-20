@@ -1,133 +1,210 @@
-import { resend } from '../lib/resend';
+import nodemailer from 'nodemailer';
+
+let transporter: nodemailer.Transporter | null = null;
+let lastUsedCredsKey = '';
+
+function getTransporter() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!user || !pass) {
+    console.warn('[EmailService] SMTP credentials are not fully configured in your environment variables. Using fallback mode.');
+    return null;
+  }
+
+  // Create or recreate transporter if config changed during hot reloading
+  const credsKey = `${host}:${port}:${user}:${pass}`;
+  if (transporter && lastUsedCredsKey === credsKey) {
+    return transporter;
+  }
+
+  console.log(`[EmailService] Creating SMTP transporter for ${host}:${port} with user: ${user}`);
+  transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true for 465, false for other ports
+    auth: {
+      user,
+      pass,
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 8000,    // 8 seconds
+    socketTimeout: 15000,     // 15 seconds
+  });
+
+  // Prevent uncaught transport exception from crashing node
+  transporter.on('error', (err) => {
+    console.error('[EmailService] Async Transporter Error:', err);
+  });
+
+  lastUsedCredsKey = credsKey;
+
+  return transporter;
+}
+
+/**
+ * Normalizes email FROM addresses (e.g., converts "Frosty Bite" onboarding@resend.dev to "Frosty Bite" <onboarding@resend.dev>)
+ */
+function formatFromAddress(fromStr: string): string {
+  if (!fromStr) return '"Frosty Bite" <noreply@frostybite.com>';
+  
+  // Format already has angle brackets, e.g., "Frosty Bite" <onboarding@resend.dev>
+  if (fromStr.includes('<') && fromStr.includes('>')) {
+    return fromStr;
+  }
+  
+  // Try to extract any email address pattern from the string
+  const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+  const match = fromStr.match(emailRegex);
+  
+  if (match) {
+    const email = match[1];
+    // Grab everything that isn't the email address
+    let restOfStr = fromStr.replace(email, '').trim();
+    // Trim down surrounding quotes or extra whitespaces
+    restOfStr = restOfStr.replace(/^['"]|['"]$/g, '').trim();
+    
+    if (restOfStr) {
+      return `"${restOfStr}" <${email}>`;
+    }
+    return email;
+  }
+  
+  return fromStr;
+}
 
 export class EmailService {
-  static async sendWelcomeEmail(email: string, name: string) {
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <onboarding@resend.dev>',
-        to: email,
-        subject: 'Welcome to Frosty Bite 🎂',
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px;">
-            <h1 style="color: #ea580c;">Hello ${name}</h1>
-            <p style="font-size: 16px; line-height: 1.5; color: #333;">Welcome to Frosty Bite! We're excited to have you join our community of food lovers.</p>
-            <p style="font-size: 16px; line-height: 1.5; color: #333;">Start exploring our menu and order your first delicious treat today!</p>
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="${process.env.APP_URL || '#'}" style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Browse Menu</a>
+  /**
+   * Sends an OTP (Verification Code) via SMTP
+   */
+  static async sendOTPEmail(email: string, otp: string): Promise<boolean> {
+    const rawFrom = process.env.SMTP_FROM || '"Frosty Bite" <noreply@frostybite.com>';
+    const from = formatFromAddress(rawFrom);
+    
+    console.log(`[EmailService] Normalized From: ${from} (Raw: ${rawFrom})`);
+
+    const mailOptions = {
+      from,
+      to: email,
+      subject: `Your Frosty Bite Verification Code: ${otp}`,
+      text: `Welcome to Frosty Bite! Your login verification code is: ${otp}. This code is valid for 5 minutes.`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Frosty Bite Verification</title>
+          <style>
+            body {
+              background-color: #080808;
+              margin: 0;
+              padding: 0;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #ffffff;
+            }
+            .container {
+              max-width: 500px;
+              margin: 40px auto;
+              background-color: #111111;
+              border: 1px solid #222222;
+              border-radius: 24px;
+              padding: 40px;
+              text-align: center;
+              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            }
+            .logo {
+              font-family: system-ui, sans-serif;
+              font-size: 28px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: -1px;
+              color: #ff6b00;
+              margin-bottom: 24px;
+              font-style: italic;
+            }
+            .logo span {
+              color: #ffffff;
+            }
+            h1 {
+              font-size: 22px;
+              font-weight: 700;
+              margin-bottom: 12px;
+              color: #ffffff;
+            }
+            p {
+              font-size: 15px;
+              line-height: 1.6;
+              color: #a0a0a0;
+              margin-bottom: 30px;
+            }
+            .code-box {
+              background: linear-gradient(135deg, rgba(255,107,0,0.1) 0%, rgba(255,107,0,0.02) 100%);
+              border: 2px dashed rgba(255, 107, 0, 0.3);
+              border-radius: 16px;
+              padding: 20px;
+              margin: 24px 0;
+              display: inline-block;
+              width: 80%;
+            }
+            .code {
+              font-family: "Courier New", Courier, monospace;
+              font-size: 36px;
+              font-weight: bold;
+              letter-spacing: 8px;
+              color: #ff6b00;
+            }
+            .footer {
+              font-size: 12px;
+              color: #555555;
+              margin-top: 40px;
+              border-top: 1px solid #222222;
+              padding-top: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="logo">FROSTY<span>BITE</span></div>
+            <h1>Log Into Your Account</h1>
+            <p>Welcome back! Use the following one-time passcode to complete your sign-in. This code will expire in 5 minutes.</p>
+            
+            <div class="code-box">
+              <div class="code">${otp}</div>
             </div>
-            <p style="margin-top: 40px; font-size: 12px; color: #999; text-align: center;">If you didn't sign up for this account, please ignore this email.</p>
+            
+            <p style="font-size: 13px; margin-top: 20px; color: #ff6b00;">If you did not request this code, you can safely ignore this email.</p>
+            
+            <div class="footer">
+              &copy; ${new Date().getFullYear()} Frosty Bite. All rights reserved.<br>
+              Premium Desserts & Bites Delivered Fresh.
+            </div>
           </div>
-        `,
-      });
+        </body>
+        </html>
+      `
+    };
 
-      if (error) {
-        console.error('[EmailService] Resend Error (Welcome):', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[EmailService] Error sending welcome email:', error);
-      throw error;
-    }
-  }
-
-  static async sendOrderEmail(email: string, orderId: string, amount: number) {
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <onboarding@resend.dev>',
-        to: email,
-        subject: `Order Confirmed #${orderId} 🎉`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px;">
-            <h2 style="color: #ea580c;">Order Confirmed!</h2>
-            <p style="font-size: 16px; color: #333;">Thanks for your order. We're getting it ready for you.</p>
-            <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Order ID:</strong> ${orderId}</p>
-              <p style="margin: 5px 0;"><strong>Total Amount:</strong> ₹${amount.toFixed(2)}</p>
-            </div>
-            <p style="font-size: 16px; color: #333;">You can track your order status in the app.</p>
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="${process.env.APP_URL || '#'}/orders/${orderId}" style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Track Order</a>
-            </div>
-          </div>
-        `,
-      });
-
-      if (error) {
-        console.error('[EmailService] Resend Error (Order):', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[EmailService] Error sending order email:', error);
-      throw error;
-    }
-  }
-
-  static async sendDeliveryEmail(email: string, orderId: string, status: string) {
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <onboarding@resend.dev>',
-        to: email,
-        subject: `Order Status Update: ${status}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px;">
-            <h2 style="color: #ea580c;">Order Update</h2>
-            <p style="font-size: 16px; color: #333;">Your order <strong>#${orderId}</strong> status has been updated to:</p>
-            <div style="background-color: #f9fafb; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-              <span style="font-size: 24px; font-weight: bold; color: #ea580c; text-transform: uppercase;">${status}</span>
-            </div>
-            <p style="font-size: 16px; color: #333;">Thank you for choosing Frosty Bite!</p>
-          </div>
-        `,
-      });
-
-      if (error) {
-        console.error('[EmailService] Resend Error (Delivery):', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[EmailService] Error sending delivery email:', error);
-      throw error;
-    }
-  }
-
-  static async sendOTPEmail(email: string, otp: string) {
-    if (!process.env.RESEND_API_KEY) {
-      console.error('[EmailService] Cannot send OTP: RESEND_API_KEY is missing');
-      throw new Error('Email service configuration missing. Please check RESEND_API_KEY in Settings > Secrets.');
+    const client = getTransporter();
+    
+    if (!client) {
+      console.warn(`[EmailService] No SMTP transporter. Printed Login Code: ${otp} for ${email}`);
+      return false;
     }
 
     try {
-      const { data, error } = await resend.emails.send({
-        from: 'Frosty Bite <onboarding@resend.dev>',
-        to: email,
-        subject: `Your Login Code: ${otp}`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; rounded: 12px; text-align: center;">
-            <h2 style="color: #ea580c;">Login to Frosty Bite</h2>
-            <p style="font-size: 16px; color: #333;">Use the following code to complete your sign-in. This code will expire in 10 minutes.</p>
-            <div style="background-color: #f9fafb; padding: 20px; margin: 20px 0; border-radius: 8px;">
-              <span style="font-size: 32px; font-weight: bold; color: #ea580c; letter-spacing: 5px;">${otp}</span>
-            </div>
-            <p style="font-size: 14px; color: #666;">If you didn't request this code, you can safely ignore this email.</p>
-          </div>
-        `,
-      });
-
-      if (error) {
-        console.error('[EmailService] Resend Error (OTP):', error);
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('[EmailService] Error sending OTP email:', error);
-      throw error;
+      console.log(`[EmailService] Sending OTP email to ${email} via SMTP...`);
+      const info = await client.sendMail(mailOptions);
+      console.log(`[EmailService] SMTP Email sent: ${info.messageId}`);
+      return true;
+    } catch (err) {
+      console.error('[EmailService] SMTP Error sending email:', err);
+      return false;
     }
   }
 }

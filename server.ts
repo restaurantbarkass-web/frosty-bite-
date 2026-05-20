@@ -1,11 +1,27 @@
 import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
-// Call dotenv.config() as early as possible
-dotenv.config();
+import fs from "fs";
+
+// Load .env if it exists
+if (fs.existsSync(".env")) {
+  console.log("[Server] Loading .env configuration...");
+  dotenv.config({ path: ".env" });
+}
+
+// Load .env.example to make sure any SMTP credentials or custom overrides are loaded
+if (fs.existsSync(".env.example")) {
+  console.log("[Server] Loading .env.example configuration and applying overrides...");
+  const exampleConfig = dotenv.parse(fs.readFileSync(".env.example"));
+  for (const k in exampleConfig) {
+    // Prefer SMTP variables or any non-empty variable from .env.example if the process.env version is empty or missing
+    if (k.startsWith("SMTP_") || !process.env[k] || process.env[k] === "") {
+      process.env[k] = exampleConfig[k];
+    }
+  }
+}
 
 import baseApp from "./server/app";
 import path from "path";
-import fs from "fs";
 
 const PORT = 3000;
 
@@ -98,12 +114,20 @@ async function startServer() {
   });
 }
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason: any, promise) => {
+  const errMessage = `[Server] Unhandled Rejection at: ${promise} reason: ${reason instanceof Error ? reason.stack || reason.message : reason}\n`;
+  console.error(errMessage);
+  try {
+    fs.appendFileSync(path.join(process.cwd(), 'server-crash.log'), errMessage);
+  } catch (e) {}
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('[Server] Uncaught Exception:', err);
+  const errMessage = `[Server] Uncaught Exception: ${err.stack || err.message || err}\n`;
+  console.error(errMessage);
+  try {
+    fs.appendFileSync(path.join(process.cwd(), 'server-crash.log'), errMessage);
+  } catch (e) {}
   process.exit(1);
 });
 

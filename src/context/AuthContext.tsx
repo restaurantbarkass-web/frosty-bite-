@@ -52,12 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error } = await supabase
           .from('users')
           .upsert({
-            id: firebaseUser.uid,
+            firebase_uid: firebaseUser.uid,
             email: firebaseUser.email,
             full_name: firebaseUser.displayName || '',
             role: determinedRole,
             updated_at: new Date().toISOString()
-          }, { onConflict: 'id' });
+          }, { onConflict: 'firebase_uid' });
         
         if (error) console.warn('Supabase sync warning:', error);
       } catch (err) {
@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data, error } = await supabase
           .from('users')
           .select('role')
-          .eq('id', currentUser.uid)
+          .eq('firebase_uid', currentUser.uid)
           .single();
         
         if (data && data.role) {

@@ -21,14 +21,14 @@ const Login: React.FC = () => {
   const { user, isAdmin } = useAuth();
   
   // UI State
-  const [method, setMethod] = useState<'password' | 'link' | 'otp'>('password');
+  const [method, setMethod] = useState<'otp' | 'password'>('otp');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [linkSent, setLinkSent] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
+  const [resendTimer, setResendTimer] = useState<number>(0);
 
   // Form State
   const [email, setEmail] = useState('');
@@ -41,6 +41,18 @@ const Login: React.FC = () => {
     }
   }, [user, isAdmin, navigate]);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [resendTimer]);
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -50,14 +62,11 @@ const Login: React.FC = () => {
       if (method === 'password') {
         await authService.handleEmailLogin(email, password);
         setSuccess('Logged in successfully!');
-      } else if (method === 'link') {
-        await authService.sendSignInLink(email);
-        setLinkSent(true);
-        setSuccess('Sign-in link sent! Please check your email inbox.');
       } else if (method === 'otp') {
         if (!otpSent) {
           await authService.sendOTP(email);
           setOtpSent(true);
+          setResendTimer(300); // 5 minutes standard timer
           setSuccess('Login code sent! Please check your email.');
         } else {
           await authService.verifyOTP(email, otp);
@@ -67,6 +76,23 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to login. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (resendTimer > 0 || isLoading) return;
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+    try {
+      await authService.sendOTP(email);
+      setResendTimer(300); // Restart 5 minutes countdown
+      setSuccess('A new login code was sent! Please check your email.');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to resend code. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -168,55 +194,24 @@ const Login: React.FC = () => {
           </AnimatePresence>
 
           {/* Login Forms */}
-          {linkSent ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center space-y-6 py-4"
-            >
-              <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto border border-orange-500/20">
-                <Mail className="text-orange-500" size={32} />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Check your email</h2>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  We've sent a special link to <span className="text-white font-bold">{email}</span>. 
-                  Click it to finish signing in securely.
-                </p>
-              </div>
+          <div className="space-y-6">
+            {/* Method Toggle */}
+            <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
               <button 
-                onClick={() => setLinkSent(false)}
-                className="text-orange-500 text-xs font-black uppercase tracking-widest hover:text-orange-400 transition-colors pt-4"
+                type="button"
+                onClick={() => { setMethod('otp'); setOtpSent(false); }}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'otp' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
               >
-                Back to Login
+                Email OTP
               </button>
-            </motion.div>
-          ) : (
-            <div className="space-y-6">
-              {/* Method Toggle */}
-              <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-2">
-                <button 
-                  type="button"
-                  onClick={() => setMethod('password')}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  Password
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => { setMethod('link'); setOtpSent(false); }}
-                  className={`flex-1 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  Link
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => { setMethod('otp'); setOtpSent(false); }}
-                  className={`flex-1 py-1 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'otp' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  OTP
-                </button>
-              </div>
+              <button 
+                type="button"
+                onClick={() => setMethod('password')}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                Password
+              </button>
+            </div>
 
               <form onSubmit={handleEmailLogin} className="space-y-4">
                 <InputField 
@@ -246,13 +241,32 @@ const Login: React.FC = () => {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       required
                     />
-                    <button 
-                      type="button"
-                      onClick={() => setOtpSent(false)}
-                      className="mt-2 text-[10px] text-orange-500 hover:text-orange-400 font-bold uppercase tracking-widest"
-                    >
-                      Change Email
-                    </button>
+                    <div className="flex justify-between items-center mt-3 px-1">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setResendTimer(0);
+                        }}
+                        className="text-[10px] text-gray-400 hover:text-white transition-colors font-bold uppercase tracking-widest"
+                      >
+                        Change Email
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleResendOTP}
+                        disabled={resendTimer > 0 || isLoading}
+                        className={`text-[10px] font-black uppercase tracking-widest transition-all ${
+                          resendTimer > 0 
+                            ? 'text-gray-600 cursor-not-allowed' 
+                            : 'text-orange-500 hover:text-orange-400 active:scale-95'
+                        }`}
+                      >
+                        {resendTimer > 0 
+                          ? `Resend in ${Math.floor(resendTimer / 60)}:${(resendTimer % 60).toString().padStart(2, '0')}` 
+                          : 'Resend Code'}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
 
@@ -287,7 +301,6 @@ const Login: React.FC = () => {
 
                 <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
                   {method === 'password' ? 'Login' : 
-                   method === 'link' ? 'Send Link' : 
                    otpSent ? 'Verify OTP' : 'Send Code'}
                 </Button>
               </form>
@@ -306,7 +319,7 @@ const Login: React.FC = () => {
                 Google
               </Button>
             </div>
-          )}
+
 
           {/* Footer */}
           <div className="mt-8 text-center">

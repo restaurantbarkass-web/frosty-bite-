@@ -2,7 +2,6 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
-import emailRoutes from "./routes/email.routes";
 import authRoutes from "./routes/auth.routes";
 
 const app = express();
@@ -52,25 +51,16 @@ app.get("/ping", (req, res) => {
 });
 
 // Routes
-const apiRouter = express.Router();
-apiRouter.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
-});
-apiRouter.use("/butler", butlerRoutes);
-apiRouter.use("/avatar", avatarRoutes);
-apiRouter.use("/email", emailRoutes);
-apiRouter.use("/auth", authRoutes);
+app.use("/butler", butlerRoutes);
+app.use("/avatar", avatarRoutes);
+app.use("/auth", authRoutes);
 
-// Mount the API router at both root and /api for maximum compatibility
-app.use("/api", apiRouter);
-app.use("/", apiRouter);
-
-// Comprehensive 404/405 handler for API
+// Detailed API 404 handler
 app.use((req, res) => {
-  console.warn(`[App] 404 hit for API route: ${req.method} ${req.originalUrl}`);
+  console.warn(`[App] 404 hit: ${req.method} ${req.originalUrl}`);
   res.status(404).json({ 
     error: "Not Found",
-    message: `API Endpoint ${req.originalUrl} not found`,
+    message: `API Endpoint ${req.method} ${req.originalUrl} not found`,
     path: req.originalUrl,
     method: req.method
   });

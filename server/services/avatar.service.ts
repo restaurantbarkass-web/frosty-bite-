@@ -7,7 +7,7 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
 
   try {
     const genAIClient = getGenAI();
-    let targetModel = "gemini-flash-latest"; 
+    let targetModel = "gemini-1.5-flash"; 
     
     // 1. Vision Analysis if image provided
     if (imageUrl && imageUrl.startsWith('http')) {
@@ -18,7 +18,7 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
         const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
         const response = await genAIClient.models.generateContent({
-          model: targetModel,
+          model: "gemini-1.5-flash",
           contents: {
             parts: [
               { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output ONLY the refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}. No prefixes, no conversational filler, just the prompt string.` },

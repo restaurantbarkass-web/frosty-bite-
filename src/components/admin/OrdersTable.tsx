@@ -12,6 +12,7 @@ import { emailService } from '../../services/emailService';
 
 import { Order } from '../../types';
 import { ImageZoom } from '../ImageZoom';
+import { ConfirmationModal } from '../ui/ConfirmationModal';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -484,47 +485,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   return (
     <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
       {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {deletingId && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 text-left">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setDeletingId(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative bg-[#1a1a1a] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center space-y-6 shadow-2xl"
-            >
-              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mx-auto">
-                <Trash2 size={32} />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white mb-2">Delete Order?</h3>
-                <p className="text-gray-500 text-sm">This will permanently remove the order record. This action cannot be undone.</p>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button 
-                  onClick={() => setDeletingId(null)}
-                  className="flex-1 py-3 bg-white/5 text-white font-bold rounded-xl hover:bg-white/10 transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => deleteOrder(deletingId)}
-                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all"
-                >
-                  Delete
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <ConfirmationModal
+        isOpen={!!deletingId}
+        onClose={() => setDeletingId(null)}
+        onConfirm={() => deletingId && deleteOrder(deletingId)}
+        title="Delete Order?"
+        description="This will permanently remove the order record. This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
 
       <div className="p-8 border-b border-white/5 flex items-center justify-between">
         <div>

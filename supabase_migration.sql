@@ -37,17 +37,19 @@ CREATE TABLE IF NOT EXISTS public.riders (id TEXT PRIMARY KEY);
 -- 2. Users Table (Recreating to ensure schema cache is fresh and columns match)
 DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users (
-    id TEXT PRIMARY KEY,
-    email TEXT,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    firebase_uid TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
     full_name TEXT,
-    name TEXT, -- Keeping name for backwards compatibility if needed
     role TEXT DEFAULT 'customer',
     avatar_url TEXT,
     phone TEXT,
     address TEXT,
     theme_name TEXT DEFAULT 'dark-premium',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    last_login TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- 3. Alter Products table columns
@@ -65,7 +67,9 @@ ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_user_id_fkey;
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_rider_id_fkey;
 
 ALTER TABLE public.orders ALTER COLUMN id TYPE TEXT USING id::text;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE public.orders ALTER COLUMN user_id TYPE TEXT USING user_id::text;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_name TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS phone TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS items JSONB;
@@ -291,17 +295,43 @@ CREATE POLICY "Public View Banners" ON storage.objects FOR SELECT USING (bucket_
 DROP POLICY IF EXISTS "Anonymous Upload Banners" ON storage.objects;
 CREATE POLICY "Anonymous Upload Banners" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'banners');
 
--- 13. OTPs Table for Authentication
+-- 13. OTPs Table for Authentication with Security tracking
 CREATE TABLE IF NOT EXISTS public.otps (
     email TEXT PRIMARY KEY,
     otp TEXT NOT NULL,
     expires_at BIGINT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    locked_until BIGINT DEFAULT 0,
+    request_count INTEGER DEFAULT 0,
+    last_request_at BIGINT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Enable RLS for otps
-ALTER TABLE public.otps ENABLE ROW LEVEL SECURITY;
+-- Ensure columns exist if table was already created without them
+ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
+ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS locked_until BIGINT DEFAULT 0;
+ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS request_count INTEGER DEFAULT 0;
+ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS last_request_at BIGINT DEFAULT 0;
 
--- Allow server (service role) to manage otps
+-- 14. OTPs Table for Authentication with Security tracking
+-- (OTPs table is already handled in section 13)
+
+-- Ensure users table has firebase_uid (already handled in section 2, but adding alter as fallback)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS firebase_uid TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_key ON public.users (firebase_uid);
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE DEFAULT now();
+
+-- Enable RLS
+ALTER TABLE public.otps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Allow server to manage everything
 DROP POLICY IF EXISTS "Service Role Manage OTPs" ON public.otps;
 CREATE POLICY "Service Role Manage OTPs" ON public.otps FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Service Role Manage Users" ON public.users;
+CREATE POLICY "Service Role Manage Users" ON public.users FOR ALL USING (true);
+
+-- Allow users to read their own profile
+DROP POLICY IF EXISTS "Users view own profile" ON public.users;
+CREATE POLICY "Users view own profile" ON public.users FOR SELECT USING (firebase_uid = auth.uid()::text OR email = auth.jwt() ->> 'email');

@@ -23,6 +23,7 @@ import { Banner } from '../../types';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { ImageUpload } from './ImageUpload';
+import { ConfirmationModal } from '../ui/ConfirmationModal';
 
 export const BannerManager: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -31,6 +32,7 @@ export const BannerManager: React.FC = () => {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [analytics, setAnalytics] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -187,8 +189,6 @@ export const BannerManager: React.FC = () => {
   };
 
   const deleteBanner = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
-
     try {
       const { error } = await supabase
         .from('banners')
@@ -197,6 +197,7 @@ export const BannerManager: React.FC = () => {
 
       if (error) throw error;
       setBanners(prev => prev.filter(b => b.id !== id));
+      setDeletingId(null);
       toast.success('Banner deleted');
     } catch (error) {
       console.error('Error deleting banner:', error);
@@ -206,6 +207,15 @@ export const BannerManager: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <ConfirmationModal
+        isOpen={!!deletingId}
+        onClose={() => setDeletingId(null)}
+        onConfirm={() => deletingId && deleteBanner(deletingId)}
+        title="Delete Banner?"
+        description="This action cannot be undone. Are you sure you want to remove this banner?"
+        confirmText="Delete"
+        variant="danger"
+      />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter">Banner Carousel</h1>
@@ -297,7 +307,7 @@ export const BannerManager: React.FC = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => deleteBanner(banner.id)}
+                    onClick={() => setDeletingId(banner.id)}
                     className="p-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-2xl transition-all active:scale-95 border border-rose-500/20"
                   >
                     <Trash2 size={16} />

@@ -423,7 +423,17 @@ export const Checkout: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Order failed:', error);
-      toast.error('Failed to place order. Please try again.');
+      
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      // Handle Supabase column missing or schema errors specifically
+      if (error.message?.includes('column') || error.code === '42703' || error.message?.includes('schema cache')) {
+        errorMessage = 'Database schema mismatch. Please run the latest migration script in Supabase SQL Editor.';
+      } else if (error.message) {
+        errorMessage = `Failed to place order: ${error.message}`;
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
     } finally {
       setIsOrdering(false);
     }

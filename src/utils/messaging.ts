@@ -19,7 +19,7 @@ export const requestForToken = async () => {
           const { data: user } = await supabase
             .from('users')
             .select('fcm_tokens')
-            .eq('id', auth.currentUser.uid)
+            .eq('firebase_uid', auth.currentUser.uid)
             .single();
 
           const tokens = user?.fcm_tokens || [];
@@ -30,7 +30,7 @@ export const requestForToken = async () => {
                 fcm_tokens: [...tokens, currentToken],
                 updated_at: new Date().toISOString()
               })
-              .eq('id', auth.currentUser.uid);
+              .eq('firebase_uid', auth.currentUser.uid);
           }
         } catch (err) {
           console.error('Failed to sync FCM token to Supabase:', err);

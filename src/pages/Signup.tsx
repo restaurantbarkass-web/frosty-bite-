@@ -22,12 +22,13 @@ const Signup: React.FC = () => {
   const { user } = useAuth();
   
   // UI State
-  const [method, setMethod] = useState<'password' | 'link'>('password');
+  const [method, setMethod] = useState<'otp' | 'password'>('otp');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [linkSent, setLinkSent] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
 
   // Form State
   const [name, setName] = useState('');
@@ -40,24 +41,59 @@ const Signup: React.FC = () => {
     }
   }, [user, navigate]);
 
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (!email || (method === 'otp' && !name)) {
+        throw new Error('Please fill in all required fields');
+      }
+      await authService.sendOTP(email);
+      setOtpSent(true);
+      setSuccess(`A 6-digit code has been sent to ${email}`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await authService.verifyOTP(email, otp);
+      
+      // If we have a name, update the profile after OTP verification
+      if (name && result.user) {
+        await authService.syncUserWithDatabase(result.user, name);
+      }
+      
+      setSuccess('Welcome! Your account has been verified.');
+      setTimeout(() => navigate('/'), 2000);
+    } catch (err: any) {
+      setError(err.message || 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (method === 'otp') {
+      if (!otpSent) return handleSendOTP(e);
+      return handleVerifyOTP(e);
+    }
+    
     setError(null);
     setSuccess(null);
     setIsLoading(true);
     try {
-      if (method === 'password') {
-        await authService.handleSignup(email, password, name);
-        setSuccess('Account created! Please check your email to verify your account.');
-      } else {
-        await authService.sendSignInLink(email);
-        setLinkSent(true);
-        setSuccess('Sign-up link sent! Please check your email inbox.');
-      }
-
-      setTimeout(() => {
-        if (method === 'password') navigate('/');
-      }, 2500);
+      await authService.handleSignup(email, password, name);
+      setSuccess('Account created! Please check your email to verify your address.');
+      setTimeout(() => navigate('/'), 2500);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to create account. Please try again.');
@@ -162,24 +198,40 @@ const Signup: React.FC = () => {
           </AnimatePresence>
 
           {/* Signup Form / Method */}
-          {linkSent ? (
+          {otpSent ? (
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="text-center space-y-6 py-4"
             >
               <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto border border-orange-500/20">
-                <Mail className="text-orange-500" size={32} />
+                <Lock className="text-orange-500" size={32} />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Check your email</h2>
+                <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Enter Code</h2>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  We've sent a sign-up link to <span className="text-white font-bold">{email}</span>. 
-                  Click it to complete your account creation.
+                  We've sent a 6-digit code to <span className="text-white font-bold">{email}</span>.
                 </p>
               </div>
+
+              <form onSubmit={handleVerifyOTP} className="space-y-4">
+                <InputField 
+                  label="Verification Code"
+                  placeholder="123456"
+                  icon={ArrowRight}
+                  type="text"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  required
+                />
+                <Button type="submit" isLoading={isLoading} icon={<CheckCircle2 size={18} />}>
+                  Verify & Sign Up
+                </Button>
+              </form>
+
               <button 
-                onClick={() => setLinkSent(false)}
+                onClick={() => setOtpSent(false)}
                 className="text-orange-500 text-xs font-black uppercase tracking-widest hover:text-orange-400 transition-colors pt-4"
               >
                 Back to Sign-up
@@ -210,33 +262,31 @@ const Signup: React.FC = () => {
               {/* Method Toggle */}
               <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
                 <button 
+                  onClick={() => setMethod('otp')}
+                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'otp' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  Email OTP
+                </button>
+                <button 
                   onClick={() => setMethod('password')}
                   className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${method === 'password' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   Password
                 </button>
-                <button 
-                  onClick={() => setMethod('link')}
-                  className={`flex-1 py-2 text-[10px) font-black uppercase tracking-widest rounded-lg transition-all ${method === 'link' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  Email Link
-                </button>
               </div>
 
               {/* Signup Form */}
               <form onSubmit={handleSignup} className="space-y-4">
-                {method === 'password' && (
-                  <InputField 
-                    label="Full Name"
-                    placeholder="John Doe"
-                    icon={User}
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    autoComplete="name"
-                    required
-                  />
-                )}
+                <InputField 
+                  label="Full Name"
+                  placeholder="John Doe"
+                  icon={User}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                  required
+                />
                 <InputField 
                   label="Email Address"
                   placeholder="name@example.com"
@@ -270,7 +320,7 @@ const Signup: React.FC = () => {
                 )}
 
                 <Button type="submit" isLoading={isLoading} icon={<ArrowRight size={18} />}>
-                  {method === 'password' ? 'Create Account' : 'Send Sign-up Link'}
+                  {method === 'otp' ? 'Send Verification Code' : 'Create Account'}
                 </Button>
               </form>
             </>
