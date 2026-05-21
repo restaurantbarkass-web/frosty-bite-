@@ -38,18 +38,22 @@ CREATE TABLE IF NOT EXISTS public.riders (id TEXT PRIMARY KEY);
 DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    firebase_uid TEXT UNIQUE NOT NULL,
+    firebase_uid TEXT UNIQUE, -- Nullable!
+    supabase_uid TEXT UNIQUE, -- Added!
     email TEXT UNIQUE NOT NULL,
     name TEXT,
     full_name TEXT,
     role TEXT DEFAULT 'customer',
     avatar_url TEXT,
+    avatar TEXT, -- Added
     phone TEXT,
     address TEXT,
     theme_name TEXT DEFAULT 'dark-premium',
+    auth_methods TEXT[] DEFAULT '{}', -- Added
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    last_login TIMESTAMP WITH TIME ZONE DEFAULT now()
+    last_login TIMESTAMP WITH TIME ZONE DEFAULT now(), -- Keep
+    last_login_at TIMESTAMP WITH TIME ZONE DEFAULT now() -- Added
 );
 
 -- 3. Alter Products table columns
@@ -316,9 +320,15 @@ ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS last_request_at BIGINT DEFAULT 
 -- 14. OTPs Table for Authentication with Security tracking
 -- (OTPs table is already handled in section 13)
 
--- Ensure users table has firebase_uid (already handled in section 2, but adding alter as fallback)
+-- Ensure users table structure is updated with fallback alters (if table already existed)
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS firebase_uid TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS supabase_uid TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS auth_methods TEXT[] DEFAULT '{}';
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS avatar TEXT;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP WITH TIME ZONE DEFAULT now();
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_key ON public.users (firebase_uid);
+CREATE UNIQUE INDEX IF NOT EXISTS users_supabase_uid_key ON public.users (supabase_uid);
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE DEFAULT now();
 
 -- Enable RLS
@@ -334,4 +344,4 @@ CREATE POLICY "Service Role Manage Users" ON public.users FOR ALL USING (true);
 
 -- Allow users to read their own profile
 DROP POLICY IF EXISTS "Users view own profile" ON public.users;
-CREATE POLICY "Users view own profile" ON public.users FOR SELECT USING (firebase_uid = auth.uid()::text OR email = auth.jwt() ->> 'email');
+CREATE POLICY "Users view own profile" ON public.users FOR SELECT USING (firebase_uid = auth.uid()::text OR supabase_uid = auth.uid()::text OR email = auth.jwt() ->> 'email');

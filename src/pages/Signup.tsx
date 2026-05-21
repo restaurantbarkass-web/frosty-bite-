@@ -17,6 +17,56 @@ import { authService } from '../services/authService';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
+const renderErrorMessage = (msg: string | null) => {
+  if (!msg) return null;
+  
+  const isIdentityToolkitDisabled = msg.includes('identitytoolkit.googleapis.com') || msg.includes('Identity Toolkit');
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const parts = msg.split(urlRegex);
+  
+  return (
+    <div className="flex-1 space-y-1 text-xs sm:text-sm">
+      {isIdentityToolkitDisabled && (
+        <p className="font-bold text-yellow-500 uppercase tracking-wide text-[10px] sm:text-[11px]">
+          ⚠️ ACTIVATE FIREBASE AUTH
+        </p>
+      )}
+      <p className="leading-relaxed">
+        {parts.map((part, index) => {
+          if (part.match(urlRegex)) {
+            let cleanUrl = part;
+            let suffix = '';
+            const match = part.match(/^(.*?)(["'\)\],.]*)$/);
+            if (match) {
+              cleanUrl = match[1];
+              suffix = match[2];
+            }
+            return (
+              <span key={index}>
+                <a 
+                  href={cleanUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-yellow-400 font-bold underline hover:text-yellow-300 break-all mx-1"
+                >
+                  [CLICK TO ENABLE IDENTITY TOOLKIT API]
+                </a>
+                {suffix}
+              </span>
+            );
+          }
+          return part;
+        })}
+      </p>
+      {isIdentityToolkitDisabled && (
+        <p className="text-[10px] sm:text-[11px] text-gray-400 leading-normal pt-1 border-t border-red-500/10">
+          Google Cloud takes 1–2 minutes to activate newly enabled APIs. Please enable it, wait a moment, and retry!
+        </p>
+      )}
+    </div>
+  );
+};
+
 const Signup: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -55,7 +105,7 @@ const Signup: React.FC = () => {
       }
       await authService.sendOTP(email);
       setOtpSent(true);
-      setSuccess(`A 6-digit code has been sent to ${email}`);
+      setSuccess(`A 8-digit code has been sent to ${email}`);
     } catch (err: any) {
       setError(err.message || 'Failed to send verification code');
     } finally {
@@ -186,10 +236,10 @@ const Signup: React.FC = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm"
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 text-red-400 text-sm"
               >
-                <AlertCircle size={18} className="shrink-0" />
-                <p>{error}</p>
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                {renderErrorMessage(error)}
               </motion.div>
             )}
             {success && (
@@ -218,17 +268,17 @@ const Signup: React.FC = () => {
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white uppercase italic tracking-tight">Enter Code</h2>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  We've sent a 6-digit code to <span className="text-white font-bold">{email}</span>.
+                  We've sent a 8-digit code to <span className="text-white font-bold">{email}</span>.
                 </p>
               </div>
 
               <form onSubmit={handleVerifyOTP} className="space-y-4">
                 <InputField 
                   label="Verification Code"
-                  placeholder="401825"
+                  placeholder="40182596"
                   icon={ArrowRight}
                   type="text"
-                  maxLength={6}
+                  maxLength={8}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                   required

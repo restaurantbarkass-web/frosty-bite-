@@ -16,6 +16,56 @@ import { authService } from '../services/authService';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
 
+const renderErrorMessage = (msg: string | null) => {
+  if (!msg) return null;
+  
+  const isIdentityToolkitDisabled = msg.includes('identitytoolkit.googleapis.com') || msg.includes('Identity Toolkit');
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  const parts = msg.split(urlRegex);
+  
+  return (
+    <div className="flex-1 space-y-1 text-xs sm:text-sm">
+      {isIdentityToolkitDisabled && (
+        <p className="font-bold text-yellow-500 uppercase tracking-wide text-[10px] sm:text-[11px]">
+          ⚠️ ACTIVATE FIREBASE AUTH
+        </p>
+      )}
+      <p className="leading-relaxed">
+        {parts.map((part, index) => {
+          if (part.match(urlRegex)) {
+            let cleanUrl = part;
+            let suffix = '';
+            const match = part.match(/^(.*?)(["'\)\],.]*)$/);
+            if (match) {
+              cleanUrl = match[1];
+              suffix = match[2];
+            }
+            return (
+              <span key={index}>
+                <a 
+                  href={cleanUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-yellow-400 font-bold underline hover:text-yellow-300 break-all mx-1"
+                >
+                  [CLICK TO ENABLE IDENTITY TOOLKIT API]
+                </a>
+                {suffix}
+              </span>
+            );
+          }
+          return part;
+        })}
+      </p>
+      {isIdentityToolkitDisabled && (
+        <p className="text-[10px] sm:text-[11px] text-gray-400 leading-normal pt-1 border-t border-red-500/10">
+          Google Cloud takes 1–2 minutes to activate newly enabled APIs. Please enable it, wait a moment, and retry!
+        </p>
+      )}
+    </div>
+  );
+};
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
@@ -185,10 +235,10 @@ const Login: React.FC = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm"
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 text-red-400 text-sm"
               >
-                <AlertCircle size={18} className="shrink-0" />
-                <p>{error}</p>
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                {renderErrorMessage(error)}
               </motion.div>
             )}
             {success && (
@@ -252,10 +302,10 @@ const Login: React.FC = () => {
                   >
                     <InputField 
                       label="Verification Code"
-                      placeholder="401825"
+                      placeholder="40182596"
                       icon={Lock}
                       type="text"
-                      maxLength={6}
+                      maxLength={8}
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                       required

@@ -102,37 +102,59 @@ export const authService = {
       }
     }
 
-    // Determine the optimal verification type order.
-    // Since we send OTP via signInWithOtp, the GoTrue verification type is always 'email' (or 'magiclink').
-    // We try 'email' first to avoid invalidating the token with wrong type verification calls.
-    const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = ['email', 'magiclink', 'signup'];
+    // 1. Resolve exact Supabase OTP type from our secure server admin endpoint as a hint.
+    // However, because we dispatch the OTP using signInWithOtp (in sendOTP), the expected GoTrue
+    // verification type is almost always 'email' (for numeric OTP codes), regardless of whether
+    // the user is new or existing.
+    // To be exceptionally resilient, we will use a fallback sequence: trying 'email' first
+    // (since signUp with password was never called), and fallback to other types if needed.
+    let verifyTypeHint: 'signup' | 'email' | 'magiclink' = isNewUser ? 'signup' : 'email';
+    try {
+      const typeRes = await fetch(`/api/auth/otp-type?email=${encodeURIComponent(normalizedEmail)}`);
+      if (typeRes.ok && typeRes.headers.get('content-type')?.includes('application/json')) {
+        const typeData = await typeRes.json();
+        if (typeData && typeData.type) {
+          verifyTypeHint = typeData.type;
+        }
+      }
+    } catch (err) {
+      console.warn('[AuthService] Error checking OTP type with server, falling back to client heuristic:', err);
+    }
 
-    console.log(`[AuthService] Verifying OTP for ${normalizedEmail}. Optimal types order:`, verificationTypes);
+    // Since signInWithOtp is passwordless, 'email' is the proper GoTrue type.
+    // We try 'email' first, then the hint or manual fallbacks.
+    const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = verifyTypeHint === 'signup'
+      ? ['email', 'signup', 'magiclink']
+      : [verifyTypeHint, 'email', 'signup', 'magiclink'];
+
+    const uniqueTypes = Array.from(new Set(verificationTypes)) as Array<'signup' | 'email' | 'magiclink'>;
+
+    console.log(`[AuthService] Verifying OTP for ${normalizedEmail} with fallback sequence:`, uniqueTypes);
 
     let supabaseAuthSession = null;
     let lastError: any = null;
 
-    for (const verifyType of verificationTypes) {
+    for (const currentType of uniqueTypes) {
       try {
-        console.log(`[AuthService] Trying verifyOtp with type: ${verifyType}`);
+        console.log(`[AuthService] Calling verifyOtp with type: ${currentType}`);
         const { data: resData, error: resError } = await supabase.auth.verifyOtp({
           email: normalizedEmail,
           token: cleanOtp,
-          type: verifyType,
+          type: currentType,
         });
 
         if (!resError && resData?.user) {
-          console.log(`[AuthService] verifyOtp succeeded with type: ${verifyType}!`);
+          console.log(`[AuthService] verifyOtp succeeded with type: ${currentType}!`);
           supabaseAuthSession = resData;
           lastError = null;
           break; // Succeeded!
         } else {
-          lastError = resError || new Error(`No user returned for type ${verifyType}`);
-          console.log(`[AuthService] verifyOtp type ${verifyType} returned details:`, lastError.message || lastError);
+          lastError = resError || new Error(`No user returned for type ${currentType}`);
+          console.log(`[AuthService] verifyOtp failed for type ${currentType}:`, lastError.message || lastError);
         }
       } catch (err: any) {
         lastError = err;
-        console.log(`[AuthService] verifyOtp type ${verifyType} threw exception:`, err);
+        console.log(`[AuthService] verifyOtp threw exception for type ${currentType}:`, err);
       }
     }
 
@@ -140,34 +162,66 @@ export const authService = {
       throw new Error(lastError?.message || 'Verification token is invalid or has expired');
     }
 
-    console.log("Login success");
+    console.log("[AuthService] Supabase OTP verification succeeded securely.");
 
-    // Logging user to Firebase with a secure, deterministic client password
-    const securePassword = `frostybite_otp_${normalizedEmail.split('@')[0]}_9823#$!`;
-    let result;
+    const accessToken = supabaseAuthSession.session?.access_token;
+    if (!accessToken) {
+      throw new Error('Supabase login completed but no authenticated token was provided.');
+    }
+
+    // Call server to fetch the old Firebase user profile or establish a clean synced profile
     try {
-      result = await signInWithEmailAndPassword(auth, normalizedEmail, securePassword);
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found' || err.message?.includes('user-not-found') || err.code === 'auth/invalid-credential') {
-        console.log('[AuthService] User not existing/invalid, registering client-side under OTP login...');
-        try {
-          result = await createUserWithEmailAndPassword(auth, normalizedEmail, securePassword);
+      const response = await fetch('/api/auth/firebase-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supabaseAccessToken: accessToken,
+          email: normalizedEmail,
+        }),
+      });
+
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      if (response.ok && isJson) {
+        const { customToken } = await response.json();
+        if (customToken) {
+          // Authenticate clean and securely on client to Firebase using the server-generated Custom Token
+          const result = await signInWithCustomToken(auth, customToken);
+
           if (result && result.user) {
-            await updateProfile(result.user, { displayName: normalizedEmail.split('@')[0] });
+            localStorage.setItem(`verified_${result.user.uid}`, 'true');
+            await this.syncUserWithDatabase(result.user, undefined, true);
           }
-        } catch (signUpErr) {
-          throw signUpErr;
+          return result;
         }
       } else {
-        throw err;
+        let errorMsg = 'Server-side Firebase flow mapping failed.';
+        if (isJson && response) {
+          const errBody = await response.json().catch(() => ({}));
+          errorMsg = errBody.error || errorMsg;
+        } else if (response) {
+          const text = await response.text().catch(() => '');
+          console.error('[AuthService] Non-JSON error response received:', text);
+        }
+        console.warn(`[AuthService] Firebase token generation did not complete: ${errorMsg}. Continuing with Supabase OTP session...`);
       }
+    } catch (fbTokenError) {
+      console.warn('[AuthService] Firebase custom token exchange failed. Using secure direct Supabase master identity session: ', fbTokenError);
     }
 
-    if (result && result.user) {
-      await this.syncUserWithDatabase(result.user, undefined, true);
-    }
-    
-    return result;
+    // Fallback: If Firebase custom token flow is unavailable/unlicensed, complete authentication using public master DB Session
+    console.log('[AuthService] Completing authentication fallback using Supabase master/public database record.');
+    return {
+      user: {
+        uid: supabaseAuthSession.user?.id || 'sb-user',
+        email: normalizedEmail,
+        displayName: normalizedEmail.split('@')[0],
+        emailVerified: true,
+        getIdToken: async () => accessToken,
+        reload: async () => {},
+      }
+    };
   },
 
   // Google Login
@@ -230,16 +284,33 @@ export const authService = {
 
     // 3. Direct client-side Supabase backup sync (if backend was reachable but missed something)
     try {
+      const { data: { user: sbUser } } = await supabase.auth.getUser();
+      const sbUid = sbUser?.id || null;
+
+      const upsertPayload: any = {
+        email: user.email,
+        name: name || user.displayName || '',
+        full_name: name || user.displayName || '',
+        avatar_url: user.photoURL,
+        avatar: user.photoURL,
+        role: determinedRole,
+        last_login: new Date().toISOString(),
+        last_login_at: new Date().toISOString()
+      };
+
+      if (user.uid) upsertPayload.firebase_uid = user.uid;
+      if (sbUid) upsertPayload.supabase_uid = sbUid;
+
+      const methods = [];
+      if (user.uid) methods.push('firebase');
+      if (sbUid) methods.push('otp');
+      if (methods.length > 0) {
+        upsertPayload.auth_methods = methods;
+      }
+
       await supabase
         .from('users')
-        .upsert({
-          firebase_uid: user.uid,
-          email: user.email,
-          name: name || user.displayName || '',
-          avatar_url: user.photoURL,
-          role: determinedRole,
-          last_login: new Date().toISOString()
-        }, { onConflict: 'firebase_uid' });
+        .upsert(upsertPayload, { onConflict: 'email' });
     } catch (error) {
        console.error('[AuthService] Supabase client sync error:', error);
     }
