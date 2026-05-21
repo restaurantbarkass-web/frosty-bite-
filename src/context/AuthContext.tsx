@@ -54,10 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const firebaseInitializedRef = React.useRef(false);
-  const supabaseInitializedRef = React.useRef(false);
-  const lastFirebaseUserRef = React.useRef<any>(null);
-  const lastSupabaseUserRef = React.useRef<any>(null);
+  const lastFirebaseUserRef = React.useRef<any>(undefined);
+  const lastSupabaseUserRef = React.useRef<any>(undefined);
 
   const isVerified = useMemo(() => {
     if (!user) return false;
@@ -75,18 +73,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const fbUser = lastFirebaseUserRef.current !== null ? lastFirebaseUserRef.current : auth.currentUser;
+      const fbUser = lastFirebaseUserRef.current !== undefined && lastFirebaseUserRef.current !== null ? lastFirebaseUserRef.current : auth.currentUser;
       
       let sbUser = lastSupabaseUserRef.current;
-      if (sbUser === undefined || sbUser === null) {
+      if (sbUser === undefined) {
         try {
           const { data: sbData } = await supabase.auth.getUser();
           if (sbData?.user) {
             lastSupabaseUserRef.current = sbData.user;
             sbUser = sbData.user;
+          } else {
+            lastSupabaseUserRef.current = null;
+            sbUser = null;
           }
         } catch (e) {
           console.warn('[UnifiedAuth] Error fetching Supabase user directly:', e);
+          lastSupabaseUserRef.current = null;
+          sbUser = null;
         }
       }
 
@@ -94,10 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const possessesSession = (fbUser !== null && fbUser !== undefined) || (sbUser !== null && sbUser !== undefined);
 
       // Check initialization states to prevent premature evaluation of logged-out status
-      if (!possessesSession && (!firebaseInitializedRef.current || !supabaseInitializedRef.current)) {
+      if (!possessesSession && (lastFirebaseUserRef.current === undefined || lastSupabaseUserRef.current === undefined)) {
         console.log('[UnifiedAuth] Postponing sync: auth systems are not both initialized yet.', {
-          fbInit: firebaseInitializedRef.current,
-          sbInit: supabaseInitializedRef.current
+          fbInit: lastFirebaseUserRef.current !== undefined,
+          sbInit: lastSupabaseUserRef.current !== undefined
         });
         return;
       }
@@ -285,14 +288,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       }
-    } catch (err) {
-      console.error('[UnifiedAuth] Error in status resolver:', err);
     } finally {
       const hasFb = lastFirebaseUserRef.current !== null && lastFirebaseUserRef.current !== undefined;
       const hasSb = lastSupabaseUserRef.current !== null && lastSupabaseUserRef.current !== undefined;
       const hasSession = hasFb || hasSb || !!auth.currentUser;
+      const bothInitialized = lastFirebaseUserRef.current !== undefined && lastSupabaseUserRef.current !== undefined;
 
-      if (hasSession || (firebaseInitializedRef.current && supabaseInitializedRef.current)) {
+      if (hasSession || bothInitialized) {
         setLoading(false);
       }
     }
@@ -302,22 +304,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 8-second safety timeout
     const timeoutId = setTimeout(() => {
       console.log('[UnifiedAuth] Safety timeout reached, forcing loading false');
-      firebaseInitializedRef.current = true;
-      supabaseInitializedRef.current = true;
+      if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
+      if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
       resolveAndSyncUser();
     }, 8000);
 
     // Live listener for Firebase
     const unsubscribeFirebase = onAuthStateChanged(auth, (fbUser) => {
       console.log('[UnifiedAuth] Firebase state changed:', fbUser?.email || 'null');
-      firebaseInitializedRef.current = true;
       resolveAndSyncUser(fbUser, undefined);
     });
 
     // Live listener for Supabase login events
     const { data: { subscription: unsubscribeSupabase } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`[UnifiedAuth] Supabase auth event: ${event}`, session?.user?.email || 'null');
-      supabaseInitializedRef.current = true;
       resolveAndSyncUser(undefined, session?.user || null);
     });
 
