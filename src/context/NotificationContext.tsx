@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { 
   collection, 
   query, 
@@ -72,12 +72,12 @@ function handleFirestoreError(auth: any, error: unknown, operationType: Operatio
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map((provider: any) => ({
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo: auth?.currentUser?.providerData?.map((provider: any) => ({
         providerId: provider.providerId,
         email: provider.email,
       })) || []
@@ -90,7 +90,8 @@ function handleFirestoreError(auth: any, error: unknown, operationType: Operatio
 }
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, role, isAdmin, auth: authInstance } = useAuth() as any;
+  const { user, role, isAdmin } = useAuth() as any;
+  const authInstance = auth;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);

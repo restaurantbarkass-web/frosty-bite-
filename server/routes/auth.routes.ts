@@ -51,7 +51,7 @@ router.post('/sync', async (req, res) => {
     console.error('[AuthRoutes] Sync error:', error);
     const apiError = parseFirebaseError(error);
     if (apiError) {
-      return res.status(503).json(apiError);
+      return res.status(200).json({ success: false, ...apiError });
     }
     res.status(401).json({ error: 'Invalid token or sync failed' });
   }
@@ -120,9 +120,9 @@ router.post('/firebase-token', async (req, res) => {
     console.error('[AuthRoutes] Firebase token generation error:', err);
     const apiError = parseFirebaseError(err);
     if (apiError) {
-      return res.status(503).json(apiError);
+      return res.status(200).json({ success: false, ...apiError });
     }
-    res.status(500).json({ error: err.message || 'Firebase token generation and authentication sync failed' });
+    res.status(400).json({ success: false, error: err.message || 'Firebase token generation and authentication sync failed' });
   }
 });
 
