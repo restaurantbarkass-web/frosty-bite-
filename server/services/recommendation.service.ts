@@ -68,13 +68,23 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
     };
   } catch (error: any) {
-    console.warn(`[RecommendationService] Generation failed: ${error.message}`);
+    const errorStr = error instanceof Error 
+      ? error.message 
+      : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
+    console.warn(`[RecommendationService] Generation failed: ${errorStr}`);
+
+    // Robust resolution of fallback items
+    const hasItems = Array.isArray(items) && items.length > 0;
+    const firstItem = hasItems && items[0] ? items[0] : null;
+    const secondItem = Array.isArray(items) && items.length > 1 && items[1] ? items[1] : null;
+    const thirdItem = Array.isArray(items) && items.length > 2 && items[2] ? items[2] : null;
+
     // Return a safe fallback recommendation instead of crashing
     return {
-      bestMatchId: items && items.length > 0 ? items[0].id : null,
+      bestMatchId: firstItem ? firstItem.id : null,
       reason: "Our most coveted selection of the season.",
       intent: "Fine Dining",
-      alternatives: items && items.length > 2 ? [items[1].id, items[2].id] : [],
+      alternatives: secondItem && thirdItem ? [secondItem.id, thirdItem.id] : [],
       isEmotionalMatch: true,
       occasionDetected: "Special Moment",
       moodDetected: "Refined",
@@ -108,8 +118,11 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
     if (!output) return [];
     const data = JSON.parse(output);
     return data.suggestions || [];
-  } catch (err) {
-    console.warn("[RecommendationService] Suggestions failed:", err);
+  } catch (err: any) {
+    const errorStr = err instanceof Error 
+      ? err.message 
+      : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
+    console.warn(`[RecommendationService] Suggestions failed: ${errorStr}`);
     return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
   }
 }

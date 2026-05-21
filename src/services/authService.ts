@@ -248,7 +248,7 @@ export const authService = {
 
     // 1. Backend Sync (Supabase + Welcome Email) - Production approach
     try {
-      const idToken = await user.getIdToken();
+      const idToken = typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
       const response = await fetch('/api/auth/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

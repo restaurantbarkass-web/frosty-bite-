@@ -19,11 +19,12 @@ function Loader() {
 /* ---------------- GLOBAL ERROR HANDLING ---------------- */
 
 window.addEventListener('error', (event) => {
-  console.error('Global Error:', event.error);
+  console.error('Global Error:', event.error?.stack || event.error?.message || event.error || event);
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled Promise:', event.reason);
+  const reason = event.reason;
+  console.error('Unhandled Promise:', reason?.stack || reason?.message || reason || event);
 });
 
 /* ---------------- PREVENT REFRESH LOOPS ---------------- */

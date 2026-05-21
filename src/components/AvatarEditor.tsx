@@ -139,7 +139,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
         throw new Error("Cloudinary response missing image URL");
       }
 
-      const token = authUser ? await authUser.getIdToken() : null;
+      const token = authUser && typeof authUser.getIdToken === 'function' ? await authUser.getIdToken() : null;
 
       const aiRes = await fetch("/api/avatar/generate", {
         method: "POST",

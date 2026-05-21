@@ -182,16 +182,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       };
       
       // Seed the initial lastOrderIdRef from Supabase
-      supabase
-        .from('orders')
-        .select('id')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .then(({ data }) => {
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('id')
+            .order('created_at', { ascending: false })
+            .limit(1);
           if (data && data.length > 0) {
             lastOrderIdRef.current = data[0].id;
           }
-        });
+        } catch (err) {
+          console.error("Failed to seed initial last order ID from Supabase:", err);
+        }
+      })();
     }
 
     return () => {

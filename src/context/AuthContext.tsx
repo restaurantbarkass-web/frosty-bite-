@@ -33,6 +33,7 @@ export interface UnifiedUser {
   vibe?: string | null;
   title?: string;
   emailVerified?: boolean;
+  getIdToken?: () => Promise<string | null>;
 }
 
 interface AuthContextType {
@@ -174,7 +175,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           points: dbUser.points || 0,
           vibe: dbUser.vibe || null,
           title: dbUser.title || null,
-          emailVerified: fbUser?.emailVerified || true
+          emailVerified: fbUser?.emailVerified || true,
+          getIdToken: async () => {
+            if (fbUser) {
+              try {
+                return await fbUser.getIdToken();
+              } catch (e) {
+                console.warn('[UnifiedAuth] getIdToken from Firebase failed:', e);
+              }
+            }
+            try {
+              const { data } = await supabase.auth.getSession();
+              return data.session?.access_token || null;
+            } catch (sbErr) {
+              console.warn('[UnifiedAuth] getIdToken from Supabase failed:', sbErr);
+              return null;
+            }
+          }
         };
 
         setUser(unifiedUser);

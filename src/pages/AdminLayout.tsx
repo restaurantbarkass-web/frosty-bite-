@@ -43,7 +43,7 @@ export const AdminLayout: React.FC = () => {
           icon: '📢'
         });
       }
-    });
+    }).catch(err => console.error("FCM message listener error:", err));
   }, []);
 
   const renderContent = () => {
