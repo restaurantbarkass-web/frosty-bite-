@@ -54,23 +54,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const firebaseInitializedRef = React.useRef(false);
+  const supabaseInitializedRef = React.useRef(false);
+
   const isVerified = useMemo(() => {
     if (!user) return false;
     return !!user.emailVerified || localStorage.getItem(`verified_${user.firebase_uid || user.uid}`) === 'true';
   }, [user]);
 
   // Handle resolving user identity from database by email
-  const resolveAndSyncUser = async () => {
+  const resolveAndSyncUser = async (fbUserParam?: any, sbUserParam?: any) => {
     try {
-      const fbUser = auth.currentUser;
-      const { data: sbData } = await supabase.auth.getUser();
-      const sbUser = sbData?.user || null;
+      const fbUser = fbUserParam !== undefined ? fbUserParam : auth.currentUser;
+      
+      let sbUser = sbUserParam;
+      if (sbUser === undefined) {
+        const { data: sbData } = await supabase.auth.getUser();
+        sbUser = sbData?.user || null;
+      }
 
       const email = fbUser?.email || sbUser?.email;
       if (!email) {
         setUser(null);
         setRole('customer');
-        setLoading(false);
         return;
       }
 
@@ -221,26 +227,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('[UnifiedAuth] Error in status resolver:', err);
     } finally {
-      setLoading(false);
+      if (firebaseInitializedRef.current && supabaseInitializedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     // 8-second safety timeout
     const timeoutId = setTimeout(() => {
+      console.log('[UnifiedAuth] Safety timeout reached, forcing loading false');
+      firebaseInitializedRef.current = true;
+      supabaseInitializedRef.current = true;
       setLoading(false);
     }, 8000);
 
     // Live listener for Firebase
-    const unsubscribeFirebase = onAuthStateChanged(auth, () => {
-      console.log('[UnifiedAuth] Firebase state changed');
-      resolveAndSyncUser();
+    const unsubscribeFirebase = onAuthStateChanged(auth, (fbUser) => {
+      console.log('[UnifiedAuth] Firebase state changed:', fbUser?.email || 'null');
+      firebaseInitializedRef.current = true;
+      resolveAndSyncUser(fbUser, undefined);
     });
 
     // Live listener for Supabase login events
     const { data: { subscription: unsubscribeSupabase } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`[UnifiedAuth] Supabase auth event: ${event}`);
-      resolveAndSyncUser();
+      console.log(`[UnifiedAuth] Supabase auth event: ${event}`, session?.user?.email || 'null');
+      supabaseInitializedRef.current = true;
+      resolveAndSyncUser(undefined, session?.user || null);
     });
 
     return () => {
