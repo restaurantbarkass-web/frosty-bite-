@@ -204,6 +204,7 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 
 export const Profile: React.FC = () => {
   const { user: authUser } = useAuth();
+  const firebaseUid = authUser?.firebase_uid || authUser?.uid;
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -326,7 +327,7 @@ export const Profile: React.FC = () => {
         setBadgeConfigs(configs);
 
         // User data
-        const userDataObj = await safeFirestore.get<any>(doc(db, 'users', authUser.uid));
+        const userDataObj = await safeFirestore.get<any>(doc(db, 'users', firebaseUid));
         
         if (userDataObj) {
           setUserData(userDataObj);
@@ -341,7 +342,7 @@ export const Profile: React.FC = () => {
         // Recent orders
         const qOrders = query(
           collection(db, 'orders'),
-          where('user_id', '==', authUser.uid),
+          where('user_id', '==', firebaseUid),
           orderBy('created_at', 'desc'),
           limit(5)
         );
@@ -377,7 +378,7 @@ export const Profile: React.FC = () => {
     fetchData();
 
     // Real-time subscriptions
-    const unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', authUser.uid), (data) => {
+    const unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', firebaseUid), (data) => {
       if (data) {
         // Check for tier upgrade
         if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
@@ -398,7 +399,7 @@ export const Profile: React.FC = () => {
 
     const qOrdersRealtime = query(
       collection(db, 'orders'),
-      where('user_id', '==', authUser.uid),
+      where('user_id', '==', firebaseUid),
       orderBy('created_at', 'desc'),
       limit(5)
     );
@@ -449,7 +450,7 @@ export const Profile: React.FC = () => {
   const handleAddFunds = async () => {
     if (!authUser) return;
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
+      const userDocRef = doc(db, 'users', firebaseUid);
       const currentBalance = userData?.wallet_balance || 0;
       await updateDoc(userDocRef, {
         wallet_balance: currentBalance + 500,
@@ -459,7 +460,7 @@ export const Profile: React.FC = () => {
     } catch (error: any) {
       console.error('Error adding funds:', error);
       if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
       }
       toast.error('Failed to add funds');
     }
@@ -549,7 +550,7 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
 
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
+      const userDocRef = doc(db, 'users', firebaseUid);
       await updateDoc(userDocRef, {
         full_name: formData.name,
         phone: formData.phone,
@@ -561,7 +562,7 @@ export const Profile: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating profile:', error);
       if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
       }
     }
   };
@@ -569,7 +570,7 @@ export const Profile: React.FC = () => {
   const handleUpdateSettings = async (newSettings: any) => {
     if (!authUser) return;
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
+      const userDocRef = doc(db, 'users', firebaseUid);
       await updateDoc(userDocRef, { 
         settings: newSettings,
         updated_at: serverTimestamp()
@@ -579,7 +580,7 @@ export const Profile: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating settings:', error);
       if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser.uid}`);
+        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
       }
     }
   };
@@ -605,7 +606,7 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
     const loadingToast = toast.loading('Claiming reward...');
     try {
-      const success = await rewardsService.claimGift(authUser.uid, giftId);
+      const success = await rewardsService.claimGift(firebaseUid, giftId);
       if (success) {
         toast.success('Reward claimed! Check your email for details.', { id: loadingToast });
       }
@@ -617,7 +618,7 @@ export const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
-      const userDocRef = doc(db, 'users', authUser?.uid!);
+      const userDocRef = doc(db, 'users', firebaseUid);
       await updateDoc(userDocRef, { 
         deleted: true,
         deleted_at: new Date().toISOString(),
@@ -631,7 +632,7 @@ export const Profile: React.FC = () => {
     } catch (error: any) {
       console.error("Account deletion failed:", error);
       if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${authUser?.uid}`);
+        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
       }
       toast.error("Failed to delete account");
     } finally {
@@ -689,7 +690,7 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
     const loadingToast = toast.loading('Applying your new identity...');
     try {
-      const userDocRef = doc(db, 'users', authUser.uid);
+      const userDocRef = doc(db, 'users', firebaseUid);
       
       let finalAvatarUrl = avatarConfig.avatar_url;
 

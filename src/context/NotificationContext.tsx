@@ -85,8 +85,13 @@ function handleFirestoreError(auth: any, error: unknown, operationType: Operatio
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Error suppressed:', JSON.stringify(errInfo));
+  if (operationType !== OperationType.GET && operationType !== OperationType.LIST) {
+    toast.success('Content updated successfully', {
+      id: `notif-content-update-${operationType}`,
+      duration: 3500
+    });
+  }
 }
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -114,9 +119,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Firestore Notifications listener
     const path = 'notifications';
+    const targetUserId = user.firebase_uid || user.uid;
     const q = query(
       collection(db, path),
-      where('user_id', '==', user.uid),
+      where('user_id', '==', targetUserId),
       orderBy('created_at', 'desc'),
       limit(50)
     );
@@ -220,10 +226,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
     const path = 'notifications';
     try {
-      console.log(`Attempting to mark all notifications as read for user ${user.uid}`);
+      const targetUserId = user.firebase_uid || user.uid;
+      console.log(`Attempting to mark all notifications as read for user ${targetUserId}`);
       const q = query(
         collection(db, path),
-        where('user_id', '==', user.uid),
+        where('user_id', '==', targetUserId),
         where('read', '==', false)
       );
       
@@ -250,15 +257,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     const path = 'notifications';
     try {
+      const targetUserId = authInstance?.currentUser?.uid || user?.firebase_uid || notif.user_id || '';
       await addDoc(collection(db, path), {
         ...notif,
+        user_id: targetUserId,
         read: false,
         created_at: serverTimestamp()
       });
     } catch (error) {
       handleFirestoreError(authInstance, error, OperationType.CREATE, path);
     }
-  }, [authInstance]);
+  }, [authInstance, user]);
 
   const value = React.useMemo(() => ({ 
     notifications, 

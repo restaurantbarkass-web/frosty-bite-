@@ -15,7 +15,8 @@ import {
   ArrowRight,
   QrCode,
   Loader2,
-  Camera
+  Camera,
+  Trash2
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { FoodItem } from '../../types';
@@ -48,6 +49,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
     trending, 
     recent, 
     performSearch,
+    removeRecent,
+    clearRecent,
     clear,
     smartRec,
     isProcessingRec
@@ -56,6 +59,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   const { addToCart, setIsCartOpen } = useCart();
   const navigate = useNavigate();
   const bestMatch = allItems.find(i => String(i.id) === String(smartRec?.bestMatchId));
+
+  // Compute actual trending items from the menu
+  const trendingItems = React.useMemo(() => {
+    return allItems
+      .filter(item => item.available !== false && (item.is_recommended || item.is_ai_boosted || item.rating >= 4.7))
+      .slice(0, 4);
+  }, [allItems]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -336,71 +346,172 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
             <div className="max-w-6xl mx-auto px-4 md:px-8 py-8">
               
               {!query && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                  {/* Recent Searches */}
-                  {recent.length > 0 && (
+                <div className="space-y-12 animate-fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    {/* Upgraded Recent Searches / Search History */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <History size={16} className="text-primary/70" />
+                          <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">Search History</h3>
+                        </div>
+                        {recent.length > 0 && (
+                          <button
+                            onClick={clearRecent}
+                            className="text-[9px] font-black uppercase tracking-wider text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
+                          >
+                            <Trash2 size={11} /> Clear All
+                          </button>
+                        )}
+                      </div>
+
+                      {recent.length > 0 ? (
+                        <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto no-scrollbar">
+                          {recent.map((s, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between group p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
+                            >
+                              <button
+                                onClick={() => {
+                                  setQuery(s);
+                                  performSearch(s);
+                                }}
+                                className="flex-1 flex items-center gap-2 text-left text-sm text-gray-300 hover:text-white transition-colors min-w-0"
+                              >
+                                <Clock size={13} className="text-gray-600 group-hover:text-primary transition-colors flex-shrink-0" />
+                                <span className="truncate">{s}</span>
+                              </button>
+                              <button
+                                onClick={() => removeRecent(s)}
+                                className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-red-500/10"
+                                title="Remove search"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-8 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl text-center space-y-2">
+                          <History size={24} className="text-gray-700" />
+                          <p className="text-xs text-gray-500">Your recent searches will appear here.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Trending Searches */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-gray-400">
-                        <History size={16} />
-                        <h3 className="text-[10px] font-black uppercase tracking-widest">Recent Searches</h3>
+                        <TrendingUp size={16} className="text-accent" />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">Trending Now</h3>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        {recent.map((s, i) => (
-                          <button
+                      <div className="flex flex-wrap gap-2">
+                        {trending.map((s, i) => (
+                          <motion.button
                             key={i}
-                            onClick={() => setQuery(s)}
-                            className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 text-gray-300 hover:text-white transition-all group"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              setQuery(s);
+                              performSearch(s);
+                            }}
+                            className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-gray-400 hover:text-primary hover:border-primary/30 transition-all"
                           >
-                            <span className="text-sm">{s}</span>
-                            <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                          </button>
+                            {s}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* AI Recommendations */}
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary">
+                        <Sparkles size={16} className="animate-pulse" />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">AI Recommendations</h3>
+                      </div>
+                      <div className="p-6 bg-primary/10 border border-primary/20 rounded-3xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                          <Sparkles size={80} />
+                        </div>
+                        <p className="text-sm text-gray-300 italic mb-4 leading-relaxed">
+                          "I'm looking for a premium tiered chocolate cake for a 25th anniversary celebration..."
+                        </p>
+                        <button 
+                          onClick={handleVoiceSearch}
+                          className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-4 transition-all"
+                        >
+                          Try AI Butler <Mic size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* New Beautiful Trending Items Section */}
+                  {trendingItems.length > 0 && (
+                    <div className="space-y-6 pt-6 border-t border-white/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp size={16} className="text-primary" />
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-white font-mono">Trending Delicacies</h3>
+                        </div>
+                        <span className="text-[9px] font-mono text-gray-500 uppercase">Freshly Baked & Highly Rated</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {trendingItems.map((item) => (
+                          <div 
+                            key={item.id}
+                            onClick={() => {
+                              navigate(`/product/${item.id}`);
+                              onClose();
+                            }}
+                            className="group relative bg-zinc-950/80 border border-white/5 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300 flex flex-col cursor-pointer shadow-lg hover:shadow-primary/5"
+                          >
+                            <div className="relative aspect-video w-full overflow-hidden bg-zinc-900 flex-shrink-0">
+                              <img 
+                                src={item.image} 
+                                alt={item.name} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3 pt-6" />
+                              <div className="absolute top-2 right-2 flex gap-1">
+                                {item.is_ai_boosted && (
+                                  <span className="px-2 py-0.5 bg-primary/20 backdrop-blur-md rounded-full text-[8px] font-black text-primary uppercase tracking-wider">
+                                    AI Pick
+                                  </span>
+                                )}
+                                <span className="px-2 py-0.5 bg-zinc-900/60 backdrop-blur-md rounded-full text-[8px] font-black text-amber-500 uppercase tracking-wider">
+                                  ★ {item.rating.toFixed(1)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="p-4 flex-1 flex flex-col justify-between">
+                              <div>
+                                <h4 className="font-bold text-white text-sm group-hover:text-primary transition-colors line-clamp-1">{item.name}</h4>
+                                <p className="text-xs text-gray-500 line-clamp-2 mt-1 min-h-[2rem] leading-relaxed">{item.description}</p>
+                              </div>
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                                <span className="text-sm font-black text-primary">₹{item.price}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addToCart(item);
+                                    onClose();
+                                    setIsCartOpen(true);
+                                  }}
+                                  className="px-3 py-1.5 bg-white/5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white group-hover:bg-primary group-hover:text-white transition-all hover:scale-105"
+                                >
+                                  Quick Add
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Trending Searches */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <TrendingUp size={16} />
-                      <h3 className="text-[10px] font-black uppercase tracking-widest">Trending Now</h3>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {trending.map((s, i) => (
-                        <motion.button
-                          key={i}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setQuery(s)}
-                          className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-gray-400 hover:text-primary hover:border-primary/30 transition-all"
-                        >
-                          {s}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* AI Recommendations */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-primary">
-                      <Sparkles size={16} className="animate-pulse" />
-                      <h3 className="text-[10px] font-black uppercase tracking-widest">AI Recommendations</h3>
-                    </div>
-                    <div className="p-6 bg-primary/10 border border-primary/20 rounded-3xl relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Sparkles size={80} />
-                      </div>
-                      <p className="text-sm text-gray-300 italic mb-4 leading-relaxed">
-                        "I'm looking for a premium tiered chocolate cake for a 25th anniversary celebration..."
-                      </p>
-                      <button 
-                        onClick={handleVoiceSearch}
-                        className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:gap-4 transition-all"
-                      >
-                        Try AI Butler <Mic size={14} />
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
 

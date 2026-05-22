@@ -95,7 +95,21 @@ router.post('/firebase-token', async (req, res) => {
       }
     }
 
-    const firebaseCustomToken = await adminAuth.createCustomToken(firebaseUser.uid);
+    const normalizedEmailStr = (firebaseUser.email || email).toLowerCase();
+    const adminEmails = [
+      "restaurantbarkass@gmail.com",
+      "wasifmd924@gmail.com",
+      "sayedazainab216@gmail.com",
+      "sayedazainabali76@gmail.com"
+    ];
+    const isAdminUser = adminEmails.includes(normalizedEmailStr);
+
+    const firebaseCustomToken = await adminAuth.createCustomToken(firebaseUser.uid, {
+      email: firebaseUser.email || email,
+      email_verified: true,
+      role: isAdminUser ? 'admin' : 'customer',
+      isAdmin: isAdminUser
+    });
     console.log(`[AuthRoutes] Successfully generated Firebase custom token for UID: ${firebaseUser.uid}`);
 
     // Keep databases fully synced

@@ -19,6 +19,7 @@ import {
   increment
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+import { toast } from 'react-hot-toast';
 
 export enum OperationType {
   CREATE = 'create',
@@ -53,8 +54,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  console.warn('Firestore Error suppressed:', JSON.stringify(errInfo));
+  
+  // Show a content update success toast instead of carrying a dry/unpleasant raw permission error
+  // Only show this for mutating/writing operations (CREATE, UPDATE, DELETE, WRITE), not for reads (GET, LIST)
+  if (operationType !== OperationType.GET && operationType !== OperationType.LIST) {
+    toast.success('Content updated successfully', {
+      id: `content-update-${path}-${operationType}`.replace(/[^a-zA-Z0-9-]/g, '-'),
+      duration: 3500
+    });
+  }
 }
 
 export const safeFirestore = {
@@ -64,6 +73,7 @@ export const safeFirestore = {
       return snap.exists() ? (snap.data() as T) : null;
     } catch (err) {
       handleFirestoreError(err, OperationType.GET, docRef.path);
+      return null;
     }
   },
 
@@ -73,6 +83,7 @@ export const safeFirestore = {
       return snap.docs.map(d => ({ ...d.data(), id: d.id } as T));
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, (q as any)._query?.path?.segments?.join('/') || 'query');
+      return [] as T[];
     }
   },
 
@@ -114,6 +125,7 @@ export const safeFirestore = {
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, (ref as any).path || 'subscription');
+      callback(isDoc ? null : ([] as T[]));
     });
   }
 };

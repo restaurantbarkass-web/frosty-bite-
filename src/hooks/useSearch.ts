@@ -91,11 +91,24 @@ export const useSearch = (allItems: FoodItem[]) => {
 
     // Update local recent searches
     setRecent(prev => {
-      const updated = [trimmed, ...prev.filter(s => s !== trimmed)].slice(0, 5);
+      const updated = [trimmed, ...prev.filter(s => s !== trimmed)].slice(0, 8);
       localStorage.setItem('frosty_recent_searches', JSON.stringify(updated));
       return updated;
     });
   }, [user]);
+
+  const removeRecent = useCallback((term: string) => {
+    setRecent(prev => {
+      const updated = prev.filter(s => s !== term);
+      localStorage.setItem('frosty_recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const clearRecent = useCallback(() => {
+    setRecent([]);
+    localStorage.removeItem('frosty_recent_searches');
+  }, []);
 
   const clear = useCallback(() => {
     setQuery('');
@@ -117,6 +130,8 @@ export const useSearch = (allItems: FoodItem[]) => {
     smartRec,
     isProcessingRec,
     performSearch,
+    removeRecent,
+    clearRecent,
     clear
   };
 };
