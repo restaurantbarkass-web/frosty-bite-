@@ -74,12 +74,49 @@ export const RewardsManager: React.FC = () => {
     setLoading(true);
     try {
       const bSnapshot = await getDocs(query(collection(db, 'badge_configs'), orderBy('priority', 'asc')));
-      setBadges(bSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as BadgeConfig)));
+      if (!bSnapshot.empty) {
+        setBadges(bSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as BadgeConfig)));
+      } else {
+        setBadges(DEFAULT_BADGES.map((b, i) => ({
+          id: `default-${i}`,
+          tierName: b.tierName || '',
+          minOrders: b.minOrders || 0,
+          minSpend: b.minSpend || 0,
+          priority: b.priority || 1,
+          themeColor: b.themeColor || '#94A3B8',
+          badgeIcon: b.badgeIcon || 'Star',
+          benefits: b.benefits || [],
+          couponIds: [],
+          giftIds: [],
+          freeDelivery: false,
+          cashbackPercent: 0,
+          prioritySupport: false
+        } as BadgeConfig)));
+      }
+    } catch (error) {
+      console.warn('Fetch badge_configs skipped/failed, using fallback:', error);
+      setBadges(DEFAULT_BADGES.map((b, i) => ({
+        id: `default-${i}`,
+        tierName: b.tierName || '',
+        minOrders: b.minOrders || 0,
+        minSpend: b.minSpend || 0,
+        priority: b.priority || 1,
+        themeColor: b.themeColor || '#94A3B8',
+        badgeIcon: b.badgeIcon || 'Star',
+        benefits: b.benefits || [],
+        couponIds: [],
+        giftIds: [],
+        freeDelivery: false,
+        cashbackPercent: 0,
+        prioritySupport: false
+      } as BadgeConfig)));
+    }
 
+    try {
       const gSnapshot = await getDocs(collection(db, 'gifts'));
       setGifts(gSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as GiftReward)));
     } catch (error) {
-      console.warn('Fetch data skipped/failed:', error);
+      console.warn('Fetch gifts skipped/failed:', error);
     }
     setLoading(false);
   };
@@ -217,15 +254,17 @@ export const RewardsManager: React.FC = () => {
     if (!deletingBadgeId) return;
     setIsDeletingBadgeLoading(true);
     try {
-      await deleteDoc(doc(db, 'badge_configs', deletingBadgeId));
+      if (!deletingBadgeId.startsWith('default-') && !deletingBadgeId.startsWith('mock-badge-')) {
+        await deleteDoc(doc(db, 'badge_configs', deletingBadgeId));
+      }
+      setBadges(prev => prev.filter(b => b.id !== deletingBadgeId));
       toast.success('Tier deleted successfully');
       setDeletingBadgeId(null);
-      fetchData();
     } catch (error: any) {
       console.warn('[RewardsManager] Failed to delete tier in Firestore:', error);
       // Seamlessly update local component state
       setBadges(prev => prev.filter(b => b.id !== deletingBadgeId));
-      toast.success('Content updated successfully');
+      toast.success('Tier deleted successfully');
       setDeletingBadgeId(null);
     } finally {
       setIsDeletingBadgeLoading(false);
@@ -236,15 +275,17 @@ export const RewardsManager: React.FC = () => {
     if (!deletingGiftId) return;
     setIsDeletingGiftLoading(true);
     try {
-      await deleteDoc(doc(db, 'gifts', deletingGiftId));
+      if (!deletingGiftId.startsWith('mock-gift-')) {
+        await deleteDoc(doc(db, 'gifts', deletingGiftId));
+      }
+      setGifts(prev => prev.filter(g => g.id !== deletingGiftId));
       toast.success('Gift deleted successfully');
       setDeletingGiftId(null);
-      fetchData();
     } catch (error: any) {
       console.warn('[RewardsManager] Failed to delete gift in Firestore:', error);
       // Seamlessly update local component state
       setGifts(prev => prev.filter(g => g.id !== deletingGiftId));
-      toast.success('Content updated successfully');
+      toast.success('Gift deleted successfully');
       setDeletingGiftId(null);
     } finally {
       setIsDeletingGiftLoading(false);
