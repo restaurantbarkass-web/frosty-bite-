@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { logout } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, smoothScroll } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
@@ -12,7 +11,7 @@ import { LottieOfferButton } from './LottieOfferButton';
 
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
-  const { user, role, isAdmin } = useAuth();
+  const { user, role, isAdmin, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

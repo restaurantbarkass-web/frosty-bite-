@@ -4,8 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { ShieldAlert } from 'lucide-react';
 
-import { logout } from '../firebase';
-
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: ('customer' | 'admin')[];
@@ -19,7 +17,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   autoLogout = false,
   requireVerification = false
 }) => {
-  const { user, loading, isAdmin, isCustomer, isVerified } = useAuth();
+  const { user, loading, isAdmin, isCustomer, isVerified, logout } = useAuth();
   const location = useLocation();
 
   const navigate = useNavigate();

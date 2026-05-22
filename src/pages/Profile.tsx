@@ -14,7 +14,6 @@ import { toPng } from 'html-to-image';
 import { StoryCard } from '../components/StoryCard';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { logout } from '../firebase';
 import { db } from '../firebase';
 import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';

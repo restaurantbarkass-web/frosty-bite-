@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, Search, User, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
-import { logout } from '../../firebase';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationDropdown } from '../NotificationDropdown';
@@ -12,6 +12,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { unreadCount } = useNotifications();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
@@ -337,7 +337,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isCustomer: role === 'customer',
     logout: async () => {
       try {
-        await auth.signOut();
+        await signOut(auth);
       } catch (_) {}
       try {
         await supabase.auth.signOut();
