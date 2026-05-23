@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
 import { db, auth } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { 
   collection, 
   query, 
@@ -100,9 +101,17 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
+  const [fbUser, setFbUser] = useState<any>(auth.currentUser);
 
   useEffect(() => {
-    if (!user) {
+    const unsub = onAuthStateChanged(authInstance, (u) => {
+      setFbUser(u);
+    });
+    return unsub;
+  }, [authInstance]);
+
+  useEffect(() => {
+    if (!user || !fbUser) {
       setNotifications([]);
       return;
     }
@@ -208,7 +217,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       unsubscribe();
       if (unsubAdminOrders) unsubAdminOrders();
     };
-  }, [user, role, isAdmin]);
+  }, [user, role, isAdmin, fbUser]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

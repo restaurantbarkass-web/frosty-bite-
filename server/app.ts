@@ -28,6 +28,7 @@ import cors from "cors";
 import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
+import configRoutes from "./routes/config.routes";
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.get("/ping", (req, res) => {
 app.use("/butler", butlerRoutes);
 app.use("/avatar", avatarRoutes);
 app.use("/auth", authRoutes);
+app.use("/config", configRoutes);
 
 // Detailed API 404 handler
 app.use((req, res) => {

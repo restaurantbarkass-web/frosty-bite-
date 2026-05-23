@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Search, Sparkles, ChevronRight, AlertTriangle, X } from 'lucide-react';
+import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { BannerCarousel } from '../components/BannerCarousel';
@@ -47,6 +47,8 @@ export const Home: React.FC = () => {
   const location = useLocation();
   const { items: displayItems, categories: menuCategories, loading: isMenuLoading } = useMenu();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [dietaryFilter, setDietaryFilter] = useState<'All' | 'Vegetarian' | 'Spicy'>('All');
+  const [sortBy, setSortBy] = useState<string>('popularity');
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   
   const [banners, setBanners] = useState<any[]>([]);
@@ -220,15 +222,80 @@ export const Home: React.FC = () => {
     setSuggestions(combined);
   }, [searchQuery, displayItems, menuCategories]);
 
+  const isVegetarianItem = (item: FoodItem) => {
+    const nameLower = (item.name || '').toLowerCase();
+    const descLower = (item.description || '').toLowerCase();
+    const tagsLower = (item.tags || []).map(t => t.toLowerCase());
+
+    if (tagsLower.includes('vegetarian') || tagsLower.includes('veg') || tagsLower.includes('vegan') || tagsLower.includes('eggless')) {
+      return true;
+    }
+    if (tagsLower.includes('non-veg') || tagsLower.includes('chicken') || tagsLower.includes('meat') || tagsLower.includes('egg') || tagsLower.includes('fish') || tagsLower.includes('beef')) {
+      return false;
+    }
+    const nonVegKeywords = ['chicken', 'meat', 'beef', 'pork', 'bacon', 'pepperoni', 'fish', 'non-veg', 'nonveg'];
+    const hasNonVegKeyword = nonVegKeywords.some(keyword => nameLower.includes(keyword) || descLower.includes(keyword));
+    return !hasNonVegKeyword;
+  };
+
+  const isSpicyItem = (item: FoodItem) => {
+    const nameLower = (item.name || '').toLowerCase();
+    const descLower = (item.description || '').toLowerCase();
+    const tagsLower = (item.tags || []).map(t => t.toLowerCase());
+
+    return (
+      tagsLower.includes('spicy') ||
+      tagsLower.includes('hot') ||
+      tagsLower.includes('chili') ||
+      tagsLower.includes('chilli') ||
+      tagsLower.includes('jalapeno') ||
+      nameLower.includes('spicy') ||
+      nameLower.includes('chili') ||
+      nameLower.includes('chilli') ||
+      nameLower.includes('jalapeno') ||
+      nameLower.includes('pepper') ||
+      descLower.includes('spicy') ||
+      descLower.includes('chili') ||
+      descLower.includes('chilli') ||
+      descLower.includes('pepper')
+    );
+  };
+
   const filteredItems = React.useMemo(() => {
-    return displayItems.filter(item => {
+    let result = displayItems.filter(item => {
       const matchesCategory = selectedCategory === 'All' || (item.category && item.category === selectedCategory);
       const nameMatch = (item.name || '').toLowerCase();
       const searchMatch = (searchQuery || '').toLowerCase();
       const matchesSearch = nameMatch.includes(searchMatch);
-      return matchesCategory && matchesSearch;
+
+      let matchesDiet = true;
+      if (dietaryFilter === 'Vegetarian') {
+        matchesDiet = isVegetarianItem(item);
+      } else if (dietaryFilter === 'Spicy') {
+        matchesDiet = isSpicyItem(item);
+      }
+
+      return matchesCategory && matchesSearch && matchesDiet;
     });
-  }, [displayItems, selectedCategory, searchQuery]);
+
+    return [...result].sort((a, b) => {
+      if (sortBy === 'price-asc') {
+        return a.price - b.price;
+      } else if (sortBy === 'price-desc') {
+        return b.price - a.price;
+      } else if (sortBy === 'rating') {
+        return b.rating - a.rating;
+      } else if (sortBy === 'popularity') {
+        const aRec = a.is_recommended ? 1 : 0;
+        const bRec = b.is_recommended ? 1 : 0;
+        if (aRec !== bRec) {
+          return bRec - aRec;
+        }
+        return b.rating - a.rating;
+      }
+      return 0;
+    });
+  }, [displayItems, selectedCategory, searchQuery, dietaryFilter, sortBy]);
 
   const { setAppliedCoupon, setIsCartOpen } = useCart();
 
@@ -465,7 +532,85 @@ export const Home: React.FC = () => {
         </motion.section>
 
         {/* Food Grid */}
-        <div id="menu-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div id="menu-section" className="mb-8 pt-8 border-t border-white/5 scroll-mt-24">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">
+                {selectedCategory === 'All' ? 'Our Baked Collection' : `${selectedCategory}`}
+              </h2>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em]">
+                Showing {filteredItems.length} fresh {filteredItems.length === 1 ? 'treat' : 'treats'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Dietary Filters */}
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-1.5 flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={() => setDietaryFilter('All')}
+                  className={cn(
+                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all",
+                    dietaryFilter === 'All'
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
+                      : "text-zinc-400 hover:text-white"
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDietaryFilter('Vegetarian')}
+                  className={cn(
+                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all",
+                    dietaryFilter === 'Vegetarian'
+                      ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                      : "text-zinc-400 hover:text-green-400"
+                  )}
+                >
+                  <Leaf size={12} className={dietaryFilter === 'Vegetarian' ? 'animate-pulse' : ''} />
+                  Vegetarian
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDietaryFilter('Spicy')}
+                  className={cn(
+                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all",
+                    dietaryFilter === 'Spicy'
+                      ? "bg-red-600 text-white shadow-md shadow-red-600/20"
+                      : "text-zinc-400 hover:text-red-500"
+                  )}
+                >
+                  <Flame size={12} className={dietaryFilter === 'Spicy' ? 'animate-bounce' : ''} />
+                  Spicy
+                </button>
+              </div>
+
+              {/* Sort Dropdown */}
+              <div className="relative flex items-center">
+                <div className="absolute left-4.5 text-zinc-500 pointer-events-none">
+                  <SlidersHorizontal size={14} />
+                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="pl-11 pr-10 py-3 text-xs font-black uppercase tracking-wider bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-white rounded-2xl outline-none focus:border-primary transition-all appearance-none cursor-pointer min-w-[200px]"
+                >
+                  <option value="popularity" className="bg-zinc-950 text-white font-bold">Popularity</option>
+                  <option value="rating" className="bg-zinc-950 text-white font-bold">Top Rated</option>
+                  <option value="price-asc" className="bg-zinc-950 text-white font-bold">Price (Low to High)</option>
+                  <option value="price-desc" className="bg-zinc-950 text-white font-bold">Price (High to Low)</option>
+                </select>
+                <div className="absolute right-4.5 text-zinc-500 pointer-events-none">
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Food Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
           {filteredItems.map((item) => (
             <FoodCard key={item.id} item={item} />
           ))}

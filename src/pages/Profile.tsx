@@ -202,7 +202,7 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 );
 
 export const Profile: React.FC = () => {
-  const { user: authUser } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const firebaseUid = authUser?.firebase_uid || authUser?.uid;
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();

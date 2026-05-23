@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle } from 'lucide-react';
+import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,6 +28,9 @@ const ProductDetail: React.FC = () => {
   const { user } = useAuth();
   const { isOrderingOpen } = useAppConfig();
   
+  const purchaseSectionRef = useRef<HTMLDivElement>(null);
+  const [showScrollFab, setShowScrollFab] = useState(false);
+  
   const [product, setProduct] = useState<FoodItem | null>(null);
   const [relatedItems, setRelatedItems] = useState<FoodItem[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -50,6 +53,25 @@ const ProductDetail: React.FC = () => {
 
     fetchWishlistStatus();
   }, [user, id]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!purchaseSectionRef.current) return;
+      
+      const rect = purchaseSectionRef.current.getBoundingClientRect();
+      // If purchase element top is details-column height or below/above visible viewport, show the FAB
+      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      setShowScrollFab(!isVisible);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    const timeoutId = setTimeout(handleScroll, 500);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [product]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -502,49 +524,51 @@ const ProductDetail: React.FC = () => {
           </motion.div>
 
           {/* Quantity Selector & Wishlist */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="flex flex-col sm:flex-row items-start sm:items-center gap-6"
-          >
-            <div className="flex items-center gap-6">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Quantity</span>
-              <div className="flex items-center bg-white/5 rounded-2xl border border-white/10 p-1">
-                <button 
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
-                >
-                  <Minus size={18} />
-                </button>
-                <span className="w-12 text-center font-bold text-lg">{quantity}</span>
-                <button 
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
-                >
-                  <Plus size={18} />
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={handleToggleWishlist}
-              disabled={isWishlisting}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50",
-                isLiked 
-                  ? "bg-red-500/10 border-red-500/20 text-red-500" 
-                  : "bg-white/5 border-white/10 text-white hover:bg-white/10"
-              )}
+          <div ref={purchaseSectionRef} className="scroll-mt-32">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex flex-col sm:flex-row items-start sm:items-center gap-6"
             >
-              <Heart 
-                size={16} 
-                fill={isLiked ? "currentColor" : "none"} 
-                className={cn("transition-transform group-hover:scale-110", isWishlisting && "animate-pulse")} 
-              />
-              {isLiked ? 'Wishlisted' : 'Add to Wishlist'}
-            </button>
-          </motion.div>
+              <div className="flex items-center gap-6">
+                <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Quantity</span>
+                <div className="flex items-center bg-white/5 rounded-2xl border border-white/10 p-1">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <Minus size={18} />
+                  </button>
+                  <span className="w-12 text-center font-bold text-lg">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleToggleWishlist}
+                disabled={isWishlisting}
+                className={cn(
+                  "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50",
+                  isLiked 
+                    ? "bg-red-500/10 border-red-500/20 text-red-500" 
+                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                )}
+              >
+                <Heart 
+                  size={16} 
+                  fill={isLiked ? "currentColor" : "none"} 
+                  className={cn("transition-transform group-hover:scale-110", isWishlisting && "animate-pulse")} 
+                />
+                {isLiked ? 'Wishlisted' : 'Add to Wishlist'}
+              </button>
+            </motion.div>
+          </div>
         </div>
       </div>
 
@@ -637,6 +661,25 @@ const ProductDetail: React.FC = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* Floating Action Button for scrolling to purchase section */}
+      <AnimatePresence>
+        {showScrollFab && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 50 }}
+            onClick={() => {
+              purchaseSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className="fixed bottom-32 right-6 z-50 px-6 py-4 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-full shadow-[0_10px_30px_rgba(249,115,22,0.4)] hover:bg-accent active:scale-95 transition-all flex items-center gap-2 border border-white/20"
+          >
+            <Sparkles size={14} className="animate-pulse" />
+            Order Options
+            <ChevronDown size={14} className="animate-bounce" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
