@@ -29,15 +29,16 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const { onDrag, onDragStart, onDragEnd, ...restProps } = props;
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
   return (
     <motion.button
-      whileHover={{ 
+      whileHover={!isTouchDevice ? { 
         scale: 1.02,
         y: -2,
         boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
-      }}
-      whileTap={{ scale: 0.98, y: 0 }}
+      } : undefined}
+      whileTap={{ scale: 0.96, y: 0 }}
       disabled={disabled || isLoading}
       className={cn(
         "relative flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden group",

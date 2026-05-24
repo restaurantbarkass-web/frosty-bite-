@@ -288,6 +288,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       }
+    } catch (error) {
+      console.error('[UnifiedAuth] Error in resolveAndSyncUser:', error);
     } finally {
       const hasFb = lastFirebaseUserRef.current !== null && lastFirebaseUserRef.current !== undefined;
       const hasSb = lastSupabaseUserRef.current !== null && lastSupabaseUserRef.current !== undefined;

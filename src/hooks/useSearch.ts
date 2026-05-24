@@ -90,8 +90,12 @@ export const useSearch = (allItems: FoodItem[]) => {
 
     setQuery(trimmed);
     
-    // Log search for analytics and history
-    await searchService.logSearch(trimmed, user?.uid || 'guest');
+    try {
+      // Log search for analytics and history
+      await searchService.logSearch(trimmed, user?.uid || 'guest');
+    } catch (err) {
+      console.warn('Logging search failed:', err);
+    }
 
     // Update local recent searches
     setRecent(prev => {

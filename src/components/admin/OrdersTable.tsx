@@ -302,7 +302,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
         // Send Order Confirmation Email via Resend
         if (order.email) {
-          emailService.sendOrderConfirmation(order.email, orderId, order.total);
+          emailService.sendOrderConfirmation(order.email, orderId, order.total)
+            .catch(err => console.error('Failed to send confirmation email on verification:', err));
         }
       }
 
@@ -395,9 +396,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         // Send Delivery Status Email via Resend
         if (order.email) {
           if (newStatus === 'confirmed') {
-             emailService.sendOrderConfirmation(order.email, id, order.total);
+             emailService.sendOrderConfirmation(order.email, id, order.total)
+               .catch(err => console.error('Failed to send status update confirmation:', err));
           } else {
-             emailService.sendDeliveryUpdate(order.email, id, newStatus.replace(/_/g, ' ').toUpperCase());
+              emailService.sendDeliveryUpdate(order.email, id, newStatus.replace(/_/g, ' ').toUpperCase())
+               .catch(err => console.error('Failed to send status update delivery notification:', err));
           }
         }
 

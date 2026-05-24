@@ -69,6 +69,12 @@ function AppContent() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Disable smooth-scroll libraries on touch devices to prioritize native momentum scrolling
+    const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+      return;
+    }
+
     const lenis = new Lenis({
       duration: 2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),

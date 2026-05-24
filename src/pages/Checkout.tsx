@@ -357,7 +357,8 @@ export const Checkout: React.FC = () => {
 
         // Send Email Confirmation (Non-blocking)
         if (user?.email) {
-          emailService.sendOrderConfirmation(user.email, orderId, finalPrice);
+          emailService.sendOrderConfirmation(user.email, orderId, finalPrice)
+            .catch(err => console.error('Failed to send order confirmation email:', err));
         }
 
         navigate(`/upi-checkout/${orderId}`, { 
@@ -413,7 +414,8 @@ export const Checkout: React.FC = () => {
         
         // Send Email Confirmation (Non-blocking)
         if (user?.email) {
-          emailService.sendOrderConfirmation(user.email, orderId, finalPrice);
+          emailService.sendOrderConfirmation(user.email, orderId, finalPrice)
+            .catch(err => console.error('Failed to send order confirmation email:', err));
         } else if (orderData.phone) {
           // If guest, we might not have email but we have phone?
           // Actually Checkout requires name/phone. Email comes from auth.

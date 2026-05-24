@@ -187,21 +187,23 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
     }, 400);
   };
 
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
   return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        whileHover={{ 
+        whileHover={!isTouchDevice ? { 
           y: -10, 
           scale: 1.03,
           boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)",
           borderColor: "rgba(249,115,22,0.4)"
-        }}
-        transition={{ 
+        } : undefined}
+        transition={!isTouchDevice ? { 
           type: "spring", 
           stiffness: 300, 
           damping: 18 
-        }}
+        } : { duration: 0.2, ease: "easeOut" }}
         className={cn(
           "group relative bg-white/5 overflow-hidden border border-white/5 transition-all shadow-xl cursor-pointer",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"

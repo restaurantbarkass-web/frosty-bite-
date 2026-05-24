@@ -43,12 +43,17 @@
 @layer base {
   html {
     scroll-behavior: auto;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground antialiased;
     overscroll-behavior: none;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Force native-feeling kinetic scrolling */
+  .overflow-y-auto, .overflow-y-scroll, .overflow-x-auto, .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

@@ -27,9 +27,13 @@ export const AdminLayout: React.FC = () => {
   useEffect(() => {
     // Request permission and register token
     const setupNotifications = async () => {
-      const token = await requestForToken();
-      if (token) {
-        console.log('Push notifications enabled');
+      try {
+        const token = await requestForToken();
+        if (token) {
+          console.log('Push notifications enabled');
+        }
+      } catch (err) {
+        console.warn('Notification setup failed:', err);
       }
     };
 
