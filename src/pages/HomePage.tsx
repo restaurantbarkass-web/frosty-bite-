@@ -410,15 +410,15 @@ export const Home: React.FC = () => {
           <img 
             src="https://images.weserv.nl/?url=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F33038486%2Fpexels-photo-33038486.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D1600" 
             alt="Artisanal Bakery Background" 
-            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform opacity-95"
+            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform opacity-100"
             style={{ 
               transform: `translateY(${Math.min(scrollY * 0.35, 200)}px)`
             }}
             referrerPolicy="no-referrer"
           />
         </div>
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
+        <div className="absolute inset-0 bg-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-background/20 to-background" />
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 text-center">
           <motion.div
