@@ -1,4 +1,5 @@
 import { auth } from '../firebase';
+import { supabase } from '../supabase';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
@@ -10,6 +11,7 @@ export interface AppConfig {
 
 let currentListeners: ((config: AppConfig) => void)[] = [];
 let pollInterval: any = null;
+let realTimeChannel: any = null;
 
 let currentConfig: AppConfig | null = (() => {
   const cached = localStorage.getItem('app_config_cache');
@@ -22,6 +24,63 @@ let currentConfig: AppConfig | null = (() => {
   }
   return null;
 })();
+
+const startRealtime = () => {
+  if (realTimeChannel) return;
+
+  try {
+    realTimeChannel = supabase
+      .channel('public:users_config')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: "email=eq.system_settings_v1@frostybite.internal"
+        },
+        (payload: any) => {
+          console.log('[appConfigService] Real-time config update received from database:', payload);
+          const updatedRow = payload.new;
+          if (updatedRow && updatedRow.address) {
+            try {
+              const fresh = JSON.parse(updatedRow.address) as AppConfig;
+              const changed = !currentConfig || 
+                currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
+                currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
+                currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
+                currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+
+              if (changed) {
+                currentConfig = fresh;
+                localStorage.setItem('app_config_cache', JSON.stringify(fresh));
+                localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+                currentListeners.forEach(l => l(fresh));
+              }
+            } catch (jsonErr) {
+              console.error('[appConfigService] Realtime failed to parse updated row address:', jsonErr);
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[appConfigService] Supabase Realtime Subscription status:', status);
+      });
+  } catch (err) {
+    console.error('[appConfigService] Failed to initialize Supabase Realtime for settings:', err);
+  }
+};
+
+const stopRealtime = () => {
+  if (realTimeChannel) {
+    try {
+      supabase.removeChannel(realTimeChannel);
+    } catch (e) {
+      console.warn('[appConfigService] Error removing realtime channel:', e);
+    }
+    realTimeChannel = null;
+  }
+};
 
 const startPolling = () => {
   if (pollInterval) return;
@@ -110,13 +169,15 @@ export const appConfigService = {
       }
     }).catch(() => {});
 
-    // Active polling to keep config dynamically synchronized without Firestore overhead
+    // Active polling and real-time to keep config dynamically synchronized without Firestore overhead
     startPolling();
+    startRealtime();
 
     return () => {
       currentListeners = currentListeners.filter(l => l !== callback);
       if (currentListeners.length === 0) {
         stopPolling();
+        stopRealtime();
       }
     };
   },

@@ -37,6 +37,7 @@ import { RESTAURANT_LOCATION } from '../constants';
 import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { appConfigService } from '../services/appConfigService';
 import { useNotifications } from '../context/NotificationContext';
 
 const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
@@ -47,7 +48,7 @@ export const Checkout: React.FC = () => {
   const { cart, subtotal: cartSubtotal, clearCart, appliedCoupon, setAppliedCoupon } = useCart();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const { isOrderingOpen, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm } = useAppConfig();
+  const { isOrderingOpen, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm, isLoading } = useAppConfig();
   const [deliveryFee, setDeliveryFee] = useState(0);
 
   const [isOrdering, setIsOrdering] = useState(false);
@@ -253,8 +254,20 @@ export const Checkout: React.FC = () => {
     e.preventDefault();
     if (isOrdering) return;
 
-    if (!isOrderingOpen) {
+    setIsOrdering(true);
+    let freshOpen = isOrderingOpen;
+    try {
+      const freshConfig = await appConfigService.getConfig();
+      if (freshConfig) {
+        freshOpen = freshConfig.isOrderingOpen;
+      }
+    } catch (err) {
+      console.warn('Failed to verify fresh ordering configuration:', err);
+    }
+
+    if (!freshOpen) {
       toast.error('Orders are currently closed. Please try again later.');
+      setIsOrdering(false);
       return;
     }
     
@@ -262,6 +275,7 @@ export const Checkout: React.FC = () => {
       toast.error('Please enter your full name');
       nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       nameRef.current?.focus();
+      setIsOrdering(false);
       return;
     }
     
@@ -269,6 +283,7 @@ export const Checkout: React.FC = () => {
       toast.error('Please enter a valid 10-digit phone number');
       phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       phoneRef.current?.focus();
+      setIsOrdering(false);
       return;
     }
     
@@ -276,10 +291,10 @@ export const Checkout: React.FC = () => {
       toast.error('Please enter your delivery address');
       addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       addressRef.current?.focus();
+      setIsOrdering(false);
       return;
     }
 
-    setIsOrdering(true);
     try {
       const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
       
@@ -977,10 +992,10 @@ export const Checkout: React.FC = () => {
               <button
                 id="checkout-action-btn"
                 onClick={handlePlaceOrder}
-                disabled={isOrdering || !isOrderingOpen}
+                disabled={isLoading || isOrdering || !isOrderingOpen}
                 className={cn(
                   "w-full btn-premium group h-16 transition-all",
-                  (isOrdering || !isOrderingOpen) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
+                  (isLoading || isOrdering || !isOrderingOpen) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
                 )}
               >
                 <div className="flex items-center justify-center gap-3">
@@ -988,6 +1003,11 @@ export const Checkout: React.FC = () => {
                     <>
                       <Loader2 className="animate-spin" size={20} />
                       <span className="font-black uppercase tracking-widest text-sm">Processing Order...</span>
+                    </>
+                  ) : isLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      <span className="font-black uppercase tracking-widest text-sm">Checking status...</span>
                     </>
                   ) : !isOrderingOpen ? (
                     <>
@@ -1031,14 +1051,19 @@ export const Checkout: React.FC = () => {
             
             <button
               onClick={handlePlaceOrder}
-              disabled={isOrdering || !isOrderingOpen}
+              disabled={isLoading || isOrdering || !isOrderingOpen}
               className={cn(
                 "w-full h-14 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-primary/20",
-                (!isOrderingOpen || isOrdering) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
+                (isLoading || !isOrderingOpen || isOrdering) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
               )}
             >
               {isOrdering ? (
                 <Loader2 className="animate-spin" size={18} />
+              ) : isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Checking status...</span>
+                </>
               ) : !isOrderingOpen ? (
                 'Orders Closed'
               ) : (
