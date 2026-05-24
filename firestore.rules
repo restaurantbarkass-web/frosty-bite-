@@ -204,8 +204,10 @@ service cloud.firestore {
 
     function isValidSettings(settingId, data) {
       return (settingId == 'appConfig' && 
-              data.keys().hasAll(['isOrderingOpen']) && 
-              data.isOrderingOpen is bool) ||
+              (!('isOrderingOpen' in data) || data.isOrderingOpen is bool) &&
+              (!('deliveryBaseFee' in data) || data.deliveryBaseFee is number) &&
+              (!('deliveryFeePerKm' in data) || data.deliveryFeePerKm is number) &&
+              (!('deliveryFreeKm' in data) || data.deliveryFreeKm is number)) ||
              (settingId == 'theme' && 
               (!('primaryColor' in data) || data.primaryColor is string) &&
               (!('secondaryColor' in data) || data.secondaryColor is string));

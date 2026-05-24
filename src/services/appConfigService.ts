@@ -12,6 +12,7 @@ export interface AppConfig {
 
 let currentListeners: ((config: AppConfig) => void)[] = [];
 let firebaseUnsubscribe: (() => void) | null = null;
+let isUpdatingConfig = false;
 
 let currentConfig: AppConfig | null = (() => {
   const cached = localStorage.getItem('app_config_cache');
@@ -33,6 +34,10 @@ const startFirebaseRealtime = () => {
     console.log('[appConfigService] Starting Firebase Realtime (onSnapshot) snapshot listener for setting/appConfig...');
     
     firebaseUnsubscribe = onSnapshot(configDocRef, (snapshot) => {
+      if (isUpdatingConfig) {
+        console.log('[appConfigService] Ignoring incoming real-time Firestore config update during manual update flow');
+        return;
+      }
       if (snapshot.exists()) {
         const fresh = snapshot.data() as AppConfig;
         console.log('[appConfigService] Real-time config update received from Firestore settings/appConfig:', fresh);
@@ -82,13 +87,95 @@ const stopFirebaseRealtime = () => {
   }
 };
 
+let supabaseSubscription: any = null;
+
+const startSupabaseRealtime = async () => {
+  if (supabaseSubscription) return;
+
+  try {
+    const { supabase } = await import('../supabase');
+    console.log('[appConfigService] Starting Supabase Realtime subscription for system settings...');
+    
+    supabaseSubscription = supabase
+      .channel('system_settings_changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: 'email=eq.system_settings_v1@frostybite.internal'
+      }, (payload: any) => {
+        if (isUpdatingConfig) {
+          console.log('[appConfigService] Ignoring incoming real-time Supabase config update during manual update flow');
+          return;
+        }
+        console.log('[appConfigService] Real-time config update received from Supabase users row:', payload);
+        const newRow = payload.new;
+        if (newRow && newRow.address) {
+          try {
+            const fresh = JSON.parse(newRow.address) as AppConfig;
+            
+            const changed = !currentConfig || 
+              currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
+              currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
+              currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
+              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+
+            if (changed) {
+              currentConfig = fresh;
+              localStorage.setItem('app_config_cache', JSON.stringify(fresh));
+              localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+              currentListeners.forEach(l => l(fresh));
+            }
+          } catch (e) {
+            console.error('[appConfigService] Error parsing Supabase real-time config payload:', e);
+          }
+        }
+      })
+      .subscribe();
+  } catch (err) {
+    console.warn('[appConfigService] Error starting Supabase Realtime subscription:', err);
+  }
+};
+
+const stopSupabaseRealtime = async () => {
+  if (supabaseSubscription) {
+    try {
+      const { supabase } = await import('../supabase');
+      await supabase.removeChannel(supabaseSubscription);
+    } catch (e) {
+      console.warn('[appConfigService] Error removing Supabase Realtime subscription:', e);
+    }
+    supabaseSubscription = null;
+  }
+};
+
+/**
+ * Helper to fetch with retries to gracefully handle transient network drops or server restarts
+ */
+const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, delay = 800): Promise<Response> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (i === retries - 1) {
+        throw err;
+      }
+      console.warn(`[appConfigService] Fetch failed, retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`, err);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error('Fetch failed after retries');
+};
+
 /**
  * Helper to fetch the current active user authentication token (Firebase or Supabase)
  */
 const getAuthToken = async (): Promise<string | null> => {
+  let firebaseToken: string | null = null;
   if (auth.currentUser) {
     try {
-      return await auth.currentUser.getIdToken();
+      firebaseToken = await auth.currentUser.getIdToken();
+      if (firebaseToken) return firebaseToken;
     } catch (e) {
       console.warn('[appConfigService] Firebase getIdToken failed:', e);
     }
@@ -97,11 +184,13 @@ const getAuthToken = async (): Promise<string | null> => {
   try {
     const { supabase } = await import('../supabase');
     const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
+    const token = data.session?.access_token || null;
+    if (token) return token;
   } catch (err) {
     console.warn('[appConfigService] Supabase token lookup failed:', err);
-    return null;
   }
+
+  return firebaseToken;
 };
 
 export const appConfigService = {
@@ -132,13 +221,15 @@ export const appConfigService = {
       }
     }).catch(() => {});
 
-    // Active real-time Firestore listener to keep config dynamically synchronized with zero latency
+    // Active real-time Firestore + Supabase listeners to keep config dynamically synchronized with zero latency
     startFirebaseRealtime();
+    startSupabaseRealtime();
 
     return () => {
       currentListeners = currentListeners.filter(l => l !== callback);
       if (currentListeners.length === 0) {
         stopFirebaseRealtime();
+        stopSupabaseRealtime();
       }
     };
   },
@@ -147,7 +238,9 @@ export const appConfigService = {
    * Toggles the ordering status directly in Google Firebase Firestore.
    */
   toggleOrderingStatus: async (currentStatus: boolean) => {
+    isUpdatingConfig = true;
     const newStatus = !currentStatus;
+    const oldConfig = currentConfig ? { ...currentConfig } : null;
     
     const updatedConfig = {
       ...currentConfig,
@@ -160,22 +253,13 @@ export const appConfigService = {
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
 
-    // 1. Write directly to Firestore (primary master switch managed directly by Firebase)
-    try {
-      const configDocRef = doc(db, 'settings', 'appConfig');
-      await setDoc(configDocRef, {
-        isOrderingOpen: newStatus,
-        updated_at: serverTimestamp()
-      }, { merge: true });
-      console.log('[appConfigService] Order open/close status updated directly in Firestore');
-    } catch (fsError) {
-      console.warn('[appConfigService] Direct Firestore open/close update failed:', fsError);
-    }
-    
-    // 2. Call backend secure API to synchronize in the Supabase REST endpoint in background
+    let backendSuccess = false;
+    let lastError: any = null;
+
+    // 1. Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
       const token = await getAuthToken();
-      const response = await fetch('/api/config', {
+      const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,17 +268,43 @@ export const appConfigService = {
         body: JSON.stringify(updatedConfig)
       });
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`API returned status ${response.status}: ${errorText}`);
       }
-    } catch (error) {
+      backendSuccess = true;
+      console.log('[appConfigService] Order open/close status successfully updated via backend API proxy');
+    } catch (error: any) {
       console.warn('[appConfigService] Backend API config sync failed:', error);
+      lastError = error;
     }
+
+    if (!backendSuccess) {
+      isUpdatingConfig = false;
+      // Revert optimistic updates on failure
+      currentConfig = oldConfig;
+      if (oldConfig) {
+        localStorage.setItem('app_config_cache', JSON.stringify(oldConfig));
+        localStorage.setItem('admin_config_cache', JSON.stringify(oldConfig));
+        currentListeners.forEach(l => l(oldConfig));
+      } else {
+        localStorage.removeItem('app_config_cache');
+        localStorage.removeItem('admin_config_cache');
+      }
+      throw lastError || new Error("Failed to change store status. Backend secure API rejected the transaction.");
+    }
+
+    // Hang on to the lock for 3 seconds to let Firestore & Supabase real-time settles without causing flash-backs
+    setTimeout(() => {
+      isUpdatingConfig = false;
+    }, 3000);
   },
 
   /**
    * Updates delivery pricing settings in Firebase Firestore and Supabase.
    */
   updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }) => {
+    isUpdatingConfig = true;
+    const oldConfig = currentConfig ? { ...currentConfig } : null;
     const updatedConfig = {
       ...currentConfig, 
       isOrderingOpen: currentConfig?.isOrderingOpen ?? true,
@@ -209,24 +319,13 @@ export const appConfigService = {
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
 
-    // 1. Write directly to Firestore (primary master settings update managed directly by Firebase)
-    try {
-      const configDocRef = doc(db, 'settings', 'appConfig');
-      await setDoc(configDocRef, {
-        deliveryBaseFee: pricing.baseFee,
-        deliveryFeePerKm: pricing.perKm,
-        deliveryFreeKm: pricing.freeKm,
-        updated_at: serverTimestamp()
-      }, { merge: true });
-      console.log('[appConfigService] Pricing settings updated directly in Firestore');
-    } catch (fsError) {
-      console.warn('[appConfigService] Direct Firestore settings update failed:', fsError);
-    }
+    let backendSuccess = false;
+    let lastError: any = null;
 
-    // 2. Call backend secure API to synchronize in the Supabase REST endpoint in background
+    // 1. Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
       const token = await getAuthToken();
-      const response = await fetch('/api/config', {
+      const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -235,11 +334,35 @@ export const appConfigService = {
         body: JSON.stringify(updatedConfig)
       });
       if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`API returned status ${response.status}: ${errorText}`);
       }
-    } catch (error) {
+      backendSuccess = true;
+      console.log('[appConfigService] Pricing settings successfully updated via backend API proxy');
+    } catch (error: any) {
       console.warn('[appConfigService] Backend API pricing sync failed:', error);
+      lastError = error;
     }
+
+    if (!backendSuccess) {
+      isUpdatingConfig = false;
+      // Revert optimistic updates on failure
+      currentConfig = oldConfig;
+      if (oldConfig) {
+        localStorage.setItem('app_config_cache', JSON.stringify(oldConfig));
+        localStorage.setItem('admin_config_cache', JSON.stringify(oldConfig));
+        currentListeners.forEach(l => l(oldConfig));
+      } else {
+        localStorage.removeItem('app_config_cache');
+        localStorage.removeItem('admin_config_cache');
+      }
+      throw lastError || new Error("Failed to change delivery pricing. Backend secure API rejected the transaction.");
+    }
+
+    // Let real-time settling complete
+    setTimeout(() => {
+      isUpdatingConfig = false;
+    }, 3000);
   },
 
   /**
@@ -274,7 +397,7 @@ export const appConfigService = {
 
     // 2. Fall back to secure backend proxy if offline, restricted or doesn't exist
     try {
-      const response = await fetch('/api/config');
+      const response = await fetchWithRetry('/api/config');
       if (response.ok) {
         const data = await response.json();
         if (data) {

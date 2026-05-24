@@ -82,6 +82,10 @@ router.post('/firebase-token', async (req, res) => {
     try {
       firebaseUser = await adminAuth.getUserByEmail(email);
       console.log(`[AuthRoutes] Found existing Firebase profile for ${email} (UID: ${firebaseUser.uid})`);
+      if (!firebaseUser.emailVerified) {
+        console.log(`[AuthRoutes] Marking existing user as emailVerified: true in Firebase Auth`);
+        firebaseUser = await adminAuth.updateUser(firebaseUser.uid, { emailVerified: true });
+      }
     } catch (fbGetError: any) {
       if (fbGetError.code === 'auth/user-not-found') {
         console.log(`[AuthRoutes] No existing Firebase profile for ${email}. Creating a new one...`);

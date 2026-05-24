@@ -26,3 +26,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 });
+
+// Monkey-patch removeChannel to prevent unhandled promise rejections during websocket page transitions/teardowns
+const originalRemoveChannel = supabase.removeChannel;
+if (originalRemoveChannel) {
+  supabase.removeChannel = function (channel: any) {
+    try {
+      const res = originalRemoveChannel.call(supabase, channel);
+      if (res && typeof res.catch === 'function') {
+        return res.catch((err: any) => {
+          console.warn('[Supabase] Handled channel removal safely:', err);
+          return 'error';
+        });
+      }
+      return res;
+    } catch (err) {
+      console.warn('[Supabase] Handled channel removal exception safely:', err);
+      return Promise.resolve('error');
+    }
+  };
+}
