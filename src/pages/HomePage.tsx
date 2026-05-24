@@ -408,9 +408,9 @@ export const Home: React.FC = () => {
       <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden">
         <div className="absolute inset-0 w-full h-full overflow-hidden select-none pointer-events-none">
           <img 
-            src="https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&q=80&w=1600" 
+            src="https://images.weserv.nl/?url=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F33038486%2Fpexels-photo-33038486.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D1600" 
             alt="Artisanal Bakery Background" 
-            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform"
+            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform opacity-95"
             style={{ 
               transform: `translateY(${Math.min(scrollY * 0.35, 200)}px)`
             }}
