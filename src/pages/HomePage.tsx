@@ -79,6 +79,12 @@ export const Home: React.FC = () => {
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
+    // Disable parallax and high-frequency scroll state changes on mobile/touch devices
+    const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+      return;
+    }
+
     let ticking = false;
     const handleScroll = () => {
       if (!ticking) {

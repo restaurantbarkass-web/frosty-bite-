@@ -55,13 +55,20 @@ const ProductDetail: React.FC = () => {
   }, [user, id]);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      if (!purchaseSectionRef.current) return;
-      
-      const rect = purchaseSectionRef.current.getBoundingClientRect();
-      // If purchase element top is details-column height or below/above visible viewport, show the FAB
-      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-      setShowScrollFab(!isVisible);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (purchaseSectionRef.current) {
+            const rect = purchaseSectionRef.current.getBoundingClientRect();
+            // If purchase element top is details-column height or below/above visible viewport, show the FAB
+            const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+            setShowScrollFab(!isVisible);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

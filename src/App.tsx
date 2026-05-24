@@ -242,10 +242,10 @@ function AppContent() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, filter: "blur(4px)" }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: "blur(4px)" }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              initial={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 0, y: 8 } : { opacity: 0, filter: "blur(4px)" }}
+              animate={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 1, y: 0 } : { opacity: 1, filter: "blur(0px)" }}
+              exit={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 0, y: -8 } : { opacity: 0, filter: "blur(4px)" }}
+              transition={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { duration: 0.2, ease: "easeOut" } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes>
