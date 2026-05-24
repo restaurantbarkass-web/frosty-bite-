@@ -26,7 +26,9 @@ export const useSearch = (allItems: FoodItem[]) => {
     }
     
     // Load trending
-    searchService.getTrendingSearches().then(setTrending);
+    searchService.getTrendingSearches()
+      .then(setTrending)
+      .catch((err) => console.error("Error loading trending searches:", err));
   }, []);
 
   // Handle Search Result Updates
@@ -48,6 +50,8 @@ export const useSearch = (allItems: FoodItem[]) => {
         // Get Suggestions
         searchService.getAiSuggestions(query, allItems).then(s => {
           if (active) setAiSuggestions(s);
+        }).catch((err) => {
+          console.error("Error getting AI suggestions:", err);
         });
         
         // Fetch Smart AI Recommendation automatically while typing

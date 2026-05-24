@@ -153,7 +153,7 @@ export const appConfigService = {
         throw new Error(`API returned status ${response.status}`);
       }
     } catch (error) {
-      console.error('[appConfigService] Backend API config sync failed:', error);
+      console.warn('[appConfigService] Backend API config sync failed:', error);
     }
   },
 
@@ -190,7 +190,7 @@ export const appConfigService = {
         throw new Error(`API returned status ${response.status}`);
       }
     } catch (error) {
-      console.error('[appConfigService] Backend API pricing sync failed:', error);
+      console.warn('[appConfigService] Backend API pricing sync failed:', error);
     }
   },
 
@@ -207,9 +207,11 @@ export const appConfigService = {
           localStorage.setItem('app_config_cache', JSON.stringify(data));
           return data;
         }
+      } else {
+        console.warn(`[appConfigService] Backend configuration sync returned non-OK status: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error in getConfig backend fetch:', error);
+      console.warn('[appConfigService] Error in getConfig backend fetch (active localStorage fallback is being used):', error);
     }
     
     // Return cached or default (with standard pricing fallbacks if needed)

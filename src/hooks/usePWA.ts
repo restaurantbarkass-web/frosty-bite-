@@ -45,21 +45,25 @@ export const usePWA = () => {
   }, []);
 
   const install = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        globalDeferredPrompt = null;
-        setDeferredPrompt(null);
-        listeners.forEach(l => l(null));
-      }
-    } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      if (isIOS) {
-        alert("To install: Tap Share then 'Add to Home Screen' (on Safari).");
+    try {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          globalDeferredPrompt = null;
+          setDeferredPrompt(null);
+          listeners.forEach(l => l(null));
+        }
       } else {
-        alert("Install option not available yet. Please interact with the site more or check browser settings.");
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+          alert("To install: Tap Share then 'Add to Home Screen' (on Safari).");
+        } else {
+          alert("Install option not available yet. Please interact with the site more or check browser settings.");
+        }
       }
+    } catch (err) {
+      console.warn('PWA install prompt was cancelled or failed:', err);
     }
   };
 

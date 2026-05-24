@@ -55,10 +55,52 @@ export const Home: React.FC = () => {
   const { isOrderingOpen } = useAppConfig();
   const navigate = useNavigate();
 
+  const recommendedItems = React.useMemo(() => {
+    if (!displayItems || displayItems.length === 0) return [];
+    const filtered = displayItems.filter(item => item.available !== false);
+    const itemsToUse = filtered.length > 0 ? filtered : displayItems;
+    return [...itemsToUse].sort(() => 0.5 - Math.random()).slice(0, 6);
+  }, [displayItems.map(item => item.id).join(',')]);
+
+  const handlePremiumSearch = React.useCallback((q: string) => {
+    setSearchQuery(q);
+    setTimeout(() => {
+      const element = document.getElementById('menu-section');
+      element?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  const handleFocusChange = React.useCallback((focused: boolean) => {
+    if (focused) {
+      window.dispatchEvent(new CustomEvent('open-search'));
+    }
+  }, []);
+
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setScrollY(window.scrollY);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     const fetchBanners = async () => {
-      const { data } = await supabase.from('banners').select('*');
-      if (data) setBanners(data);
+      try {
+        const { data } = await supabase.from('banners').select('*');
+        if (data) setBanners(data);
+      } catch (err) {
+        console.error('Error fetching banners:', err);
+      }
     };
     fetchBanners();
   }, []);
@@ -358,12 +400,17 @@ export const Home: React.FC = () => {
     >
       {/* Hero Section */}
       <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden">
-        <img 
-          src="https://www.image2url.com/r2/default/images/1777124818386-bf0124a4-a64f-4911-90db-48cbce3395c2.blob" 
-          alt="Artisanal Bakery Background" 
-          className="absolute inset-0 w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-        />
+        <div className="absolute inset-0 w-full h-full overflow-hidden select-none pointer-events-none">
+          <img 
+            src="https://www.image2url.com/r2/default/images/1777124818386-bf0124a4-a64f-4911-90db-48cbce3395c2.blob" 
+            alt="Artisanal Bakery Background" 
+            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform"
+            style={{ 
+              transform: `translateY(${Math.min(scrollY * 0.35, 200)}px)`
+            }}
+            referrerPolicy="no-referrer"
+          />
+        </div>
         <div className="absolute inset-0 bg-black/40" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/60 to-background" />
 
@@ -402,18 +449,8 @@ export const Home: React.FC = () => {
             className="max-w-xl mx-auto"
           >
             <PremiumSearchBar 
-              onSearch={(q) => {
-                setSearchQuery(q);
-                setTimeout(() => {
-                  const element = document.getElementById('menu-section');
-                  element?.scrollIntoView({ behavior: 'smooth' });
-                }, 100);
-              }}
-              onFocusChange={(focused) => {
-                if (focused) {
-                    window.dispatchEvent(new CustomEvent('open-search'));
-                }
-              }}
+              onSearch={handlePremiumSearch}
+              onFocusChange={handleFocusChange}
               initialQuery={searchQuery}
               suggestions={suggestions}
               aiRecommendations={aiRecs}
@@ -519,15 +556,11 @@ export const Home: React.FC = () => {
           </div>
           
           <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
-            {displayItems
-              .filter(item => item.available !== false)
-              .sort(() => 0.5 - Math.random())
-              .slice(0, 6)
-              .map((item) => (
-                <div key={`trending-${item.id}`} className="w-72 shrink-0">
-                  <FoodCard item={item} />
-                </div>
-              ))}
+            {recommendedItems.map((item) => (
+              <div key={`trending-${item.id}`} className="w-72 shrink-0">
+                <FoodCard item={item} />
+              </div>
+            ))}
           </div>
         </motion.section>
 

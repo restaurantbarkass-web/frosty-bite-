@@ -13,6 +13,7 @@ import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
+import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -207,6 +208,7 @@ function AppContent() {
       {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} onSearchClick={() => setIsSearchOverlayOpen(true)} />}
       {showCartSidebar && <CartSidebar />}
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
+      <FlyingCartOverlay />
       
       <SearchOverlay 
         isOpen={isSearchOverlayOpen} 
@@ -234,10 +236,10 @@ function AppContent() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              initial={{ opacity: 0, filter: "blur(4px)" }}
+              animate={{ opacity: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, filter: "blur(4px)" }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes>

@@ -98,7 +98,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     if (!user) {
       toast.error('Please login to add items to cart', {
         icon: '🔐',
@@ -121,6 +121,16 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       });
       return;
     }
+
+    // Fire the flying cart event with mouse coordinates
+    window.dispatchEvent(new CustomEvent('add-to-cart-fly', {
+      detail: {
+        startX: e.clientX,
+        startY: e.clientY,
+        image: item.image
+      }
+    }));
+
     setIsFlying(true);
     setShowSuccess(true);
     addToCart(item);
@@ -181,10 +191,19 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        whileHover={{ y: -5, scale: 1.01 }}
+        whileHover={{ 
+          y: -10, 
+          scale: 1.03,
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)",
+          borderColor: "rgba(249,115,22,0.4)"
+        }}
+        transition={{ 
+          type: "spring", 
+          stiffness: 300, 
+          damping: 18 
+        }}
         className={cn(
-          "group relative bg-white/5 overflow-hidden border border-white/5 hover:border-primary/30 transition-all shadow-xl",
+          "group relative bg-white/5 overflow-hidden border border-white/5 transition-all shadow-xl cursor-pointer",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
         onClick={() => {

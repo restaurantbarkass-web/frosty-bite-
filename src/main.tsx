@@ -51,8 +51,12 @@ if ('serviceWorker' in navigator) {
     for (const registration of registrations) {
       registration.unregister().then((success) => {
         if (success) console.log('Successfully unregistered service worker');
+      }).catch((err) => {
+        console.warn('Could not unregister service worker:', err);
       });
     }
+  }).catch((err) => {
+    console.warn('Could not get service worker registrations:', err);
   });
 }
 
@@ -63,8 +67,12 @@ if ('caches' in window) {
     keys.forEach((key) => {
       caches.delete(key).then(() => {
         console.log('Cleared cache:', key);
+      }).catch((err) => {
+        console.warn('Could not delete cache key:', key, err);
       });
     });
+  }).catch((err) => {
+    console.warn('Could not get cache keys:', err);
   });
 }
 

@@ -206,10 +206,18 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             {user ? (
               <div className="flex items-center space-x-4">
                 <button
+                  id="cart-btn-desktop"
                   onClick={onCartClick}
-                  className="relative p-2 text-muted hover:text-primary transition-colors"
+                  className="relative p-2 text-muted hover:text-primary transition-colors focus:outline-none"
                 >
-                  <ShoppingCart size={24} />
+                  <motion.div
+                    key={totalItems}
+                    animate={{ scale: [1, 1.25, 0.95, 1.05, 1], rotate: [0, -8, 8, -4, 0] }}
+                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                    className="flex items-center justify-center"
+                  >
+                    <ShoppingCart size={24} />
+                  </motion.div>
                   {totalItems > 0 && (
                     <motion.span
                       initial={{ scale: 0 }}
@@ -255,10 +263,18 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               <Search size={20} />
             </button>
             <button
+              id="cart-btn-mobile"
               onClick={onCartClick}
-              className="relative p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0"
+              className="relative p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0 focus:outline-none block"
             >
-              <ShoppingCart size={22} />
+              <motion.div
+                key={totalItems}
+                animate={{ scale: [1, 1.25, 0.95, 1.05, 1], rotate: [0, -8, 8, -4, 0] }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="flex items-center justify-center"
+              >
+                <ShoppingCart size={22} />
+              </motion.div>
               {totalItems > 0 && (
                 <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-black/50">
                   {totalItems}

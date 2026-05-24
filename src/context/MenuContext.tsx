@@ -58,10 +58,19 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchMenu();
   }, []);
 
-  const categories = ['All', ...Array.from(new Set(items.map(i => i.category)))].filter(Boolean);
+  const categories = React.useMemo(() => {
+    return ['All', ...Array.from(new Set(items.map(i => i.category)))].filter(Boolean);
+  }, [items]);
+
+  const value = React.useMemo(() => ({
+    items,
+    loading,
+    categories,
+    refreshMenu: fetchMenu
+  }), [items, loading, categories]);
 
   return (
-    <MenuContext.Provider value={{ items, loading, categories, refreshMenu: fetchMenu }}>
+    <MenuContext.Provider value={value}>
       {children}
     </MenuContext.Provider>
   );
