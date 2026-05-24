@@ -5,7 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { CartSidebar } from './components/CartSidebar';
@@ -26,6 +26,7 @@ import Lenis from '@studio-freight/lenis';
 import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
+import { requestForToken, onMessageListener } from './utils/messaging';
 
 // Lazy load pages for performance
 const Home = lazy(() => import('./pages/HomePage'));
@@ -67,6 +68,48 @@ function AppContent() {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Request customer notification permission and register token
+    const setupCustomerNotifications = async () => {
+      try {
+        const token = await requestForToken();
+        if (token) {
+          console.log('[FCM] Customer notifications initialized successfully');
+        }
+      } catch (err) {
+        console.warn('[FCM] Customer notification initialization failed:', err);
+      }
+    };
+
+    setupCustomerNotifications();
+
+    // Set up foreground message listener
+    let active = true;
+    const listenForMessages = async () => {
+      try {
+        const payload: any = await onMessageListener();
+        if (active && payload && payload.notification) {
+          toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+            duration: 8000,
+            icon: '📣'
+          });
+          // Repeat listener for subsequent messages
+          listenForMessages();
+        }
+      } catch (err) {
+        console.error('[FCM] Foreground subscription error:', err);
+      }
+    };
+
+    listenForMessages();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     // Disable smooth-scroll libraries on touch devices to prioritize native momentum scrolling

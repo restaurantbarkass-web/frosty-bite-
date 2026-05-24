@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAdminDb, getAdminAuth } from '../lib/firebase-admin';
+import admin, { getAdminDb, getAdminAuth } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 
 const router = express.Router();
@@ -58,10 +58,30 @@ async function isAdmin(req: express.Request): Promise<boolean> {
 
 /**
  * GET /api/config
- * Retrieves the current app configuration directly and exclusively from the Supabase DB
+ * Retrieves the current app configuration directly and exclusively from the Firestore database, falling back to Supabase
  */
 router.get('/', async (req, res) => {
   try {
+    // 1. Try to fetch from Firestore settings/appConfig first (primary real-time source)
+    try {
+      const adminDb = getAdminDb();
+      const docSnap = await adminDb.doc(CONFIG_DOC_PATH).get();
+      if (docSnap.exists) {
+        const rawData = docSnap.data();
+        if (rawData) {
+          const config = { ...rawData };
+          // Convert Firestore timestamp to ISO string for standard JSON delivery
+          if (config.updated_at && typeof config.updated_at.toDate === 'function') {
+            config.updated_at = config.updated_at.toDate().toISOString();
+          }
+          return res.json(config);
+        }
+      }
+    } catch (fbErr: any) {
+      console.warn('[ConfigRoutes] Firestore config lookup failed, trying Supabase fallback:', fbErr.message);
+    }
+
+    // 2. Fallback to Supabase
     const { data, error } = await supabase
       .from('users')
       .select('address')
@@ -70,13 +90,25 @@ router.get('/', async (req, res) => {
 
     if (!error && data && data.address) {
       try {
-        return res.json(JSON.parse(data.address));
+        const parsed = JSON.parse(data.address);
+        // Sync Supabase config to Firestore so Firestore is populated
+        try {
+          const adminDb = getAdminDb();
+          await adminDb.doc(CONFIG_DOC_PATH).set({
+            ...parsed,
+            updated_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+          console.log('[ConfigRoutes] Backfilled Firestore settings/appConfig from Supabase');
+        } catch (syncErr) {
+          // Suppressed
+        }
+        return res.json(parsed);
       } catch (jsonErr) {
         // Fallback if parsing failed
       }
     }
 
-    // Default configuration if not yet created in Supabase SQL DB
+    // Default configuration if not yet created in either DB
     const defaultData = {
       isOrderingOpen: true,
       deliveryBaseFee: 15,
@@ -85,14 +117,14 @@ router.get('/', async (req, res) => {
     };
     return res.json(defaultData);
   } catch (error: any) {
-    console.error('[ConfigRoutes] Error fetching config from Supabase:', error);
+    console.error('[ConfigRoutes] Error fetching config from database:', error);
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 });
 
 /**
  * POST /api/config
- * Unifies updating app configuration securely in the Supabase DB.
+ * Unifies updating app configuration securely in both Firestore and Supabase databases.
  */
 router.post('/', async (req, res) => {
   try {
@@ -107,42 +139,53 @@ router.post('/', async (req, res) => {
       updated_at: new Date()
     };
 
-    const { data: existing, error: fetchErr } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', 'system_settings_v1@frostybite.internal')
-      .maybeSingle();
-
-    if (fetchErr) {
-      throw new Error(`Failed to check existing config: ${fetchErr.message}`);
+    // 1. Update in Firestore settings/appConfig document (primary real-time source)
+    try {
+      const adminDb = getAdminDb();
+      await adminDb.doc(CONFIG_DOC_PATH).set({
+        ...updatedConfig,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log('[ConfigRoutes] Configuration successfully updated in Firestore database (settings/appConfig)');
+    } catch (fbErr: any) {
+      console.error('[ConfigRoutes] Failed to update config in Firestore:', fbErr.message);
     }
 
-    const configString = JSON.stringify(updatedConfig);
-
-    if (existing) {
-      const { error: updateErr } = await supabase
+    // 2. Update in Supabase for relational continuity
+    try {
+      const { data: existing, error: fetchErr } = await supabase
         .from('users')
-        .update({ address: configString, updated_at: new Date().toISOString() })
-        .eq('email', 'system_settings_v1@frostybite.internal');
+        .select('id')
+        .eq('email', 'system_settings_v1@frostybite.internal')
+        .maybeSingle();
 
-      if (updateErr) throw updateErr;
-    } else {
-      const { error: insertErr } = await supabase
-        .from('users')
-        .insert({
-          email: 'system_settings_v1@frostybite.internal',
-          name: 'System Settings',
-          address: configString,
-          role: 'customer'
-        });
+      if (!fetchErr) {
+        const configString = JSON.stringify(updatedConfig);
 
-      if (insertErr) throw insertErr;
+        if (existing) {
+          await supabase
+            .from('users')
+            .update({ address: configString, updated_at: new Date().toISOString() })
+            .eq('email', 'system_settings_v1@frostybite.internal');
+        } else {
+          await supabase
+            .from('users')
+            .insert({
+              email: 'system_settings_v1@frostybite.internal',
+              name: 'System Settings',
+              address: configString,
+              role: 'customer'
+            });
+        }
+        console.log('[ConfigRoutes] Configuration successfully synchronized to Supabase database');
+      }
+    } catch (sbErr: any) {
+      console.error('[ConfigRoutes] Failed to synchronize config update to Supabase:', sbErr.message);
     }
 
-    console.log('[ConfigRoutes] Configuration successfully updated in Supabase database');
     res.json({ success: true, config: updatedConfig });
   } catch (error: any) {
-    console.error('[ConfigRoutes] Error setting config in Supabase:', error);
+    console.error('[ConfigRoutes] Error setting config:', error);
     res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 });

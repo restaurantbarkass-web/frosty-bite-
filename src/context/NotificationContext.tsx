@@ -266,13 +266,42 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     const path = 'notifications';
     try {
-      const targetUserId = authInstance?.currentUser?.uid || user?.firebase_uid || notif.user_id || '';
+      const targetUserId = notif.user_id || authInstance?.currentUser?.uid || user?.firebase_uid || '';
       await addDoc(collection(db, path), {
         ...notif,
         user_id: targetUserId,
         read: false,
         created_at: serverTimestamp()
       });
+
+      // Trigger background FCM push notification via backend API proxy
+      if (targetUserId) {
+        fetch('/api/notifications/send-push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: targetUserId,
+            title: notif.title,
+            body: notif.message,
+            data: {
+              link: notif.link || '',
+              type: notif.type || 'order'
+            }
+          })
+        }).then(async (res) => {
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            console.warn('[FCM Push] Server returned error sending push notification:', errBody);
+          } else {
+            const data = await res.json();
+            console.log('[FCM Push] Push dispatch response:', data);
+          }
+        }).catch((err) => {
+          console.warn('[FCM Push] Network error posting to FCM push service:', err);
+        });
+      }
     } catch (error) {
       handleFirestoreError(authInstance, error, OperationType.CREATE, path);
     }

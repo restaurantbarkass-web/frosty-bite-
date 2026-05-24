@@ -1,5 +1,6 @@
-import { auth } from '../firebase';
-import { supabase } from '../supabase';
+import { auth, db } from '../firebase';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from './firestoreService';
 
 export interface AppConfig {
   isOrderingOpen: boolean;
@@ -10,8 +11,7 @@ export interface AppConfig {
 }
 
 let currentListeners: ((config: AppConfig) => void)[] = [];
-let pollInterval: any = null;
-let realTimeChannel: any = null;
+let firebaseUnsubscribe: (() => void) | null = null;
 
 let currentConfig: AppConfig | null = (() => {
   const cached = localStorage.getItem('app_config_cache');
@@ -25,97 +25,60 @@ let currentConfig: AppConfig | null = (() => {
   return null;
 })();
 
-const startRealtime = () => {
-  if (realTimeChannel) return;
+const startFirebaseRealtime = () => {
+  if (firebaseUnsubscribe) return;
 
   try {
-    realTimeChannel = supabase
-      .channel('public:users_config')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'users',
-          filter: "email=eq.system_settings_v1@frostybite.internal"
-        },
-        (payload: any) => {
-          console.log('[appConfigService] Real-time config update received from database:', payload);
-          const updatedRow = payload.new;
-          if (updatedRow && updatedRow.address) {
-            try {
-              const fresh = JSON.parse(updatedRow.address) as AppConfig;
-              const changed = !currentConfig || 
-                currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
-                currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
-                currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
-                currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
-
-              if (changed) {
-                currentConfig = fresh;
-                localStorage.setItem('app_config_cache', JSON.stringify(fresh));
-                localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
-                currentListeners.forEach(l => l(fresh));
-              }
-            } catch (jsonErr) {
-              console.error('[appConfigService] Realtime failed to parse updated row address:', jsonErr);
-            }
-          }
+    const configDocRef = doc(db, 'settings', 'appConfig');
+    console.log('[appConfigService] Starting Firebase Realtime (onSnapshot) snapshot listener for setting/appConfig...');
+    
+    firebaseUnsubscribe = onSnapshot(configDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const fresh = snapshot.data() as AppConfig;
+        console.log('[appConfigService] Real-time config update received from Firestore settings/appConfig:', fresh);
+        
+        let freshUpdatedAt = fresh.updated_at;
+        if (freshUpdatedAt && typeof freshUpdatedAt.toDate === 'function') {
+          freshUpdatedAt = freshUpdatedAt.toDate().toISOString();
         }
-      )
-      .subscribe((status) => {
-        console.log('[appConfigService] Supabase Realtime Subscription status:', status);
-      });
-  } catch (err) {
-    console.error('[appConfigService] Failed to initialize Supabase Realtime for settings:', err);
-  }
-};
 
-const stopRealtime = () => {
-  if (realTimeChannel) {
-    try {
-      supabase.removeChannel(realTimeChannel);
-    } catch (e) {
-      console.warn('[appConfigService] Error removing realtime channel:', e);
-    }
-    realTimeChannel = null;
-  }
-};
+        const normalizedFresh = {
+          ...fresh,
+          updated_at: freshUpdatedAt
+        };
 
-const startPolling = () => {
-  if (pollInterval) return;
-  // Poll every 5 seconds to ensure changes reflect instantly across other users and admins
-  pollInterval = setInterval(async () => {
-    if (currentListeners.length === 0) {
-      stopPolling();
-      return;
-    }
-    try {
-      const fresh = await appConfigService.getConfig();
-      if (fresh) {
         const changed = !currentConfig || 
-          currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
-          currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
-          currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
-          currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+          currentConfig.isOrderingOpen !== normalizedFresh.isOrderingOpen ||
+          currentConfig.deliveryBaseFee !== normalizedFresh.deliveryBaseFee ||
+          currentConfig.deliveryFeePerKm !== normalizedFresh.deliveryFeePerKm ||
+          currentConfig.deliveryFreeKm !== normalizedFresh.deliveryFreeKm ||
+          JSON.stringify(currentConfig.updated_at) !== JSON.stringify(normalizedFresh.updated_at);
 
         if (changed) {
-          currentConfig = fresh;
-          localStorage.setItem('app_config_cache', JSON.stringify(fresh));
-          localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
-          currentListeners.forEach(l => l(fresh));
+          currentConfig = normalizedFresh;
+          localStorage.setItem('app_config_cache', JSON.stringify(normalizedFresh));
+          localStorage.setItem('admin_config_cache', JSON.stringify(normalizedFresh));
+          currentListeners.forEach(l => l(normalizedFresh));
         }
+      } else {
+        console.warn('[appConfigService] Firestore settings/appConfig document does not exist yet');
       }
-    } catch (e) {
-      // Suppressed
-    }
-  }, 5000);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/appConfig');
+    });
+  } catch (err) {
+    console.error('[appConfigService] Failed to initialize Firestore real-time config:', err);
+  }
 };
 
-const stopPolling = () => {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+const stopFirebaseRealtime = () => {
+  if (firebaseUnsubscribe) {
+    try {
+      firebaseUnsubscribe();
+    } catch (e) {
+      console.warn('[appConfigService] Error unsubscribing from Firestore:', e);
+    }
+    firebaseUnsubscribe = null;
   }
 };
 
@@ -143,7 +106,7 @@ const getAuthToken = async (): Promise<string | null> => {
 
 export const appConfigService = {
   /**
-   * Subscribes to application configuration changes using standard Supabase REST and polling.
+   * Subscribes to application configuration changes using Google Firebase Firestore Realtime.
    */
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
     currentListeners.push(callback);
@@ -169,21 +132,19 @@ export const appConfigService = {
       }
     }).catch(() => {});
 
-    // Active polling and real-time to keep config dynamically synchronized without Firestore overhead
-    startPolling();
-    startRealtime();
+    // Active real-time Firestore listener to keep config dynamically synchronized with zero latency
+    startFirebaseRealtime();
 
     return () => {
       currentListeners = currentListeners.filter(l => l !== callback);
       if (currentListeners.length === 0) {
-        stopPolling();
-        stopRealtime();
+        stopFirebaseRealtime();
       }
     };
   },
 
   /**
-   * Toggles the ordering status in the Supabase DB via our secure backend API.
+   * Toggles the ordering status directly in Google Firebase Firestore.
    */
   toggleOrderingStatus: async (currentStatus: boolean) => {
     const newStatus = !currentStatus;
@@ -198,8 +159,20 @@ export const appConfigService = {
     localStorage.setItem('app_config_cache', JSON.stringify(updatedConfig));
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
+
+    // 1. Write directly to Firestore (primary master switch managed directly by Firebase)
+    try {
+      const configDocRef = doc(db, 'settings', 'appConfig');
+      await setDoc(configDocRef, {
+        isOrderingOpen: newStatus,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      console.log('[appConfigService] Order open/close status updated directly in Firestore');
+    } catch (fsError) {
+      console.warn('[appConfigService] Direct Firestore open/close update failed:', fsError);
+    }
     
-    // Call backend secure API to synchronize in the Supabase REST endpoint
+    // 2. Call backend secure API to synchronize in the Supabase REST endpoint in background
     try {
       const token = await getAuthToken();
       const response = await fetch('/api/config', {
@@ -219,7 +192,7 @@ export const appConfigService = {
   },
 
   /**
-   * Updates delivery pricing settings in Supabase via secure backend API.
+   * Updates delivery pricing settings in Firebase Firestore and Supabase.
    */
   updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }) => {
     const updatedConfig = {
@@ -236,7 +209,21 @@ export const appConfigService = {
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
 
-    // Call backend secure API to synchronize in the Supabase REST endpoint
+    // 1. Write directly to Firestore (primary master settings update managed directly by Firebase)
+    try {
+      const configDocRef = doc(db, 'settings', 'appConfig');
+      await setDoc(configDocRef, {
+        deliveryBaseFee: pricing.baseFee,
+        deliveryFeePerKm: pricing.perKm,
+        deliveryFreeKm: pricing.freeKm,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      console.log('[appConfigService] Pricing settings updated directly in Firestore');
+    } catch (fsError) {
+      console.warn('[appConfigService] Direct Firestore settings update failed:', fsError);
+    }
+
+    // 2. Call backend secure API to synchronize in the Supabase REST endpoint in background
     try {
       const token = await getAuthToken();
       const response = await fetch('/api/config', {

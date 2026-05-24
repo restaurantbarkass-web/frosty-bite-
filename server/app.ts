@@ -29,6 +29,7 @@ import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
 import configRoutes from "./routes/config.routes";
+import notificationRoutes from "./routes/notification.routes";
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use("/butler", butlerRoutes);
 app.use("/avatar", avatarRoutes);
 app.use("/auth", authRoutes);
 app.use("/config", configRoutes);
+app.use("/notifications", notificationRoutes);
 
 // Detailed API 404 handler
 app.use((req, res) => {
