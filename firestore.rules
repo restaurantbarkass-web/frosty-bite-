@@ -37,6 +37,7 @@ service cloud.firestore {
     }
 
     // RBAC: Admin check via trusted collection lookup with multi-layered secure fallbacks
+    // Hardened against email spoofing by requiring email_verified == true.
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
@@ -44,18 +45,24 @@ service cloud.firestore {
         (request.auth.token != null && (
           ('role' in request.auth.token && request.auth.token.role == 'admin') ||
           ('isAdmin' in request.auth.token && request.auth.token.isAdmin == true) ||
-          ('email' in request.auth.token && (
-            request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
-            request.auth.token.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
-          ))
+          (
+            request.auth.token.email_verified == true &&
+            'email' in request.auth.token && (
+              request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
+              request.auth.token.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
+            )
+          )
         )) ||
         // Dynamic look up fallback in synced users collection:
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
           ('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-          ('email' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && (
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
-          ))
+          (
+            request.auth.token.email_verified == true &&
+            'email' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
+            )
+          )
         ))
       );
     }
@@ -177,68 +184,112 @@ service cloud.firestore {
              data.active is bool;
     }
 
+    function isValidWishlistItem(data) {
+      return (!('user_id' in data) || data.user_id == request.auth.uid) &&
+             (!('item_id' in data) || (data.item_id is string && data.item_id.size() <= 128)) &&
+             (!('added_at' in data) || (data.added_at is timestamp));
+    }
+
+    function isValidBanner(data) {
+      return data.keys().hasAll(['title', 'image', 'is_active', 'priority']) &&
+             data.title is string && data.title.size() <= 200 &&
+             data.image is string && data.image.size() <= 2000 &&
+             data.is_active is bool &&
+             data.priority is number &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+             (!('redirect_url' in data) || (data.redirect_url is string && data.redirect_url.size() <= 2000)) &&
+             (!('is_flash_deal' in data) || data.is_flash_deal is bool) &&
+             (!('auto_apply_coupon' in data) || (data.auto_apply_coupon is string && data.auto_apply_coupon.size() <= 50));
+    }
+
+    function isValidSettings(settingId, data) {
+      return (settingId == 'appConfig' && 
+              data.keys().hasAll(['isOrderingOpen']) && 
+              data.isOrderingOpen is bool) ||
+             (settingId == 'theme' && 
+              (!('primaryColor' in data) || data.primaryColor is string) &&
+              (!('secondaryColor' in data) || data.secondaryColor is string));
+    }
+
     // -------------------------------------------------------------------------
     // Match Blocks
     // -------------------------------------------------------------------------
 
     // NOTIFICATIONS: User private alerts
     match /notifications/{notificationId} {
-      allow get: if isOwner(existing().user_id);
-      allow list: if isOwner(resource.data.user_id);
-      allow create: if isSignedIn() && (isAdmin() || incoming().user_id == request.auth.uid) && 
+      allow get: if isValidId(notificationId) && isOwner(existing().user_id);
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if isValidId(notificationId) && isSignedIn() && (isAdmin() || incoming().user_id == request.auth.uid) && 
                     incoming().keys().hasAll(['user_id', 'title', 'message', 'type', 'read', 'created_at']) &&
-                    isValidNotification(incoming());
-      allow update: if (isAdmin() || isOwner(existing().user_id)) && 
+                    isValidNotification(incoming()) &&
+                    incoming().created_at == request.time;
+      allow update: if isValidId(notificationId) && isValidNotification(incoming()) && (isAdmin() || isOwner(existing().user_id)) && 
                     (
                       // Action: Mark as Read
                       (incoming().diff(existing()).affectedKeys().hasOnly(['read']) &&
                        incoming().read is bool) ||
                       isAdmin()
                     );
-      allow delete: if isAdmin() || isOwner(existing().user_id);
+      allow delete: if isValidId(notificationId) && (isAdmin() || isOwner(existing().user_id));
     }
 
     // USERS: PII Isolation - Private by default
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && 
+      allow create: if isValidId(userId) && isOwner(userId) && 
                     incoming().keys().hasAll(['uid', 'email', 'role', 'full_name']) &&
                     isValidUser(incoming()) && (
         // Only allow 'customer' role for standard sign-ups unless they are bootstrap admins
         incoming().role == 'customer' || isAdmin() || 
-        (request.auth.token != null && 'email' in request.auth.token && (
+        (request.auth.token != null && 
+         request.auth.token.email_verified == true && 
+         'email' in request.auth.token && (
           request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
           request.auth.token.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
         ))
       );
-      allow update: if (isOwner(userId) || isAdmin()) && (
-        (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at', 'settings', 'wallet_balance', 'badge_tier', 'total_orders', 'lifetime_spend', 'activity_streak', 'referral_count', 'review_count', 'title', 'points', 'reward_points', 'deleted', 'deleted_at', 'status', 'avatar_config', 'avatar_url', 'avatar_style', 'avatar_vibe', 'avatar_generation_count', 'ai_usage_stats'])) ||
+      allow update: if isValidId(userId) && isValidUser(incoming()) && (isOwner(userId) || isAdmin()) && (
+        (isOwner(userId) && (
+          // Action: Profile Details Update
+          (incoming().role == existing().role && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at'])) ||
+          // Action: Settings & Avatar Update
+          (incoming().role == existing().role && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['settings', 'avatar_config', 'avatar_url', 'avatar_style', 'avatar_vibe', 'avatar_generation_count', 'updated_at'])) ||
+          // Action: Add Funds (Exact amount match for added security)
+          (incoming().role == existing().role && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['wallet_balance', 'updated_at']) &&
+           incoming().wallet_balance == existing().wallet_balance + 500) ||
+          // Action: Rewards update (points, levels, gift redemption)
+          (incoming().role == existing().role && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['points', 'reward_points', 'total_orders', 'lifetime_spend', 'badge_tier', 'claimedGifts', 'updated_at']))
+        )) ||
         isAdmin()
-      ) && 
-      isValidUser(incoming());
+      );
     }
 
     // MENU: Publicly viewable, Admin managed
     match /menu/{itemId} {
-      allow read: if true;
-      allow write: if isAdmin() && isValidMenuItem(incoming());
-      allow delete: if isAdmin();
+      allow get: if isValidId(itemId);
+      allow list: if true;
+      allow create: if isValidId(itemId) && isAdmin() && isValidMenuItem(incoming());
+      allow update: if isValidId(itemId) && isValidMenuItem(incoming()) && isAdmin();
+      allow delete: if isValidId(itemId) && isAdmin();
     }
 
     // ORDERS: Core Transaction logic
     match /orders/{orderId} {
-      allow get: if isOwner(existing().user_id) || isAdmin() || existing().user_id == 'guest';
-      allow list: if isAdmin() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow get: if isValidId(orderId) && (isOwner(existing().user_id) || isAdmin() || existing().user_id == 'guest');
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
       
-      allow create: if isOrderingOpen() && 
+      allow create: if isValidId(orderId) && isOrderingOpen() && 
                     incoming().keys().hasAll(['user_id', 'customer_name', 'phone', 'items', 'total', 'status', 'address', 'payment_method', 'created_at']) &&
                     incoming().created_at == request.time &&
                     isValidOrder(incoming());
       
-      allow update: if isAdmin() || (
+      allow update: if isValidId(orderId) && isValidOrder(incoming()) && (isAdmin() || (
         (isOwner(existing().user_id) || existing().user_id == 'guest') && 
-        isValidOrder(incoming()) &&
         // Prevent changing immutable fields
         incoming().user_id == existing().user_id &&
         incoming().created_at == existing().created_at &&
@@ -251,71 +302,97 @@ service cloud.firestore {
           (incoming().diff(existing()).affectedKeys().hasOnly(['utr', 'payment_status', 'payment_screenshot', 'updated_at']) &&
            existing().status == 'pending')
         )
-      );
+      ));
       
-      allow delete: if isAdmin();
+      allow delete: if isValidId(orderId) && isAdmin();
     }
 
     // REVIEWS: Based on Order completion
     match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isEmailVerified() && 
+      allow get: if isValidId(reviewId);
+      allow list: if true;
+      allow create: if isValidId(reviewId) && isEmailVerified() && 
                     incoming().keys().hasAll(['order_id', 'user_id', 'customer_name', 'rating', 'comment', 'created_at']) &&
                     incoming().created_at == request.time &&
                     isValidReview(incoming()) &&
                     // Verify the order exists and was delivered to this user
                     get(/databases/$(database)/documents/orders/$(incoming().order_id)).data.user_id == request.auth.uid &&
                     get(/databases/$(database)/documents/orders/$(incoming().order_id)).data.status == 'delivered';
-      allow update, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if isValidId(reviewId) && isValidReview(incoming()) && (isAdmin() || isOwner(resource.data.user_id));
+      allow delete: if isValidId(reviewId) && (isAdmin() || isOwner(resource.data.user_id));
     }
 
     // WISHLIST: User private vault
     match /wishlist/{wishlistId} {
-      allow read, write: if isOwner(resource.data.user_id || incoming().user_id);
+      allow get: if isValidId(wishlistId) && isOwner(existing().user_id);
+      allow list: if isSignedIn() && resource.data.user_id == request.auth.uid;
+      
+      allow create: if isValidId(wishlistId) && isSignedIn() &&
+                    isOwner(incoming().user_id) && 
+                    isValidWishlistItem(incoming()) && 
+                    incoming().keys().hasAll(['user_id', 'item_id', 'item_details', 'added_at']) &&
+                    incoming().added_at == request.time;
+                    
+      allow update: if isValidId(wishlistId) && isSignedIn() &&
+                    isValidWishlistItem(incoming()) &&
+                    isOwner(existing().user_id) &&
+                    incoming().user_id == existing().user_id;
+                    
+      allow delete: if isValidId(wishlistId) && isSignedIn() && 
+                    isOwner(existing().user_id);
     }
 
     // BANNERS: Marketing
     match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow get: if isValidId(bannerId);
+      allow list: if true;
+      allow create: if isValidId(bannerId) && isAdmin() && isValidBanner(incoming());
+      allow update: if isValidId(bannerId) && isValidBanner(incoming()) && isAdmin();
+      allow delete: if isValidId(bannerId) && isAdmin();
     }
 
     // SETTINGS: System Config
     match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow write: if isValidId(settingId) && isAdmin() && isValidSettings(settingId, incoming());
     }
 
     // ADMINS: Master RBAC
     match /admins/{adminId} {
-      allow read: if isOwner(adminId);
+      allow get: if isValidId(adminId) && isOwner(adminId);
+      allow list: if false;
       allow write: if false; // System only
     }
 
     // COUPONS: Restricted updates for usage count
     match /coupons/{couponId} {
-      allow get: if true;
+      allow get: if isValidId(couponId);
       allow list: if isAdmin() || (resource.data.status == 'active');
-      allow update: if isAdmin() || (
+      allow update: if isValidId(couponId) && isValidCoupon(incoming()) && (isAdmin() || (
         isSignedIn() && 
         incoming().diff(existing()).affectedKeys().hasOnly(['usage_count']) &&
         incoming().usage_count == existing().usage_count + 1
-      );
-      allow create, delete: if isAdmin();
+      ));
+      allow create: if isValidId(couponId) && isAdmin() && isValidCoupon(incoming());
+      allow delete: if isValidId(couponId) && isAdmin();
     }
 
     // BADGE CONFIGS & GIFTS
     match /badge_configs/{badgeId} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidBadgeConfig(incoming());
-      allow delete: if isAdmin();
+      allow get: if isValidId(badgeId);
+      allow list: if true;
+      allow create: if isValidId(badgeId) && isAdmin() && isValidBadgeConfig(incoming());
+      allow update: if isValidId(badgeId) && isValidBadgeConfig(incoming()) && isAdmin();
+      allow delete: if isValidId(badgeId) && isAdmin();
     }
 
     match /gifts/{giftId} {
-      allow read: if true;
-      allow create, update: if isAdmin() && isValidGift(incoming());
-      allow delete: if isAdmin();
+      allow get: if isValidId(giftId);
+      allow list: if true;
+      allow create: if isValidId(giftId) && isAdmin() && isValidGift(incoming());
+      allow update: if isValidId(giftId) && isValidGift(incoming()) && isAdmin();
+      allow delete: if isValidId(giftId) && isAdmin();
     }
   }
 }
-

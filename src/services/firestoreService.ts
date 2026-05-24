@@ -39,6 +39,11 @@ interface FirestoreErrorInfo {
     email?: string | null;
     emailVerified?: boolean | null;
     isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
   }
 }
 
@@ -49,21 +54,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
       emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
     },
     operationType,
     path
-  }
-  console.warn('Firestore Error suppressed:', JSON.stringify(errInfo));
+  };
   
-  // Show a content update success toast instead of carrying a dry/unpleasant raw permission error
-  // Only show this for mutating/writing operations (CREATE, UPDATE, DELETE, WRITE), not for reads (GET, LIST)
-  if (operationType !== OperationType.GET && operationType !== OperationType.LIST) {
-    toast.success('Content updated successfully', {
-      id: `content-update-${path}-${operationType}`.replace(/[^a-zA-Z0-9-]/g, '-'),
-      duration: 3500
-    });
-  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
 }
 
 export const safeFirestore = {
