@@ -1,5 +1,5 @@
 import { auth, db } from '../firebase';
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './firestoreService';
 
 export interface AppConfig {
@@ -243,9 +243,36 @@ export const appConfigService = {
   },
 
   /**
-   * Fetches the current configuration once from the secure backend.
+   * Fetches the current configuration once from the secure database.
+   * Leverages real-time strict Firestore fetching first to ensure 100% accurate up-to-the-second access.
    */
   getConfig: async (): Promise<AppConfig> => {
+    // 1. Try Firestore direct read for absolute strict verification
+    try {
+      const configDocRef = doc(db, 'settings', 'appConfig');
+      const docSnap = await getDoc(configDocRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() as AppConfig;
+        
+        let freshUpdatedAt = data.updated_at;
+        if (freshUpdatedAt && typeof freshUpdatedAt.toDate === 'function') {
+          freshUpdatedAt = freshUpdatedAt.toDate().toISOString();
+        }
+
+        const normalized: AppConfig = {
+          ...data,
+          updated_at: freshUpdatedAt
+        };
+
+        currentConfig = normalized;
+        localStorage.setItem('app_config_cache', JSON.stringify(normalized));
+        return normalized;
+      }
+    } catch (fbErr) {
+      console.warn('[appConfigService] Direct Firestore fetch failed or blocked. Trying secure API proxy fallback:', fbErr);
+    }
+
+    // 2. Fall back to secure backend proxy if offline, restricted or doesn't exist
     try {
       const response = await fetch('/api/config');
       if (response.ok) {
