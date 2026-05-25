@@ -98,6 +98,11 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS delivery_charge NUMERIC DEFAU
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS gst NUMERIC DEFAULT 0;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now();
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT now();
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS refund_status TEXT DEFAULT 'none'; -- none, pending_refund, refunded, failed
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS total_amount NUMERIC;
+
 
 -- 5. Alter Riders table columns
 ALTER TABLE public.riders ALTER COLUMN id TYPE TEXT USING id::text;
@@ -345,3 +350,20 @@ CREATE POLICY "Service Role Manage Users" ON public.users FOR ALL USING (true);
 -- Allow users to read their own profile
 DROP POLICY IF EXISTS "Users view own profile" ON public.users;
 CREATE POLICY "Users view own profile" ON public.users FOR SELECT USING (firebase_uid = auth.uid()::text OR supabase_uid = auth.uid()::text OR email = auth.jwt() ->> 'email');
+
+-- 15. Cancellation Logs for enterprise tracking
+CREATE TABLE IF NOT EXISTS public.cancellation_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL,
+    user_id TEXT,
+    reason TEXT,
+    cancelled_by TEXT DEFAULT 'customer',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+ALTER TABLE public.cancellation_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Select Logs" ON public.cancellation_logs;
+CREATE POLICY "Public Select Logs" ON public.cancellation_logs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Anyone Insert Logs" ON public.cancellation_logs;
+CREATE POLICY "Anyone Insert Logs" ON public.cancellation_logs FOR INSERT WITH CHECK (true);
+

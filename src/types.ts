@@ -48,6 +48,10 @@ export interface Order {
   gst?: number;
   estimated_delivery_time?: number; // in minutes
   estimated_arrival?: string; // ISO date string
+  cancelled_at?: string;
+  cancellation_reason?: string;
+  refund_status?: 'none' | 'pending_refund' | 'refunded' | 'failed';
+  total_amount?: number;
 }
 
 export interface User {

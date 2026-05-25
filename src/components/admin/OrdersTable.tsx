@@ -3,6 +3,7 @@ import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, 
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
+import { supabaseService } from '../../services/supabaseService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
 import toast from 'react-hot-toast';
@@ -356,6 +357,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = orders.find(o => o.id === id);
+      
+      if (newStatus === 'cancelled') {
+        // Intercept and use safe cancelOrder routine
+        await supabaseService.cancelOrder(id, 'Cancelled by Administrator', 'admin', 'admin');
+        
+        if (order && order.user_id !== 'guest' && order.user_id) {
+          addNotification({
+            title: 'Order Cancelled by Admin',
+            message: `Order #${id.slice(-6).toUpperCase()} was cancelled by management.`,
+            type: 'order',
+            user_id: order.user_id,
+            link: `/order-tracking/${id}`
+          });
+        }
+        
+        toast.success('Order cancelled. Stock restored & logs created.', { id: loadingToast });
+        return;
+      }
+
       const updateData: any = { 
         status: newStatus,
         updated_at: new Date().toISOString() 

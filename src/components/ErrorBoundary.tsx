@@ -33,6 +33,26 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleUnhandledRejection = (event: PromiseRejectionEvent) => {
     const reason = event.reason;
     const reasonStr = reason ? String(reason.message || reason) : '';
+    
+    // Ignore benign websocket and vite errors
+    if (
+      reasonStr.toLowerCase().includes('websocket') ||
+      reasonStr.toLowerCase().includes('web socket') ||
+      reasonStr.toLowerCase().includes('vite') ||
+      reasonStr.toLowerCase().includes('closed without opened')
+    ) {
+      try {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      } catch (_) {}
+      return;
+    }
+
+    // Call preventDefault() so the browser/testing wrapper knows the rejection is handled
+    try {
+      event.preventDefault();
+    } catch (_) {}
+
     console.warn('[ErrorBoundary] Unhandled promise rejection captured:', reason);
     
     // Only crash if it is indeed a chunk/dynamic import load failure
@@ -66,6 +86,9 @@ export class ErrorBoundary extends Component<Props, State> {
         const src = target.src || target.href || '';
         if (src.includes('assets/')) {
           console.error('[ErrorBoundary] Critical asset resource loading failure:', src);
+          try {
+            event.preventDefault();
+          } catch (_) {}
           this.setState({
             hasError: true,
             error: new Error(`Failed to fetch dynamically imported module: ${src}`)
@@ -74,6 +97,26 @@ export class ErrorBoundary extends Component<Props, State> {
       }
     } else {
       const errorMsg = event.message || '';
+      const errorStr = event.error ? String(event.error.message || event.error) : '';
+      
+      // Ignore benign websocket and vite errors
+      if (
+        errorMsg.toLowerCase().includes('websocket') ||
+        errorMsg.toLowerCase().includes('web socket') ||
+        errorMsg.toLowerCase().includes('vite') ||
+        errorMsg.toLowerCase().includes('closed without opened') ||
+        errorStr.toLowerCase().includes('websocket') ||
+        errorStr.toLowerCase().includes('web socket') ||
+        errorStr.toLowerCase().includes('vite') ||
+        errorStr.toLowerCase().includes('closed without opened')
+      ) {
+        try {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        } catch (_) {}
+        return;
+      }
+
       const isChunkError = 
         errorMsg.toLowerCase().includes('dynamically imported') || 
         errorMsg.toLowerCase().includes('failed to fetch dynamically') ||
@@ -83,6 +126,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
       if (isChunkError) {
         console.error('[ErrorBoundary] Global chunk error. Transitioning to Update Available screen.');
+        try {
+          event.preventDefault();
+        } catch (_) {}
         this.setState({
           hasError: true,
           error: event.error || new Error(errorMsg)

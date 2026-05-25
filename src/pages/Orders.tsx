@@ -3,12 +3,13 @@ import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useCart } from '../context/CartContext';
+import { CancelOrderModal } from '../components/CancelOrderModal';
 import toast from 'react-hot-toast';
 
 const Orders: React.FC = () => {
@@ -17,6 +18,37 @@ const Orders: React.FC = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Order cancellation state
+  const [selectedCancelOrder, setSelectedCancelOrder] = useState<Order | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  // Interval updating every second for live countdown precision
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTimeLeft = (ms: number) => {
+    if (ms <= 0) return "00h 00m 00s";
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+
+    const hrsStr = hours.toString().padStart(2, '0');
+    const minsStr = minutes.toString().padStart(2, '0');
+    const secsStr = seconds.toString().padStart(2, '0');
+
+    return `${hrsStr}h ${minsStr}m ${secsStr}s`;
+  };
+
+  const handleCancelSuccess = (updatedOrder: Order) => {
+    setOrders(prev => prev.map(o => o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
+  };
+
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -328,6 +360,89 @@ const Orders: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Order Cancellation Panel with live timer */}
+                        <div className="p-4 bg-white/[0.02] rounded-3xl border border-white/5 space-y-3">
+                          {(() => {
+                            const isCancelableStatus = order.status === 'pending' || order.status === 'confirmed';
+                            const createdTime = order.created_at ? new Date(order.created_at).getTime() : 0;
+                            const limitTime = createdTime + 24 * 60 * 60 * 1000;
+                            const timeLeftSecs = limitTime - Date.now();
+                            const isExpired = timeLeftSecs <= 0;
+
+                            if (isCancelableStatus) {
+                              if (!isExpired) {
+                                return (
+                                  <div className="flex flex-col gap-2.5">
+                                    <div className="flex items-center gap-2 text-zinc-400">
+                                      <Clock className="text-amber-500 animate-pulse" size={14} />
+                                      <div className="flex-1">
+                                        <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest leading-none">Cancellation Period</p>
+                                        <p className="text-[11px] font-mono font-black text-amber-500 mt-1">
+                                          {formatTimeLeft(timeLeftSecs)} remaining
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedCancelOrder(order);
+                                        setIsCancelModalOpen(true);
+                                      }}
+                                      className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-500 rounded-xl text-[9px] font-black uppercase tracking-widest text-center transition-all shadow-lg active:scale-95"
+                                    >
+                                      Cancel Order
+                                    </button>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="flex items-start gap-2.5 text-zinc-500 text-[9px] font-black uppercase tracking-widest leading-normal">
+                                    <AlertCircle size={14} className="text-zinc-600 shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="text-zinc-400">Cancellation period expired</p>
+                                      <p className="text-[8px] text-zinc-650 font-medium normal-case mt-0.5">Orders can only be cancelled within 24 hours of placement.</p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            } else if (order.status === 'cancelled') {
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-rose-500 text-[9px] font-black uppercase tracking-widest">
+                                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                                    Order Cancelled
+                                  </div>
+                                  {order.refund_status && order.refund_status !== 'none' && (
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
+                                        order.refund_status === 'refunded'
+                                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                          : order.refund_status === 'failed'
+                                            ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                                            : 'bg-amber-500/15 border-amber-500/20 text-amber-400'
+                                      )}>
+                                        Refund {order.refund_status.replace('_', ' ')}
+                                      </span>
+                                      <span className="text-[8px] text-zinc-500 font-bold">Amt: ₹{order.total || order.total_amount || 0}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div className="flex items-start gap-2.5 text-zinc-500 text-[9px] font-black uppercase tracking-widest leading-normal">
+                                  <AlertCircle size={14} className="text-zinc-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-zinc-400">Order can no longer be cancelled</p>
+                                    <p className="text-[8px] text-zinc-650 font-medium normal-case mt-0.5">Baking in progress (Preparing / Dispatched / Delivered).</p>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+
                         <div className="flex gap-2">
                           <button
                             onClick={(e) => handleReorderAll(e, order)}
@@ -351,6 +466,19 @@ const Orders: React.FC = () => {
             ))}
           </AnimatePresence>
         </div>
+      )}
+
+      {selectedCancelOrder && (
+        <CancelOrderModal
+          order={selectedCancelOrder}
+          isOpen={isCancelModalOpen}
+          onClose={() => {
+            setIsCancelModalOpen(false);
+            setSelectedCancelOrder(null);
+          }}
+          onCancelSuccess={handleCancelSuccess}
+          userId={user?.uid || ''}
+        />
       )}
     </motion.div>
   );

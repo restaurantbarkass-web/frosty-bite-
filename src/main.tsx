@@ -19,11 +19,42 @@ function Loader() {
 /* ---------------- GLOBAL ERROR HANDLING ---------------- */
 
 window.addEventListener('error', (event) => {
+  const errorMsg = event.message || '';
+  const errorStr = event.error ? String(event.error.message || event.error) : '';
+  if (
+    errorMsg.toLowerCase().includes('websocket') ||
+    errorMsg.toLowerCase().includes('web socket') ||
+    errorMsg.toLowerCase().includes('vite') ||
+    errorMsg.toLowerCase().includes('closed without opened') ||
+    errorStr.toLowerCase().includes('websocket') ||
+    errorStr.toLowerCase().includes('web socket') ||
+    errorStr.toLowerCase().includes('vite') ||
+    errorStr.toLowerCase().includes('closed without opened')
+  ) {
+    try {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    } catch (_) {}
+    return;
+  }
   console.error('Global Error:', event.error?.stack || event.error?.message || event.error || event);
 });
 
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason;
+  const reasonStr = reason ? String(reason.message || reason) : '';
+  if (
+    reasonStr.toLowerCase().includes('websocket') ||
+    reasonStr.toLowerCase().includes('web socket') ||
+    reasonStr.toLowerCase().includes('vite') ||
+    reasonStr.toLowerCase().includes('closed without opened')
+  ) {
+    try {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    } catch (_) {}
+    return;
+  }
   console.error('Unhandled Promise:', reason?.stack || reason?.message || reason || event);
 });
 

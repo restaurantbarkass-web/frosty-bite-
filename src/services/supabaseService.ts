@@ -83,6 +83,114 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  // Centralized Order Cancellation with inventory restoration & logging
+  async cancelOrder(orderId: string, reason: string, cancelledBy: 'customer' | 'admin', userId: string) {
+    // 1. Fetch order details to know what items and total are there
+    const order = await supabaseService.fetchSingle<any>('orders', orderId);
+    if (!order) throw new Error('Order not found');
+
+    const totalAmount = order.total || order.subtotal || 0;
+
+    // Check monthly limit if cancelled by customer
+    if (cancelledBy === 'customer') {
+      const targetUserId = userId || order.user_id;
+      const count = await supabaseService.getMonthlyCancellationCount(targetUserId, order.phone);
+      if (count >= 3) {
+        throw new Error('Cancellation limit exceeded. Customers can only cancel their order up to thrice (3 times) a month.');
+      }
+    }
+
+    // 2. Perform the update on orders table: Set status='cancelled', cancelled_at, cancellation_reason, refund_status, total_amount
+    const isOnlinePayment = order.payment_method === 'online' || order.payment_method === 'upi';
+    const refundStatus = isOnlinePayment ? 'pending_refund' : 'none';
+
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: reason,
+        refund_status: refundStatus,
+        total_amount: totalAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (updateError) throw updateError;
+
+    // 3. Restore inventory (stock_quantity in products table)
+    if (order.items && Array.isArray(order.items)) {
+      for (const item of order.items) {
+        if (item.id) {
+          try {
+            // Get current stock
+            const { data: product } = await supabase
+              .from('products')
+              .select('stock_quantity')
+              .eq('id', item.id)
+              .single();
+            
+            if (product) {
+              const newStock = (product.stock_quantity || 0) + (item.quantity || 1);
+              await supabase
+                .from('products')
+                .update({ stock_quantity: newStock, available: true })
+                .eq('id', item.id);
+            }
+          } catch (err) {
+            console.error(`Failed to restore stock for item ${item.id}:`, err);
+          }
+        }
+      }
+    }
+
+    // 4. Create cancellation logs
+    try {
+      await supabase
+        .from('cancellation_logs')
+        .insert({
+          order_id: orderId,
+          user_id: userId || order.user_id,
+          reason: reason,
+          cancelled_by: cancelledBy,
+          created_at: new Date().toISOString()
+        });
+    } catch (err) {
+      console.error('Failed to create cancellation log:', err);
+    }
+
+    return { ...order, status: 'cancelled', cancellation_reason: reason, refund_status: refundStatus, cancelled_at: new Date().toISOString() };
+  },
+
+  // Get monthly cancellation count for a user (or phone for guest)
+  async getMonthlyCancellationCount(userId: string, phone?: string) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const startOfMonthISO = startOfMonth.toISOString();
+
+    let query = supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'cancelled')
+      .gte('cancelled_at', startOfMonthISO);
+
+    if (userId && userId !== 'guest' && userId !== '') {
+      query = query.eq('user_id', userId);
+    } else if (phone) {
+      query = query.eq('phone', phone);
+    } else {
+      return 0;
+    }
+
+    const { count, error } = await query;
+    if (error) {
+      console.error('Error fetching monthly cancellation count:', error);
+      return 0;
+    }
+    return count || 0;
+  },
+
   // Real-time subscription helper
   subscribe(table: string, callback: (payload: any) => void, filter?: string) {
     let channel = supabase.channel(`public:${table}`);
