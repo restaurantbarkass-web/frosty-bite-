@@ -3,7 +3,8 @@ import { FoodItem } from './types';
 export const ADMIN_EMAILS = [
   "sayedazainabali76@gmail.com", // Primary Admin
   "wasifmd924@gmail.com",
-  "restaurantbarkass@gmail.com"
+  "restaurantbarkass@gmail.com",
+  "sayedazainab216@gmail.com"
 ];
 
 export const RESTAURANT_WHATSAPP = "917735800239"; 

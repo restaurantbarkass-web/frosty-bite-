@@ -88,15 +88,17 @@ const stopFirebaseRealtime = () => {
 };
 
 let supabaseSubscription: any = null;
+let isSubscribingSupabase = false;
 
 const startSupabaseRealtime = async () => {
-  if (supabaseSubscription) return;
+  if (supabaseSubscription || isSubscribingSupabase) return;
+  isSubscribingSupabase = true;
 
   try {
     const { supabase } = await import('../supabase');
     console.log('[appConfigService] Starting Supabase Realtime subscription for system settings...');
     
-    supabaseSubscription = supabase
+    const channel = supabase
       .channel('system_settings_changes')
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -130,10 +132,14 @@ const startSupabaseRealtime = async () => {
             console.error('[appConfigService] Error parsing Supabase real-time config payload:', e);
           }
         }
-      })
-      .subscribe();
+      });
+
+    await channel.subscribe();
+    supabaseSubscription = channel;
   } catch (err) {
     console.warn('[appConfigService] Error starting Supabase Realtime subscription:', err);
+  } finally {
+    isSubscribingSupabase = false;
   }
 };
 
@@ -253,10 +259,26 @@ export const appConfigService = {
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
 
+    let firestoreSuccess = false;
     let backendSuccess = false;
     let lastError: any = null;
 
-    // 1. Call secure backend API to update configuration across targets (Firestore + Supabase)
+    // 1. Dual-Write: Attempt direct Firestore client write
+    try {
+      console.log('[appConfigService] Attempting direct Firestore client write for open/close state...');
+      const configDocRef = doc(db, 'settings', 'appConfig');
+      await setDoc(configDocRef, {
+        isOrderingOpen: newStatus,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      console.log('[appConfigService] Direct Firestore open/close update succeeded!');
+      firestoreSuccess = true;
+    } catch (fsError: any) {
+      console.warn('[appConfigService] Direct Firestore client update skipped/failed:', fsError.message || fsError);
+      lastError = fsError;
+    }
+
+    // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
       const token = await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
@@ -267,20 +289,26 @@ export const appConfigService = {
         },
         body: JSON.stringify(updatedConfig)
       });
-      if (!response.ok) {
+      if (response.ok) {
+        backendSuccess = true;
+        console.log('[appConfigService] Order open/close status successfully updated via backend API proxy');
+      } else {
         const errorText = await response.text();
-        throw new Error(`API returned status ${response.status}: ${errorText}`);
+        console.warn(`[appConfigService] Backend API config sync failed (status ${response.status}): ${errorText}`);
+        if (!firestoreSuccess) {
+          lastError = new Error(`API returned status ${response.status}: ${errorText}`);
+        }
       }
-      backendSuccess = true;
-      console.log('[appConfigService] Order open/close status successfully updated via backend API proxy');
     } catch (error: any) {
-      console.warn('[appConfigService] Backend API config sync failed:', error);
-      lastError = error;
+      console.warn('[appConfigService] Backend API config sync failed with network/unexpected error:', error);
+      if (!firestoreSuccess) {
+        lastError = error;
+      }
     }
 
-    if (!backendSuccess) {
+    // If both failed, then we revert optimistic updates on failure
+    if (!firestoreSuccess && !backendSuccess) {
       isUpdatingConfig = false;
-      // Revert optimistic updates on failure
       currentConfig = oldConfig;
       if (oldConfig) {
         localStorage.setItem('app_config_cache', JSON.stringify(oldConfig));
@@ -290,7 +318,7 @@ export const appConfigService = {
         localStorage.removeItem('app_config_cache');
         localStorage.removeItem('admin_config_cache');
       }
-      throw lastError || new Error("Failed to change store status. Backend secure API rejected the transaction.");
+      throw lastError || new Error("Failed to change store status. Both client-side direct update and backend API proxy failed.");
     }
 
     // Hang on to the lock for 3 seconds to let Firestore & Supabase real-time settles without causing flash-backs
@@ -319,10 +347,28 @@ export const appConfigService = {
     localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
     currentListeners.forEach(l => l(updatedConfig));
 
+    let firestoreSuccess = false;
     let backendSuccess = false;
     let lastError: any = null;
 
-    // 1. Call secure backend API to update configuration across targets (Firestore + Supabase)
+    // 1. Dual-Write: Attempt direct Firestore client write
+    try {
+      console.log('[appConfigService] Attempting direct Firestore client write for delivery settings...');
+      const configDocRef = doc(db, 'settings', 'appConfig');
+      await setDoc(configDocRef, {
+        deliveryBaseFee: pricing.baseFee,
+        deliveryFeePerKm: pricing.perKm,
+        deliveryFreeKm: pricing.freeKm,
+        updated_at: serverTimestamp()
+      }, { merge: true });
+      console.log('[appConfigService] Direct Firestore delivery update succeeded!');
+      firestoreSuccess = true;
+    } catch (fsError: any) {
+      console.warn('[appConfigService] Direct Firestore client update skipped/failed:', fsError.message || fsError);
+      lastError = fsError;
+    }
+
+    // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
       const token = await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
@@ -333,20 +379,26 @@ export const appConfigService = {
         },
         body: JSON.stringify(updatedConfig)
       });
-      if (!response.ok) {
+      if (response.ok) {
+        backendSuccess = true;
+        console.log('[appConfigService] Pricing settings successfully updated via backend API proxy');
+      } else {
         const errorText = await response.text();
-        throw new Error(`API returned status ${response.status}: ${errorText}`);
+        console.warn(`[appConfigService] Backend API pricing sync failed (status ${response.status}): ${errorText}`);
+        if (!firestoreSuccess) {
+          lastError = new Error(`API returned status ${response.status}: ${errorText}`);
+        }
       }
-      backendSuccess = true;
-      console.log('[appConfigService] Pricing settings successfully updated via backend API proxy');
     } catch (error: any) {
-      console.warn('[appConfigService] Backend API pricing sync failed:', error);
-      lastError = error;
+      console.warn('[appConfigService] Backend API pricing sync failed with network/unexpected error:', error);
+      if (!firestoreSuccess) {
+        lastError = error;
+      }
     }
 
-    if (!backendSuccess) {
+    // If both failed, then we revert optimistic updates on failure
+    if (!firestoreSuccess && !backendSuccess) {
       isUpdatingConfig = false;
-      // Revert optimistic updates on failure
       currentConfig = oldConfig;
       if (oldConfig) {
         localStorage.setItem('app_config_cache', JSON.stringify(oldConfig));
@@ -356,7 +408,7 @@ export const appConfigService = {
         localStorage.removeItem('app_config_cache');
         localStorage.removeItem('admin_config_cache');
       }
-      throw lastError || new Error("Failed to change delivery pricing. Backend secure API rejected the transaction.");
+      throw lastError || new Error("Failed to change delivery pricing. Both client-side direct update and backend API proxy failed.");
     }
 
     // Let real-time settling complete
