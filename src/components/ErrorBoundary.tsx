@@ -20,6 +20,79 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
+  public componentDidMount() {
+    window.addEventListener('unhandledrejection', this.handleUnhandledRejection);
+    window.addEventListener('error', this.handleGlobalError, true); // Intercept in capturing phase
+  }
+
+  public componentWillUnmount() {
+    window.removeEventListener('unhandledrejection', this.handleUnhandledRejection);
+    window.removeEventListener('error', this.handleGlobalError, true);
+  }
+
+  private handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    const reasonStr = reason ? String(reason.message || reason) : '';
+    console.warn('[ErrorBoundary] Unhandled promise rejection captured:', reason);
+    
+    // Only crash if it is indeed a chunk/dynamic import load failure
+    const isChunkError = 
+      reasonStr.toLowerCase().includes('dynamically imported') || 
+      reasonStr.toLowerCase().includes('failed to fetch dynamically') ||
+      reasonStr.toLowerCase().includes('chunk') ||
+      reasonStr.toLowerCase().includes('loading css chunk') ||
+      reasonStr.toLowerCase().includes('loading chunk');
+
+    if (isChunkError) {
+      console.error('[ErrorBoundary] Chunk/Dynamic import rejection. Transitioning to Update Available screen.');
+      let reasonError = reason;
+      if (!(reasonError instanceof Error)) {
+        reasonError = new Error(reasonStr || 'Unhandled promise rejection');
+      }
+      this.setState({
+        hasError: true,
+        error: reasonError
+      });
+    } else {
+      console.log('[ErrorBoundary] Ignored background unhandled rejection to prevent unwanted crashing.');
+    }
+  };
+
+  private handleGlobalError = (event: ErrorEvent | Event) => {
+    // If it's not a standard ErrorEvent, it represents a resource loading error (capture phase)
+    if (!(event instanceof ErrorEvent)) {
+      const target = event.target as any;
+      if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
+        const src = target.src || target.href || '';
+        if (src.includes('assets/')) {
+          console.error('[ErrorBoundary] Critical asset resource loading failure:', src);
+          this.setState({
+            hasError: true,
+            error: new Error(`Failed to fetch dynamically imported module: ${src}`)
+          });
+        }
+      }
+    } else {
+      const errorMsg = event.message || '';
+      const isChunkError = 
+        errorMsg.toLowerCase().includes('dynamically imported') || 
+        errorMsg.toLowerCase().includes('failed to fetch dynamically') ||
+        errorMsg.toLowerCase().includes('chunk') ||
+        errorMsg.toLowerCase().includes('loading css chunk') ||
+        errorMsg.toLowerCase().includes('loading chunk');
+
+      if (isChunkError) {
+        console.error('[ErrorBoundary] Global chunk error. Transitioning to Update Available screen.');
+        this.setState({
+          hasError: true,
+          error: event.error || new Error(errorMsg)
+        });
+      } else {
+        console.warn('[ErrorBoundary] Ignored non-chunk global error to guarantee smooth session:', event);
+      }
+    }
+  };
+
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
