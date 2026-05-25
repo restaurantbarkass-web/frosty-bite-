@@ -14,6 +14,40 @@
     <link rel="icon" href="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" />
     <title>Frosty Bite</title>
     <meta name="description" content="Artisan bakery and frosty treats">
+    <script>
+      (function() {
+        function isBenign(msg) {
+          if (!msg) return false;
+          var m = String(msg).toLowerCase();
+          return m.includes('websocket') || 
+                 m.includes('web socket') || 
+                 m.includes('closed without opened') || 
+                 m.includes('closeevent') || 
+                 m.includes('vite') ||
+                 m.includes('hmr');
+        }
+        window.addEventListener('error', function(e) {
+          var msg = e.message || (e.error ? e.error.message : '');
+          if (isBenign(msg)) {
+            try {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+            } catch(_) {}
+          }
+        }, true);
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e.reason;
+          var msg = reason ? (reason.message || reason.description || reason.reason || reason) : '';
+          var constructorName = (reason && reason.constructor) ? String(reason.constructor.name) : '';
+          if (isBenign(msg) || isBenign(constructorName) || (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined))) {
+            try {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+            } catch(_) {}
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

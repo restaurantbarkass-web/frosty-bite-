@@ -145,3 +145,12 @@ html.lenis {
   opacity: 0.5;
 }
 
+/* Hide development WebSocket / HMR failure overlays */
+vite-error-overlay {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+

@@ -26,10 +26,12 @@ window.addEventListener('error', (event) => {
     errorMsg.toLowerCase().includes('web socket') ||
     errorMsg.toLowerCase().includes('vite') ||
     errorMsg.toLowerCase().includes('closed without opened') ||
+    errorMsg.toLowerCase().includes('closeevent') ||
     errorStr.toLowerCase().includes('websocket') ||
     errorStr.toLowerCase().includes('web socket') ||
     errorStr.toLowerCase().includes('vite') ||
-    errorStr.toLowerCase().includes('closed without opened')
+    errorStr.toLowerCase().includes('closed without opened') ||
+    errorStr.toLowerCase().includes('closeevent')
   ) {
     try {
       event.preventDefault();
@@ -42,12 +44,18 @@ window.addEventListener('error', (event) => {
 
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason;
-  const reasonStr = reason ? String(reason.message || reason) : '';
+  const reasonStr = reason ? String(reason.message || reason.description || reason.reason || reason) : '';
+  const reasonConstructorName = reason && reason.constructor ? String(reason.constructor.name) : '';
+  
   if (
     reasonStr.toLowerCase().includes('websocket') ||
     reasonStr.toLowerCase().includes('web socket') ||
     reasonStr.toLowerCase().includes('vite') ||
-    reasonStr.toLowerCase().includes('closed without opened')
+    reasonStr.toLowerCase().includes('closed without opened') ||
+    reasonStr.toLowerCase().includes('closeevent') ||
+    reasonConstructorName.toLowerCase().includes('closeevent') ||
+    reasonConstructorName.toLowerCase().includes('websocket') ||
+    (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined))
   ) {
     try {
       event.preventDefault();
