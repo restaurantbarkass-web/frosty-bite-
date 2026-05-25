@@ -3,21 +3,51 @@
   "short_name": "FrostyBite",
   "description": "Order delicious premium artisan baked treats, cupcakes, cakes, and frosty pastries instantly with real-time status tracking.",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#ff0055",
   "icons": [
     {
-      "src": "/logo_192.png",
+      "src": "logo_192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/logo_512.png",
+      "src": "logo_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "logo_512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "logo_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?q=80&w=1080&h=1920&auto=format&fit=crop",
+      "sizes": "1080x1920",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Frosty Bite - Artisan Baked Goods Storefront"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1509440159596-5962b1095bf3?q=80&w=1920&h=1080&auto=format&fit=crop",
+      "sizes": "1920x1080",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Frosty Bite - Fresh Treats & Desserts"
     }
   ]
 }
