@@ -35,9 +35,47 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      const errorMsg = this.state.error?.message || "";
+      const errorStr = this.state.error?.toString() || "";
+      
+      const isDynamicImportError = 
+        errorMsg.toLowerCase().includes('dynamically imported') || 
+        errorMsg.toLowerCase().includes('failed to fetch dynamically') ||
+        errorMsg.toLowerCase().includes('chunk') ||
+        errorStr.toLowerCase().includes('dynamically imported') ||
+        errorStr.toLowerCase().includes('failed to fetch dynamically') ||
+        errorStr.toLowerCase().includes('chunk');
+
+      if (isDynamicImportError) {
+        return (
+          <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 text-center">
+            <div className="max-w-md w-full glass-dark p-10 rounded-[32px] border border-white/10 shadow-2xl">
+              <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center text-primary mx-auto mb-8 animate-pulse">
+                <RefreshCcw size={40} className="animate-spin" style={{ animationDuration: '3s' }} />
+              </div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-4 italic">Update Available</h2>
+              <p className="text-zinc-400 font-medium mb-8 leading-relaxed px-4">
+                We've added beautiful new features and updates to Frosty Bite! Let's refresh to load the latest improvements instantly.
+              </p>
+              <div className="flex flex-col gap-4">
+                <Button onClick={this.handleReset} className="w-full py-4 flex items-center justify-center gap-3 text-base font-bold">
+                  <RefreshCcw size={18} />
+                  Update Now
+                </Button>
+                <button 
+                  onClick={() => window.location.href = '/'}
+                  className="text-zinc-500 hover:text-white text-xs font-black uppercase tracking-widest transition-colors"
+                >
+                  Back to Home
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       let errorMessage = "We've encountered an unexpected issue. Our team has been notified.";
       
-      const errorMsg = this.state.error?.message || "";
       if (errorMsg.includes('permission') || errorMsg.includes('unauthorized')) {
         errorMessage = "You don't have permission to access this resource. Please make sure you're logged in with the correct account.";
       } else if (errorMsg.includes('quota') || errorMsg.includes('limit')) {
