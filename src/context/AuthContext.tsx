@@ -126,6 +126,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (fbUser) {
         try {
           const idToken = await fbUser.getIdToken();
+          if (idToken) {
+            localStorage.setItem('latest_admin_auth_token', idToken);
+          }
           const response = await fetch('/api/auth/sync', {
             method: 'POST',
             headers: {
@@ -247,20 +250,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           title: dbUser.title || null,
           emailVerified: fbUser?.emailVerified || true,
           getIdToken: async () => {
+            let token: string | null = null;
             if (fbUser) {
               try {
-                return await fbUser.getIdToken();
+                token = await fbUser.getIdToken();
               } catch (e) {
                 console.warn('[UnifiedAuth] getIdToken from Firebase failed:', e);
               }
             }
-            try {
-              const { data } = await supabase.auth.getSession();
-              return data.session?.access_token || null;
-            } catch (sbErr) {
-              console.warn('[UnifiedAuth] getIdToken from Supabase failed:', sbErr);
-              return null;
+            if (!token) {
+              try {
+                const { data } = await supabase.auth.getSession();
+                token = data.session?.access_token || null;
+              } catch (sbErr) {
+                console.warn('[UnifiedAuth] getIdToken from Supabase failed:', sbErr);
+              }
             }
+            if (token) {
+              localStorage.setItem('latest_admin_auth_token', token);
+            }
+            return token;
           }
         };
 

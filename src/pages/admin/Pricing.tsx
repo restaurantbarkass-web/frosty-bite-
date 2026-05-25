@@ -4,8 +4,10 @@ import { Truck, Save, Info, MapPin, IndianRupee, Clock } from 'lucide-react';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { InputField } from '../../components/InputField';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 export const Pricing: React.FC = () => {
+  const { user } = useAuth();
   const [baseFee, setBaseFee] = useState(20);
   const [perKm, setPerKm] = useState(8);
   const [freeKm, setFreeKm] = useState(5);
@@ -53,11 +55,12 @@ export const Pricing: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const token = user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
       await appConfigService.updateDeliveryPricing({
         baseFee,
         perKm,
         freeKm
-      });
+      }, token);
       toast.success('Delivery pricing updated successfully!');
     } catch (error) {
       toast.error('Failed to update pricing');

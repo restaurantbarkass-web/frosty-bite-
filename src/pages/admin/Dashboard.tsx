@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { appConfigService, AppConfig } from '../../services/appConfigService';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 import { db } from '../../firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
@@ -14,6 +15,7 @@ import { supabase } from '../../supabase';
 import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [isToggling, setIsToggling] = useState(false);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -101,7 +103,8 @@ export const Dashboard: React.FC = () => {
     setIsToggling(true);
     const newStatus = !config.isOrderingOpen;
     try {
-      await appConfigService.toggleOrderingStatus(config.isOrderingOpen);
+      const token = user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
+      await appConfigService.toggleOrderingStatus(config.isOrderingOpen, token);
       toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
     } catch (error) {
       console.error('Error toggling ordering status:', error);

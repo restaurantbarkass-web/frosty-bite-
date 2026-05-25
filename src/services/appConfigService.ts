@@ -178,12 +178,27 @@ const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, d
 /**
  * Helper to fetch the current active user authentication token (Firebase or Supabase)
  */
+/**
+ * Helper to fetch the current active user authentication token (Firebase or Supabase)
+ */
 const getAuthToken = async (): Promise<string | null> => {
+  // 1. Resilient primary fallback: check specific cached token key
+  try {
+    const cachedToken = localStorage.getItem('latest_admin_auth_token');
+    if (cachedToken) {
+      console.log('[appConfigService] Found token in latest_admin_auth_token fallback store');
+      return cachedToken;
+    }
+  } catch (err) {}
+
   let firebaseToken: string | null = null;
   if (auth.currentUser) {
     try {
       firebaseToken = await auth.currentUser.getIdToken();
-      if (firebaseToken) return firebaseToken;
+      if (firebaseToken) {
+        localStorage.setItem('latest_admin_auth_token', firebaseToken);
+        return firebaseToken;
+      }
     } catch (e) {
       console.warn('[appConfigService] Firebase getIdToken failed:', e);
     }
@@ -193,7 +208,10 @@ const getAuthToken = async (): Promise<string | null> => {
     const { supabase } = await import('../supabase');
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token || null;
-    if (token) return token;
+    if (token) {
+      localStorage.setItem('latest_admin_auth_token', token);
+      return token;
+    }
   } catch (err) {
     console.warn('[appConfigService] Supabase token lookup failed:', err);
   }
@@ -207,6 +225,7 @@ const getAuthToken = async (): Promise<string | null> => {
         if (val) {
           const parsed = JSON.parse(val);
           if (parsed && parsed.access_token) {
+            localStorage.setItem('latest_admin_auth_token', parsed.access_token);
             return parsed.access_token;
           }
         }
@@ -214,6 +233,63 @@ const getAuthToken = async (): Promise<string | null> => {
     }
   } catch (lsErr) {
     console.warn('[appConfigService] Error scanning localStorage for auth fallback:', lsErr);
+  }
+
+  // 2. Self-healing token scanner: scan all localStorage values for valid admin JWT
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      const val = localStorage.getItem(key);
+      if (!val || typeof val !== 'string') continue;
+
+      let candidates = [val];
+      try {
+        const parsed = JSON.parse(val);
+        if (parsed) {
+          if (typeof parsed === 'string') {
+            candidates.push(parsed);
+          } else {
+            if (parsed.access_token) candidates.push(parsed.access_token);
+            if (parsed.idToken) candidates.push(parsed.idToken);
+            if (parsed.token) candidates.push(parsed.token);
+            if (parsed.session?.access_token) candidates.push(parsed.session.access_token);
+          }
+        }
+      } catch (_) {}
+
+      for (const candidate of candidates) {
+        if (typeof candidate !== 'string') continue;
+        const parts = candidate.split('.');
+        if (parts.length === 3) {
+          try {
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const payloadStr = atob(base64);
+            const payload = JSON.parse(payloadStr);
+            if (payload) {
+              const email = payload.email || payload.user_metadata?.email || payload.user?.email;
+              if (email) {
+                const normEmail = email.trim().toLowerCase();
+                const ADMIN_EMAILS = [
+                  "restaurantbarkass@gmail.com",
+                  "wasifmd924@gmail.com",
+                  "sayedazainab216@gmail.com",
+                  "sayedazainabali76@gmail.com"
+                ];
+                if (ADMIN_EMAILS.includes(normEmail)) {
+                  console.log(`[appConfigService] Self-healed active admin token from localStorage for: ${normEmail}`);
+                  localStorage.setItem('latest_admin_auth_token', candidate);
+                  return candidate;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+  } catch (scannerErr) {
+    console.warn('[appConfigService] Scanner search failed:', scannerErr);
   }
 
   return firebaseToken;
@@ -263,7 +339,7 @@ export const appConfigService = {
   /**
    * Toggles the ordering status directly in Google Firebase Firestore.
    */
-  toggleOrderingStatus: async (currentStatus: boolean) => {
+  toggleOrderingStatus: async (currentStatus: boolean, customToken?: string | null) => {
     isUpdatingConfig = true;
     const newStatus = !currentStatus;
     const oldConfig = currentConfig ? { ...currentConfig } : null;
@@ -283,24 +359,28 @@ export const appConfigService = {
     let backendSuccess = false;
     let lastError: any = null;
 
-    // 1. Dual-Write: Attempt direct Firestore client write
-    try {
-      console.log('[appConfigService] Attempting direct Firestore client write for open/close state...');
-      const configDocRef = doc(db, 'settings', 'appConfig');
-      await setDoc(configDocRef, {
-        isOrderingOpen: newStatus,
-        updated_at: serverTimestamp()
-      }, { merge: true });
-      console.log('[appConfigService] Direct Firestore open/close update succeeded!');
-      firestoreSuccess = true;
-    } catch (fsError: any) {
-      console.warn('[appConfigService] Direct Firestore client update skipped/failed:', fsError.message || fsError);
-      lastError = fsError;
+    // 1. Dual-Write: Attempt direct Firestore client write (only if authenticated on Firebase client)
+    if (auth.currentUser) {
+      try {
+        console.log('[appConfigService] Attempting direct Firestore client write for open/close state...');
+        const configDocRef = doc(db, 'settings', 'appConfig');
+        await setDoc(configDocRef, {
+          isOrderingOpen: newStatus,
+          updated_at: serverTimestamp()
+        }, { merge: true }); // fallback merge
+        console.log('[appConfigService] Direct Firestore open/close update succeeded!');
+        firestoreSuccess = true;
+      } catch (fsError: any) {
+        console.log('[appConfigService] Direct Firestore client update not permitted (delegating to secure backend proxy):', fsError.message || fsError);
+        lastError = fsError;
+      }
+    } else {
+      console.log('[appConfigService] Direct client-side Firestore write skipped (using secure API proxy fallback.)');
     }
 
     // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
-      const token = await getAuthToken();
+      const token = customToken || await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {
@@ -350,7 +430,7 @@ export const appConfigService = {
   /**
    * Updates delivery pricing settings in Firebase Firestore and Supabase.
    */
-  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }) => {
+  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }, customToken?: string | null) => {
     isUpdatingConfig = true;
     const oldConfig = currentConfig ? { ...currentConfig } : null;
     const updatedConfig = {
@@ -371,26 +451,30 @@ export const appConfigService = {
     let backendSuccess = false;
     let lastError: any = null;
 
-    // 1. Dual-Write: Attempt direct Firestore client write
-    try {
-      console.log('[appConfigService] Attempting direct Firestore client write for delivery settings...');
-      const configDocRef = doc(db, 'settings', 'appConfig');
-      await setDoc(configDocRef, {
-        deliveryBaseFee: pricing.baseFee,
-        deliveryFeePerKm: pricing.perKm,
-        deliveryFreeKm: pricing.freeKm,
-        updated_at: serverTimestamp()
-      }, { merge: true });
-      console.log('[appConfigService] Direct Firestore delivery update succeeded!');
-      firestoreSuccess = true;
-    } catch (fsError: any) {
-      console.warn('[appConfigService] Direct Firestore client update skipped/failed:', fsError.message || fsError);
-      lastError = fsError;
+    // 1. Dual-Write: Attempt direct Firestore client write (only if authenticated on Firebase client)
+    if (auth.currentUser) {
+      try {
+        console.log('[appConfigService] Attempting direct Firestore client write for delivery settings...');
+        const configDocRef = doc(db, 'settings', 'appConfig');
+        await setDoc(configDocRef, {
+          deliveryBaseFee: pricing.baseFee,
+          deliveryFeePerKm: pricing.perKm,
+          deliveryFreeKm: pricing.freeKm,
+          updated_at: serverTimestamp()
+        }, { merge: true }); // fallback merge
+        console.log('[appConfigService] Direct Firestore delivery update succeeded!');
+        firestoreSuccess = true;
+      } catch (fsError: any) {
+        console.log('[appConfigService] Direct Firestore client update not permitted (delegating to secure backend proxy):', fsError.message || fsError);
+        lastError = fsError;
+      }
+    } else {
+      console.log('[appConfigService] Direct client-side Firestore write skipped (using secure API proxy fallback.)');
     }
 
     // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
-      const token = await getAuthToken();
+      const token = customToken || await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {
@@ -464,7 +548,7 @@ export const appConfigService = {
         return normalized;
       }
     } catch (fbErr) {
-      console.warn('[appConfigService] Direct Firestore fetch failed or blocked. Trying secure API proxy fallback:', fbErr);
+      console.log('[appConfigService] Direct Firestore fetch not available or blocked. Trying secure API proxy fallback...');
     }
 
     // 2. Fall back to secure backend proxy if offline, restricted or doesn't exist

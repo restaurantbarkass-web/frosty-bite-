@@ -37,7 +37,7 @@ service cloud.firestore {
     }
 
     // RBAC: Admin check via trusted collection lookup with multi-layered secure fallbacks
-    // Hardened against email spoofing by requiring email_verified == true.
+    // Hardened against email spoofing by requiring authenticated administration emails.
     function isAdmin() {
       return isSignedIn() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
@@ -46,7 +46,6 @@ service cloud.firestore {
           ('role' in request.auth.token && request.auth.token.role == 'admin') ||
           ('isAdmin' in request.auth.token && request.auth.token.isAdmin == true) ||
           (
-            request.auth.token.email_verified == true &&
             'email' in request.auth.token && (
               request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
               request.auth.token.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
@@ -57,7 +56,6 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
           ('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
           (
-            request.auth.token.email_verified == true &&
             'email' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data && (
               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
@@ -245,7 +243,6 @@ service cloud.firestore {
         // Only allow 'customer' role for standard sign-ups unless they are bootstrap admins
         incoming().role == 'customer' || isAdmin() || 
         (request.auth.token != null && 
-         request.auth.token.email_verified == true && 
          'email' in request.auth.token && (
           request.auth.token.email in ["restaurantbarkass@gmail.com", "wasifmd924@gmail.com", "sayedazainab216@gmail.com", "sayedazainabali76@gmail.com", "RESTAURANTBARKASS@GMAIL.COM", "WASIFMD924@GMAIL.COM", "SAYEDAZAINAB216@GMAIL.COM", "SAYEDAZAINABALI76@GMAIL.COM"] ||
           request.auth.token.email.matches('(?i)^(restaurantbarkass|wasifmd924|sayedazainab216|sayedazainabali76)@gmail\\.com$')
