@@ -134,8 +134,16 @@ function getEmailFromArbitraryToken(token: string): string | null {
     const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
     const payload = JSON.parse(jsonPayload);
     
-    if (payload && payload.email) {
-      return payload.email;
+    if (payload) {
+      if (payload.email) {
+        return payload.email;
+      }
+      if (payload.user_metadata && payload.user_metadata.email) {
+        return payload.user_metadata.email;
+      }
+      if (payload.user && payload.user.email) {
+        return payload.user.email;
+      }
     }
     return null;
   } catch (err) {

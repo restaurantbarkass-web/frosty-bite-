@@ -98,8 +98,10 @@ const startSupabaseRealtime = async () => {
     const { supabase } = await import('../supabase');
     console.log('[appConfigService] Starting Supabase Realtime subscription for system settings...');
     
+    // Generate a unique channel ID to prevent "cannot add postgres_changes callbacks... after subscribe"
+    const channelId = `system_settings_unique_${Math.random().toString(36).substring(2, 11)}`;
     const channel = supabase
-      .channel('system_settings_changes')
+      .channel(channelId)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -194,6 +196,24 @@ const getAuthToken = async (): Promise<string | null> => {
     if (token) return token;
   } catch (err) {
     console.warn('[appConfigService] Supabase token lookup failed:', err);
+  }
+
+  // Backup fallback: scan localStorage if other methods temporarily failed
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          const parsed = JSON.parse(val);
+          if (parsed && parsed.access_token) {
+            return parsed.access_token;
+          }
+        }
+      }
+    }
+  } catch (lsErr) {
+    console.warn('[appConfigService] Error scanning localStorage for auth fallback:', lsErr);
   }
 
   return firebaseToken;
