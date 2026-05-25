@@ -89,6 +89,7 @@ const stopFirebaseRealtime = () => {
 
 let supabaseSubscription: any = null;
 let isSubscribingSupabase = false;
+let pollingInterval: any = null;
 
 const startSupabaseRealtime = async () => {
   if (supabaseSubscription || isSubscribingSupabase) return;
@@ -185,9 +186,11 @@ const getAuthToken = async (): Promise<string | null> => {
   // 1. Resilient primary fallback: check specific cached token key
   try {
     const cachedToken = localStorage.getItem('latest_admin_auth_token');
-    if (cachedToken) {
+    if (cachedToken && cachedToken !== 'null' && cachedToken !== 'undefined' && cachedToken.trim() !== '' && cachedToken.split('.').length === 3) {
       console.log('[appConfigService] Found token in latest_admin_auth_token fallback store');
       return cachedToken;
+    } else if (cachedToken) {
+      localStorage.removeItem('latest_admin_auth_token');
     }
   } catch (err) {}
 
@@ -208,7 +211,7 @@ const getAuthToken = async (): Promise<string | null> => {
     const { supabase } = await import('../supabase');
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token || null;
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined') {
       localStorage.setItem('latest_admin_auth_token', token);
       return token;
     }
@@ -224,7 +227,7 @@ const getAuthToken = async (): Promise<string | null> => {
         const val = localStorage.getItem(key);
         if (val) {
           const parsed = JSON.parse(val);
-          if (parsed && parsed.access_token) {
+          if (parsed && parsed.access_token && parsed.access_token !== 'null' && parsed.access_token !== 'undefined') {
             localStorage.setItem('latest_admin_auth_token', parsed.access_token);
             return parsed.access_token;
           }
@@ -259,12 +262,15 @@ const getAuthToken = async (): Promise<string | null> => {
       } catch (_) {}
 
       for (const candidate of candidates) {
-        if (typeof candidate !== 'string') continue;
+        if (typeof candidate !== 'string' || candidate === 'null' || candidate === 'undefined') continue;
         const parts = candidate.split('.');
         if (parts.length === 3) {
           try {
             const base64Url = parts[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+              base64 += '=';
+            }
             const payloadStr = atob(base64);
             const payload = JSON.parse(payloadStr);
             if (payload) {
@@ -327,11 +333,41 @@ export const appConfigService = {
     startFirebaseRealtime();
     startSupabaseRealtime();
 
+    // Setup active fast polling fallback (every 2 seconds) to guarantee visual update happens instantly without refresh
+    if (!pollingInterval) {
+      pollingInterval = setInterval(async () => {
+        try {
+          const fresh = await appConfigService.getConfig();
+          if (fresh) {
+            const changed = !currentConfig || 
+              currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
+              currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
+              currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
+              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+
+            if (changed) {
+              console.log('[appConfigService] Polling detected config update:', fresh);
+              currentConfig = fresh;
+              localStorage.setItem('app_config_cache', JSON.stringify(fresh));
+              localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+              currentListeners.forEach(l => l(fresh));
+            }
+          }
+        } catch (err) {
+          // ignore transient fetch errors
+        }
+      }, 2000);
+    }
+
     return () => {
       currentListeners = currentListeners.filter(l => l !== callback);
       if (currentListeners.length === 0) {
         stopFirebaseRealtime();
         stopSupabaseRealtime();
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
       }
     };
   },
@@ -380,7 +416,7 @@ export const appConfigService = {
 
     // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
-      const token = customToken || await getAuthToken();
+      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {
@@ -474,7 +510,7 @@ export const appConfigService = {
 
     // 2. Dual-Write: Call secure backend API to update configuration across targets (Firestore + Supabase)
     try {
-      const token = customToken || await getAuthToken();
+      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
       const response = await fetchWithRetry('/api/config', {
         method: 'POST',
         headers: {

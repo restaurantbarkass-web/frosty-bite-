@@ -112,6 +112,11 @@ export const OrderTracking: React.FC = () => {
 
     fetchOrder();
 
+    // Fast polling fallback to guarantee tracking status updates show within seconds without manual refresh
+    const pollInterval = setInterval(() => {
+      fetchOrder();
+    }, 2000);
+
     // Subscribe to order changes
     const orderChannel = supabase
       .channel(`tracking_order_${orderId}`)
@@ -144,6 +149,7 @@ export const OrderTracking: React.FC = () => {
     checkReview();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(orderChannel);
     };
   }, [orderId]);

@@ -108,7 +108,10 @@ function isFirebaseToken(token: string): boolean {
     if (parts.length !== 3) return false;
     
     const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
     const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
     const payload = JSON.parse(jsonPayload);
     
@@ -130,7 +133,10 @@ function getEmailFromArbitraryToken(token: string): string | null {
     if (parts.length !== 3) return null;
     
     const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+      base64 += '=';
+    }
     const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
     const payload = JSON.parse(jsonPayload);
     
@@ -241,8 +247,8 @@ async function isAdmin(req: express.Request): Promise<boolean> {
   }
 
   const token = authHeader.split('Bearer ')[1];
-  if (!token) {
-    console.log('[ConfigRoutes] Bearer token is empty');
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    console.log('[ConfigRoutes] Bearer token is empty, null or undefined:', token);
     return false;
   }
 

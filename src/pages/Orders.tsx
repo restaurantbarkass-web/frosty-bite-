@@ -64,6 +64,11 @@ const Orders: React.FC = () => {
 
     fetchOrders();
 
+    // Fast polling fallback to guarantee status updates show within seconds without manual refresh
+    const pollInterval = setInterval(() => {
+      fetchOrders();
+    }, 2500);
+
     // Set up real-time subscription for order status updates
     const channel = supabase
       .channel(`user_orders_${user.uid}`)
@@ -78,6 +83,7 @@ const Orders: React.FC = () => {
       .subscribe();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [user]);
