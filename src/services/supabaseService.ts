@@ -91,8 +91,13 @@ export const supabaseService = {
 
     const totalAmount = order.total || order.subtotal || 0;
 
-    // Check monthly limit if cancelled by customer
+    // Check monthly limit and order preparation status if cancelled by customer
     if (cancelledBy === 'customer') {
+      const allowedStatuses = ['pending', 'confirmed'];
+      if (!allowedStatuses.includes(order.status)) {
+        throw new Error(`This order is already in '${order.status}' stage and can no longer be cancelled.`);
+      }
+
       const targetUserId = userId || order.user_id;
       const count = await supabaseService.getMonthlyCancellationCount(targetUserId, order.phone);
       if (count >= 3) {

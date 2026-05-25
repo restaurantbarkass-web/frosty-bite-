@@ -430,15 +430,28 @@ const Orders: React.FC = () => {
                                 </div>
                               );
                             } else {
-                              return (
-                                <div className="flex items-start gap-2.5 text-zinc-500 text-[9px] font-black uppercase tracking-widest leading-normal">
-                                  <AlertCircle size={14} className="text-zinc-600 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p className="text-zinc-400">Order can no longer be cancelled</p>
-                                    <p className="text-[8px] text-zinc-650 font-medium normal-case mt-0.5">Baking in progress (Preparing / Dispatched / Delivered).</p>
+                              const isOnlinePayment = order.payment_method === 'online' || order.payment_method === 'upi';
+                              if (!isOnlinePayment) {
+                                return (
+                                  <div className="flex items-start gap-2.5 text-rose-500/80 text-[9px] font-black uppercase tracking-widest leading-normal">
+                                    <AlertCircle size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="text-rose-400">COD Order Cannot Be Cancelled</p>
+                                      <p className="text-[8px] text-zinc-500 font-semibold normal-case mt-0.5">Baking and preparation are already in progress. COD orders cannot be cancelled after preparing.</p>
+                                    </div>
                                   </div>
-                                </div>
-                              );
+                                );
+                              } else {
+                                return (
+                                  <div className="flex items-start gap-2.5 text-zinc-500 text-[9px] font-black uppercase tracking-widest leading-normal">
+                                    <AlertCircle size={14} className="text-zinc-600 shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="text-zinc-400">Order can no longer be cancelled</p>
+                                      <p className="text-[8px] text-zinc-650 font-medium normal-case mt-0.5">Baking or delivery is in progress (Preparing / Dispatched / Delivered).</p>
+                                    </div>
+                                  </div>
+                                );
+                              }
                             }
                           })()}
                         </div>
