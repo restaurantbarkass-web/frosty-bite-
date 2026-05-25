@@ -1,5 +1,5 @@
 export const whatsappService = {
-  PHONE_NUMBER: "919000000000", // Default bakery number. User can change this.
+  PHONE_NUMBER: "917735800239", // Frosty Bite shop owner contact number.
 
   sendOrderMessage(order: any) {
     const itemsList = order.items

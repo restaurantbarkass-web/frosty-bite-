@@ -300,7 +300,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                     type="button"
                     onClick={() => {
                       try {
-                        window.open(`https://wa.me/918919632837?text=Hi%20Frosty%20Bite!%20My%20order%20%23${order.id.slice(-6).toUpperCase()}%20needs%20cancellation%20assistance%20please.`, '_blank');
+                        window.open(`https://wa.me/${whatsappService.PHONE_NUMBER}?text=Hi%20Frosty%20Bite!%20My%20order%20%23${order.id.slice(-6).toUpperCase()}%20needs%20cancellation%20assistance%20please.`, '_blank');
                       } catch (e) {
                         console.error(e);
                       }
