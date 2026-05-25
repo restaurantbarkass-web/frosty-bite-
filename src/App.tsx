@@ -28,22 +28,45 @@ import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, onMessageListener } from './utils/messaging';
 
-// Lazy load pages for performance
-const Home = lazy(() => import('./pages/HomePage'));
-const Checkout = lazy(() => import('./pages/Checkout'));
-const UPICheckout = lazy(() => import('./pages/UPICheckout'));
-const OrderTracking = lazy(() => import('./pages/OrderTracking'));
-const AdminLayout = lazy(() => import('./pages/AdminLayout'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const FinishSignIn = lazy(() => import('./pages/FinishSignIn'));
-const ProductDetail = lazy(() => import('./pages/ProductDetail'));
-const Orders = lazy(() => import('./pages/Orders'));
-const Notifications = lazy(() => import('./pages/Notifications'));
-const Offers = lazy(() => import('./pages/Offers'));
-const NotFound = lazy(() => import('./pages/NotFound'));
+import Offers from './pages/Offers';
+
+// Resilient wrapper to retry dynamic lazy imports in case of a temporary block or build hash refresh
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  importFunc: () => Promise<{ default: T }>
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    importFunc().catch((error) => {
+      console.warn("Dynamic import failed, retrying in 1.5 seconds...", error);
+      return new Promise<{ default: T }>((resolve, reject) => {
+        setTimeout(() => {
+          importFunc()
+            .then(resolve)
+            .catch((err) => {
+              console.error("Dynamic import retry failed. Reloading page to load latest build assets...", err);
+              window.location.reload();
+              reject(err);
+            });
+        }, 1500);
+      });
+    })
+  );
+}
+
+// Lazy load pages for performance with automatic reload retry fallback
+const Home = lazyWithRetry(() => import('./pages/HomePage'));
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
+const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
+const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Signup = lazyWithRetry(() => import('./pages/Signup'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
+const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
+const Orders = lazyWithRetry(() => import('./pages/Orders'));
+const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
 

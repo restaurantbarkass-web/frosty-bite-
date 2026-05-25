@@ -82,36 +82,18 @@ function safeReload() {
   }
 }
 
-/* ---------------- SERVICE WORKER CLEANUP ---------------- */
+/* ---------------- SERVICE WORKER REGISTRATION ---------------- */
 
-// Aggressively unregister all service workers to fix cache/websocket issues
+// Register the standard PWA service worker to satisfy Play Store / PWABuilder requirements
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister().then((success) => {
-        if (success) console.log('Successfully unregistered service worker');
-      }).catch((err) => {
-        console.warn('Could not unregister service worker:', err);
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('PWA Service Worker registered with scope:', registration.scope);
+      })
+      .catch((err) => {
+        console.warn('PWA Service Worker registration failed:', err);
       });
-    }
-  }).catch((err) => {
-    console.warn('Could not get service worker registrations:', err);
-  });
-}
-
-/* ---------------- CLEAR ALL CACHES ---------------- */
-
-if ('caches' in window) {
-  caches.keys().then((keys) => {
-    keys.forEach((key) => {
-      caches.delete(key).then(() => {
-        console.log('Cleared cache:', key);
-      }).catch((err) => {
-        console.warn('Could not delete cache key:', key, err);
-      });
-    });
-  }).catch((err) => {
-    console.warn('Could not get cache keys:', err);
   });
 }
 
