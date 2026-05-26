@@ -23,6 +23,39 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Use a Network-First strategy for index.html / navigation routes to prevent stale dynamic asset chunk errors
+  const isNavigation = event.request.mode === 'navigate' || 
+                      event.request.url === self.location.origin || 
+                      event.request.url === self.location.origin + '/' || 
+                      event.request.url === self.location.origin + '/index.html' ||
+                      event.request.url.includes('/?');
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // If we received a valid response, cache the updated index.html
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Offline fallback
+          return caches.match(event.request).then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return caches.match('/') || caches.match('/index.html');
+          });
+        })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {

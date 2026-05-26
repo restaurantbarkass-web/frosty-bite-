@@ -76,8 +76,12 @@ async function startServer() {
     
     // Explicit SPA fallback for non-API routes
     app.get('*all', (req, res, next) => {
-      // Don't intercept API requests here, they should have been handled by baseApp
-      if (req.url.startsWith('/api')) {
+      // Don't intercept API requests, asset folder, or files with extensions
+      if (
+        req.url.startsWith('/api') || 
+        req.path.startsWith('/assets/') || 
+        (path.extname(req.path) && !req.path.endsWith('.html'))
+      ) {
         return next();
       }
 

@@ -316,6 +316,7 @@ function AppContent() {
             >
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/index.html" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />

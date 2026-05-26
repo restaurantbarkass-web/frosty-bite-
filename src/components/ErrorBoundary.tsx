@@ -154,8 +154,29 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('Uncaught error:', error, errorInfo);
   }
 
-  private handleReset = () => {
+  private handleReset = async () => {
     this.setState({ hasError: false, error: null });
+    
+    // Attempt to unregister service workers and clear caches to break caching reload loops
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('[ErrorBoundary] Service worker unregistered successfully');
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+          await caches.delete(key);
+          console.log('[ErrorBoundary] Deleted cache:', key);
+        }
+      }
+    } catch (e) {
+      console.warn('[ErrorBoundary] Failed to clear Service Worker or caches:', e);
+    }
+    
     window.location.reload();
   };
 
