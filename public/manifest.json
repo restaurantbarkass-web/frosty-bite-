@@ -2,33 +2,38 @@
   "name": "Frosty Bite",
   "short_name": "FrostyBite",
   "description": "Order delicious premium artisan baked treats, cupcakes, cakes, and frosty pastries instantly with real-time status tracking.",
-  "start_url": "index.html",
-  "id": "index.html",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
   "theme_color": "#ff0055",
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "related_applications": [],
   "icons": [
     {
-      "src": "logo_192.png",
+      "src": "/logo_192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo_192.png",
+      "src": "/logo_192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "logo_512.png",
+      "src": "/logo_512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo_512.png",
+      "src": "/logo_512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,18 +41,84 @@
   ],
   "screenshots": [
     {
-      "src": "screenshot_narrow.png",
+      "src": "/screenshot_narrow.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
       "label": "Frosty Bite - Artisan Baked Goods Store"
     },
     {
-      "src": "screenshot_wide.png",
+      "src": "/screenshot_wide.png",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Frosty Bite - Fresh Treats & Desserts"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Order Now",
+      "short_name": "Order",
+      "description": "Browse and buy delicious desserts instantly",
+      "url": "/",
+      "icons": [{ "src": "/logo_192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "View Offers",
+      "short_name": "Offers",
+      "description": "Unlock active deals & promo codes",
+      "url": "/offers",
+      "icons": [{ "src": "/logo_192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": [
+    "food",
+    "shopping",
+    "lifestyle"
+  ],
+  "display_override": [
+    "standalone",
+    "window-controls-overlay",
+    "tabbed"
+  ],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "note_taking": {
+    "new_note_url": "/"
+  },
+  "iarc_rating_id": "e95267bf-48d6-4e59-b1d6-8eeab78ddef9",
+  "scope_extensions": [
+    { "host": "*.frostybite.com" }
+  ],
+  "widgets": [
+    {
+      "name": "Featured Treat Widget",
+      "short_name": "FeaturedTreat",
+      "description": "Shows the daily featured bake and cupcake treat from Frosty Bite.",
+      "tag": "featured-treat",
+      "template": "widget-template",
+      "ms__presentation": {
+        "width": "medium",
+        "height": "medium"
+      }
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "text/plain": [".txt"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+frostybite",
+      "url": "/?type=%s"
     }
   ]
 }
