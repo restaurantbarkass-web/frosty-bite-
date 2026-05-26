@@ -16,6 +16,21 @@ async function generate() {
 
   console.log('Jimp version loaded successfully.');
 
+  const logoUrl = 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg';
+  let logoBuffer = null;
+  try {
+    console.log(`Downloading custom user logo from ${logoUrl}...`);
+    const res = await fetch(logoUrl);
+    if (res.ok) {
+      logoBuffer = Buffer.from(await res.arrayBuffer());
+      console.log(`Successfully downloaded premium logo. Size: ${logoBuffer.length} bytes`);
+    } else {
+      console.warn(`Download returned status: ${res.status}. Procedural drawing will be used.`);
+    }
+  } catch (err) {
+    console.warn(`Could not fetch custom logo: ${err.message}. Procedural drawing fallback active.`);
+  }
+
   const targets = [
     { name: 'logo.png', width: 512, height: 512, color: 0xff0055ff },
     { name: 'logo_192.png', width: 192, height: 192, color: 0xff0055ff },
@@ -28,22 +43,40 @@ async function generate() {
     const filePath = path.join('public', target.name);
     console.log(`Generating ${target.name} (${target.width}x${target.height})...`);
     
-    let img;
-    // For Jimp v1, the constructor expects an object: { width, height, color }
-    try {
-      img = new Jimp({
-        width: target.width,
-        height: target.height,
-        color: target.color
-      });
-    } catch (e) {
-      console.warn(`Jimp constructor failed with object, trying positional arguments: ${e.message}`);
-      img = new Jimp(target.width, target.height, target.color);
+    let img = null;
+    
+    if (target.name.includes('logo') && logoBuffer) {
+      try {
+        console.log(`Loading and resizing custom downloaded logo for ${target.name}...`);
+        const srcImg = await Jimp.read(logoBuffer);
+        try {
+          img = srcImg.resize({ width: target.width, height: target.height });
+        } catch (resizeErr) {
+          img = srcImg.resize(target.width, target.height);
+        }
+      } catch (err) {
+        console.error(`Jimp encountered layout or decoding error processing user logo. Falling back to procedural layout. Error: ${err.message}`);
+        img = null;
+      }
+    }
+
+    if (!img) {
+      // For Jimp v1, the constructor expects an object: { width, height, color }
+      try {
+        img = new Jimp({
+          width: target.width,
+          height: target.height,
+          color: target.color
+        });
+      } catch (e) {
+        console.warn(`Jimp constructor failed with object, trying positional arguments: ${e.message}`);
+        img = new Jimp(target.width, target.height, target.color);
+      }
     }
 
     // Draw some simple custom styling so the placeholders look premium
     try {
-      if (target.name.includes('logo')) {
+      if (target.name.includes('logo') && !logoBuffer) {
         const cw = target.width;
         const ch = target.height;
         const cx = cw / 2;
