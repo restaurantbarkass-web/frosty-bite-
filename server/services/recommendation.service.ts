@@ -139,9 +139,9 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
  
   let aiResponse: any;
   try {
-    console.log(`[RecommendationService] Calling Gemini (gemini-3.5-flash) for: "${query.substring(0, 50)}..."`);
+    console.log(`[RecommendationService] Calling Gemini (gemini-flash-latest) for: "${query.substring(0, 50)}..."`);
     aiResponse = await genAI.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-flash-latest",
       contents: prompt,
       config: {
         systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -164,10 +164,10 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       errorStr.includes('Quota exceeded');
 
     if (isTransientOrQuota) {
-      console.warn(`[RecommendationService] Primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+      console.warn(`[RecommendationService] Primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
       try {
         aiResponse = await genAI.models.generateContent({
-          model: "gemini-flash-latest",
+          model: "gemini-3.5-flash",
           contents: prompt,
           config: {
             systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -179,7 +179,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
         const fbErrorStr = fallbackError instanceof Error 
           ? fallbackError.message 
           : (fallbackError && typeof fallbackError === 'object' ? JSON.stringify(fallbackError) : String(fallbackError));
-        console.warn(`[RecommendationService] Fallback model (gemini-flash-latest) also failed: ${fbErrorStr}`);
+        console.warn(`[RecommendationService] Fallback model (gemini-3.5-flash) also failed: ${fbErrorStr}`);
         quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
         return getLocalRecommendation(query, items);
       }
@@ -232,7 +232,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
   let response: any;
   try {
     response = await genAI.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-flash-latest",
       contents: prompt,
       config: { 
         systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
@@ -254,10 +254,10 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
       errorStr.includes('Quota exceeded');
 
     if (isTransientOrQuota) {
-      console.warn(`[RecommendationService] Suggestions engine primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+      console.warn(`[RecommendationService] Suggestions engine primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
       try {
         response = await genAI.models.generateContent({
-          model: "gemini-flash-latest",
+          model: "gemini-3.5-flash",
           contents: prompt,
           config: { 
             systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
