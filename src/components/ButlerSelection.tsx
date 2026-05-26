@@ -40,18 +40,18 @@ export const ButlerSelection: React.FC = () => {
         const rec = await searchService.getSmartRecommendation(query, items);
         
         if (rec) {
-          const item = items.find(i => i.id === rec.bestMatchId);
+          const item = items.find(i => String(i.id) === String(rec.bestMatchId));
           if (item) {
             setRecommendation(rec);
             setRecommendedItem(item);
           } else {
-            throw new Error("Recommended item not found in local menu");
+            throw new Error(`Recommended item "${rec.bestMatchId}" not found in local menu`);
           }
         } else {
           throw new Error("No recommendation from Butler");
         }
       } catch (error) {
-        console.error("Butler featured rec failed, using fallback:", error);
+        console.warn("Butler featured selection fell back to default premium spotlight item:", error);
         // Fallback to a random recommended item or just the first item
         const fallbackItem = items.find(i => i.is_recommended) || items[0];
         if (fallbackItem) {

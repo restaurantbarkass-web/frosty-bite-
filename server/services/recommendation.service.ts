@@ -12,11 +12,18 @@ export interface ButlerRecommendation {
   butlerResponse: string;
 }
 
+// In-memory caches to secure free-tier API quota
+const recCache = new Map<string, ButlerRecommendation>();
+const sugCache = new Map<string, string[]>();
+
 let quotaExhaustedUntil = 0;
+
+function getNormalizedKey(query: string): string {
+  return query.trim().toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+}
 
 function getLocalRecommendation(query: string, items: any[]): ButlerRecommendation {
   const norm = query.toLowerCase();
-  
   const hasItems = Array.isArray(items) && items.length > 0;
   
   // Find appropriate items by semantic matching
@@ -55,7 +62,7 @@ function getLocalRecommendation(query: string, items: any[]): ButlerRecommendati
   const secondItem = matchedItems[1] || items[0] || null;
   const thirdItem = matchedItems[2] || items[1] || null;
 
-  // Curate gourmet response text depending on query
+  // Curate response text depending on query
   let reason = "Our most coveted marquee selection.";
   let intent = "Signature Tasting";
   let mood = "Refined";
@@ -94,10 +101,10 @@ function getLocalRecommendation(query: string, items: any[]): ButlerRecommendati
   }
 
   return {
-    bestMatchId: firstItem ? firstItem.id : null,
+    bestMatchId: firstItem ? String(firstItem.id) : null,
     reason,
     intent,
-    alternatives: secondItem && thirdItem && secondItem.id !== firstItem?.id ? [secondItem.id, thirdItem.id] : [],
+    alternatives: secondItem && thirdItem && String(secondItem.id) !== String(firstItem?.id) ? [String(secondItem.id), String(thirdItem.id)] : [],
     isEmotionalMatch: true,
     occasionDetected: occasion,
     moodDetected: mood,
@@ -106,10 +113,40 @@ function getLocalRecommendation(query: string, items: any[]): ButlerRecommendati
   };
 }
 
+function getLocalSuggestions(searchTerm: string, items: any[]): string[] {
+  const norm = searchTerm.toLowerCase().trim();
+  const suggestions: string[] = [];
+  
+  if (Array.isArray(items) && items.length > 0) {
+    const matches = items.filter(i => 
+      i.name && (i.name.toLowerCase().includes(norm) || (i.category && i.category.toLowerCase().includes(norm)))
+    );
+    matches.slice(0, 5).forEach(m => suggestions.push(m.name));
+  }
+  
+  const defaults = ["Red Velvet Cake", "Butter Croissant", "Strawberry Bento Cake", "Chocolate Truffle Bento", "Belgian Hot Chocolate"];
+  for (const d of defaults) {
+    if (suggestions.length >= 5) break;
+    if (!suggestions.includes(d)) {
+      suggestions.push(d);
+    }
+  }
+  
+  return suggestions.slice(0, 5);
+}
+
 export async function getSmartRecommendation(query: string, items: any[]): Promise<ButlerRecommendation> {
-  // Check if we are in rapid 429 quota bypass cooldown
+  const cacheKey = getNormalizedKey(query);
+  
+  // 1. Resolve from cache if available
+  if (recCache.has(cacheKey)) {
+    console.log(`[RecommendationCache] Serving cached recommendation for: "${cacheKey}"`);
+    return recCache.get(cacheKey)!;
+  }
+
+  // 2. Check if we are in active cooldown
   if (Date.now() < quotaExhaustedUntil) {
-    console.log('[RecommendationService] Safe rate-limiting bypass: using local semantic matching engine.');
+    console.log('[RecommendationService] Active cooldown: using local matching engine.');
     return getLocalRecommendation(query, items);
   }
 
@@ -139,7 +176,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
  
   let aiResponse: any;
   try {
-    console.log(`[RecommendationService] Calling Gemini (gemini-flash-latest) for: "${query.substring(0, 50)}..."`);
+    console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
     aiResponse = await genAI.models.generateContent({
       model: "gemini-flash-latest",
       contents: prompt,
@@ -164,7 +201,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       errorStr.includes('Quota exceeded');
 
     if (isTransientOrQuota) {
-      console.warn(`[RecommendationService] Primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+      console.warn(`[RecommendationService] Cooldown triggered. Primary model (gemini-flash-latest) transient quota error. Falling back quieter to gemini-3.5-flash...`);
       try {
         aiResponse = await genAI.models.generateContent({
           model: "gemini-3.5-flash",
@@ -176,15 +213,12 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
           }
         });
       } catch (fallbackError: any) {
-        const fbErrorStr = fallbackError instanceof Error 
-          ? fallbackError.message 
-          : (fallbackError && typeof fallbackError === 'object' ? JSON.stringify(fallbackError) : String(fallbackError));
-        console.warn(`[RecommendationService] Fallback model (gemini-3.5-flash) also failed: ${fbErrorStr}`);
-        quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
+        console.warn(`[RecommendationService] Quota limit active across models. Entering silent 15-minute cooldown.`);
+        quotaExhaustedUntil = Date.now() + 15 * 60 * 1000; // 15 minutes of quiet cooldown
         return getLocalRecommendation(query, items);
       }
     } else {
-      console.warn(`[RecommendationService] Generation failed with non-quota/transient error: ${errorStr}`);
+      console.warn(`[RecommendationService] Generation failed with non-quota/transient error. Falling back to local match.`);
       return getLocalRecommendation(query, items);
     }
   }
@@ -196,18 +230,21 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
     }
     
     const data = JSON.parse(output);
- 
-    return {
-      bestMatchId: data.bestMatchId || null,
+    const result: ButlerRecommendation = {
+      bestMatchId: data.bestMatchId ? String(data.bestMatchId) : null,
       reason: data.reason || "A choice of absolute distinction.",
       intent: data.intent || "Luxury Exploration",
-      alternatives: data.alternatives || [],
-      isEmotionalMatch: !!data.isEmotionalMatch,
+      alternatives: Array.isArray(data.alternatives) ? data.alternatives.map(String) : [],
+      isEmotionalMatch: !data.isEmotionalMatch,
       occasionDetected: data.occasionDetected || "Special Moment",
       moodDetected: data.moodDetected || "Refined",
       recommendationType: data.recommendationType || "standard",
       butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
     };
+
+    // Cache the premium result for future identical searches
+    recCache.set(cacheKey, result);
+    return result;
   } catch (parseError: any) {
     console.warn(`[RecommendationService] Failed to parse generated content: ${parseError.message}`);
     return getLocalRecommendation(query, items);
@@ -215,9 +252,17 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
 }
  
 export async function getSearchSuggestions(searchTerm: string, items: any[]): Promise<string[]> {
+  const cacheKey = getNormalizedKey(searchTerm);
+
+  // 1. Resolve from cache if available
+  if (sugCache.has(cacheKey)) {
+    console.log(`[SuggestionsCache] Serving cached suggestions for: "${cacheKey}"`);
+    return sugCache.get(cacheKey)!;
+  }
+
+  // 2. Check if we are in active cooldown
   if (Date.now() < quotaExhaustedUntil) {
-    // Return curated static list
-    return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+    return getLocalSuggestions(searchTerm, items);
   }
 
   const genAI = getGenAI();
@@ -254,7 +299,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
       errorStr.includes('Quota exceeded');
 
     if (isTransientOrQuota) {
-      console.warn(`[RecommendationService] Suggestions engine primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+      console.warn(`[RecommendationService] Suggestions engine quota limit fallback activated.`);
       try {
         response = await genAI.models.generateContent({
           model: "gemini-3.5-flash",
@@ -265,26 +310,24 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
           }
         });
       } catch (fallbackError: any) {
-        const fbErrorStr = fallbackError instanceof Error 
-          ? fallbackError.message 
-          : (fallbackError && typeof fallbackError === 'object' ? JSON.stringify(fallbackError) : String(fallbackError));
-        console.warn(`[RecommendationService] Suggestions engine fallback also failed: ${fbErrorStr}`);
-        quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
-        return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+        quotaExhaustedUntil = Date.now() + 15 * 60 * 1000;
+        return getLocalSuggestions(searchTerm, items);
       }
     } else {
-      console.warn(`[RecommendationService] Suggestions primary call failed with non-quota/transient error: ${errorStr}`);
-      return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+      return getLocalSuggestions(searchTerm, items);
     }
   }
 
   try {
     const output = cleanJsonResponse(response.text || '');
-    if (!output) return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+    if (!output) return getLocalSuggestions(searchTerm, items);
     const data = JSON.parse(output);
-    return data.suggestions || ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+    const resultList = data.suggestions || getLocalSuggestions(searchTerm, items);
+    
+    // Cache suggestions
+    sugCache.set(cacheKey, resultList);
+    return resultList;
   } catch (err: any) {
-    console.warn(`[RecommendationService] Parsing suggestions failed: ${err.message}`);
-    return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+    return getLocalSuggestions(searchTerm, items);
   }
 }

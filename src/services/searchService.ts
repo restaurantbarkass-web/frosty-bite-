@@ -30,6 +30,49 @@ export interface AiRecommendationResponse {
   butlerResponse: string;
 }
 
+export function getLocalClientRecommendation(query: string, items: FoodItem[]): AiRecommendationResponse | null {
+  const norm = query.toLowerCase().trim();
+  if (!items || items.length === 0) return null;
+
+  // Filter out unavailable items if applicable
+  const availableItems = items.filter(i => i.available !== false);
+  const pool = availableItems.length > 0 ? availableItems : items;
+
+  // Find matches
+  let matchedItems = pool.filter(i => 
+    i.name.toLowerCase().includes(norm) || 
+    i.category.toLowerCase().includes(norm) ||
+    (Array.isArray(i.tags) && i.tags.some(t => t.toLowerCase().includes(norm)))
+  );
+
+  if (matchedItems.length === 0) {
+    matchedItems = pool;
+  }
+
+  // Sort by recommendation flag, then rating
+  matchedItems.sort((a, b) => {
+    if (a.is_recommended && !b.is_recommended) return -1;
+    if (!a.is_recommended && b.is_recommended) return 1;
+    return (b.rating || 0) - (a.rating || 0);
+  });
+
+  const firstItem = matchedItems[0];
+  const secondItem = matchedItems[1] || pool[0] || firstItem;
+  const thirdItem = matchedItems[2] || pool[1] || firstItem;
+
+  return {
+    bestMatchId: String(firstItem.id),
+    reason: `Our custom handcrafted ${firstItem.name} matches your desire for a premium indulgence.`,
+    intent: "Artisan Culinary Experience",
+    alternatives: [String(secondItem.id), String(thirdItem.id)].filter(id => id !== String(firstItem.id)),
+    isEmotionalMatch: true,
+    occasionDetected: "Indulgent Moment",
+    moodDetected: "Refined",
+    recommendationType: "standard",
+    butlerResponse: `A magnificent selection, sir. This custom-baked ${firstItem.name} showcases the very zenith of our confectionary art.`
+  };
+}
+
 export const searchService = {
   // Better AI suggestions with intent prediction
   async getAiSuggestions(searchTerm: string, items: FoodItem[]): Promise<string[]> {
@@ -90,26 +133,33 @@ export const searchService = {
         } catch (e) {
           errorBody = "Could not read error response";
         }
-        console.error(`[Butler API Error] Status: ${response.status}, Body: ${errorBody}`);
-        return null;
+        
+        if (response.status === 429) {
+          console.log(`[SearchService] Butler AI matches rate-limit of 429. Silently deploying local matching backend...`);
+        } else {
+          console.warn(`[SearchService] Butler API returned code ${response.status}. Deploying client matches.`);
+        }
+        return getLocalClientRecommendation(query, items);
       }
       
       const recommendation = await response.json();
       console.log('[Butler Rec] AI Success Payload:', recommendation);
       
-      if (!recommendation || !recommendation.bestMatchId) return null;
+      if (!recommendation || !recommendation.bestMatchId) {
+        return getLocalClientRecommendation(query, items);
+      }
 
       // Verify item exists - force string comparison
       const validItem = items.find(i => String(i.id) === String(recommendation.bestMatchId));
       if (!validItem) {
-        console.warn(`[Butler Rec] Recommended ID ${recommendation.bestMatchId} not found in current items list`);
-        return null;
+        console.warn(`[Butler Rec] Recommended ID ${recommendation.bestMatchId} not found in current items list, using client fallback.`);
+        return getLocalClientRecommendation(query, items);
       }
 
       return recommendation;
     } catch (error) {
-      console.error('Smart Rec Error:', error);
-      return null;
+      console.warn('[SearchService] Smart Rec Engine connection issue. Deploying client matches:', error);
+      return getLocalClientRecommendation(query, items);
     }
   },
 

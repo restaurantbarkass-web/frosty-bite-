@@ -363,7 +363,7 @@ export const Profile: React.FC = () => {
           const queryText = "Best celebratory dessert for a premium member";
           const rec = await searchService.getSmartRecommendation(queryText, menuItems);
           if (rec) {
-             const item = menuItems.find(i => i.id === rec.bestMatchId);
+             const item = menuItems.find(i => String(i.id) === String(rec.bestMatchId));
              if (item) setAiRec({ recommendation: rec, item });
           }
         }
