@@ -42,19 +42,114 @@ async function generate() {
     }
 
     // Draw some simple custom styling so the placeholders look premium
-    // Draw a prominent contrasting accent stripe or box
     try {
       if (target.name.includes('logo')) {
-        // High-contrast central white/pink cake shape or block
-        const stripeSize = Math.floor(target.width * 0.4);
-        const offset = Math.floor((target.width - stripeSize) / 2);
+        const cw = target.width;
+        const ch = target.height;
+        const cx = cw / 2;
+        const cy = ch / 2;
         
-        // Use scan or simple pixel manipulation to draw an interior contrast square
-        img.scan(offset, offset, stripeSize, stripeSize, function (x, y, idx) {
-          this.bitmap.data[idx] = 255;     // R
-          this.bitmap.data[idx + 1] = 255; // G
-          this.bitmap.data[idx + 2] = 255; // B
-          this.bitmap.data[idx + 3] = 255; // A
+        // Scan the entire icon canvas and apply premium artisan shapes
+        img.scan(0, 0, cw, ch, function (x, y, idx) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          const rMax = Math.min(cx, cy);
+          
+          // Normalized relative coordinates (-1.0 to 1.0)
+          const u = dx / (cw / 2);
+          const v = dy / (ch / 2);
+
+          // 1. Core Background: Fill the entire square background with dark velvet slate
+          this.bitmap.data[idx] = 11;      // R
+          this.bitmap.data[idx + 1] = 10;   // G
+          this.bitmap.data[idx + 2] = 13;   // B
+          this.bitmap.data[idx + 3] = 255;  // A
+
+          // 2. Neon-pink aesthetic outer glowing circular border ring
+          const ringInner = rMax * 0.84;
+          const ringOuter = rMax * 0.90;
+          if (r >= ringInner && r <= ringOuter) {
+            // Neon pink / strawberry red glow
+            this.bitmap.data[idx] = 255;
+            this.bitmap.data[idx + 1] = 0;
+            this.bitmap.data[idx + 2] = 85;
+            this.bitmap.data[idx + 3] = 255;
+            return;
+          }
+
+          // 3. Inner premium circular badge frame
+          if (r < ringInner) {
+            // Elegant deeper black velvet accent
+            this.bitmap.data[idx] = 18;
+            this.bitmap.data[idx + 1] = 17;
+            this.bitmap.data[idx + 2] = 21;
+            this.bitmap.data[idx + 3] = 255;
+          }
+
+          // 4. ARTISAN CUPCAKE / PASTRY GRAPHIC
+          // A. Golden Bakery Liner Base (Trapezoid shape at the bottom)
+          // v starts around 0.1 and goes down to 0.45, with balanced tapering width
+          if (v >= 0.1 && v <= 0.46) {
+            const widthBound = 0.28 - 0.08 * (v - 0.1); 
+            if (Math.abs(u) <= widthBound) {
+              // Sweet golden hazelnut pastry color (#e2aa76)
+              this.bitmap.data[idx] = 226;
+              this.bitmap.data[idx + 1] = 170;
+              this.bitmap.data[idx + 2] = 118;
+              this.bitmap.data[idx + 3] = 255;
+              
+              // Decorative liner ridges
+              if (Math.floor(x / (cw * 0.05)) % 2 === 0) {
+                // Slightly darker lines for texture
+                this.bitmap.data[idx] = 196;
+                this.bitmap.data[idx + 1] = 135;
+                this.bitmap.data[idx + 2] = 80;
+              }
+              return;
+            }
+          }
+
+          // B. Vanilla Creme Swirl (Middle fluffy frosting layer)
+          const rCreamX = 0.38;
+          const rCreamY = 0.18;
+          const offsetCreamY = 0.04;
+          const dCream = (u * u) / (rCreamX * rCreamX) + ((v - offsetCreamY) * (v - offsetCreamY)) / (rCreamY * rCreamY);
+          if (dCream <= 1.0 && v <= 0.12) {
+            // Elegant creamy white bakery frosting (#fff5f2)
+            this.bitmap.data[idx] = 255;
+            this.bitmap.data[idx + 1] = 245;
+            this.bitmap.data[idx + 2] = 242;
+            this.bitmap.data[idx + 3] = 255;
+            return;
+          }
+
+          // C. Pink Strawberry Creme Swirl (Top frosting swirl layer)
+          const rPinkX = 0.26;
+          const rPinkY = 0.15;
+          const offsetPinkY = -0.12;
+          const dPink = (u * u) / (rPinkX * rPinkX) + ((v - offsetPinkY) * (v - offsetPinkY)) / (rPinkY * rPinkY);
+          if (dPink <= 1.0 && v <= 0.02) {
+            // Vibrant velvet neon peak pink color (#ff0055)
+            this.bitmap.data[idx] = 255;
+            this.bitmap.data[idx + 1] = 0;
+            this.bitmap.data[idx + 2] = 85;
+            this.bitmap.data[idx + 3] = 255;
+            return;
+          }
+
+          // D. Cherry Star on Top
+          const rCherry = 0.07;
+          const offsetCherryY = -0.32;
+          const dCherry = (u * u) / (rCherry * rCherry) + ((v - offsetCherryY) * (v - offsetCherryY)) / (rCherry * rCherry);
+          if (dCherry <= 1.0) {
+            // Sweet cherry ruby red color (#df2c4e)
+            this.bitmap.data[idx] = 223;
+            this.bitmap.data[idx + 1] = 44;
+            this.bitmap.data[idx + 2] = 78;
+            this.bitmap.data[idx + 3] = 255;
+            return;
+          }
         });
       } else if (target.name.includes('narrow')) {
         // Vertical screenshot mockup: pink header at top, some product cards
