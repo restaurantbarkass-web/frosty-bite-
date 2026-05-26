@@ -1,7 +1,22 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Load and parse version properties
+val versionPropsFile = rootProject.file("version.properties")
+val versionProps = Properties()
+var currentVersionCode = 5
+var currentVersionName = "1.4"
+
+if (versionPropsFile.exists()) {
+    FileInputStream(versionPropsFile).use { versionProps.load(it) }
+    currentVersionCode = versionProps.getProperty("VERSION_CODE", "5").toInt()
+    currentVersionName = versionProps.getProperty("VERSION_NAME", "1.4")
 }
 
 android {
@@ -12,8 +27,8 @@ android {
         applicationId = "com.frostybite.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = currentVersionCode
+        versionName = currentVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -53,6 +68,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":capacitor-android"))
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.activity:activity-compose:1.10.0")

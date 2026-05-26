@@ -15,3 +15,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "FrostyBite"
 include(":app")
+
+include(":capacitor-android")
+project(":capacitor-android").projectDir = file("node_modules/@capacitor/android/android")
+

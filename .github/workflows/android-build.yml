@@ -1,0 +1,83 @@
+name: Frosty Bite Android CI/CD Build & Version Release Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'beta/**'
+
+jobs:
+  build:
+    name: Build & Version Release Android Bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed for committing version changes and pushing release tags
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Get all tags and history for smart changelog generation
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-size: '20'
+          cache: 'npm'
+
+      - name: Install Node.js Dependencies
+        run: npm ci
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure Git for Automation Commit
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine Deployment Environment Stage
+        id: determine_stage
+        run: |
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "STAGE=production" >> $GITHUB_ENV
+          elif [[ "${{ github.ref_name }}" == *"beta"* ]]; then
+            echo "STAGE=beta" >> $GITHUB_ENV
+          else
+            echo "STAGE=dev" >> $GITHUB_ENV
+          fi
+
+      - name: Execute Smart Version Bump & Changelog Generation
+        run: |
+          npm run version:bump -- --env=$STAGE --type=minor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Auto-Incremented Commit and Tags to Origin
+        run: |
+          git push origin HEAD:${{ github.ref_name }} --tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Release APK / App Bundle (AAB)
+        run: |
+          ./gradlew assembleRelease
+        env:
+          # Optional: Add Keystore variables for signing keys
+          ANDROID_SIGNING_KEY_STORE: ${{ secrets.ANDROID_SIGNING_KEY_STORE }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frosty-bite-release-apk
+          path: app/build/outputs/apk/release/*.apk

@@ -10,9 +10,16 @@
     "dev": "tsx server.ts",
     "build": "node scripts/generate-images.js && mkdir -p dist && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "version:bump": "node scripts/version-manager.js",
+    "version:dev": "node scripts/version-manager.js --stage=dev --type=minor --no-git",
+    "version:beta": "node scripts/version-manager.js --stage=beta --type=minor",
+    "version:release": "node scripts/version-manager.js --stage=production --type=minor"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@dicebear/adventurer": "^9.4.2",
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",

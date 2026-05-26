@@ -52,29 +52,45 @@ export const ButlerSelection: React.FC = () => {
             setRecommendation(rec);
             setRecommendedItem(item);
           } else {
-            throw new Error("No menu items available for curation");
+            // Graceful fallback without throwing
+            console.log("[ButlerSelection] Local menu items empty, falling back to static presentation.");
+            const fallbackItem = items[0];
+            if (fallbackItem) {
+              setRecommendedItem(fallbackItem);
+              setRecommendation({
+                bestMatchId: fallbackItem.id,
+                reason: "Timeless classic choice",
+                intent: "Luxury Indulgence",
+                alternatives: [],
+                isEmotionalMatch: true,
+                occasionDetected: "Special Moment",
+                moodDetected: "Luxurious",
+                recommendationType: "trending",
+                butlerResponse: "Although my neural archives are currently updating, this exquisite selection remains the pinnacle of our collection today."
+              });
+            }
           }
         } else {
-          throw new Error("No recommendation from Butler");
+          // Graceful fallback without throwing
+          console.log("[ButlerSelection] AI recommendations currently updating, applying premium curation locally.");
+          const fallbackItem = items.find(i => i.is_recommended) || items[0];
+          if (fallbackItem) {
+            setRecommendedItem(fallbackItem);
+            setRecommendation({
+              bestMatchId: fallbackItem.id,
+              reason: "Timeless classic choice",
+              intent: "Luxury Indulgence",
+              alternatives: [],
+              isEmotionalMatch: true,
+              occasionDetected: "Special Moment",
+              moodDetected: "Luxurious",
+              recommendationType: "trending",
+              butlerResponse: "Although my neural archives are currently updating, this exquisite selection remains the pinnacle of our collection today."
+            });
+          }
         }
       } catch (error) {
-        console.warn("Butler featured selection fell back to default premium spotlight item:", error);
-        // Fallback to a random recommended item or just the first item
-        const fallbackItem = items.find(i => i.is_recommended) || items[0];
-        if (fallbackItem) {
-          setRecommendedItem(fallbackItem);
-          setRecommendation({
-            bestMatchId: fallbackItem.id,
-            reason: "Timeless classic choice",
-            intent: "Luxury Indulgence",
-            alternatives: [],
-            isEmotionalMatch: true,
-            occasionDetected: "Special Moment",
-            moodDetected: "Luxurious",
-            recommendationType: "trending",
-            butlerResponse: "Although my neural archives are currently updating, this exquisite selection remains the pinnacle of our collection today."
-          });
-        }
+        console.log("[ButlerSelection] Premium spotlight fallback applied:", error);
       } finally {
         clearInterval(interval);
         setTimeout(() => setLoading(false), 800);

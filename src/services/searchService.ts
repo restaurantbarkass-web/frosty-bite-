@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
+import { MENU_ITEMS } from '../constants';
 
 // AI is now handled server-side to keep API keys secure
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -32,11 +33,12 @@ export interface AiRecommendationResponse {
 
 export function getLocalClientRecommendation(query: string, items: FoodItem[]): AiRecommendationResponse | null {
   const norm = query.toLowerCase().trim();
-  if (!items || items.length === 0) return null;
+  const activeItems = (items && items.length > 0) ? items : MENU_ITEMS;
+  if (!activeItems || activeItems.length === 0) return null;
 
   // Filter out unavailable items if applicable
-  const availableItems = items.filter(i => i.available !== false);
-  const pool = availableItems.length > 0 ? availableItems : items;
+  const availableItems = activeItems.filter(i => i.available !== false);
+  const pool = availableItems.length > 0 ? availableItems : activeItems;
 
   // Find matches
   let matchedItems = pool.filter(i => 
@@ -102,10 +104,11 @@ export const searchService = {
   // Deep AI Recommendation Engine v2
   async getSmartRecommendation(query: string, items: FoodItem[]): Promise<AiRecommendationResponse | null> {
     if (!query || query.trim().length < 2) return null;
+    const activeItems = (items && items.length > 0) ? items : MENU_ITEMS;
 
     try {
       // Get a broad set of items to give the AI context
-      const relevantItems = items.filter(i => i.available !== false).slice(0, 100).map(i => ({
+      const relevantItems = activeItems.filter(i => i.available !== false).slice(0, 100).map(i => ({
         id: i.id,
         name: i.name,
         category: i.category,
@@ -139,27 +142,27 @@ export const searchService = {
         } else {
           console.warn(`[SearchService] Butler API returned code ${response.status}. Deploying client matches.`);
         }
-        return getLocalClientRecommendation(query, items);
+        return getLocalClientRecommendation(query, activeItems);
       }
       
       const recommendation = await response.json();
       console.log('[Butler Rec] AI Success Payload:', recommendation);
       
       if (!recommendation || !recommendation.bestMatchId) {
-        return getLocalClientRecommendation(query, items);
+        return getLocalClientRecommendation(query, activeItems);
       }
 
       // Verify item exists - force string comparison
-      const validItem = items.find(i => String(i.id) === String(recommendation.bestMatchId));
+      const validItem = activeItems.find(i => String(i.id) === String(recommendation.bestMatchId));
       if (!validItem) {
         console.warn(`[Butler Rec] Recommended ID ${recommendation.bestMatchId} not found in current items list, using client fallback.`);
-        return getLocalClientRecommendation(query, items);
+        return getLocalClientRecommendation(query, activeItems);
       }
 
       return recommendation;
     } catch (error) {
       console.warn('[SearchService] Smart Rec Engine connection issue. Deploying client matches:', error);
-      return getLocalClientRecommendation(query, items);
+      return getLocalClientRecommendation(query, activeItems);
     }
   },
 
