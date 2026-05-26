@@ -137,9 +137,10 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
     }
   `;
  
+  let aiResponse: any;
   try {
-    console.log(`[RecommendationService] Calling Gemini for: "${query.substring(0, 50)}..."`);
-    const aiResponse = await genAI.models.generateContent({
+    console.log(`[RecommendationService] Calling Gemini (gemini-3.5-flash) for: "${query.substring(0, 50)}..."`);
+    aiResponse = await genAI.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -148,7 +149,47 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
         temperature: 0.1,
       }
     });
- 
+  } catch (error: any) {
+    const errorStr = error instanceof Error 
+      ? error.message 
+      : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
+    
+    const isTransientOrQuota = 
+      errorStr.includes('503') || 
+      errorStr.includes('UNAVAILABLE') || 
+      errorStr.includes('demand') ||
+      errorStr.includes('429') || 
+      errorStr.includes('RESOURCE_EXHAUSTED') || 
+      errorStr.includes('quota') ||
+      errorStr.includes('Quota exceeded');
+
+    if (isTransientOrQuota) {
+      console.warn(`[RecommendationService] Primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+      try {
+        aiResponse = await genAI.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: prompt,
+          config: {
+            systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
+            responseMimeType: "application/json",
+            temperature: 0.1,
+          }
+        });
+      } catch (fallbackError: any) {
+        const fbErrorStr = fallbackError instanceof Error 
+          ? fallbackError.message 
+          : (fallbackError && typeof fallbackError === 'object' ? JSON.stringify(fallbackError) : String(fallbackError));
+        console.warn(`[RecommendationService] Fallback model (gemini-flash-latest) also failed: ${fbErrorStr}`);
+        quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
+        return getLocalRecommendation(query, items);
+      }
+    } else {
+      console.warn(`[RecommendationService] Generation failed with non-quota/transient error: ${errorStr}`);
+      return getLocalRecommendation(query, items);
+    }
+  }
+
+  try {
     const output = cleanJsonResponse(aiResponse.text || '');
     if (!output) {
       throw new Error("Empty response from AI");
@@ -167,25 +208,8 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
       recommendationType: data.recommendationType || "standard",
       butlerResponse: data.butlerResponse || "I have curated our finest selections based on your unique preferences."
     };
-  } catch (error: any) {
-    const errorStr = error instanceof Error 
-      ? error.message 
-      : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
-    
-    const isQuotaError = 
-      errorStr.includes('429') || 
-      errorStr.includes('RESOURCE_EXHAUSTED') || 
-      errorStr.includes('quota') ||
-      errorStr.includes('Quota exceeded');
-
-    if (isQuotaError) {
-      // Cooldown for 3 minutes
-      quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
-      console.log(`[RecommendationService] Gemini API quota limit reached (429). Bypassing to gourmet rule-based concierge model for 3 minutes.`);
-    } else {
-      console.warn(`[RecommendationService] Generation failed: ${errorStr}`);
-    }
- 
+  } catch (parseError: any) {
+    console.warn(`[RecommendationService] Failed to parse generated content: ${parseError.message}`);
     return getLocalRecommendation(query, items);
   }
 }
@@ -205,8 +229,9 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
     Respond ONLY with a JSON object: { "suggestions": ["phrase1", "phrase2", ...] }
   `;
  
+  let response: any;
   try {
-    const response = await genAI.models.generateContent({
+    response = await genAI.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: { 
@@ -214,29 +239,52 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
         responseMimeType: "application/json" 
       }
     });
- 
-    const output = cleanJsonResponse(response.text || '');
-    if (!output) return [];
-    const data = JSON.parse(output);
-    return data.suggestions || [];
   } catch (err: any) {
     const errorStr = err instanceof Error 
       ? err.message 
       : (err && typeof err === 'object' ? JSON.stringify(err) : String(err));
     
-    const isQuotaError = 
+    const isTransientOrQuota = 
+      errorStr.includes('503') || 
+      errorStr.includes('UNAVAILABLE') || 
+      errorStr.includes('demand') ||
       errorStr.includes('429') || 
       errorStr.includes('RESOURCE_EXHAUSTED') || 
       errorStr.includes('quota') ||
       errorStr.includes('Quota exceeded');
 
-    if (isQuotaError) {
-      quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
-      console.log(`[RecommendationService] Gemini API quota limit reached (429) during suggestions. Suppressing logs.`);
+    if (isTransientOrQuota) {
+      console.warn(`[RecommendationService] Suggestions engine primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+      try {
+        response = await genAI.models.generateContent({
+          model: "gemini-flash-latest",
+          contents: prompt,
+          config: { 
+            systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
+            responseMimeType: "application/json" 
+          }
+        });
+      } catch (fallbackError: any) {
+        const fbErrorStr = fallbackError instanceof Error 
+          ? fallbackError.message 
+          : (fallbackError && typeof fallbackError === 'object' ? JSON.stringify(fallbackError) : String(fallbackError));
+        console.warn(`[RecommendationService] Suggestions engine fallback also failed: ${fbErrorStr}`);
+        quotaExhaustedUntil = Date.now() + 3 * 60 * 1000;
+        return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+      }
     } else {
-      console.warn(`[RecommendationService] Suggestions failed: ${errorStr}`);
+      console.warn(`[RecommendationService] Suggestions primary call failed with non-quota/transient error: ${errorStr}`);
+      return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
     }
+  }
 
+  try {
+    const output = cleanJsonResponse(response.text || '');
+    if (!output) return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+    const data = JSON.parse(output);
+    return data.suggestions || ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
+  } catch (err: any) {
+    console.warn(`[RecommendationService] Parsing suggestions failed: ${err.message}`);
     return ["Birthday cakes", "Artisan croissants", "Chocolate truffles", "Custom pastries", "Best desserts"];
   }
 }

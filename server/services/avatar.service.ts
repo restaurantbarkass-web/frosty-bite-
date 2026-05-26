@@ -17,15 +17,46 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
         const base64 = Buffer.from(buffer).toString('base64');
         const mimeType = fetchRes.headers.get('content-type') || 'image/jpeg';
 
-        const response = await genAIClient.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: {
-            parts: [
-              { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output ONLY the refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}. No prefixes, no conversational filler, just the prompt string.` },
-              { inlineData: { data: base64, mimeType } }
-            ]
+        let response: any;
+        try {
+          response = await genAIClient.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: {
+              parts: [
+                { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output ONLY the refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}. No prefixes, no conversational filler, just the prompt string.` },
+                { inlineData: { data: base64, mimeType } }
+              ]
+            }
+          });
+        } catch (error: any) {
+          const errorStr = error instanceof Error 
+            ? error.message 
+            : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
+
+          const isTransientOrQuota = 
+            errorStr.includes('503') || 
+            errorStr.includes('UNAVAILABLE') || 
+            errorStr.includes('demand') ||
+            errorStr.includes('429') || 
+            errorStr.includes('RESOURCE_EXHAUSTED') || 
+            errorStr.includes('quota') ||
+            errorStr.includes('Quota exceeded');
+
+          if (isTransientOrQuota) {
+            console.warn(`[AvatarService] Vision analysis primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+            response = await genAIClient.models.generateContent({
+              model: "gemini-flash-latest",
+              contents: {
+                parts: [
+                  { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output ONLY the refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}. No prefixes, no conversational filler, just the prompt string.` },
+                  { inlineData: { data: base64, mimeType } }
+                ]
+              }
+            });
+          } else {
+            throw error;
           }
-        });
+        }
 
         if (!response.text) {
           console.warn("[AvatarService] Gemini vision returned empty text, using baseline prompt");
@@ -79,10 +110,36 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
     // 3. SVG Fallback
     if (!imageResult) {
       try {
-        const response = await genAIClient.models.generateContent({
-          model: targetModel,
-          contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
-        });
+        let response: any;
+        try {
+          response = await genAIClient.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
+          });
+        } catch (error: any) {
+          const errorStr = error instanceof Error 
+            ? error.message 
+            : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
+
+          const isTransientOrQuota = 
+            errorStr.includes('503') || 
+            errorStr.includes('UNAVAILABLE') || 
+            errorStr.includes('demand') ||
+            errorStr.includes('429') || 
+            errorStr.includes('RESOURCE_EXHAUSTED') || 
+            errorStr.includes('quota') ||
+            errorStr.includes('Quota exceeded');
+
+          if (isTransientOrQuota) {
+            console.warn(`[AvatarService] SVG generation primary model (gemini-3.5-flash) returned transient/quota status: ${errorStr}. Falling back to gemini-flash-latest...`);
+            response = await genAIClient.models.generateContent({
+              model: "gemini-flash-latest",
+              contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
+            });
+          } else {
+            throw error;
+          }
+        }
         const text = response.text || '';
         const svgCode = text.match(/<svg[\s\S]*<\/svg>/)?.[0] || text.replace(/```svg|```|```html|```/g, "").trim();
         if (svgCode && svgCode.includes('<svg')) {
