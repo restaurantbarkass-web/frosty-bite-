@@ -49,13 +49,9 @@ async function generate() {
       try {
         console.log(`Loading and resizing custom downloaded logo for ${target.name}...`);
         const srcImg = await Jimp.read(logoBuffer);
-        try {
-          img = srcImg.resize({ width: target.width, height: target.height });
-        } catch (resizeErr) {
-          img = srcImg.resize(target.width, target.height);
-        }
+        img = srcImg.resize({ w: target.width, h: target.height });
       } catch (err) {
-        console.error(`Jimp encountered layout or decoding error processing user logo. Falling back to procedural layout. Error: ${err.message}`);
+        console.error(`Jimp encountered layout or decoding error processing user logo. Falling back to procedural layout. Error: ${err.stack || err.message}`);
         img = null;
       }
     }
