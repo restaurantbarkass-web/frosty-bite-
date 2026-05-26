@@ -2,8 +2,8 @@
   "name": "Frosty Bite",
   "short_name": "FrostyBite",
   "description": "Order delicious premium artisan baked treats, cupcakes, cakes, and frosty pastries instantly with real-time status tracking.",
-  "start_url": "index.html",
-  "id": "index.html",
+  "start_url": "/",
+  "id": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -60,7 +60,7 @@
       "name": "Order Now",
       "short_name": "Order",
       "description": "Browse and buy delicious desserts instantly",
-      "url": "index.html",
+      "url": "/",
       "icons": [{ "src": "logo_192.png", "sizes": "192x192" }]
     },
     {
@@ -88,7 +88,7 @@
     "client_mode": "navigate-existing"
   },
   "note_taking": {
-    "new_note_url": "index.html"
+    "new_note_url": "/"
   },
   "iarc_rating_id": "e95267bf-48d6-4e59-b1d6-8eeab78ddef9",
   "scope_extensions": [
@@ -109,7 +109,7 @@
   ],
   "file_handlers": [
     {
-      "action": "index.html",
+      "action": "/",
       "accept": {
         "text/plain": [".txt"]
       }
@@ -118,7 +118,7 @@
   "protocol_handlers": [
     {
       "protocol": "web+frostybite",
-      "url": "index.html?type=%s"
+      "url": "/?type=%s"
     }
   ]
 }

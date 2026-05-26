@@ -40,12 +40,19 @@ export const ButlerSelection: React.FC = () => {
         const rec = await searchService.getSmartRecommendation(query, items);
         
         if (rec) {
-          const item = items.find(i => String(i.id) === String(rec.bestMatchId));
+          let item = items.find(i => String(i.id) === String(rec.bestMatchId));
+          if (!item) {
+             console.log(`[ButlerSelection] AI recommended ID "${rec.bestMatchId}" not found in local catalog. Gracefully mapping to premium spotlight item.`);
+             item = items.find(i => i.is_recommended) || items[0];
+             if (item) {
+               rec.bestMatchId = item.id;
+             }
+          }
           if (item) {
             setRecommendation(rec);
             setRecommendedItem(item);
           } else {
-            throw new Error(`Recommended item "${rec.bestMatchId}" not found in local menu`);
+            throw new Error("No menu items available for curation");
           }
         } else {
           throw new Error("No recommendation from Butler");
