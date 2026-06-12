@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "node scripts/generate-images.js && mkdir -p dist && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs && node scripts/validate-build.js",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit",
     "version:bump": "node scripts/version-manager.js",
@@ -48,6 +48,7 @@
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lottie-react": "^2.4.1",
+    "jimp": "^1.6.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.4.7",
     "nodemailer": "^8.0.7",
@@ -70,11 +71,11 @@
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/google.maps": "^3.65.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "jimp": "^1.6.1"
+    "@types/react-dom": "^19.0.0"
   }
 }

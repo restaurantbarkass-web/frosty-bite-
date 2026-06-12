@@ -15,6 +15,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
   const location = useLocation();
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -25,6 +26,49 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let stopTimer: NodeJS.Timeout | null = null;
+    const threshold = 12; // Filter minor natural shakes or micro-adjustments
+
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Keep entirely visible if close to the absolute top of the page
+      if (currentScrollY < 40) {
+        setIsVisible(true);
+        if (stopTimer) clearTimeout(stopTimer);
+        return;
+      }
+
+      // Check threshold distance to avoid jittering
+      if (Math.abs(currentScrollY - lastScrollY) < threshold) {
+        return;
+      }
+
+      // Hide representation on scrolling down, reappear instantly on scroll up
+      if (currentScrollY > lastScrollY) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+
+      lastScrollY = currentScrollY;
+
+      // Premium Detail: Instantly reveal after 1 second of total inactivity/stop scrolling
+      if (stopTimer) clearTimeout(stopTimer);
+      stopTimer = setTimeout(() => {
+        setIsVisible(true);
+      }, 1000);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (stopTimer) clearTimeout(stopTimer);
+    };
   }, []);
 
   const navLinks = [
@@ -41,11 +85,19 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
   }
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100]">
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] h-20 pointer-events-none">
       <motion.div 
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="bg-black/90 backdrop-blur-xl p-3 flex items-center justify-around rounded-t-2xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]"
+        initial={{ y: 0, opacity: 1 }}
+        animate={{ 
+          y: isVisible ? 0 : 88,
+          opacity: isVisible ? 1 : 0
+        }}
+        transition={{
+          type: 'tween',
+          ease: [0.16, 1, 0.3, 1],
+          duration: 0.25
+        }}
+        className="pointer-events-auto bg-black/65 backdrop-blur-2xl p-2 pb-[calc(1.1rem+env(safe-area-inset-bottom,4px))] pt-3 flex items-center justify-around rounded-t-[30px] border-t border-white/15 shadow-[0_-10px_40px_rgba(0,0,0,0.65)]"
       >
         {navLinks.map((link) => {
           const Icon = link.icon;

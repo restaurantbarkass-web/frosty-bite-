@@ -176,7 +176,9 @@ function fromFirestoreFields(fields: any): any {
       result[key] = parseFloat(value as string);
     } else if (type === 'stringValue') {
       const parentString = value as string;
-      if (parentString.startsWith('{') || parentString.startsWith('[')) {
+      if (parentString === 'true' || parentString === 'false') {
+        result[key] = (parentString === 'true');
+      } else if (parentString.startsWith('{') || parentString.startsWith('[')) {
         try {
           result[key] = JSON.parse(parentString);
         } catch {
@@ -493,7 +495,16 @@ router.post('/', async (req, res) => {
           firestoreSuccess = true;
         } else {
           const errText = await fsResponse.text();
-          console.warn(`[ConfigRoutes] User-scoped REST proxy update returned non-OK status:`, errText);
+          let displayMessage = errText;
+          try {
+            const parsed = JSON.parse(errText);
+            if (parsed && parsed.error) {
+              displayMessage = `Code ${parsed.error.code || fsResponse.status} - ${parsed.error.message || ''} (${parsed.error.status || ''})`;
+            }
+          } catch (parseErr) {
+            displayMessage = errText.replace(/"error":\s*{/g, '"err_info": {');
+          }
+          console.warn(`[ConfigRoutes] User-scoped REST proxy update returned non-OK status: ${fsResponse.status}. Error detail:`, displayMessage);
         }
       } catch (restErr: any) {
         console.warn(`[ConfigRoutes] Direct user-scoped REST API update failed:`, restErr.message);

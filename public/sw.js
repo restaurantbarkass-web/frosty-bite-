@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frosty-bite-cache-v1';
+const CACHE_NAME = 'frosty-bite-cache-v4';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -13,28 +13,45 @@ self.addEventListener('install', event => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
+      .then(() => self.skipWaiting())
   );
 });
 
 // Cache and return requests
 self.addEventListener('fetch', event => {
-  // Only handle GET requests and avoid local chrome-extension schemes or Firebase/Supabase real-time sockets
+  // Only handle GET requests and avoid cross-origin or chrome-extension schemes
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Use a Network-First strategy for index.html / navigation routes to prevent stale dynamic asset chunk errors
-  const isNavigation = event.request.mode === 'navigate' || 
-                      event.request.url === self.location.origin || 
-                      event.request.url === self.location.origin + '/' || 
-                      event.request.url === self.location.origin + '/index.html' ||
-                      event.request.url.includes('/?');
+  // Skip caching for Vite dev-server internals (dev-only, safe to keep for prod too)
+  if (
+    event.request.url.includes('/node_modules/') ||
+    event.request.url.includes('/@vite/') ||
+    event.request.url.includes('/src/') ||
+    event.request.url.includes('.hot-update')
+  ) {
+    return;
+  }
+
+  // FIX: Removed the `?v=` and `?t=` bail-outs.
+  // Vite adds ?v=<hash> to module preloads in production; bailing without calling
+  // event.respondWith() leaves those requests unhandled and breaks offline support.
+  // The cache.put() call below already deduplicates them correctly.
+
+  // Network-first for HTML navigation routes to prevent stale chunk errors.
+  // FIX: Removed `event.request.url.includes('/?')` — that matched ANY query string
+  // (e.g. /checkout?step=2) and forced those pages into the navigation path incorrectly.
+  const isNavigation =
+    event.request.mode === 'navigate' ||
+    event.request.url === self.location.origin ||
+    event.request.url === self.location.origin + '/' ||
+    event.request.url === self.location.origin + '/index.html';
 
   if (isNavigation) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // If we received a valid response, cache the updated index.html
           if (response && response.status === 200) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then(cache => {
@@ -44,7 +61,6 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          // Offline fallback
           return caches.match(event.request).then(cachedResponse => {
             if (cachedResponse) {
               return cachedResponse;
@@ -64,32 +80,26 @@ self.addEventListener('fetch', event => {
           return response;
         }
 
-        return fetch(event.request).then(
-          response => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
+        return fetch(event.request).then(response => {
+          // Only cache valid same-origin responses
+          if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
-        ).catch(() => {
-          // Offline fallback
+
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+
+          return response;
+        }).catch(() => {
           return caches.match('/');
         });
       })
   );
 });
 
-// Update a service worker
+// Activate: clear old caches and claim clients
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -101,16 +111,15 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// 1. Background Sync Support
+// Background Sync
 self.addEventListener('sync', event => {
   console.log('[Service Worker] Background Sync event triggered:', event.tag);
   if (event.tag === 'sync-orders') {
     event.waitUntil(
-      // Perform background sync logic, for example checking IndexedDB for offline orders and syncing them
       Promise.resolve(true).then(() => {
         console.log('[Service Worker] Syncing orders in background completed.');
       })
@@ -118,12 +127,11 @@ self.addEventListener('sync', event => {
   }
 });
 
-// 2. Periodic Sync Support
+// Periodic Sync
 self.addEventListener('periodicsync', event => {
   console.log('[Service Worker] Periodic Background Sync event triggered:', event.tag);
   if (event.tag === 'update-menu-cache') {
     event.waitUntil(
-      // Fetch latest menu items of the day to keep cache fresh in the background
       caches.open(CACHE_NAME).then(cache => {
         return fetch('/index.html').then(response => {
           if (response.status === 200) {
@@ -137,10 +145,10 @@ self.addEventListener('periodicsync', event => {
   }
 });
 
-// 3. Push Notifications Support
+// Push Notifications
 self.addEventListener('push', event => {
   console.log('[Service Worker] Push Notification event received.');
-  
+
   let data = {
     title: 'Frosty Bite',
     body: 'Fresh out of the oven! Your delicious treats are ready.',
@@ -189,7 +197,7 @@ self.addEventListener('push', event => {
   );
 });
 
-// Handle notification click action
+// Handle notification click
 self.addEventListener('notificationclick', event => {
   console.log('[Service Worker] Notification click Received.', event.notification.tag);
   event.notification.close();
@@ -198,7 +206,6 @@ self.addEventListener('notificationclick', event => {
     return;
   }
 
-  // Open the main page or order lookup page
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then(windowClients => {
       for (let i = 0; i < windowClients.length; i++) {
@@ -213,9 +220,3 @@ self.addEventListener('notificationclick', event => {
     })
   );
 });
-
-// Redundant static-analysis compatibility lines (guarantees match under both single/double-quote and traditional/arrow syntaxes inside scanner regexes)
-self.addEventListener("sync", function(event) { console.log("Compatibility background sync registered", event); });
-self.addEventListener("periodicsync", function(event) { console.log("Compatibility periodic sync registered", event); });
-self.addEventListener("push", function(event) { console.log("Compatibility push notification registered", event); });
-

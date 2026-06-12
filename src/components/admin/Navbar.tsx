@@ -17,8 +17,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      // User cancelled logout
+      console.log('Logout action cancelled by user');
+    }
   };
 
   return (

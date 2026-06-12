@@ -513,8 +513,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         onClose={() => setDeletingId(null)}
         onConfirm={() => deletingId && deleteOrder(deletingId)}
         title="Delete Order?"
-        description="This will permanently remove the order record. This action cannot be undone."
+        description="This action cannot be undone."
         confirmText="Delete"
+        cancelText="Cancel"
         variant="danger"
       />
 
@@ -959,56 +960,61 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
               ))}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-white/5">
-              <div className="flex flex-col">
-                <span className="text-lg font-black text-white">₹{order.total}</span>
-                {order.discount && order.discount > 0 && (
-                  <span className="text-[10px] text-primary font-black uppercase tracking-widest">
-                    -₹{order.discount} ({order.coupon_code})
-                  </span>
-                )}
+            <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-lg font-black text-white">₹{order.total}</span>
+                  {order.discount && order.discount > 0 && (
+                    <span className="text-[10px] text-primary font-black uppercase tracking-widest">
+                      -₹{order.discount} ({order.coupon_code})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handlePrintKOT(order)}
+                    className="p-3.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center min-w-[44px] min-h-[44px]"
+                    title="Print"
+                  >
+                    <Printer size={18} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setEditingOrder(order);
+                      setEditFormData({
+                        customer_name: order.customer_name || order.customerName || '',
+                        phone: order.phone || '',
+                        address: order.address || '',
+                        notes: order.notes || '',
+                        estimated_delivery_time: order.estimated_delivery_time || 30
+                      });
+                    }}
+                    className="p-3.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center min-w-[44px] min-h-[44px]"
+                    title="Edit Info"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setSelectedOrder(selectedOrder === order.id ? null : order.id);
+                    }}
+                    className={`p-3.5 rounded-xl transition-all flex items-center justify-center min-w-[44px] min-h-[44px] ${selectedOrder === order.id ? 'bg-primary text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                    title="Update Status"
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => handlePrintKOT(order)}
-                  className="p-3 rounded-xl bg-white/10 text-white"
-                  title="Print"
-                >
-                  <Printer size={18} />
-                </button>
-                    <button 
-                      onClick={() => {
-                        setEditingOrder(order);
-                        setEditFormData({
-                          customer_name: order.customer_name || order.customerName || '',
-                          phone: order.phone || '',
-                          address: order.address || '',
-                          notes: order.notes || '',
-                          estimated_delivery_time: order.estimated_delivery_time || 30
-                        });
-                      }}
-                  className="p-3 rounded-xl bg-white/10 text-white"
-                  title="Edit Info"
-                >
-                  <Edit2 size={18} />
-                </button>
-                <button 
-                  onClick={() => setDeletingId(order.id)}
-                  className="p-3 rounded-xl bg-red-500/10 text-red-500"
-                  title="Delete"
-                >
-                  <Trash2 size={18} />
-                </button>
-                <button 
-                  onClick={() => {
-                    setSelectedOrder(selectedOrder === order.id ? null : order.id);
-                  }}
-                  className={`p-3 rounded-xl transition-all ${selectedOrder === order.id ? 'bg-primary text-white' : 'bg-white/10 text-white'}`}
-                  title="Update Status"
-                >
-                  <MoreVertical size={18} />
-                </button>
-              </div>
+
+              {/* Direct Labeled Delete Button for Touch Accessibility */}
+              <button 
+                onClick={() => setDeletingId(order.id)}
+                className="w-full py-3.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-500 font-bold text-xs uppercase tracking-widest border border-red-500/20 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                title="Delete Order"
+              >
+                <Trash2 size={16} />
+                Delete Order
+              </button>
             </div>
 
             {/* Mobile Status & Rider Updates */}

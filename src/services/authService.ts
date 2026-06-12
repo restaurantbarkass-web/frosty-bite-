@@ -210,6 +210,43 @@ export const authService = {
       console.warn('[AuthService] Firebase custom token exchange failed. Using secure direct Supabase master identity session: ', fbTokenError);
     }
 
+    // Direct Client-side Firebase authenticating fallback
+    const sbUserUid = supabaseAuthSession.user?.id;
+    if (sbUserUid) {
+      try {
+        console.log('[AuthService] Attempting direct client-side Firebase Auth authentication using Supabase identity mapping...');
+        const firebasePassword = `sb-${sbUserUid}`;
+        let firebaseAuthResult;
+        try {
+          firebaseAuthResult = await signInWithEmailAndPassword(auth, normalizedEmail, firebasePassword);
+          console.log('[AuthService] Direct client-side Firebase signin succeeded!');
+        } catch (signInErr: any) {
+          // If user doesn't exist yet, auto-register them
+          if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/wrong-password') {
+            console.log('[AuthService] Direct Firebase user check empty. Auto-registering...');
+            try {
+              firebaseAuthResult = await createUserWithEmailAndPassword(auth, normalizedEmail, firebasePassword);
+              console.log('[AuthService] Direct client-side Firebase registration succeeded!');
+            } catch (signUpErr: any) {
+              console.error('[AuthService] Firebase direct registration failed:', signUpErr);
+              throw signUpErr;
+            }
+          } else {
+            console.error('[AuthService] Firebase direct sign-in failed with error:', signInErr.code, signInErr.message);
+            throw signInErr;
+          }
+        }
+
+        if (firebaseAuthResult && firebaseAuthResult.user) {
+          localStorage.setItem(`verified_${firebaseAuthResult.user.uid}`, 'true');
+          await this.syncUserWithDatabase(firebaseAuthResult.user, undefined, true);
+          return firebaseAuthResult;
+        }
+      } catch (directFbErr: any) {
+        console.error('[AuthService] Direct client-side Firebase Auth mapper failed:', directFbErr);
+      }
+    }
+
     // Fallback: If Firebase custom token flow is unavailable/unlicensed, complete authentication using public master DB Session
     console.log('[AuthService] Completing authentication fallback using Supabase master/public database record.');
     return {
@@ -235,7 +272,28 @@ export const authService = {
 
   // Password Reset
   async forgotPassword(email: string) {
-    await sendPasswordResetEmail(auth, email);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (fbErr: any) {
+      console.warn('[authService] Firebase sendPasswordResetEmail skipped/failed:', fbErr.message || fbErr);
+    }
+  },
+
+  // Secure client-side wrapper to reset custom password via verified OTP code
+  async resetPasswordWithOTP(email: string, otp: string, newPassword: string) {
+    const response = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, otp, newPassword }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Password reset failed.');
+    }
+    return data;
   },
 
   // Sync user with tables (Firestore + Supabase via Backend sync)
@@ -247,6 +305,7 @@ export const authService = {
     }
 
     // 1. Backend Sync (Supabase + Welcome Email) - Production approach
+    let backendSyncSucceeded = false;
     try {
       const idToken = typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
       const response = await fetch('/api/auth/sync', {
@@ -257,11 +316,14 @@ export const authService = {
       
       if (!response.ok) {
         console.warn('[AuthService] Backend sync failed, falling back to direct sync');
-      } else if (markVerified) {
-        try {
-          await user.reload();
-        } catch (reloadErr) {
-          console.warn('[AuthService] Error reloading user:', reloadErr);
+      } else {
+        backendSyncSucceeded = true;
+        if (markVerified) {
+          try {
+            await user.reload();
+          } catch (reloadErr) {
+            console.warn('[AuthService] Error reloading user:', reloadErr);
+          }
         }
       }
     } catch (syncErr) {
@@ -283,36 +345,109 @@ export const authService = {
     }
 
     // 3. Direct client-side Supabase backup sync (if backend was reachable but missed something)
-    try {
-      const { data: { user: sbUser } } = await supabase.auth.getUser();
+    if (!backendSyncSucceeded) {
+      try {
+        const { data: { user: sbUser } } = await supabase.auth.getUser();
       const sbUid = sbUser?.id || null;
+      const userEmail = (user.email || '').trim().toLowerCase();
 
-      const upsertPayload: any = {
-        email: user.email,
-        name: name || user.displayName || '',
-        full_name: name || user.displayName || '',
-        avatar_url: user.photoURL,
-        avatar: user.photoURL,
-        role: determinedRole,
-        last_login: new Date().toISOString(),
-        last_login_at: new Date().toISOString()
-      };
-
-      if (user.uid) upsertPayload.firebase_uid = user.uid;
-      if (sbUid) upsertPayload.supabase_uid = sbUid;
-
-      const methods = [];
-      if (user.uid) methods.push('firebase');
-      if (sbUid) methods.push('otp');
-      if (methods.length > 0) {
-        upsertPayload.auth_methods = methods;
+      // Check if user already exists in public.users by email first, then firebase_uid, then supabase_uid
+      let existingDbUser = null;
+      if (userEmail) {
+        const { data: emailDb } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', userEmail)
+          .maybeSingle();
+        existingDbUser = emailDb;
       }
 
-      await supabase
-        .from('users')
-        .upsert(upsertPayload, { onConflict: 'email' });
+      if (!existingDbUser && user.uid) {
+        const { data: fbDb } = await supabase
+          .from('users')
+          .select('*')
+          .eq('firebase_uid', user.uid)
+          .maybeSingle();
+        existingDbUser = fbDb;
+      }
+
+      if (!existingDbUser && sbUid) {
+        const { data: sbDb } = await supabase
+          .from('users')
+          .select('*')
+          .eq('supabase_uid', sbUid)
+          .maybeSingle();
+        existingDbUser = sbDb;
+      }
+
+      const determinedRole = getRoleFromEmail(user.email);
+      const nameVal = name || user.displayName || '';
+
+      if (existingDbUser) {
+        const existingMethods = existingDbUser.auth_methods || [];
+        const updatedMethods = [...existingMethods];
+        if (user.uid && !updatedMethods.includes('firebase')) updatedMethods.push('firebase');
+        if (sbUid && !updatedMethods.includes('otp')) updatedMethods.push('otp');
+
+        const updates: any = {
+          last_login: new Date().toISOString(),
+          last_login_at: new Date().toISOString()
+        };
+
+        if (userEmail && existingDbUser.email !== userEmail) {
+          updates.email = userEmail;
+        }
+        if (nameVal && (!existingDbUser.name || existingDbUser.name === existingDbUser.email.split('@')[0])) {
+          updates.name = nameVal;
+          updates.full_name = nameVal;
+        }
+        if (user.photoURL && !existingDbUser.avatar_url) {
+          updates.avatar_url = user.photoURL;
+          updates.avatar = user.photoURL;
+        }
+        if (user.uid && existingDbUser.firebase_uid !== user.uid) {
+          updates.firebase_uid = user.uid;
+        }
+        if (sbUid && existingDbUser.supabase_uid !== sbUid) {
+          updates.supabase_uid = sbUid;
+        }
+        if (JSON.stringify(existingMethods.sort()) !== JSON.stringify(updatedMethods.sort())) {
+          updates.auth_methods = updatedMethods;
+        }
+
+        await supabase
+          .from('users')
+          .update(updates)
+          .eq('id', existingDbUser.id);
+      } else {
+        const insertPayload: any = {
+          email: userEmail,
+          name: nameVal,
+          full_name: nameVal,
+          avatar_url: user.photoURL,
+          avatar: user.photoURL,
+          role: determinedRole,
+          last_login: new Date().toISOString(),
+          last_login_at: new Date().toISOString()
+        };
+
+        if (user.uid) insertPayload.firebase_uid = user.uid;
+        if (sbUid) insertPayload.supabase_uid = sbUid;
+
+        const methods = [];
+        if (user.uid) methods.push('firebase');
+        if (sbUid) methods.push('otp');
+        if (methods.length > 0) {
+          insertPayload.auth_methods = methods;
+        }
+
+        await supabase
+          .from('users')
+          .insert(insertPayload);
+      }
     } catch (error) {
        console.error('[AuthService] Supabase client sync error:', error);
+    }
     }
   },
 

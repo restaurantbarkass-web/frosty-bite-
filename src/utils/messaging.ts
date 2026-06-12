@@ -74,11 +74,10 @@ export const requestForToken = async () => {
   }
 };
 
-export const onMessageListener = () =>
-  new Promise((resolve) => {
-    if (!messaging) return resolve(null);
-    onMessage(messaging, (payload) => {
-      console.log("Payload received: ", payload);
-      resolve(payload);
-    });
+export const subscribeToMessages = (callback: (payload: any) => void): (() => void) => {
+  if (!messaging) return () => {};
+  return onMessage(messaging, (payload) => {
+    console.log("Payload received: ", payload);
+    callback(payload);
   });
+};

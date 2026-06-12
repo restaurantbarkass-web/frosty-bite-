@@ -140,6 +140,12 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
 
   const handleVoiceSearch = () => {
     // @ts-ignore
+    if (window.__voiceAssistantReady) {
+      window.dispatchEvent(new CustomEvent('open-voice-assistant'));
+      return;
+    }
+
+    // @ts-ignore
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Voice search is not supported in this browser.");

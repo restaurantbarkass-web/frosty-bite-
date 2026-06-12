@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
 import { useCart } from '../context/CartContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
+import { VoiceAssistant } from '../components/VoiceAssistant';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
@@ -768,6 +769,13 @@ export const Home: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* Modern AI Voice Assistant */}
+      <VoiceAssistant 
+        onSearchQueryChange={setSearchQuery}
+        onDietFilterChange={setDietaryFilter}
+        onCategoryChange={setSelectedCategory}
+      />
     </motion.div>
   );
 };

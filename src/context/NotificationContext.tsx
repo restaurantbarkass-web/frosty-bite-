@@ -103,6 +103,14 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const lastOrderIdRef = useRef<string | null>(null);
   const [fbUser, setFbUser] = useState<any>(auth.currentUser);
 
+  const userRef = useRef(user);
+  const fbUserRef = useRef(fbUser);
+
+  useEffect(() => {
+    userRef.current = user;
+    fbUserRef.current = fbUser;
+  }, [user, fbUser]);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(authInstance, (u) => {
       setFbUser(u);
@@ -111,13 +119,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [authInstance]);
 
   useEffect(() => {
-    if (!user || !fbUser) {
+    const currentUser = userRef.current;
+    const currentFbUser = fbUserRef.current;
+
+    if (!currentUser || !currentFbUser) {
       setNotifications([]);
       return;
     }
 
     // Initial load from cache
-    const cacheKey = `user_notifications_${user.uid}`;
+    const cacheKey = `user_notifications_${currentUser.uid}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
@@ -128,7 +139,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     // Firestore Notifications listener
     const path = 'notifications';
-    const targetUserId = user.firebase_uid || user.uid;
+    const targetUserId = currentUser.firebase_uid || currentUser.uid;
     const q = query(
       collection(db, path),
       where('user_id', '==', targetUserId),
@@ -217,7 +228,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       unsubscribe();
       if (unsubAdminOrders) unsubAdminOrders();
     };
-  }, [user, role, isAdmin, fbUser]);
+  }, [user?.uid, role, isAdmin, fbUser?.uid]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

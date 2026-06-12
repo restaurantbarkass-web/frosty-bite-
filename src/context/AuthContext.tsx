@@ -6,6 +6,8 @@ import { ADMIN_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
 import { doc, serverTimestamp } from 'firebase/firestore';
 import { safeFirestore } from '../services/firestoreService';
+import { motion, AnimatePresence } from 'motion/react';
+import { LogOut, HelpCircle } from 'lucide-react';
 
 type UserRole = 'customer' | 'admin';
 
@@ -43,7 +45,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isCustomer: boolean;
   isVerified: boolean;
-  logout: () => Promise<void>;
+  logout: (bypassConfirmation?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -53,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UnifiedUser | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
   const lastFirebaseUserRef = React.useRef<any>(undefined);
   const lastSupabaseUserRef = React.useRef<any>(undefined);
@@ -93,8 +97,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // If we have an active user session in either system, we can bypass postponing and let the user in immediately!
-      const possessesSession = (fbUser !== null && fbUser !== undefined) || (sbUser !== null && sbUser !== undefined);
+      const fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+
+      // If we have an active user session in either system or a valid fallback session email, we can bypass postponing and let the user in immediately!
+      const possessesSession = (fbUser !== null && fbUser !== undefined) || (sbUser !== null && sbUser !== undefined) || !!fallbackEmail;
 
       // Check initialization states to prevent premature evaluation of logged-out status
       if (!possessesSession && (lastFirebaseUserRef.current === undefined || lastSupabaseUserRef.current === undefined)) {
@@ -105,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const email = fbUser?.email || sbUser?.email;
+      const email = fbUser?.email || sbUser?.email || fallbackEmail;
       if (!email) {
         setUser(null);
         setRole('customer');
@@ -154,13 +160,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 2. Client-side fallback if server-side sync didn't return a record
       if (!dbUser) {
-        let { data: localUser, error: dbError } = await supabase
+        let { data: localUser } = await supabase
           .from('users')
           .select('*')
           .eq('email', normalizedEmail)
           .maybeSingle();
         
         dbUser = localUser;
+
+        // Try matching by firebase_uid if not found by email
+        if (!dbUser && fbUser?.uid) {
+          const { data: fbLoc } = await supabase
+            .from('users')
+            .select('*')
+            .eq('firebase_uid', fbUser.uid)
+            .maybeSingle();
+          if (fbLoc) {
+            console.log(`[UnifiedAuth] Fallback cross-match found via firebase_uid: ${fbUser.uid}`);
+            dbUser = fbLoc;
+          }
+        }
+
+        // Try matching by supabase_uid if not found yet
+        if (!dbUser && sbUser?.id) {
+          const { data: sbLoc } = await supabase
+            .from('users')
+            .select('*')
+            .eq('supabase_uid', sbUser.id)
+            .maybeSingle();
+          if (sbLoc) {
+            console.log(`[UnifiedAuth] Fallback cross-match found via supabase_uid: ${sbUser.id}`);
+            dbUser = sbLoc;
+          }
+        }
 
         if (!dbUser) {
           console.log(`[UnifiedAuth] Creating master database record via client-side fallback for ${normalizedEmail}...`);
@@ -197,6 +229,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const methods = dbUser.auth_methods || [];
           let updatedMethods = [...methods];
 
+          if (dbUser.email !== normalizedEmail) {
+            updates.email = normalizedEmail;
+          }
+
           if (fbUser && fbUser.uid && dbUser.firebase_uid !== fbUser.uid) {
             updates.firebase_uid = fbUser.uid;
             if (!updatedMethods.includes('firebase')) updatedMethods.push('firebase');
@@ -215,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { data: updatedUser } = await supabase
               .from('users')
               .update(updates)
-              .eq('email', normalizedEmail)
+              .eq('id', dbUser.id)
               .select()
               .single();
             if (updatedUser) dbUser = updatedUser;
@@ -312,13 +348,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // 8-second safety timeout
+    // 600ms responsive safety timeout to quickly rescue stalled iframe/IndexedDB browsers
     const timeoutId = setTimeout(() => {
-      console.log('[UnifiedAuth] Safety timeout reached, forcing loading false');
+      console.log('[UnifiedAuth] Responsive safety timeout reached, forcing loading false');
       if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
       if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
       resolveAndSyncUser();
-    }, 8000);
+    }, 600);
 
     // Live listener for Firebase
     const unsubscribeFirebase = onAuthStateChanged(auth, (fbUser) => {
@@ -346,24 +382,162 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
-    logout: async () => {
+    logout: async (bypassConfirmation = false) => {
+      if (!bypassConfirmation) {
+        return new Promise<void>((resolve, reject) => {
+          setPendingLogout({ resolve, reject });
+          setShowLogoutModal(true);
+        });
+      }
+
+      // Clean up user cached items from localStorage while preserving onboarding configurations
+      try {
+        localStorage.removeItem('frostybite_active_session_email');
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('orders_cache_') || key.startsWith('profile_cache_') || key.startsWith('wishlist_cache_') || key.startsWith('user_notifications_') || key.startsWith('verified_'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (e) {
+        console.warn('[UnifiedAuth] Error clearing user caches on logout:', e);
+      }
+
       try {
         await signOut(auth);
       } catch (_) {}
       try {
         await supabase.auth.signOut();
       } catch (_) {}
+      
       setUser(null);
       setRole('customer');
+
+      // Native clean redirection guarantees pristine React memory state and prevents black screen animation locks
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 50);
     },
     refreshProfile: async () => {
       await resolveAndSyncUser();
     }
   }), [user, role, loading, isVerified]);
 
+  const handleConfirmLogout = async () => {
+    setShowLogoutModal(false);
+    if (pendingLogout) {
+      try {
+        // Clean up user cached items from localStorage while preserving onboarding configurations
+        try {
+          localStorage.removeItem('frostybite_active_session_email');
+          const keysToRemove = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('orders_cache_') || key.startsWith('profile_cache_') || key.startsWith('wishlist_cache_') || key.startsWith('user_notifications_') || key.startsWith('verified_'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch (e) {
+          console.warn('[UnifiedAuth] Error clearing user caches on logout:', e);
+        }
+
+        try {
+          await signOut(auth);
+        } catch (_) {}
+        try {
+          await supabase.auth.signOut();
+        } catch (_) {}
+        
+        setUser(null);
+        setRole('customer');
+
+        pendingLogout.resolve();
+        setPendingLogout(null);
+
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 50);
+      } catch (err) {
+        pendingLogout.reject(err);
+        setPendingLogout(null);
+      }
+    }
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutModal(false);
+    if (pendingLogout) {
+      pendingLogout.reject(new Error('cancelled'));
+      setPendingLogout(null);
+    }
+  };
+
   return (
     <AuthContext.Provider value={value}>
       {loading ? <LoadingScreen /> : children}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+            {/* Backdrop with elegant blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCancelLogout}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            
+            {/* Beautiful, premium glass card dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="relative w-full max-w-sm bg-neutral-900 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden text-center z-10"
+            >
+              {/* Radial gradient background accent */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-orange-500/10 to-transparent blur-3xl rounded-full pointer-events-none" />
+
+              {/* Pulsing, orange-accented icon wrap */}
+              <div className="relative mx-auto w-16 h-16 bg-gradient-to-b from-orange-500/15 to-orange-600/5 border border-orange-500/20 rounded-2xl flex items-center justify-center mb-5 shadow-inner">
+                <LogOut className="text-orange-500" size={24} />
+                <div className="absolute inset-0 rounded-2xl bg-orange-500/10 animate-ping opacity-10 pointer-events-none" />
+              </div>
+
+              {/* Text Area */}
+              <h3 className="font-sans font-extrabold text-xl text-white tracking-tight mb-2">
+                Departing so soon?
+              </h3>
+              <p className="font-sans text-xs text-zinc-400 leading-relaxed mb-6 max-w-sm mx-auto">
+                Are you sure you want to log out of Frosty Bite? We will miss serving you delicious, fresh-baked gourmet treats!
+              </p>
+
+              {/* Interactive confirmation actions */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelLogout}
+                  className="flex-1 py-3 px-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 text-zinc-350 hover:text-white border border-white/10 text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer"
+                  id="btn_cancel_logout"
+                >
+                  No, Keep Me In
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLogout}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 active:scale-95 text-white shadow-lg shadow-orange-600/20 text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer"
+                  id="btn_confirm_logout"
+                >
+                  Yes, Log Me Out
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AuthContext.Provider>
   );
 };

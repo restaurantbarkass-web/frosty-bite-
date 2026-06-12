@@ -4,9 +4,10 @@ import { Logo } from './Logo';
 
 interface LoadingScreenProps {
   fullScreen?: boolean;
+  message?: string;
 }
 
-export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true }) => {
+export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true, message }) => {
   return (
     <div className={`${fullScreen ? 'fixed inset-0 z-[100]' : 'w-full h-full min-h-[400px]'} flex flex-col items-center justify-center bg-[#030303] text-white overflow-hidden`}>
       {/* Cinematic Background */}
@@ -63,9 +64,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
             />
             <defs>
               <linearGradient id="progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--color-primary)" />
+                <stop offset="0%" stopColor="#f97316" />
                 <stop offset="50%" stopColor="white" />
-                <stop offset="100%" stopColor="var(--color-primary)" />
+                <stop offset="100%" stopColor="#f97316" />
               </linearGradient>
             </defs>
           </svg>
@@ -82,7 +83,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                 strokeLinecap="round"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 0.3 }}
-                transition={{ duration: 1, delay: 0.5 }}
+                transition={{ duration: 0.8 }}
               />
               
               {/* Cake Body */}
@@ -94,7 +95,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                 strokeLinecap="round"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 2.5, ease: "easeInOut", repeat: Infinity }}
+                transition={{ duration: 2, ease: "easeInOut", repeat: Infinity }}
               />
 
               {/* Decorative Swirl */}
@@ -106,7 +107,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                 strokeOpacity="0.2"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 2, delay: 1, repeat: Infinity }}
+                transition={{ duration: 1.5, delay: 0.2, repeat: Infinity }}
               />
 
               {/* Topping */}
@@ -114,17 +115,17 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                 cx="50"
                 cy="38"
                 r="4"
-                fill="var(--color-primary)"
+                fill="#f97316"
                 initial={{ scale: 0 }}
                 animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 0.8] }}
-                transition={{ duration: 3, repeat: Infinity }}
+                transition={{ duration: 2, repeat: Infinity }}
               />
 
               <defs>
                 <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="var(--color-primary)" />
+                  <stop offset="0%" stopColor="#f97316" />
                   <stop offset="50%" stopColor="white" />
-                  <stop offset="100%" stopColor="var(--color-primary)" />
+                  <stop offset="100%" stopColor="#f97316" />
                 </linearGradient>
               </defs>
             </svg>
@@ -142,9 +143,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                   translateX: [0, (i % 2 === 0 ? 20 : -20)]
                 }}
                 transition={{ 
-                  duration: 3 + Math.random() * 2,
+                  duration: 2.5 + Math.random() * 1.5,
                   repeat: Infinity,
-                  delay: i * 0.4
+                  delay: i * 0.2
                 }}
                 className="absolute top-1/2 left-1/2 w-1 h-1 bg-primary rounded-full blur-[1px]"
               />
@@ -154,9 +155,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
 
         {/* Sophisticated Typography */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
+          transition={{ duration: 0.4 }}
           className="text-center w-full space-y-12"
         >
           <div className="space-y-4">
@@ -201,7 +202,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ fullScreen = true 
                 transition={{ duration: 3, repeat: Infinity }}
                 className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.4em]"
               >
-                Refining the artisan crumb
+                {message || "Refining the artisan crumb"}
               </motion.div>
             </div>
           </div>

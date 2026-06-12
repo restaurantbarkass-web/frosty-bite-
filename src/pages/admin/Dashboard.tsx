@@ -103,7 +103,7 @@ export const Dashboard: React.FC = () => {
     setIsToggling(true);
     const newStatus = !config.isOrderingOpen;
     try {
-      const token = user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
+      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
       await appConfigService.toggleOrderingStatus(config.isOrderingOpen, token);
       toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
     } catch (error) {

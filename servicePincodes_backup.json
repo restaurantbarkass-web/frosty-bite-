@@ -1,0 +1,77 @@
+[
+  {
+    "id": "pin_1",
+    "pincode": "753001",
+    "active": true
+  },
+  {
+    "id": "pin_2",
+    "pincode": "753002",
+    "active": true
+  },
+  {
+    "id": "pin_3",
+    "pincode": "753003",
+    "active": true
+  },
+  {
+    "id": "pin_4",
+    "pincode": "753004",
+    "active": true
+  },
+  {
+    "id": "pin_5",
+    "pincode": "753005",
+    "active": true
+  },
+  {
+    "id": "pin_6",
+    "pincode": "753006",
+    "active": true
+  },
+  {
+    "id": "pin_7",
+    "pincode": "753007",
+    "active": true
+  },
+  {
+    "id": "pin_8",
+    "pincode": "753008",
+    "active": true
+  },
+  {
+    "id": "pin_9",
+    "pincode": "753009",
+    "active": true
+  },
+  {
+    "id": "pin_10",
+    "pincode": "753010",
+    "active": true
+  },
+  {
+    "id": "pin_11",
+    "pincode": "753011",
+    "active": true
+  },
+  {
+    "id": "pin_12",
+    "pincode": "753012",
+    "active": true
+  },
+  {
+    "id": "pin_13",
+    "pincode": "753013",
+    "active": true
+  },
+  {
+    "id": "pin_14",
+    "pincode": "753014",
+    "active": true
+  },
+  {
+    "id": "pin_15",
+    "pincode": "753015",
+    "active": true
+  }
+]

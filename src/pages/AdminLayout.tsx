@@ -3,7 +3,7 @@ import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
 import { OrderActionPopup } from '../components/admin/OrderActionPopup';
 import { motion, AnimatePresence } from 'motion/react';
-import { requestForToken, onMessageListener } from '../utils/messaging';
+import { requestForToken, subscribeToMessages } from '../utils/messaging';
 import { useNotifications } from '../context/NotificationContext';
 import toast from 'react-hot-toast';
 
@@ -17,6 +17,8 @@ const Admins = lazy(() => import('./admin/Admins').then(m => ({ default: m.Admin
 const Pricing = lazy(() => import('./admin/Pricing').then(m => ({ default: m.Pricing })));
 const SearchAnalytics = lazy(() => import('./admin/SearchAnalytics').then(m => ({ default: m.SearchAnalytics })));
 const Rewards = lazy(() => import('./admin/Rewards').then(m => ({ default: m.RewardsManager })));
+const ServiceZones = lazy(() => import('./admin/ServiceZones').then(m => ({ default: m.ServiceZones })));
+const RlsDiagnostics = lazy(() => import('./admin/RlsDiagnostics').then(m => ({ default: m.RlsDiagnostics })));
 import { BannerManager } from '../components/admin/BannerManager';
 
 export const AdminLayout: React.FC = () => {
@@ -40,14 +42,18 @@ export const AdminLayout: React.FC = () => {
     setupNotifications();
 
     // Listen for foreground messages
-    onMessageListener().then((payload: any) => {
-      if (payload) {
-        toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+    const unsubscribe = subscribeToMessages((payload: any) => {
+      if (payload?.notification) {
+        toast.success(`${payload.notification.title || 'Notification'}: ${payload.notification.body || ''}`, {
           duration: 10000,
           icon: '📢'
         });
       }
-    }).catch(err => console.error("FCM message listener error:", err));
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const renderContent = () => {
@@ -63,6 +69,8 @@ export const AdminLayout: React.FC = () => {
       case 'banners': return <BannerManager />;
       case 'analytics': return <Analytics />;
       case 'search-analytics': return <SearchAnalytics />;
+      case 'service-zones': return <ServiceZones />;
+      case 'rls-diagnostics': return <RlsDiagnostics />;
       default: return <Dashboard />;
     }
   };

@@ -8,7 +8,7 @@ export const ADMIN_EMAILS = [
 ];
 
 export const RESTAURANT_WHATSAPP = "917735800239"; 
-export const RESTAURANT_LOCATION = { lat: 20.2961, lng: 85.8245 };
+export const RESTAURANT_LOCATION = { lat: 20.4625, lng: 85.8828 };
 
 export type UserRole = 'admin' | 'customer';
 

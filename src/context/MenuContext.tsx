@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
@@ -16,7 +16,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.from('products').select('*');
@@ -52,7 +52,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMenu();
@@ -67,7 +67,7 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     categories,
     refreshMenu: fetchMenu
-  }), [items, loading, categories]);
+  }), [items, loading, categories, fetchMenu]);
 
   return (
     <MenuContext.Provider value={value}>

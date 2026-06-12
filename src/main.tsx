@@ -31,7 +31,9 @@ window.addEventListener('error', (event) => {
     errorStr.toLowerCase().includes('web socket') ||
     errorStr.toLowerCase().includes('vite') ||
     errorStr.toLowerCase().includes('closed without opened') ||
-    errorStr.toLowerCase().includes('closeevent')
+    errorStr.toLowerCase().includes('closeevent') ||
+    errorMsg.includes('Pending promise was never set') ||
+    errorStr.includes('Pending promise was never set')
   ) {
     try {
       event.preventDefault();
@@ -55,7 +57,8 @@ window.addEventListener('unhandledrejection', (event) => {
     reasonStr.toLowerCase().includes('closeevent') ||
     reasonConstructorName.toLowerCase().includes('closeevent') ||
     reasonConstructorName.toLowerCase().includes('websocket') ||
-    (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined))
+    (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined)) ||
+    reasonStr.includes('Pending promise was never set')
   ) {
     try {
       event.preventDefault();

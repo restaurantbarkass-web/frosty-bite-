@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js Environment
         uses: actions/setup-node@v4
         with:
-          node-size: '20'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install Node.js Dependencies
@@ -59,12 +59,22 @@ jobs:
           npm run version:bump -- --env=$STAGE --type=minor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Push Auto-Incremented Commit and Tags to Origin
         run: |
           git push origin HEAD:${{ github.ref_name }} --tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Build Web Assets
+        run: |
+          npm run build
+
+      - name: Sync Web Assets with Capacitor
+        run: |
+          npx cap sync
 
       - name: Build Release APK / App Bundle (AAB)
         run: |

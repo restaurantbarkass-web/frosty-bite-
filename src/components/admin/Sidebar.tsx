@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   Truck,
   Search as SearchIcon,
-  Award
+  Award,
+  Globe,
+  Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -40,6 +42,8 @@ const menuItems = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'search-analytics', label: 'Search Insights', icon: SearchIcon },
   { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
+  { id: 'service-zones', label: 'Service Zones', icon: Globe },
+  { id: 'rls-diagnostics', label: 'Database & RLS', icon: Database },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -49,8 +53,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
   const { logout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      // User cancelled logout
+      console.log('Logout action cancelled by user');
+    }
   };
 
   const sidebarVariants = {

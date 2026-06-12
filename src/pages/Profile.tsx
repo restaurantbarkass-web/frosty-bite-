@@ -14,7 +14,7 @@ import { toPng } from 'html-to-image';
 import { StoryCard } from '../components/StoryCard';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
 import { useNavigate, Link } from 'react-router-dom';
@@ -203,7 +203,7 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 
 export const Profile: React.FC = () => {
   const { user: authUser, logout } = useAuth();
-  const firebaseUid = authUser?.firebase_uid || authUser?.uid;
+  const firebaseUid = auth.currentUser?.uid || authUser?.firebase_uid || authUser?.uid;
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -326,29 +326,33 @@ export const Profile: React.FC = () => {
         setBadgeConfigs(configs);
 
         // User data
-        const userDataObj = await safeFirestore.get<any>(doc(db, 'users', firebaseUid));
-        
-        if (userDataObj) {
-          setUserData(userDataObj);
-          setFormData({
-            name: userDataObj.full_name || '',
-            phone: userDataObj.phone || '',
-            address: userDataObj.address || ''
-          });
-          if (userDataObj.settings) setSettingsData(userDataObj.settings);
+        if (auth.currentUser) {
+          const userDataObj = await safeFirestore.get<any>(doc(db, 'users', firebaseUid));
+          
+          if (userDataObj) {
+            setUserData(userDataObj);
+            setFormData({
+              name: userDataObj.full_name || '',
+              phone: userDataObj.phone || '',
+              address: userDataObj.address || ''
+            });
+            if (userDataObj.settings) setSettingsData(userDataObj.settings);
+          }
         }
 
         // Recent orders
-        const qOrders = query(
-          collection(db, 'orders'),
-          where('user_id', '==', firebaseUid),
-          orderBy('created_at', 'desc'),
-          limit(5)
-        );
-        const ordersData = await safeFirestore.list<Order>(qOrders);
+        if (auth.currentUser) {
+          const qOrders = query(
+            collection(db, 'orders'),
+            where('user_id', '==', firebaseUid),
+            orderBy('created_at', 'desc'),
+            limit(5)
+          );
+          const ordersData = await safeFirestore.list<Order>(qOrders);
 
-        if (ordersData && ordersData.length > 0) {
-          setRecentOrders(ordersData);
+          if (ordersData && ordersData.length > 0) {
+            setRecentOrders(ordersData);
+          }
         }
 
         // Wishlist from Supabase
@@ -377,36 +381,41 @@ export const Profile: React.FC = () => {
     fetchData();
 
     // Real-time subscriptions
-    const unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', firebaseUid), (data) => {
-      if (data) {
-        // Check for tier upgrade
-        if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
-          setNewTierName(data.badge_tier);
-          setPrevTier(userData.badge_tier);
-          setShowUnlockModal(true);
+    let unsubUser = () => {};
+    let unsubOrders = () => {};
+
+    if (auth.currentUser) {
+      unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', firebaseUid), (data) => {
+        if (data) {
+          // Check for tier upgrade
+          if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
+            setNewTierName(data.badge_tier);
+            setPrevTier(userData.badge_tier);
+            setShowUnlockModal(true);
+          }
+
+          setUserData(data);
+          setFormData({
+            name: data.full_name || '',
+            phone: data.phone || '',
+            address: data.address || ''
+          });
+          if (data.settings) setSettingsData(data.settings);
         }
+      });
 
-        setUserData(data);
-        setFormData({
-          name: data.full_name || '',
-          phone: data.phone || '',
-          address: data.address || ''
-        });
-        if (data.settings) setSettingsData(data.settings);
-      }
-    });
-
-    const qOrdersRealtime = query(
-      collection(db, 'orders'),
-      where('user_id', '==', firebaseUid),
-      orderBy('created_at', 'desc'),
-      limit(5)
-    );
-    const unsubOrders = safeFirestore.subscribe<Order>(qOrdersRealtime, (data) => {
-      if (Array.isArray(data)) {
-        setRecentOrders(data);
-      }
-    });
+      const qOrdersRealtime = query(
+        collection(db, 'orders'),
+        where('user_id', '==', firebaseUid),
+        orderBy('created_at', 'desc'),
+        limit(5)
+      );
+      unsubOrders = safeFirestore.subscribe<Order>(qOrdersRealtime, (data) => {
+        if (Array.isArray(data)) {
+          setRecentOrders(data);
+        }
+      });
+    }
 
     return () => {
       unsubUser();
@@ -466,8 +475,13 @@ export const Profile: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      // User cancelled logout
+      console.log('Logout action cancelled by user');
+    }
   };
 
   const handleShare = async () => {
@@ -595,7 +609,7 @@ export const Profile: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `frosty-bite-data-${authUser?.uid.slice(0, 8)}.json`;
+    link.download = `frosty-bite-data-${authUser?.uid ? authUser.uid.slice(0, 8) : 'guest'}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

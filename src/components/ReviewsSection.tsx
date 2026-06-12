@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { Star, Quote } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { diagnosticFetch } from '../utils/apiDiagnostics';
 
 interface Review {
   id: string;
@@ -19,42 +20,31 @@ export const ReviewsSection: React.FC = () => {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const { data, error } = await supabase
-          .from('reviews')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(6);
+        const res = await diagnosticFetch('/api/reviews');
+        if (!res.ok) throw new Error('Reviews API non-ok response');
+        const data = await res.json();
         
-        if (error) {
-          // Silently handle "table not found" error during potential schema transitions
-          if (error.code === 'PGRST205' || error.message?.includes('not found')) {
-            return;
-          }
-          throw error;
-        }
         if (data && data.length > 0) {
           setReviews(data);
           localStorage.setItem('reviews_cache', JSON.stringify({ data, timestamp: Date.now() }));
         }
       } catch (err) {
         console.error('Error fetching reviews:', err);
+        try {
+          const cached = localStorage.getItem('reviews_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed && parsed.data) {
+              setReviews(parsed.data);
+            }
+          }
+        } catch (cacheErr) {}
       } finally {
         setLoading(false);
       }
     };
 
     fetchReviews();
-
-    const channel = supabase
-      .channel('public_reviews')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, () => {
-        fetchReviews();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   if (loading || reviews.length === 0) return null;

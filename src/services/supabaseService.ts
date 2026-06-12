@@ -93,7 +93,7 @@ export const supabaseService = {
 
     // Check monthly limit and order preparation status if cancelled by customer
     if (cancelledBy === 'customer') {
-      const allowedStatuses = ['pending', 'confirmed'];
+      const allowedStatuses = ['awaiting_payment', 'pending', 'confirmed'];
       if (!allowedStatuses.includes(order.status)) {
         throw new Error(`This order is already in '${order.status}' stage and can no longer be cancelled.`);
       }

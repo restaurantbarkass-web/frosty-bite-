@@ -8,8 +8,8 @@ if (fs.existsSync(".env")) {
   dotenv.config({ path: ".env" });
 }
 
-// Load .env.example to make sure any SMTP credentials or custom overrides are loaded
-if (fs.existsSync(".env.example")) {
+// Load .env.example to make sure any SMTP credentials or custom overrides are loaded (development only)
+if (process.env.NODE_ENV !== "production" && fs.existsSync(".env.example")) {
   console.log("[Server] Loading .env.example configuration and applying overrides...");
   const exampleConfig = dotenv.parse(fs.readFileSync(".env.example"));
   for (const k in exampleConfig) {
@@ -115,6 +115,8 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`[Server] ✅ Production server is listening on 0.0.0.0:${PORT}`);
     console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
+    console.log('PROJECT:', process.env.FIREBASE_PROJECT_ID);
+    console.log('CLIENT:', process.env.FIREBASE_CLIENT_EMAIL);
   });
 }
 

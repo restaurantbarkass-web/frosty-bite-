@@ -12,11 +12,11 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
   const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowContent(true), 1500);
-    // Auto-complete after 5 seconds
+    const timer = setTimeout(() => setShowContent(true), 200);
+    // Auto-complete after 4 seconds to give user time to interact but keep experience snappy
     const autoTimer = setTimeout(() => {
       onComplete();
-    }, 5000);
+    }, 4000);
 
     return () => {
       clearTimeout(timer);
@@ -32,24 +32,31 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
       className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
       onClick={onComplete}
     >
-      {/* Background Video */}
+      {/* Background Fallback Frame and Video */}
       <div className="absolute inset-0">
+        <img 
+          src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=1600" 
+          alt="Premium Bakery" 
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+          referrerPolicy="no-referrer"
+        />
         <video
           autoPlay
           loop
           muted
           playsInline
-          className="w-full h-full object-cover scale-105"
+          poster="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=1600"
+          className="w-full h-full object-cover scale-105 relative z-10"
         >
           <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
         </video>
         {/* Cinematic Overlays */}
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-black/50 z-20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/50 z-20" />
       </div>
 
       {/* Brand Overlay */}
-      <div className="relative z-10 text-center px-4">
+      <div className="relative z-30 text-center px-4">
         <AnimatePresence>
           {showContent && (
             <div className="space-y-8">

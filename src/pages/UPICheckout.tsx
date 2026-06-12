@@ -43,9 +43,11 @@ export const UPICheckout: React.FC = () => {
     name: string; 
     phone: string; 
     address: string;
+    notes?: string;
     discount?: number;
     couponCode?: string;
     delivery_charge?: number;
+    estimatedDelivery?: number;
     scrollToQR?: boolean;
   } | null;
 
@@ -172,7 +174,7 @@ export const UPICheckout: React.FC = () => {
           quantity: item.quantity,
           image: item.image
         })),
-        estimatedDelivery: 45 // Default estimate
+        estimatedDelivery: state?.estimatedDelivery || 25
       };
 
       setConfirmedOrder(orderSummary);

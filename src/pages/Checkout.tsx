@@ -41,6 +41,7 @@ import { appConfigService } from '../services/appConfigService';
 import { useNotifications } from '../context/NotificationContext';
 
 const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
+import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -48,7 +49,19 @@ export const Checkout: React.FC = () => {
   const { cart, subtotal: cartSubtotal, clearCart, appliedCoupon, setAppliedCoupon } = useCart();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
-  const { isOrderingOpen, deliveryBaseFee, deliveryFeePerKm, deliveryFreeKm, isLoading } = useAppConfig();
+  const { 
+    isOrderingOpen, 
+    deliveryBaseFee, 
+    deliveryFeePerKm, 
+    deliveryFreeKm, 
+    defaultDeliveryTime,
+    geofencingEnabled,
+    geofencingLatitude,
+    geofencingLongitude,
+    geofencingRadius,
+    geofencingZones,
+    isLoading 
+  } = useAppConfig();
   const [deliveryFee, setDeliveryFee] = useState(0);
 
   const [isOrdering, setIsOrdering] = useState(false);
@@ -68,11 +81,174 @@ export const Checkout: React.FC = () => {
     notes: '',
     paymentMethod: 'upi' as 'upi' | 'cod'
   });
+
+  const [addrFields, setAddrFields] = useState({
+    houseNumber: '',
+    streetName: '',
+    landmark: '',
+    city: 'Cuttack',
+    pincode: ''
+  });
+
+  const [validationResult, setValidationResult] = useState<{
+    isValidating: boolean;
+    success: boolean | null;
+    message: string;
+    estimatedDeliveryMins: number;
+  }>({
+    isValidating: false,
+    success: null,
+    message: '',
+    estimatedDeliveryMins: 25
+  });
+
+  useEffect(() => {
+    if (defaultDeliveryTime) {
+      setValidationResult(prev => {
+        if (prev.estimatedDeliveryMins === 25) {
+          return { ...prev, estimatedDeliveryMins: defaultDeliveryTime };
+        }
+        return prev;
+      });
+    }
+  }, [defaultDeliveryTime]);
+
+  const validateDeliveryAddress = async (fieldsToValidate = addrFields, coords = formData.location) => {
+    setValidationResult(prev => ({ ...prev, isValidating: true }));
+    try {
+      const response = await fetch('/api/validate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address: `${fieldsToValidate.houseNumber ? fieldsToValidate.houseNumber + ', ' : ''}${fieldsToValidate.streetName ? fieldsToValidate.streetName + ', ' : ''}${fieldsToValidate.landmark ? fieldsToValidate.landmark + ', ' : ''}${fieldsToValidate.city}${fieldsToValidate.pincode ? ' - ' + fieldsToValidate.pincode : ''}`,
+          coordinates: coords,
+          fields: fieldsToValidate
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setValidationResult({
+          isValidating: false,
+          success: data.deliverable,
+          message: data.message,
+          estimatedDeliveryMins: data.estimatedDeliveryMins || 25
+        });
+        return data.deliverable;
+      } else {
+        setValidationResult({
+          isValidating: false,
+          success: false,
+          message: 'Failed to validate address with restaurant backend.',
+          estimatedDeliveryMins: 25
+        });
+        return false;
+      }
+    } catch (err) {
+      setValidationResult({
+        isValidating: false,
+        success: false,
+        message: 'Delivery check offline. Check network status.',
+        estimatedDeliveryMins: 25
+      });
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!addrFields.city) return;
+    const combinedAddress = `${addrFields.houseNumber ? addrFields.houseNumber + ', ' : ''}${addrFields.streetName ? addrFields.streetName + ', ' : ''}${addrFields.landmark ? addrFields.landmark + ', ' : ''}${addrFields.city}${addrFields.pincode ? ' - ' + addrFields.pincode : ''}`;
+    
+    setFormData(prev => ({
+      ...prev,
+      address: combinedAddress
+    }));
+
+    const timer = setTimeout(() => {
+      validateDeliveryAddress(addrFields, formData.location);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [
+    addrFields.houseNumber,
+    addrFields.streetName,
+    addrFields.landmark,
+    addrFields.city,
+    addrFields.pincode,
+    formData.location?.lat,
+    formData.location?.lng
+  ]);
+
+  const handleMapLocationSelected = (lat: number, lng: number, fullAddr: string) => {
+    let city = 'Cuttack';
+    let pincode = '';
+    let street = '';
+    
+    if (fullAddr) {
+      const parts = fullAddr.split(',');
+      const addrLower = fullAddr.toLowerCase();
+      if (addrLower.includes('bhubaneswar')) city = 'Bhubaneswar';
+      else if (addrLower.includes('puri')) city = 'Puri';
+      else if (addrLower.includes('cuttack')) city = 'Cuttack';
+      
+      const pinMatch = fullAddr.match(/\b\d{6}\b/);
+      if (pinMatch) pincode = pinMatch[0];
+
+      street = parts.slice(0, 3).join(', ').trim();
+    }
+
+    setAddrFields(prev => ({
+      ...prev,
+      streetName: street || prev.streetName,
+      city: city,
+      pincode: pincode || prev.pincode
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      address: fullAddr,
+      location: { lat, lng }
+    }));
+  };
+
   const [isLocating, setIsLocating] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  const isLocationInServiceArea = () => {
+    if (!formData.location) return true; 
+    if (geofencingEnabled === false) return true; 
+
+    const uLat = formData.location.lat;
+    const uLng = formData.location.lng;
+
+    const primaryLat = geofencingLatitude ?? 20.4625;
+    const primaryLng = geofencingLongitude ?? 85.8828;
+    const primaryRad = geofencingRadius ?? 12;
+
+    const centralDist = calculateDistance(primaryLat, primaryLng, uLat, uLng);
+    if (centralDist <= primaryRad) {
+      return true;
+    }
+
+    try {
+      const parsedZones = geofencingZones ? JSON.parse(geofencingZones) : [];
+      for (const zone of parsedZones) {
+        if (!zone.enabled) continue;
+        const dist = calculateDistance(zone.latitude, zone.longitude, uLat, uLng);
+        if (dist <= zone.radius) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('[Checkout] Secondary zone check failed:', e);
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     let newFee = deliveryBaseFee;
@@ -295,6 +471,13 @@ export const Checkout: React.FC = () => {
       return;
     }
 
+    const isDeliverable = await validateDeliveryAddress(addrFields, formData.location);
+    if (!isDeliverable) {
+      toast.error('Your specified delivery location is outside of our active geofenced delivery boundaries.');
+      setIsOrdering(false);
+      return;
+    }
+
     try {
       const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
       
@@ -334,6 +517,7 @@ export const Checkout: React.FC = () => {
         phone: formData.phone,
         customer_name: formData.name,
         email: user?.email || null,
+        estimated_delivery_time: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
         notes: formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
@@ -387,6 +571,7 @@ export const Checkout: React.FC = () => {
             discount: discountAmount,
             delivery_charge: deliveryFee,
             couponCode: appliedCoupon?.code,
+            estimatedDelivery: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
             scrollToQR: true
           } 
         });
@@ -420,7 +605,7 @@ export const Checkout: React.FC = () => {
             quantity: item.quantity,
             image: item.image
           })),
-          estimatedDelivery: 45 // Default estimate
+          estimatedDelivery: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25
         };
         
         setConfirmedOrder(orderSummary);
@@ -473,12 +658,33 @@ export const Checkout: React.FC = () => {
           const data = await response.json();
           
           if (data.display_name) {
+            const addr = data.address || {};
+            const postcode = addr.postcode ? addr.postcode.replace(/[^0-9]/g, '').slice(0, 6) : '';
+            const city = addr.city || addr.town || addr.village || addr.suburb || addr.city_district || 'Cuttack';
+            const streetName = addr.road || addr.suburb || addr.neighbourhood || addr.subdivision || addr.county || '';
+            const houseNumber = addr.house_number || addr.building || addr.flat || addr.house_name || '';
+            const landmark = addr.amenity || addr.shop || addr.office || addr.commercial || addr.tourism || addr.historic || addr.leisure || addr.suburb || addr.neighbourhood || '';
+
+            const finalFields = {
+              houseNumber: houseNumber,
+              streetName: streetName,
+              landmark: landmark,
+              city: city,
+              pincode: postcode
+            };
+
+            setAddrFields(finalFields);
+
             setFormData(prev => ({ 
               ...prev, 
               address: data.display_name,
               location: { lat: latitude, lng: longitude }
             }));
-            toast.success("Location updated!");
+
+            // Validate service availability for coordinates and fields
+            validateDeliveryAddress(finalFields, { lat: latitude, lng: longitude });
+
+            toast.success("Location and address fields auto-filled successfully!", { icon: '✨' });
           } else {
             toast.error("Could not find address for your location");
           }
@@ -724,11 +930,7 @@ export const Checkout: React.FC = () => {
                           <MapSelector 
                             initialLocation={formData.location}
                             onLocationSelect={(lat, lng, address) => {
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                address,
-                                location: { lat, lng }
-                              }));
+                              handleMapLocationSelected(lat, lng, address);
                             }}
                           />
                         </React.Suspense>
@@ -737,15 +939,113 @@ export const Checkout: React.FC = () => {
                   )}
                 </AnimatePresence>
 
-                <textarea
-                  ref={addressRef}
-                  required
-                  rows={3}
-                  placeholder="House No, Street, Landmark, Area"
-                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white resize-none"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
+                {/* Structured Address Form Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">House / Flat / Plot *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. House 12 / Plot 3A"
+                      className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                      value={addrFields.houseNumber}
+                      onChange={(e) => setAddrFields({ ...addrFields, houseNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <GooglePlacesAutocomplete
+                      currentAddressValue={addrFields.streetName}
+                      onManualStreetChange={(val) => setAddrFields({ ...addrFields, streetName: val })}
+                      onAddressSelect={(data) => {
+                        setAddrFields({
+                          houseNumber: data.houseNumber || addrFields.houseNumber,
+                          streetName: data.streetName,
+                          landmark: data.landmark || addrFields.landmark,
+                          city: data.city || 'Cuttack',
+                          pincode: data.pincode || addrFields.pincode
+                        });
+                        if (data.lat && data.lng) {
+                          setFormData(prev => ({
+                            ...prev,
+                            location: { lat: data.lat!, lng: data.lng! }
+                          }));
+                        }
+                        toast.success('Address auto-filled successfully!', { icon: '✨' });
+                      }}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Landmark *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Near Link Road"
+                      className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                      value={addrFields.landmark}
+                      onChange={(e) => setAddrFields({ ...addrFields, landmark: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">City *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Cuttack"
+                        className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                        value={addrFields.city}
+                        onChange={(e) => setAddrFields({ ...addrFields, city: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pincode *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 753010"
+                        className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold font-mono"
+                        value={addrFields.pincode}
+                        onChange={(e) => setAddrFields({ ...addrFields, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Status indicator for Checkout */}
+                <div className="pt-2">
+                  {validationResult.isValidating ? (
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse flex items-center gap-3">
+                      <Loader2 size={16} className="text-primary animate-spin" />
+                      <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider animate-pulse">Evaluating Delivery Area...</span>
+                    </div>
+                  ) : validationResult.success === true ? (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-left">
+                      <span className="text-emerald-500 text-lg">✅</span>
+                      <div>
+                        <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
+                        <p className="text-zinc-200 text-xs font-semibold mt-0.5">Estimated delivery: {validationResult.estimatedDeliveryMins} mins</p>
+                        {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
+                      </div>
+                    </div>
+                  ) : validationResult.success === false ? (
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-left">
+                      <span className="text-red-500 text-lg">❌</span>
+                      <div>
+                        <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">Outside Service Area</p>
+                        <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">{validationResult.message || "Frosty Bite currently delivers only in Cuttack."}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-2 text-left">
+                      <span className="text-zinc-500">🚚</span>
+                      <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -989,13 +1289,25 @@ export const Checkout: React.FC = () => {
                 </div>
               </div>
 
+              {formData.location && !isLocationInServiceArea() && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} />
+                    <span className="font-black text-xs uppercase tracking-widest leading-none">Out of Delivery Boundary</span>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-wider leading-relaxed text-zinc-400 font-bold">
+                    The chosen map pin coordinate lies outside Frosty Bite's active delivery boundaries. Please adjust your address marker on the map selector.
+                  </p>
+                </div>
+              )}
+
               <button
                 id="checkout-action-btn"
                 onClick={handlePlaceOrder}
-                disabled={isLoading || isOrdering || !isOrderingOpen}
+                disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()}
                 className={cn(
                   "w-full btn-premium group h-16 transition-all",
-                  (isLoading || isOrdering || !isOrderingOpen) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
+                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
                 )}
               >
                 <div className="flex items-center justify-center gap-3">
@@ -1012,7 +1324,12 @@ export const Checkout: React.FC = () => {
                   ) : !isOrderingOpen ? (
                     <>
                       <X size={20} />
-                      <span className="font-black uppercase tracking-widest">Orders Closed</span>
+                      <span className="font-black uppercase tracking-widest font-bold">Orders Closed</span>
+                    </>
+                  ) : !isLocationInServiceArea() ? (
+                    <>
+                      <AlertTriangle size={20} />
+                      <span className="font-black uppercase tracking-widest font-bold">Location Out of Bounds</span>
                     </>
                   ) : (
                     <>
@@ -1051,10 +1368,10 @@ export const Checkout: React.FC = () => {
             
             <button
               onClick={handlePlaceOrder}
-              disabled={isLoading || isOrdering || !isOrderingOpen}
+              disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()}
               className={cn(
                 "w-full h-14 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-primary/20",
-                (isLoading || !isOrderingOpen || isOrdering) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
+                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea()) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
               )}
             >
               {isOrdering ? (
@@ -1066,6 +1383,8 @@ export const Checkout: React.FC = () => {
                 </>
               ) : !isOrderingOpen ? (
                 'Orders Closed'
+              ) : !isLocationInServiceArea() ? (
+                'Location Out of Boundary'
               ) : (
                 <>
                   <span>

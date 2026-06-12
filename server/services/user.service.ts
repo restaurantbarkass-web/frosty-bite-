@@ -22,17 +22,78 @@ export class UserService {
     console.log(`[UserService] Resolving identity for ${email} with firebaseUid: ${firebaseUid}, supabaseUid: ${supabaseUid}`);
     
     try {
+      // 0. Proactively heal/resolve collisions to prevent fatal "duplicate key value violates unique constraint" errors
+      if (firebaseUid) {
+        const { data: collidingFirebaseUser } = await supabase
+          .from('users')
+          .select('*')
+          .eq('firebase_uid', firebaseUid)
+          .maybeSingle();
+        
+        if (collidingFirebaseUser && collidingFirebaseUser.email !== email) {
+          console.warn(`[UserService] Unifying Identity: Detaching duplicate firebase_uid "${firebaseUid}" from registered email "${collidingFirebaseUser.email}" to resolve merge conflicts.`);
+          await supabase
+            .from('users')
+            .update({ firebase_uid: null })
+            .eq('id', collidingFirebaseUser.id);
+        }
+      }
+
+      if (supabaseUid) {
+        const { data: collidingSupabaseUser } = await supabase
+          .from('users')
+          .select('*')
+          .eq('supabase_uid', supabaseUid)
+          .maybeSingle();
+        
+        if (collidingSupabaseUser && collidingSupabaseUser.email !== email) {
+          console.warn(`[UserService] Unifying Identity: Detaching duplicate supabase_uid "${supabaseUid}" from registered email "${collidingSupabaseUser.email}" to resolve merge conflicts.`);
+          await supabase
+            .from('users')
+            .update({ supabase_uid: null })
+            .eq('id', collidingSupabaseUser.id);
+        }
+      }
+
       // 1. Try email match first
-      const { data: user, error: selectError } = await supabase
+      const { data: userByEmail } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)
         .maybeSingle();
 
+      let user = userByEmail;
+
+      // 2. Try firebase_uid match if not matched by email
+      if (!user && firebaseUid) {
+        const { data: userByFb } = await supabase
+          .from('users')
+          .select('*')
+          .eq('firebase_uid', firebaseUid)
+          .maybeSingle();
+        if (userByFb) {
+          console.log(`[UserService] Identity resolved cross-match via firebase_uid: ${firebaseUid} for ${email}`);
+          user = userByFb;
+        }
+      }
+
+      // 3. Try supabase_uid match if not matched yet
+      if (!user && supabaseUid) {
+        const { data: userBySb } = await supabase
+          .from('users')
+          .select('*')
+          .eq('supabase_uid', supabaseUid)
+          .maybeSingle();
+        if (userBySb) {
+          console.log(`[UserService] Identity resolved cross-match via supabase_uid: ${supabaseUid} for ${email}`);
+          user = userBySb;
+        }
+      }
+
       const name = params.displayName || params.name || email.split('@')[0];
       const avatarUrl = params.photoURL || params.avatar_url || null;
 
-      // 2. If not found → create
+      // 4. If not found → create
       if (!user) {
         console.log(`[UserService] No existing identity found for ${email}. Creating a new master record...`);
         const methods: string[] = [];
@@ -57,22 +118,53 @@ export class UserService {
           .single();
 
         if (insertError) {
-          console.error('[UserService] Insert Error:', insertError);
-          throw insertError;
-        }
+          console.warn('[UserService] Insert failed, checking if user was created concurrently:', insertError.message || insertError);
+          const { data: concurrentUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
 
-        return newUser;
+          if (concurrentUser) {
+            console.log('[UserService] Concurrent user detected via email. Proceeding to merge update phase.');
+            user = concurrentUser;
+          } else {
+            let foundByUid = null;
+            if (firebaseUid) {
+              const { data: checkFb } = await supabase.from('users').select('*').eq('firebase_uid', firebaseUid).maybeSingle();
+              foundByUid = checkFb;
+            }
+            if (!foundByUid && supabaseUid) {
+              const { data: checkSb } = await supabase.from('users').select('*').eq('supabase_uid', supabaseUid).maybeSingle();
+              foundByUid = checkSb;
+            }
+
+            if (foundByUid) {
+              console.log('[UserService] Concurrent user detected via UID. Proceeding to merge update phase.');
+              user = foundByUid;
+            } else {
+              console.error('[UserService] Insert Error remains unresolved:', insertError);
+              throw insertError;
+            }
+          }
+        } else {
+          return newUser;
+        }
       }
 
       console.log(`[UserService] Match found in master database for ${email}. Merging profiles...`);
 
-      // 3. Merge identities
+      // 5. Merge identities
       const updates: any = {
         last_login: new Date().toISOString(),
         last_login_at: new Date().toISOString()
       };
 
-      if (name && (!user.name || user.name === user.email.split('@')[0])) {
+      if (user.email !== email) {
+        updates.email = email;
+      }
+
+      if (name && (!user.name || user.name === user.email.split('@')[0] || user.name === '')) {
         updates.name = name;
         updates.full_name = name;
       }
@@ -109,13 +201,13 @@ export class UserService {
         updates.auth_methods = updatedMethods;
       }
 
-      // Perform updates if any changes are resolved
-      if (Object.keys(updates).length > 2) { // more than just last_login and last_login_at
+      // Perform updates if any changes or logins are resolved (always updates last_login/last_login_at)
+      if (Object.keys(updates).length >= 2) {
         console.log(`[UserService] Applying clean identity resolution merges for ${email}:`, updates);
         const { data: updatedUser, error: updateError } = await supabase
           .from('users')
           .update(updates)
-          .eq('email', email)
+          .eq('id', user.id)
           .select()
           .single();
 

@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
+import { diagnosticFetch } from '../utils/apiDiagnostics';
 
 // AI is now handled server-side to keep API keys secure
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -171,21 +172,11 @@ export const searchService = {
     const trimmed = searchTerm.trim().toLowerCase();
     if (!trimmed) return;
     try {
-      await supabase.from('search_history').insert({ query: trimmed, user_id: userId });
-      
-      const { data: existing } = await supabase.from('search_analytics').select('*').eq('query', trimmed).single();
-      if (existing) {
-        await supabase.from('search_analytics').update({ 
-          count: (existing.count || 0) + 1,
-          last_searched: new Date().toISOString()
-        }).eq('query', trimmed);
-      } else {
-        await supabase.from('search_analytics').insert({
-          query: trimmed,
-          count: 1,
-          last_searched: new Date().toISOString()
-        });
-      }
+      await diagnosticFetch('/api/search/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ searchTerm: trimmed, userId })
+      });
     } catch (error) {
       console.error('Logging Search Error:', error);
     }
@@ -194,19 +185,10 @@ export const searchService = {
   // Get trending searches
   async getTrendingSearches(limitCount: number = 6): Promise<string[]> {
     try {
-      const { data, error } = await supabase
-        .from('search_analytics')
-        .select('query')
-        .order('count', { ascending: false })
-        .limit(limitCount);
-
-      if (error) {
-        if (error.code === 'PGRST204' || error.code === '42P01') {
-          return ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];
-        }
-        throw error;
-      }
-      return data.length > 0 ? data.map(item => item.query) : ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];
+      const res = await diagnosticFetch(`/api/search/trending?limit=${limitCount}`);
+      if (!res.ok) throw new Error('Search trending API returned non-ok status');
+      const data = await res.json();
+      return Array.isArray(data) && data.length > 0 ? data : ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];
     } catch (error) {
       console.error('Fetching Trending Error:', error);
       return ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];

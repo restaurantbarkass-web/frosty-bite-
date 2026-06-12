@@ -46,6 +46,15 @@ router.post('/sync', async (req, res) => {
       photoURL: decodedToken.picture
     });
 
+    // Send welcome email only to genuine new users
+    if (!existingUser && user?.email) {
+      try {
+        await EmailService.sendWelcomeEmail(user.email, user.name);
+      } catch (emailErr) {
+        console.warn('[AuthRoutes] Welcome email failed (non-fatal):', emailErr);
+      }
+    }
+
     res.json({ success: true, user });
   } catch (error: any) {
     console.error('[AuthRoutes] Sync error:', error);
@@ -177,6 +186,81 @@ router.get('/otp-type', async (req, res) => {
   } catch (err: any) {
     console.error('[AuthRoutes] Error checking user OTP type in admin:', err);
     res.json({ type: 'signup' }); // Safe fallback
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Securely resets user password in the Database after verifying a valid OTP code.
+ */
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'Email, OTP code, and new password are required.' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+    const cleanPassword = newPassword.trim();
+
+    if (cleanPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    // Verify OTP first using Supabase .auth.verifyOtp flow
+    let verifyType: 'signup' | 'email' | 'magiclink' = 'email';
+    try {
+      const { data: userList } = await supabase.auth.admin.listUsers();
+      if (userList && userList.users) {
+        const found = userList.users.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+        if (found) {
+          verifyType = found.email_confirmed_at ? 'email' : 'signup';
+        } else {
+          verifyType = 'signup';
+        }
+      }
+    } catch (err: any) {
+      console.warn('[ResetPasswordRoute] Failed listing users for OTP type on server:', err.message);
+    }
+
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token: cleanOtp,
+      type: verifyType,
+    });
+
+    if (verifyError || !verifyData?.user) {
+      // Fallback try alternate code type
+      const altType = verifyType === 'email' ? 'signup' : 'email';
+      const { data: verifyDataAlt, error: verifyErrorAlt } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: cleanOtp,
+        type: altType,
+      });
+
+      if (verifyErrorAlt || !verifyDataAlt?.user) {
+        return res.status(401).json({ error: 'Invalid or expired OTP verification code.' });
+      }
+    }
+
+    // 2. Perform the update of public.users.password in the database
+    const { data: updatedUsers, error: dbErr } = await supabase
+      .from('users')
+      .update({ password: cleanPassword })
+      .eq('email', normalizedEmail)
+      .select();
+
+    if (dbErr) {
+      console.error('[ResetPasswordRoute] Failed to update user custom password field:', dbErr.message);
+      return res.status(500).json({ error: 'Failed to update password in database.' });
+    }
+
+    console.log(`[ResetPasswordRoute] Successfully reset custom password for: ${normalizedEmail}`);
+    return res.json({ success: true, message: 'Your password has been successfully reset! Please check-in using your new password.' });
+  } catch (err: any) {
+    console.error('[ResetPasswordRoute] Unexpected Exception:', err);
+    return res.status(500).json({ error: err.message || 'An unexpected error occurred during password reset.' });
   }
 });
 

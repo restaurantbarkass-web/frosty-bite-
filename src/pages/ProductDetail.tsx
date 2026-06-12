@@ -166,8 +166,19 @@ const ProductDetail: React.FC = () => {
     };
 
     fetchProduct();
-    window.scrollTo(0, 0);
   }, [id]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      const scrollTimer = setTimeout(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+        if ((window as any).lenis) {
+          (window as any).lenis.scrollTo(0, { immediate: true });
+        }
+      }, 60);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [isLoading]);
 
   const handleAddToCart = () => {
     if (!user) {
@@ -531,7 +542,7 @@ const ProductDetail: React.FC = () => {
           </motion.div>
 
           {/* Quantity Selector & Wishlist */}
-          <div ref={purchaseSectionRef} className="scroll-mt-32">
+          <div ref={purchaseSectionRef} className="scroll-mt-32 space-y-6">
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -561,7 +572,7 @@ const ProductDetail: React.FC = () => {
                 onClick={handleToggleWishlist}
                 disabled={isWishlisting}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50",
+                  "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50 w-full sm:w-auto justify-center",
                   isLiked 
                     ? "bg-red-500/10 border-red-500/20 text-red-500" 
                     : "bg-white/5 border-white/10 text-white hover:bg-white/10"
@@ -573,6 +584,60 @@ const ProductDetail: React.FC = () => {
                   className={cn("transition-transform group-hover:scale-110", isWishlisting && "animate-pulse")} 
                 />
                 {isLiked ? 'Wishlisted' : 'Add to Wishlist'}
+              </button>
+            </motion.div>
+
+            {/* In-Line Action Buttons to prevent mandatory scrolling */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+              className="flex flex-col sm:flex-row gap-4"
+            >
+              <button
+                onClick={handleAddToCart}
+                disabled={product.available === false || product.stock_quantity <= 0}
+                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 border border-white/10 group shadow-xl disabled:opacity-30 disabled:cursor-not-allowed text-xs font-black uppercase tracking-widest"
+              >
+                <ShoppingCart size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Add to Cart</span>
+              </button>
+              
+              <button
+                onClick={handleBuyNow}
+                disabled={product.available === false || product.stock_quantity <= 0 || isBuyingNow}
+                className="flex-[1.5] py-4 bg-primary hover:bg-accent text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden text-xs font-black uppercase tracking-widest"
+              >
+                <AnimatePresence mode="wait">
+                  {isBuyingNow ? (
+                    <motion.div
+                      key="buying"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center space-x-2"
+                    >
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Zap size={18} fill="currentColor" />
+                      </motion.div>
+                      <span className="italic">Fast tracking...</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="default"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-center justify-center space-x-3"
+                    >
+                      <Zap size={18} fill="currentColor" className="group-hover:scale-125 transition-transform" />
+                      <span>
+                        {(product.available === false || product.stock_quantity <= 0) ? 'Currently Unavailable' : 'Buy Now'}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </button>
             </motion.div>
           </div>

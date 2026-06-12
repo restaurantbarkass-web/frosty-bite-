@@ -2,6 +2,8 @@ import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
+import { GeofenceProvider, useGeofence } from './context/GeofenceContext';
+import { LockedGeofenceScreen } from './components/LockedGeofenceScreen';
 import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -13,6 +15,7 @@ import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { IntroSplash } from './components/IntroSplash';
+import { OnboardingScreen } from './components/OnboardingScreen';
 import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -26,30 +29,53 @@ import Lenis from '@studio-freight/lenis';
 import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
-import { requestForToken, onMessageListener } from './utils/messaging';
+import { requestForToken, subscribeToMessages } from './utils/messaging';
 
 import Offers from './pages/Offers';
 
-// Resilient wrapper to retry dynamic lazy imports in case of a temporary block or build hash refresh
+// Resilient wrapper to retry dynamic lazy imports with progressive backoff and infinite reload protection
 function lazyWithRetry<T extends React.ComponentType<any>>(
   importFunc: () => Promise<{ default: T }>
 ): React.LazyExoticComponent<T> {
-  return lazy(() =>
-    importFunc().catch((error) => {
-      console.warn("Dynamic import failed, retrying in 1.5 seconds...", error);
-      return new Promise<{ default: T }>((resolve, reject) => {
-        setTimeout(() => {
-          importFunc()
-            .then(resolve)
-            .catch((err) => {
-              console.error("Dynamic import retry failed. Reloading page to load latest build assets...", err);
+  return lazy(() => {
+    const maxRetries = 3;
+    const retryDelays = [1000, 2500, 5000];
+
+    const executeImport = (attempt: number): Promise<{ default: T }> => {
+      return importFunc().catch((error) => {
+        if (attempt >= maxRetries) {
+          console.error(`[LazyLoader] Dynamic import failed after ${maxRetries} attempts:`, error);
+          
+          // Only trigger a page reload in production (where chunk load errors can occur due to asset hash invalidations)
+          // and safeguard against infinite reload cycles using sessionStorage.
+          const isProd = import.meta.env.PROD;
+          if (isProd) {
+            const now = Date.now();
+            const lastReload = sessionStorage.getItem('last_asset_reload');
+            const parsedLastReload = lastReload ? parseInt(lastReload, 10) : 0;
+            
+            // Limit reload to at most once every 20 seconds to prevent aggressive reload loops
+            if (now - parsedLastReload > 20000) {
+              sessionStorage.setItem('last_asset_reload', String(now));
+              console.warn('[LazyLoader] Potential stale production asset hash. Forcing app reload to fetch latest bundle...');
               window.location.reload();
-              reject(err);
-            });
-        }, 1500);
+            } else {
+              console.error('[LazyLoader] Asset load failed. Safe reload cooldown active, skipping reload to prevent infinite loops.');
+            }
+          }
+          throw error;
+        }
+
+        const delay = retryDelays[attempt - 1] || 2000;
+        console.warn(`[LazyLoader] Dynamic import failed (Attempt ${attempt}/${maxRetries}). Retrying in ${delay}ms...`, error);
+
+        return new Promise<{ default: T }>((resolve) => setTimeout(resolve, delay))
+          .then(() => executeImport(attempt + 1));
       });
-    })
-  );
+    };
+
+    return executeImport(1);
+  });
 }
 
 // Lazy load pages for performance with automatic reload retry fallback
@@ -60,7 +86,6 @@ const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
 const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
 const Profile = lazyWithRetry(() => import('./pages/Profile'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
-const Signup = lazyWithRetry(() => import('./pages/Signup'));
 const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
 const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
@@ -72,6 +97,7 @@ const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
 function AppContent() {
   const { user, isVerified, isAdmin } = useAuth();
+  const { isCheckingPosition, isAllowed } = useGeofence();
   const { isCartOpen, setIsCartOpen } = useCart();
   const { items, loading: menuLoading } = useMenu();
   const [isSearching, setIsSearching] = useState(false);
@@ -89,8 +115,41 @@ function AppContent() {
     return false;
   });
 
+  const handleSplashComplete = useCallback(() => {
+    sessionStorage.setItem('splash_seen', 'true');
+    setShowSplash(false);
+  }, []);
+
   const location = useLocation();
   const navigate = useNavigate();
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
+
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return !localStorage.getItem('onboarding_completed');
+      }
+    } catch (e) {
+      console.warn('localStorage access failed:', e);
+    }
+    return true;
+  });
+
+  const handleOnboardingComplete = useCallback(() => {
+    try {
+      localStorage.setItem('onboarding_completed', 'true');
+    } catch (e) {
+      console.warn('localStorage write failed:', e);
+    }
+    setShowOnboarding(false);
+    navigate('/login');
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!showSplash && !showOnboarding && !user && !isAuthPage) {
+      navigate('/login', { replace: true });
+    }
+  }, [showSplash, showOnboarding, user, isAuthPage, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -111,26 +170,18 @@ function AppContent() {
 
     // Set up foreground message listener
     let active = true;
-    const listenForMessages = async () => {
-      try {
-        const payload: any = await onMessageListener();
-        if (active && payload && payload.notification) {
-          toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
-            duration: 8000,
-            icon: '📣'
-          });
-          // Repeat listener for subsequent messages
-          listenForMessages();
-        }
-      } catch (err) {
-        console.error('[FCM] Foreground subscription error:', err);
+    const unsubscribeFCM = subscribeToMessages((payload) => {
+      if (active && payload?.notification) {
+        toast.success(`${payload.notification.title}: ${payload.notification.body}`, {
+          duration: 8000,
+          icon: '📣'
+        });
       }
-    };
-
-    listenForMessages();
+    });
 
     return () => {
       active = false;
+      unsubscribeFCM();
     };
   }, [user]);
 
@@ -168,24 +219,13 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    if (showSplash && !menuLoading && items.length > 0) {
-      const timer = setTimeout(() => {
-        handleSplashComplete();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [showSplash, menuLoading, items.length]);
-
-  useEffect(() => {
     if (showSplash) {
       const timer = setTimeout(() => {
-        if (showSplash) {
-          setShowSplash(false);
-        }
-      }, 6000);
+        handleSplashComplete();
+      }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [showSplash]);
+  }, [showSplash, handleSplashComplete]);
 
   const [isSearchOverlayScan, setIsSearchOverlayScan] = useState(false);
   const [initialSearchQuery, setInitialSearchQuery] = useState('');
@@ -236,20 +276,38 @@ function AppContent() {
     }
   }, [location.pathname]);
 
-  const handleSplashComplete = useCallback(() => {
-    sessionStorage.setItem('splash_seen', 'true');
-    setShowSplash(false);
-  }, []);
-
   const isAdminPage = location.pathname.startsWith('/admin');
   const isProductPage = location.pathname.startsWith('/product/');
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isCheckoutPage = location.pathname === '/checkout';
-  const isAuthPage = ['/login', '/signup', '/forgot-password', '/finish-sign-in'].includes(location.pathname);
+  
+  const PROTECTED_PATHS = ['/checkout', '/upi-checkout', '/admin', '/profile', '/orders', '/notifications'];
+  const isCurrentPathProtected = PROTECTED_PATHS.some(path => location.pathname.startsWith(path));
+  const bypassLocks = !user && isCurrentPathProtected;
   
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
   const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
+
+  // 1. Show the Intro Splash first if it hasn't been dismissed yet
+  if (showSplash && !isAdmin && !isAuthPage && !bypassLocks) {
+    return <IntroSplash onComplete={handleSplashComplete} />;
+  }
+
+  // 1.5. Show Onboarding Tour if the guest user hasn't seen it yet and is not on an auth page
+  if (!user && showOnboarding && !isAuthPage && !bypassLocks) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
+  // 2. If we are actively checking location, show full screen loading loader
+  if (isCheckingPosition && !isAdmin && !isAuthPage && !bypassLocks) {
+    return <LoadingScreen message="Sensing your delivery coordinates..." />;
+  }
+
+  // 3. If there is no confirmed/manual active zone, show user city selector lock screen
+  if (!isAllowed && !isAdmin && !isAuthPage && !bypassLocks) {
+    return <LockedGeofenceScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
@@ -298,11 +356,7 @@ function AppContent() {
         showNavbar && "pt-24 md:pt-28",
         !hideNavFooter && "pb-40 md:pb-0"
       )}>
-        <AnimatePresence>
-          {showSplash && location.pathname === '/' && (
-            <IntroSplash onComplete={handleSplashComplete} />
-          )}
-        </AnimatePresence>
+        {/* IntroSplash is rendered full-screen on initial page mount */}
 
         <Suspense fallback={<PageLoader />}>
           <AnimatePresence mode="wait" initial={false}>
@@ -318,7 +372,7 @@ function AppContent() {
                 <Route path="/" element={<Home />} />
                 <Route path="/index.html" element={<Home />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route path="/signup" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/finish-sign-in" element={<FinishSignIn />} />
                 <Route path="/checkout" element={
@@ -414,13 +468,15 @@ export default function App() {
     <Router>
       <ThemeProvider>
         <AuthProvider>
-          <MenuProvider>
-            <NotificationProvider>
-              <CartProvider>
-                <AppContent />
-              </CartProvider>
-            </NotificationProvider>
-          </MenuProvider>
+          <GeofenceProvider>
+            <MenuProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <AppContent />
+                </CartProvider>
+              </NotificationProvider>
+            </MenuProvider>
+          </GeofenceProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>

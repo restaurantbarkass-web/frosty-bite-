@@ -10,7 +10,7 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
-if (fs.existsSync(emgPath)) {
+if (process.env.NODE_ENV !== "production" && fs.existsSync(emgPath)) {
   try {
     const exampleConfig = dotenv.parse(fs.readFileSync(emgPath));
     for (const k in exampleConfig) {
@@ -30,6 +30,12 @@ import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
 import configRoutes from "./routes/config.routes";
 import notificationRoutes from "./routes/notification.routes";
+import servicezonesRoutes from "./routes/servicezones.routes";
+import servicepincodesRoutes from "./routes/servicepincodes.routes";
+import validateaddressRoutes from "./routes/validateaddress.routes";
+import deliveryareasRoutes from "./routes/deliveryareas.routes";
+import reviewsRoutes from "./routes/reviews.routes";
+import searchRoutes from "./routes/search.routes";
 
 const app = express();
 
@@ -48,7 +54,40 @@ app.use((req, res, next) => {
 
 // 2. Security Middlewares
 app.use(cors({
-  origin: "*",
+  origin: (origin, callback) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
+    const isProd = process.env.NODE_ENV === "production";
+    if (!isProd) {
+      callback(null, true);
+      return;
+    }
+
+    const allowedOrigins = [
+      "capacitor://localhost",
+      "ionic://localhost"
+    ];
+
+    try {
+      const url = new URL(origin);
+      const isAllowed = allowedOrigins.includes(origin) ||
+                        url.hostname === "localhost" ||
+                        url.hostname.endsWith(".run.app") ||
+                        url.hostname.endsWith(".supabase.co") ||
+                        url.hostname.endsWith("firebaseapp.com");
+      
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error("Blocked by CORS policy"));
+      }
+    } catch (_) {
+      callback(new Error("Invalid Origin"));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "Accept"]
 }));
@@ -79,11 +118,31 @@ app.get("/ping", (req, res) => {
 });
 
 // Routes
+app.get("/migration-script", (req, res) => {
+  try {
+    const migrationPath = path.resolve(process.cwd(), "supabase_migration.sql");
+    if (fs.existsSync(migrationPath)) {
+      const sqlText = fs.readFileSync(migrationPath, "utf-8");
+      res.json({ sql: sqlText });
+    } else {
+      res.status(404).json({ error: "Migration script not found on server." });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use("/butler", butlerRoutes);
 app.use("/avatar", avatarRoutes);
 app.use("/auth", authRoutes);
 app.use("/config", configRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/service-zones", servicezonesRoutes);
+app.use("/service-pincodes", servicepincodesRoutes);
+app.use("/validate-address", validateaddressRoutes);
+app.use("/delivery-areas", deliveryareasRoutes);
+app.use("/reviews", reviewsRoutes);
+app.use("/search", searchRoutes);
 
 // Detailed API 404 handler
 app.use((req, res) => {

@@ -32,7 +32,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         });
 
         if (!hasAccess && autoLogout) {
-          logout().then(() => navigate('/login', { replace: true })).catch(err => console.error("Auto logout error:", err));
+          logout(true).then(() => navigate('/login', { replace: true })).catch(err => console.error("Auto logout error:", err));
         }
       }
       if (requireVerification && !isVerified && !isAdmin) {

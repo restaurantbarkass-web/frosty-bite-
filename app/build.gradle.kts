@@ -34,17 +34,55 @@ android {
     }
 
     signingConfigs {
+        // Automatically generate debug.keystore if it's missing to prevent gradle build failures
+        val localKeystoreFile = rootProject.file("debug.keystore")
+        if (!localKeystoreFile.exists()) {
+            println("[Gradle] debug.keystore not found. Generating a temporary local debug keystore...")
+            try {
+                val pt = ProcessBuilder(
+                    "keytool", "-genkey", "-v",
+                    "-keystore", localKeystoreFile.absolutePath,
+                    "-storepass", "android",
+                    "-alias", "androiddebugkey",
+                    "-keypass", "android",
+                    "-keyalg", "RSA",
+                    "-keysize", "2048",
+                    "-validity", "10000",
+                    "-dname", "CN=Android Debug,O=Android,C=US"
+                ).inheritIO().start()
+                pt.waitFor()
+                println("[Gradle] Successfully generated temporary debug.keystore at: ${localKeystoreFile.absolutePath}")
+            } catch (e: Exception) {
+                println("[Gradle] Warning: Failed to generate temporary debug.keystore: ${e.message}")
+            }
+        }
+
         create("debugConfig") {
             storeFile = file("${rootDir}/debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        create("releaseConfig") {
+            val isEnvConfigured = System.getenv("ANDROID_SIGNING_KEY_STORE") != null
+            if (isEnvConfigured) {
+                storeFile = file(System.getenv("ANDROID_SIGNING_KEY_STORE"))
+                storePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("ANDROID_SIGNING_KEY_ALIAS") ?: "androiddebugkey"
+                keyPassword = System.getenv("ANDROID_SIGNING_KEY_PASSWORD") ?: "android"
+            } else {
+                storeFile = file("${rootDir}/debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("releaseConfig")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -85,4 +123,43 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+}
+
+tasks.register("buildWebAndSyncCapacitor") {
+    group = "build"
+    description = "Automatically compiles web assets and synchronizes them with Capacitor prior to compiler phases."
+    doFirst {
+        val rootDirFile = rootProject.projectDir
+        val nodeModules = File(rootDirFile, "node_modules")
+        val osName = System.getProperty("os.name").lowercase()
+        val isWindows = osName.contains("win")
+        
+        try {
+            if (!nodeModules.exists()) {
+                println("[Gradle App Build] Installing node dependencies...")
+                val installCmd = if (isWindows) listOf("cmd", "/c", "npm", "install") else listOf("npm", "install")
+                val p = ProcessBuilder(installCmd).directory(rootDirFile).redirectOutput(ProcessBuilder.Redirect.INHERIT).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+                p.waitFor()
+            }
+            
+            println("[Gradle App Build] Building web bundle with npm run build...")
+            val buildCmd = if (isWindows) listOf("cmd", "/c", "npm", "run", "build") else listOf("npm", "run", "build")
+            val pBuild = ProcessBuilder(buildCmd).directory(rootDirFile).redirectOutput(ProcessBuilder.Redirect.INHERIT).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+            pBuild.waitFor()
+
+            println("[Gradle App Build] Syncing web assets with Capacitor...")
+            val syncCmd = if (isWindows) listOf("cmd", "/c", "npx", "cap", "sync") else listOf("npx", "cap", "sync")
+            val pSync = ProcessBuilder(syncCmd).directory(rootDirFile).redirectOutput(ProcessBuilder.Redirect.INHERIT).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+            pSync.waitFor()
+            
+            println("[Gradle App Build] Web assets synchronization successfully completed!")
+        } catch (e: Exception) {
+            println("[Gradle App Build] Warning: NPM task pipeline failed. Continuing with existing assets: ${e.message}")
+        }
+    }
+}
+
+// Hook it into compilation lifecycle
+tasks.named("preBuild") {
+    dependsOn("buildWebAndSyncCapacitor")
 }

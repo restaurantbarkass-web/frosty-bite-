@@ -208,9 +208,68 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "required": ["user_id", "title", "message", "type", "read", "created_at"]
+    },
+    "ServiceZone": {
+      "title": "Service Zone",
+      "description": "Represents an operational delivery radius/zone for a specific city.",
+      "type": "object",
+      "properties": {
+        "city_name": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "radius_meters": { "type": "number" },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["city_name", "latitude", "longitude", "radius_meters", "is_active"]
+    },
+    "ServicePincode": {
+      "title": "Service Pincode",
+      "description": "Represents an operational delivery pincode.",
+      "type": "object",
+      "properties": {
+        "pincode": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["pincode", "active"]
+    },
+    "DeliveryArea": {
+      "title": "Delivery Area",
+      "description": "Represents a specific named delivery area and whether it is deliverable.",
+      "type": "object",
+      "properties": {
+        "area_name": { "type": "string" },
+        "pincode": { "type": "string" },
+        "is_deliverable": { "type": "boolean" }
+      },
+      "required": ["area_name", "pincode", "is_deliverable"]
+    },
+    "NotifyRequest": {
+      "title": "Notify Request",
+      "description": "Represents a user request to be notified when service in their area becomes operational.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "city": { "type": "string" },
+        "coords": { "type": "object" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["email", "created_at"]
     }
   },
   "firestore": {
+    "delivery_areas/{areaId}": {
+      "schema": "DeliveryArea",
+      "description": "Names and status of delivery areas."
+    },
+    "service_pincodes/{pincodeId}": {
+      "schema": "ServicePincode",
+      "description": "List of delivery pincodes and their eligibility status."
+    },
+    "service_zones/{zoneId}": {
+      "schema": "ServiceZone",
+      "description": "Information about active/inactive delivery service areas."
+    },
     "users/{userId}": {
       "schema": "User",
       "description": "Storage for user profile data."
@@ -258,6 +317,10 @@
     "gifts/{giftId}": {
       "schema": "Gift",
       "description": "Rewards available for users."
+    },
+    "notify_requests/{requestId}": {
+      "schema": "NotifyRequest",
+      "description": "User notification requests for unserved locations."
     }
   }
 }

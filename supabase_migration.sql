@@ -367,3 +367,64 @@ CREATE POLICY "Public Select Logs" ON public.cancellation_logs FOR SELECT USING 
 DROP POLICY IF EXISTS "Anyone Insert Logs" ON public.cancellation_logs;
 CREATE POLICY "Anyone Insert Logs" ON public.cancellation_logs FOR INSERT WITH CHECK (true);
 
+-- 16. Delivery Areas, Service Pincodes, and Service Zones for Supabase Realtime
+CREATE TABLE IF NOT EXISTS public.delivery_areas (
+    id TEXT PRIMARY KEY,
+    area_name TEXT NOT NULL,
+    pincode TEXT NOT NULL,
+    is_deliverable BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.service_pincodes (
+    id TEXT PRIMARY KEY,
+    pincode TEXT NOT NULL,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.service_zones (
+    id TEXT PRIMARY KEY,
+    city_name TEXT NOT NULL,
+    latitude NUMERIC NOT NULL,
+    longitude NUMERIC NOT NULL,
+    radius_meters NUMERIC NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Enable RLS
+ALTER TABLE public.delivery_areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_pincodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_zones ENABLE ROW LEVEL SECURITY;
+
+-- Permissive All Policies for Development/Preview
+DROP POLICY IF EXISTS "permissive_all_delivery_areas" ON public.delivery_areas;
+CREATE POLICY "permissive_all_delivery_areas" ON public.delivery_areas FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "permissive_all_service_pincodes" ON public.service_pincodes;
+CREATE POLICY "permissive_all_service_pincodes" ON public.service_pincodes FOR ALL USING (true) WITH CHECK (true);
+
+-- Allow anonymous read to service_pincodes for general accessibility
+CREATE POLICY "read_all_service_pincodes" ON public.service_pincodes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "permissive_all_service_zones" ON public.service_zones;
+CREATE POLICY "permissive_all_service_zones" ON public.service_zones FOR ALL USING (true) WITH CHECK (true);
+
+-- Enable Realtime Publication
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        ALTER publication supabase_realtime ADD TABLE public.delivery_areas;
+        ALTER publication supabase_realtime ADD TABLE public.service_pincodes;
+        ALTER publication supabase_realtime ADD TABLE public.service_zones;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END $$;
+
+

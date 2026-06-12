@@ -211,9 +211,48 @@ service cloud.firestore {
               (!('secondaryColor' in data) || data.secondaryColor is string));
     }
 
+    function isValidServiceZone(data) {
+      return data.keys().hasAll(['city_name', 'latitude', 'longitude', 'radius_meters', 'is_active']) &&
+             data.city_name is string && data.city_name.size() <= 128 &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.radius_meters is number && data.radius_meters >= 0 &&
+             data.is_active is bool;
+    }
+
+    function isValidDeliveryArea(data) {
+      return data.keys().hasAll(['area_name', 'pincode', 'is_deliverable']) &&
+             data.area_name is string && data.area_name.size() <= 200 &&
+             data.pincode is string && data.pincode.size() == 6 &&
+             data.is_deliverable is bool;
+    }
+
+    function isValidServicePincode(data) {
+      return data.keys().hasAll(['pincode', 'active']) &&
+             data.pincode is string && data.pincode.size() == 6 &&
+             data.active is bool;
+    }
+
+    function isValidNotifyRequest(data) {
+      return data.email is string && data.email.size() <= 256 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             (!('city' in data) || (data.city is string && data.city.size() <= 200)) &&
+             (!('coords' in data) || (data.coords == null || data.coords is map)) &&
+             (!('created_at' in data) || (data.created_at is string && data.created_at.size() <= 100));
+    }
+
     // -------------------------------------------------------------------------
     // Match Blocks
     // -------------------------------------------------------------------------
+
+    // SERVICE ZONES: Publicly viewable, Admin managed
+    match /service_zones/{zoneId} {
+      allow get: if isValidId(zoneId);
+      allow list: if true;
+      allow create: if isValidId(zoneId) && isAdmin() && isValidServiceZone(incoming());
+      allow update: if isValidId(zoneId) && isValidServiceZone(incoming()) && isAdmin();
+      allow delete: if isValidId(zoneId) && isAdmin();
+    }
 
     // NOTIFICATIONS: User private alerts
     match /notifications/{notificationId} {
@@ -275,6 +314,24 @@ service cloud.firestore {
       allow create: if isValidId(itemId) && isAdmin() && isValidMenuItem(incoming());
       allow update: if isValidId(itemId) && isValidMenuItem(incoming()) && isAdmin();
       allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    // DELIVERY AREAS: Publicly viewable, Admin managed
+    match /delivery_areas/{areaId} {
+      allow get: if isValidId(areaId);
+      allow list: if true;
+      allow create: if isValidId(areaId) && isAdmin() && isValidDeliveryArea(incoming());
+      allow update: if isValidId(areaId) && isAdmin() && isValidDeliveryArea(incoming());
+      allow delete: if isValidId(areaId) && isAdmin();
+    }
+
+    // SERVICE PINCODES: Publicly viewable, Admin managed
+    match /service_pincodes/{pincodeId} {
+      allow get: if isValidId(pincodeId);
+      allow list: if true;
+      allow create: if isValidId(pincodeId) && isAdmin() && isValidServicePincode(incoming());
+      allow update: if isValidId(pincodeId) && isAdmin() && isValidServicePincode(incoming());
+      allow delete: if isValidId(pincodeId) && isAdmin();
     }
 
     // ORDERS: Core Transaction logic
@@ -392,6 +449,18 @@ service cloud.firestore {
       allow create: if isValidId(giftId) && isAdmin() && isValidGift(incoming());
       allow update: if isValidId(giftId) && isValidGift(incoming()) && isAdmin();
       allow delete: if isValidId(giftId) && isAdmin();
+    }
+
+    // NOTIFY REQUESTS: Any user can submit, Admin managed
+    match /notify_requests/{requestId} {
+      allow get: if isValidId(requestId);
+      allow create: if isValidId(requestId) && isValidNotifyRequest(incoming());
+      allow list, update, delete: if isAdmin();
+    }
+
+    // TEST CONNECTION: Publicly readable for testing database connectivity status
+    match /test/{testId} {
+      allow read: if true;
     }
   }
 }

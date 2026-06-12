@@ -10,7 +10,7 @@ if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
-if (fs.existsSync(emgPath)) {
+if (process.env.NODE_ENV !== "production" && fs.existsSync(emgPath)) {
   try {
     const exampleConfig = dotenv.parse(fs.readFileSync(emgPath));
     for (const k in exampleConfig) {

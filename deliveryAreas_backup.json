@@ -1,0 +1,50 @@
+[
+  {
+    "id": "area_1",
+    "area_name": "Madhupatna",
+    "pincode": "753010",
+    "is_deliverable": true
+  },
+  {
+    "id": "area_2",
+    "area_name": "Badambadi",
+    "pincode": "753012",
+    "is_deliverable": true
+  },
+  {
+    "id": "area_3",
+    "area_name": "College Square",
+    "pincode": "753003",
+    "is_deliverable": true
+  },
+  {
+    "id": "area_4",
+    "area_name": "CDA Sector 6",
+    "pincode": "753014",
+    "is_deliverable": false
+  },
+  {
+    "id": "area_5",
+    "area_name": "CDA Sector 7",
+    "pincode": "753014",
+    "is_deliverable": false
+  },
+  {
+    "id": "area_6",
+    "area_name": "Buxi Bazaar",
+    "pincode": "753001",
+    "is_deliverable": true
+  },
+  {
+    "id": "area_7",
+    "area_name": "Choudhury Bazar",
+    "pincode": "753002",
+    "is_deliverable": true
+  },
+  {
+    "id": "area_8",
+    "area_name": "CDA Sector 9",
+    "pincode": "753014",
+    "is_deliverable": false
+  }
+]

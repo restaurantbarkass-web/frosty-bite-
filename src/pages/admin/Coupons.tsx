@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../supabase';
+import toast from 'react-hot-toast';
 
 interface Coupon {
   id: string;
@@ -108,6 +109,7 @@ export const Coupons: React.FC = () => {
       
       if (error) throw error;
       
+      toast.success(`Successfully created coupon ${newCoupon.code.toUpperCase()}`);
       setIsModalOpen(false);
       setNewCoupon({
         code: '',
@@ -122,8 +124,10 @@ export const Coupons: React.FC = () => {
         free_item_quantity: 1,
         gift_url: ''
       });
-    } catch (error) {
+      fetchCoupons();
+    } catch (error: any) {
       console.error('Error creating coupon:', error);
+      toast.error(error.message || 'Error occurred creating coupon');
     } finally {
       setIsLoading(false);
     }
@@ -153,15 +157,20 @@ export const Coupons: React.FC = () => {
       
       if (error) throw error;
 
-      alert('FIRSTORDER coupon generated successfully!');
-    } catch (error) {
+      toast.success('FIRSTORDER coupon generated successfully!');
+      fetchCoupons();
+    } catch (error: any) {
       console.error('Error generating FIRSTORDER coupon:', error);
+      toast.error(error.message || 'Error generating FIRSTORDER coupon');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeleteCoupon = async (id: string) => {
+    const backup = [...coupons];
+    // Optimistic Update
+    setCoupons(prev => prev.filter(c => c.id !== id));
     try {
       const { error } = await supabase
         .from('coupons')
@@ -170,35 +179,54 @@ export const Coupons: React.FC = () => {
       
       if (error) throw error;
       setDeletingId(null);
-    } catch (error) {
+      toast.success('Coupon removed successfully');
+      fetchCoupons();
+    } catch (error: any) {
+      setCoupons(backup);
       console.error('Error deleting coupon:', error);
+      toast.error(error.message || 'Failed to delete coupon');
     }
   };
 
   const toggleCouponStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+    // Optimistic Update
+    setCoupons(prev => prev.map(c => c.id === id ? { ...c, status: newStatus as any } : c));
     try {
-      const newStatus = currentStatus === 'active' ? 'disabled' : 'active' as any;
       const { error } = await supabase
         .from('coupons')
         .update({ status: newStatus })
         .eq('id', id);
       
       if (error) throw error;
-    } catch (error) {
+      toast.success(`Coupon set to ${newStatus}`);
+      fetchCoupons();
+    } catch (error: any) {
+      // Revert
+      setCoupons(prev => prev.map(c => c.id === id ? { ...c, status: currentStatus as any } : c));
       console.error('Error toggling coupon status:', error);
+      toast.error('Failed to update coupon status');
     }
   };
 
   const toggleCouponVisibility = async (id: string, isCurrentlyHidden: boolean) => {
+    const newHidden = !isCurrentlyHidden;
+    // Optimistic Update
+    setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_hidden: newHidden } : c));
     try {
       const { error } = await supabase
         .from('coupons')
-        .update({ is_hidden: !isCurrentlyHidden })
+        .update({ is_hidden: newHidden })
         .eq('id', id);
       
       if (error) throw error;
-    } catch (error) {
+      toast.success(`Coupon visibility changed to ${newHidden ? 'Hidden' : 'Visible'}`);
+      fetchCoupons();
+    } catch (error: any) {
+      // Revert
+      setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_hidden: isCurrentlyHidden } : c));
       console.error('Error toggling coupon visibility:', error);
+      toast.error('Failed to update visibility');
     }
   };
 

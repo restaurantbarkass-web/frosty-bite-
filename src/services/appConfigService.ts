@@ -7,7 +7,13 @@ export interface AppConfig {
   deliveryBaseFee?: number;
   deliveryFeePerKm?: number;
   deliveryFreeKm?: number;
+  defaultDeliveryTime?: number; // in minutes
   updated_at?: any;
+  geofencingEnabled?: boolean;
+  geofencingLatitude?: number;
+  geofencingLongitude?: number;
+  geofencingRadius?: number;
+  geofencingZones?: string; // JSON string of multiple zones
 }
 
 let currentListeners: ((config: AppConfig) => void)[] = [];
@@ -15,13 +21,15 @@ let firebaseUnsubscribe: (() => void) | null = null;
 let isUpdatingConfig = false;
 
 let currentConfig: AppConfig | null = (() => {
-  const cached = localStorage.getItem('app_config_cache');
-  if (cached) {
-    try {
-      return JSON.parse(cached);
-    } catch (e) {
-      return null;
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage !== null) {
+      const cached = localStorage.getItem('app_config_cache');
+      if (cached) {
+        return JSON.parse(cached);
+      }
     }
+  } catch (e) {
+    console.warn('[appConfigService] Safe localStorage read bypassed at module-load:', e);
   }
   return null;
 })();
@@ -57,6 +65,7 @@ const startFirebaseRealtime = () => {
           currentConfig.deliveryBaseFee !== normalizedFresh.deliveryBaseFee ||
           currentConfig.deliveryFeePerKm !== normalizedFresh.deliveryFeePerKm ||
           currentConfig.deliveryFreeKm !== normalizedFresh.deliveryFreeKm ||
+          currentConfig.defaultDeliveryTime !== normalizedFresh.defaultDeliveryTime ||
           JSON.stringify(currentConfig.updated_at) !== JSON.stringify(normalizedFresh.updated_at);
 
         if (changed) {
@@ -123,7 +132,8 @@ const startSupabaseRealtime = async () => {
               currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
               currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
               currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
-              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm ||
+              currentConfig.defaultDeliveryTime !== fresh.defaultDeliveryTime;
 
             if (changed) {
               currentConfig = fresh;
@@ -183,21 +193,10 @@ const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, d
  * Helper to fetch the current active user authentication token (Firebase or Supabase)
  */
 const getAuthToken = async (): Promise<string | null> => {
-  // 1. Resilient primary fallback: check specific cached token key
-  try {
-    const cachedToken = localStorage.getItem('latest_admin_auth_token');
-    if (cachedToken && cachedToken !== 'null' && cachedToken !== 'undefined' && cachedToken.trim() !== '' && cachedToken.split('.').length === 3) {
-      console.log('[appConfigService] Found token in latest_admin_auth_token fallback store');
-      return cachedToken;
-    } else if (cachedToken) {
-      localStorage.removeItem('latest_admin_auth_token');
-    }
-  } catch (err) {}
-
-  let firebaseToken: string | null = null;
+  // 1. Try to fetch a fresh token from active Firebase session first
   if (auth.currentUser) {
     try {
-      firebaseToken = await auth.currentUser.getIdToken();
+      const firebaseToken = await auth.currentUser.getIdToken(true);
       if (firebaseToken) {
         localStorage.setItem('latest_admin_auth_token', firebaseToken);
         return firebaseToken;
@@ -207,6 +206,7 @@ const getAuthToken = async (): Promise<string | null> => {
     }
   }
 
+  // 2. Try to fetch a fresh token from active Supabase session
   try {
     const { supabase } = await import('../supabase');
     const { data } = await supabase.auth.getSession();
@@ -216,29 +216,21 @@ const getAuthToken = async (): Promise<string | null> => {
       return token;
     }
   } catch (err) {
-    console.warn('[appConfigService] Supabase token lookup failed:', err);
+    console.warn('[appConfigService] Supabase token retrieval failed:', err);
   }
 
-  // Backup fallback: scan localStorage if other methods temporarily failed
+  // 3. Fallback to cached token if active sessions are unavailable
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        const val = localStorage.getItem(key);
-        if (val) {
-          const parsed = JSON.parse(val);
-          if (parsed && parsed.access_token && parsed.access_token !== 'null' && parsed.access_token !== 'undefined') {
-            localStorage.setItem('latest_admin_auth_token', parsed.access_token);
-            return parsed.access_token;
-          }
-        }
-      }
+    const cachedToken = localStorage.getItem('latest_admin_auth_token');
+    if (cachedToken && cachedToken !== 'null' && cachedToken !== 'undefined' && cachedToken.trim() !== '' && cachedToken.split('.').length === 3) {
+      console.log('[appConfigService] Using cached token as fallback');
+      return cachedToken;
+    } else if (cachedToken) {
+      localStorage.removeItem('latest_admin_auth_token');
     }
-  } catch (lsErr) {
-    console.warn('[appConfigService] Error scanning localStorage for auth fallback:', lsErr);
-  }
+  } catch (err) {}
 
-  // 2. Self-healing token scanner: scan all localStorage values for valid admin JWT
+  // 4. Self-healing token scanner: scan all localStorage values for valid admin JWT
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -298,7 +290,7 @@ const getAuthToken = async (): Promise<string | null> => {
     console.warn('[appConfigService] Scanner search failed:', scannerErr);
   }
 
-  return firebaseToken;
+  return null;
 };
 
 export const appConfigService = {
@@ -343,7 +335,8 @@ export const appConfigService = {
               currentConfig.isOrderingOpen !== fresh.isOrderingOpen ||
               currentConfig.deliveryBaseFee !== fresh.deliveryBaseFee ||
               currentConfig.deliveryFeePerKm !== fresh.deliveryFeePerKm ||
-              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm;
+              currentConfig.deliveryFreeKm !== fresh.deliveryFreeKm ||
+              currentConfig.defaultDeliveryTime !== fresh.defaultDeliveryTime;
 
             if (changed) {
               console.log('[appConfigService] Polling detected config update:', fresh);
@@ -466,7 +459,7 @@ export const appConfigService = {
   /**
    * Updates delivery pricing settings in Firebase Firestore and Supabase.
    */
-  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number }, customToken?: string | null) => {
+  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number; defaultDeliveryTime: number }, customToken?: string | null) => {
     isUpdatingConfig = true;
     const oldConfig = currentConfig ? { ...currentConfig } : null;
     const updatedConfig = {
@@ -474,7 +467,8 @@ export const appConfigService = {
       isOrderingOpen: currentConfig?.isOrderingOpen ?? true,
       deliveryBaseFee: pricing.baseFee,
       deliveryFeePerKm: pricing.perKm,
-      deliveryFreeKm: pricing.freeKm
+      deliveryFreeKm: pricing.freeKm,
+      defaultDeliveryTime: pricing.defaultDeliveryTime
     } as AppConfig;
 
     // Perform optimistic local update so the UI changes instantly
@@ -496,6 +490,7 @@ export const appConfigService = {
           deliveryBaseFee: pricing.baseFee,
           deliveryFeePerKm: pricing.perKm,
           deliveryFreeKm: pricing.freeKm,
+          defaultDeliveryTime: pricing.defaultDeliveryTime,
           updated_at: serverTimestamp()
         }, { merge: true }); // fallback merge
         console.log('[appConfigService] Direct Firestore delivery update succeeded!');
@@ -558,6 +553,106 @@ export const appConfigService = {
   },
 
   /**
+   * Updates geofencing settings in Firestore and Supabase databases.
+   */
+  updateGeofencingSettings: async (settings: { 
+    geofencingEnabled: boolean; 
+    geofencingLatitude: number; 
+    geofencingLongitude: number; 
+    geofencingRadius: number; 
+    geofencingZones?: string;
+  }, customToken?: string | null) => {
+    isUpdatingConfig = true;
+    const oldConfig = currentConfig ? { ...currentConfig } : null;
+    const updatedConfig = {
+      ...currentConfig,
+      isOrderingOpen: currentConfig?.isOrderingOpen ?? true,
+      geofencingEnabled: settings.geofencingEnabled,
+      geofencingLatitude: settings.geofencingLatitude,
+      geofencingLongitude: settings.geofencingLongitude,
+      geofencingRadius: settings.geofencingRadius,
+      geofencingZones: settings.geofencingZones ?? '[]'
+    } as AppConfig;
+
+    // Perform optimistic local update
+    currentConfig = updatedConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(updatedConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(updatedConfig));
+    currentListeners.forEach(l => l(updatedConfig));
+
+    let firestoreSuccess = false;
+    let backendSuccess = false;
+    let lastError: any = null;
+
+    // 1. Unified Firestore client direct write
+    if (auth.currentUser) {
+      try {
+        console.log('[appConfigService] Attempting direct Firestore client write for geofencing settings...');
+        const configDocRef = doc(db, 'settings', 'appConfig');
+        await setDoc(configDocRef, {
+          geofencingEnabled: settings.geofencingEnabled,
+          geofencingLatitude: settings.geofencingLatitude,
+          geofencingLongitude: settings.geofencingLongitude,
+          geofencingRadius: settings.geofencingRadius,
+          geofencingZones: settings.geofencingZones ?? '[]',
+          updated_at: serverTimestamp()
+        }, { merge: true });
+        console.log('[appConfigService] Direct Firestore geofencing update succeeded!');
+        firestoreSuccess = true;
+      } catch (fsError: any) {
+        console.log('[appConfigService] Direct Firestore client call skipped/failed:', fsError.message || fsError);
+        lastError = fsError;
+      }
+    }
+
+    // 2. Dual-Write: Call backend API proxy
+    try {
+      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+      const response = await fetchWithRetry('/api/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(updatedConfig)
+      });
+      if (response.ok) {
+        backendSuccess = true;
+        console.log('[appConfigService] Geofencing settings updated via backend proxy successfully');
+      } else {
+        const errorText = await response.text();
+        console.warn(`[appConfigService] Backend API geofencing sync failed: ${errorText}`);
+        if (!firestoreSuccess) {
+          lastError = new Error(`API returned status ${response.status}: ${errorText}`);
+        }
+      }
+    } catch (error: any) {
+      console.warn('[appConfigService] Backend API geofencing sync failed with network error:', error);
+      if (!firestoreSuccess) {
+        lastError = error;
+      }
+    }
+
+    if (!firestoreSuccess && !backendSuccess) {
+      isUpdatingConfig = false;
+      currentConfig = oldConfig;
+      if (oldConfig) {
+        localStorage.setItem('app_config_cache', JSON.stringify(oldConfig));
+        localStorage.setItem('admin_config_cache', JSON.stringify(oldConfig));
+        currentListeners.forEach(l => l(oldConfig));
+      } else {
+        localStorage.removeItem('app_config_cache');
+        localStorage.removeItem('admin_config_cache');
+      }
+      throw lastError || new Error("Failed to change geofencing settings.");
+    }
+
+    setTimeout(() => {
+      isUpdatingConfig = false;
+    }, 3000);
+  },
+
+  /**
    * Fetches the current configuration once from the secure database.
    * Leverages real-time strict Firestore fetching first to ensure 100% accurate up-to-the-second access.
    */
@@ -609,7 +704,13 @@ export const appConfigService = {
       isOrderingOpen: true,
       deliveryBaseFee: 15,
       deliveryFeePerKm: 5,
-      deliveryFreeKm: 3
+      deliveryFreeKm: 3,
+      defaultDeliveryTime: 25,
+      geofencingEnabled: true,
+      geofencingLatitude: 20.4625,
+      geofencingLongitude: 85.8828,
+      geofencingRadius: 12,
+      geofencingZones: '[]'
     };
   }
 };
