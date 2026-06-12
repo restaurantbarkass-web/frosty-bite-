@@ -393,8 +393,9 @@ router.post('/', async (req, res) => {
     const configDeliveryTime = appConfig?.defaultDeliveryTime || 25;
 
     const zones = await getServiceZones();
-    const activeZones = zones.filter(z => z.is_active);
-    const activeCityNames = activeZones.map(z => z.city_name);
+    // Enable ultra-safe filtering that supports various database representations
+    const activeZones = zones.filter(z => z && (z.is_active === true || z.is_active === 'true' || z.is_active === 1 || String(z.is_active).toLowerCase() === 'true'));
+    const activeCityNames = activeZones.map(z => z.city_name || '').filter(Boolean);
 
     let activeCitiesStr = activeCityNames.join(' and ');
     if (activeCityNames.length > 1) {
@@ -413,8 +414,9 @@ router.post('/', async (req, res) => {
     if (normalizedZip) {
       const activePincodes = await getServicePincodes();
       const enabledPincodes = activePincodes
-        .filter((p: any) => p.active)
-        .map((p: any) => String(p.pincode).trim());
+        .filter((p: any) => p && (p.active === true || p.active === 'true' || p.active === 1 || String(p.active).toLowerCase() === 'true'))
+        .map((p: any) => String(p.pincode).trim())
+        .filter(Boolean);
 
       const isCityCuttack = normalizedCity === 'cuttack' || fullAddressText.includes('cuttack');
       const isPincodeAllowed = enabledPincodes.includes(normalizedZip);
@@ -443,16 +445,34 @@ router.post('/', async (req, res) => {
     }
 
     // LAYER B: Coordinates check (GPS Geolocation or pinned map coordinates)
-    const uLat = coordinates ? (typeof coordinates.lat === 'number' ? coordinates.lat : (typeof coordinates.latitude === 'number' ? coordinates.latitude : null)) : null;
-    const uLng = coordinates ? (typeof coordinates.lng === 'number' ? coordinates.lng : (typeof coordinates.longitude === 'number' ? coordinates.longitude : null)) : null;
+    const uLat = coordinates ? (
+      typeof coordinates.lat === 'number' ? coordinates.lat :
+      (typeof coordinates.lat === 'string' && !isNaN(parseFloat(coordinates.lat)) ? parseFloat(coordinates.lat) :
+      (typeof coordinates.latitude === 'number' ? coordinates.latitude :
+      (typeof coordinates.latitude === 'string' && !isNaN(parseFloat(coordinates.latitude)) ? parseFloat(coordinates.latitude) : null)))
+    ) : null;
+
+    const uLng = coordinates ? (
+      typeof coordinates.lng === 'number' ? coordinates.lng :
+      (typeof coordinates.lng === 'string' && !isNaN(parseFloat(coordinates.lng)) ? parseFloat(coordinates.lng) :
+      (typeof coordinates.longitude === 'number' ? coordinates.longitude :
+      (typeof coordinates.longitude === 'string' && !isNaN(parseFloat(coordinates.longitude)) ? parseFloat(coordinates.longitude) : null)))
+    ) : null;
 
     if (uLat !== null && uLng !== null) {
       let matchedZone = null;
       let minDistance = Infinity;
 
       for (const zone of activeZones) {
-        const dist = calculateDistance(zone.latitude, zone.longitude, uLat, uLng);
-        const radiusKm = (zone.radius_meters || 12000) / 1000;
+        if (!zone || zone.latitude === undefined || zone.longitude === undefined) continue;
+        const zoneLat = parseFloat(String(zone.latitude));
+        const zoneLng = parseFloat(String(zone.longitude));
+        const radiusMeters = parseFloat(String(zone.radius_meters)) || 12000;
+
+        if (isNaN(zoneLat) || isNaN(zoneLng)) continue;
+
+        const dist = calculateDistance(zoneLat, zoneLng, uLat, uLng);
+        const radiusKm = radiusMeters / 1000;
         if (dist <= radiusKm) {
           if (dist < minDistance) {
             minDistance = dist;
@@ -482,7 +502,8 @@ router.post('/', async (req, res) => {
     // LAYER C: General Text check inside City text fallback
     let matchedCityZone = null;
     for (const zone of activeZones) {
-      const zName = zone.city_name.toLowerCase();
+      if (!zone || !zone.city_name) continue;
+      const zName = String(zone.city_name).toLowerCase();
       if (normalizedCity === zName || fullAddressText.includes(zName)) {
         matchedCityZone = zone;
         break;
@@ -501,9 +522,10 @@ router.post('/', async (req, res) => {
     }
 
     // Check if user entered Bhubaneswar or other inactive cities to give proper warning
-    const inactiveZones = zones.filter(z => !z.is_active);
+    const inactiveZones = zones.filter(z => z && !(z.is_active === true || z.is_active === 'true' || z.is_active === 1 || String(z.is_active).toLowerCase() === 'true'));
     for (const zone of inactiveZones) {
-      const zName = zone.city_name.toLowerCase();
+      if (!zone || !zone.city_name) continue;
+      const zName = String(zone.city_name).toLowerCase();
       if (normalizedCity === zName || fullAddressText.includes(zName)) {
         return res.status(200).json({
           success: false,

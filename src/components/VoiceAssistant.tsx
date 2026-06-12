@@ -526,28 +526,89 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     };
   }, [items]);
 
+  // Continuous background listener for wake word "hey frosty bite"
+  useEffect(() => {
+    if (isOpen) return; // Main active modal is open, do not run background listener
+
+    // @ts-ignore
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    let active = true;
+    let backgroundRec: any = null;
+
+    const startBackgroundLinstening = () => {
+      if (!active || isOpen) return;
+      try {
+        backgroundRec = new SpeechRecognition();
+        backgroundRec.continuous = true;
+        backgroundRec.interimResults = true;
+        backgroundRec.lang = 'en-IN';
+
+        backgroundRec.onresult = (event: any) => {
+          if (!active) return;
+          const resultIndex = event.resultIndex;
+          const transcriptText = event.results[resultIndex][0].transcript.toLowerCase();
+          
+          if (transcriptText.includes('hey frosty bite') || transcriptText.includes('frosty bite')) {
+            console.log('[VoiceAssistant] Wake word detected:', transcriptText);
+            
+            // Trigger activation
+            active = false;
+            if (backgroundRec) {
+              try {
+                backgroundRec.stop();
+              } catch (e) {}
+            }
+            
+            // Open assistant
+            setIsOpen(true);
+            setTranscript('');
+            setFeedbackMsg('Hello! I heard the wake word. How can I help you today?');
+            speakLocal('Yes, I am here. How can I sweeten up your day?');
+            
+            setTimeout(() => {
+              startListening();
+            }, 600);
+          }
+        };
+
+        backgroundRec.onerror = (e: any) => {
+          console.log('[VoiceAssistant] Background listener error:', e.error);
+        };
+
+        backgroundRec.onend = () => {
+          if (active && !isOpen) {
+            // Auto restart background listener to keep listening
+            setTimeout(() => {
+              if (active && !isOpen) {
+                startBackgroundLinstening();
+              }
+            }, 1000);
+          }
+        };
+
+        backgroundRec.start();
+        console.log('[VoiceAssistant] Background wake-word listener started...');
+      } catch (err) {
+        console.warn('[VoiceAssistant] Failed to start background wake-word listener:', err);
+      }
+    };
+
+    startBackgroundLinstening();
+
+    return () => {
+      active = false;
+      if (backgroundRec) {
+        try {
+          backgroundRec.abort();
+        } catch (e) {}
+      }
+    };
+  }, [isOpen]);
+
   return (
     <>
-      {/* Floating Sparkly Neon FAB */}
-      <div className="fixed bottom-28 right-6 sm:right-8 z-55">
-        <motion.button
-          id="btn_voice_fab"
-          whileHover={{ scale: 1.1, rotate: [0, -5, 5, 0] }}
-          whileTap={{ scale: 0.9 }}
-          onClick={handleToggleOpen}
-          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r from-primary via-[#ff007f] to-[#aa00ff] flex items-center justify-center text-white shadow-2xl relative group overflow-hidden border border-white/20"
-          title="Frosty Voice Assistant"
-        >
-          {/* Pulsing ambient border glow */}
-          <span className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity blur-md" />
-          
-          <Mic className="w-6 h-6 sm:w-7 sm:h-7 relative z-10 animate-pulse" />
-          
-          {/* Mini pulse ring */}
-          <span className="absolute inset-0 rounded-full border border-primary/30 animate-ping opacity-60 pointer-events-none scale-150" />
-        </motion.button>
-      </div>
-
       {/* Elegant Immersive Voice Overlay */}
       <AnimatePresence>
         {isOpen && (
