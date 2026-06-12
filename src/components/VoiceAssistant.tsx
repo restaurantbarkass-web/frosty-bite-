@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useMenu } from '../context/MenuContext';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
@@ -90,8 +91,14 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
+  // AI Butler conversational states
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'model'; content: string }[]>([]);
+  const [textInput, setTextInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
   const { items } = useMenu();
   const { addToCart, setIsCartOpen, clearCart, updateQuantity } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const recognitionRef = useRef<any>(null);
@@ -137,8 +144,117 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return numMap[cleaned] || 1;
   };
 
-  // Process voice transcript
-  const processVoiceCommand = (command: string) => {
+  // Process voice or text input via unified Gemini AI Butler endpoint
+  const sendMsgToAI = async (messageText: string) => {
+    if (!messageText.trim()) return;
+    setIsLoading(true);
+    setTranscript(`"${messageText}"`);
+    setFeedbackMsg("Thinking...");
+
+    const userMsg = { role: 'user' as const, content: messageText };
+    const updatedHistory = [...chatHistory, userMsg];
+    setChatHistory(updatedHistory);
+
+    try {
+      const response = await fetch('/api/butler/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: messageText,
+          history: chatHistory,
+          items: items,
+          customerName: user?.full_name || user?.email || null
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Butler Chat API status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const reply = data.reply;
+      setFeedbackMsg(reply);
+      speakLocal(reply);
+
+      setChatHistory(prev => [...prev, { role: 'model', content: reply }]);
+
+      // Execute structural Web UI actions returned on the JSON payload
+      if (data.action) {
+        console.log('[AI Butler Route Action]:', data.action, data.actionData);
+        switch (data.action) {
+          case 'ADD_TO_CART': {
+            const itemName = data.actionData?.itemName;
+            const quantity = data.actionData?.quantity || 1;
+            if (itemName) {
+              const matchedItem = items.find(item => 
+                item.name.toLowerCase().includes(itemName.toLowerCase()) || 
+                itemName.toLowerCase().includes(item.name.toLowerCase())
+              );
+              
+              if (matchedItem) {
+                playSynthBeep('success');
+                for (let i = 0; i < quantity; i++) {
+                  addToCart(matchedItem);
+                }
+                confetti({
+                  particleCount: 80,
+                  spread: 80,
+                  origin: { y: 0.6 }
+                });
+                toast.success(`Success! Added ${quantity > 1 ? `${quantity}x ` : ''}${matchedItem.name}`);
+                setTimeout(() => {
+                  setIsOpen(false);
+                  setIsCartOpen(true);
+                }, 2000);
+              } else {
+                toast.error(`Locating ${itemName} failed.`);
+              }
+            }
+            break;
+          }
+          case 'CLEAR_CART':
+            playSynthBeep('success');
+            clearCart();
+            confetti({ particleCount: 30, spread: 50 });
+            toast.success('All items cleared from basket.');
+            break;
+          case 'OPEN_CART':
+            playSynthBeep('success');
+            setIsOpen(false);
+            setIsCartOpen(true);
+            break;
+          case 'NAVIGATE_CHECKOUT':
+            playSynthBeep('success');
+            setTimeout(() => {
+              setIsOpen(false);
+              navigate('/checkout');
+            }, 1500);
+            break;
+          case 'SET_FILTER': {
+            const diet = data.actionData?.diet;
+            if (diet && onDietFilterChange) {
+              playSynthBeep('success');
+              onDietFilterChange(diet);
+              toast.success(`Filter applied: ${diet}`);
+            }
+            break;
+          }
+          default:
+            break;
+        }
+      } else {
+        playSynthBeep('success');
+      }
+    } catch (e) {
+      console.warn('[AI Butler falling back to client-side matcher]:', e);
+      runLocalCommandFallback(messageText);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Local fallback command matching
+  const runLocalCommandFallback = (command: string) => {
     const text = command.toLowerCase().trim();
     setTranscript(`"${command}"`);
 
@@ -230,7 +346,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     // 4. ADD TO CART / PLACE ORDER COMMAND
-    // Key flags: "order", "add", "add to cart", "buy", "want", "crave", "get", "purchase"
     const orderMatch = text.match(/(?:order|add|buy|get|want|crave|put|purchase)\s+(?:(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+)?(.*?)(?:\s+(?:to cart|my order|to basket))?$/);
     
     let isOrdering = text.includes('add') || text.includes('order') || text.includes('buy') || text.includes('get') || text.includes('want');
@@ -245,15 +360,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
       searchCandidate = orderMatch[2];
     } else {
-      // Remove standard filter prefixes
       searchCandidate = text.replace(/^(?:search for|find|show me|where is|look up|filter for)\s+/i, '');
     }
 
-    // Clean search text
     const cleanQuery = searchCandidate.replace(/(?:item|pieces|piece|qty|quantity)/gi, '').trim();
 
     if (isOrdering && cleanQuery.length > 2) {
-      // Try to match standard menu item
       const matchedItem = items.find(item => 
         item.name.toLowerCase().includes(cleanQuery) || 
         cleanQuery.includes(item.name.toLowerCase())
@@ -261,13 +373,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
       if (matchedItem) {
         playSynthBeep('success');
-        
-        // Add parsed multiple quantities
         for (let i = 0; i < quantityParsed; i++) {
           addToCart(matchedItem);
         }
-        
-        // Confetti burst inside the viewport
         confetti({
           particleCount: 80,
           spread: 80,
@@ -279,7 +387,6 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         setFeedbackMsg(msg);
         speakLocal(`Added ${quantityText}${matchedItem.name} to your basket!`);
         toast.success(`Added ${quantityText}${matchedItem.name} x${quantityParsed}`);
-        
         setTimeout(() => {
           setIsOpen(false);
           setIsCartOpen(true);
@@ -289,14 +396,12 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     // 5. SEARCH LOGIC AS FALLBACK
-    // If user says "find croissant" or just "croissant" without "order", we trigger a search
     const searchQuery = text.replace(/^(?:search for|find|show me|where is|look up|filter for)\s+/gi, '').trim();
     if (searchQuery.length > 1) {
       if (onSearchQueryChange) {
         playSynthBeep('success');
         onSearchQueryChange(searchQuery);
         
-        // Try matching category
         const catMatched = items.find(i => i.category.toLowerCase().includes(searchQuery));
         if (catMatched && onCategoryChange) {
           onCategoryChange(catMatched.category);
@@ -314,10 +419,13 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       }
     }
 
-    // Command couldn't be parsed with confidence
     playSynthBeep('error');
-    setFeedbackMsg(`I heard "${command}". Could you please try again with simpler commands, e.g. "Order Chocolate Bento"?`);
-    speakLocal("I couldn't quite catch that. Try saying order chocolate truffle.");
+    setFeedbackMsg(`I heard "${command}". Could you please try again with simpler commands?`);
+    speakLocal("I couldn't quite catch that. Please try again.");
+  };
+
+  const processVoiceCommand = (command: string) => {
+    sendMsgToAI(command);
   };
 
   // Launch Speech Recognition
@@ -536,7 +644,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               </div>
 
               {/* Status / TTS feedback message */}
-              <div className="max-w-xl">
+              <div className="max-w-xl mb-4">
                 <motion.h4
                   key={feedbackMsg}
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -547,6 +655,63 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                   {feedbackMsg}
                 </motion.h4>
               </div>
+
+              {/* Optional Scrollable Chat History Log */}
+              {chatHistory.length > 0 && (
+                <div className="w-full max-w-lg max-h-40 overflow-y-auto mb-4 bg-white/5 border border-white/5 rounded-2xl p-3 text-left flex flex-col gap-2">
+                  {chatHistory.map((item, index) => (
+                    <div 
+                      key={index} 
+                      className={`max-w-[85%] rounded-xl p-2.5 text-xs ${
+                        item.role === 'user' 
+                          ? 'self-end bg-primary/20 border border-primary/25 text-white' 
+                          : 'self-start bg-zinc-800 border border-zinc-700/50 text-zinc-200'
+                      }`}
+                    >
+                      <span className="font-extrabold uppercase text-[9px] block text-primary/80 mb-0.5">
+                        {item.role === 'user' ? 'You' : 'Frosty Butler'}
+                      </span>
+                      {item.content}
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="self-start max-w-[85%] bg-zinc-800 border border-zinc-700/50 rounded-xl p-2.5 text-xs text-zinc-400 italic flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
+                      <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+                      Butler is typing...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Chat Input Field with Send Trigger */}
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (textInput.trim() && !isLoading) {
+                    sendMsgToAI(textInput);
+                    setTextInput('');
+                  }
+                }}
+                className="w-full max-w-lg mb-6 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-1.5 focus-within:border-primary/50 transition-all"
+              >
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  disabled={isLoading}
+                  placeholder="Ask about cakes, track orders, or request recommendations..."
+                  className="flex-1 bg-transparent border-none text-white text-sm px-3 focus:outline-none placeholder:text-zinc-500 disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !textInput.trim()}
+                  className="px-4 py-2 bg-primary hover:bg-accent text-white text-xs font-bold rounded-lg transition-colors hover:scale-102 flex items-center gap-1.5 disabled:opacity-40 disabled:hover:scale-100"
+                >
+                  {isLoading ? 'Checking...' : 'Send'} <ArrowRight size={12} />
+                </button>
+              </form>
 
               {/* Large Mic Trigger button inside modal */}
               <div className="mt-8">
