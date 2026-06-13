@@ -368,7 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (e) {}
 
-    const delay = hasPotentialSession ? 4000 : 1000;
+    const delay = 4000;
 
     const timeoutId = setTimeout(() => {
       console.log(`[UnifiedAuth] Safety timeout reached (${delay}ms), forcing loading false`);
