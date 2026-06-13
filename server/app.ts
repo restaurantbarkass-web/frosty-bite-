@@ -159,6 +159,57 @@ app.use("/delivery-areas", deliveryareasRoutes);
 app.use("/reviews", reviewsRoutes);
 app.use("/search", searchRoutes);
 
+// Safe mask for keys
+const maskKey = (key: any) => {
+  if (!key || typeof key !== "string") return "not-set";
+  if (key.length <= 12) return "set-but-too-short";
+  return `${key.substring(0, 6)}...${key.substring(key.length - 6)}`;
+};
+
+// Diagnostic endpoint
+app.get("/debug-address", async (req, res) => {
+  const report: any = {
+    timestamp: new Date().toISOString(),
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || "not-set",
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? "set" : "not-set",
+      SUPABASE_URL: process.env.SUPABASE_URL ? "set" : "not-set",
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "set" : "not-set",
+      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ? "set" : "not-set",
+    },
+    variablesMasked: {
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || "using-fallback",
+      SUPABASE_SERVICE_ROLE_KEY: maskKey(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      VITE_SUPABASE_ANON_KEY: maskKey(process.env.VITE_SUPABASE_ANON_KEY),
+    },
+    supabaseReachability: {
+      status: "untested",
+      error: null,
+      dataSample: null,
+    }
+  };
+
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data, error } = await supabase.from("service_zones").select("*").limit(2);
+    if (error) {
+      report.supabaseReachability.status = "failed";
+      report.supabaseReachability.error = error;
+    } else {
+      report.supabaseReachability.status = "connected";
+      report.supabaseReachability.dataSample = data;
+    }
+  } catch (err: any) {
+    report.supabaseReachability.status = "exception";
+    report.supabaseReachability.error = {
+      message: err.message,
+      stack: err.stack,
+    };
+  }
+
+  res.json(report);
+});
+
 // Detailed API 404 handler
 app.use((req, res) => {
   console.warn(`[App] 404 hit: ${req.method} ${req.originalUrl}`);
