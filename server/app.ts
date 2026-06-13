@@ -52,6 +52,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Normalize req.url path if it starts with '/api' for Vercel Serverless environment compatibility.
+// If Vercel delegates routing directly to the functions folder, this unprefixes the path so Express routes match correctly.
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api/')) {
+    req.url = req.url.slice(4);
+  } else if (req.url === '/api') {
+    req.url = '/';
+  }
+  next();
+});
+
 // 2. Security Middlewares
 app.use(cors((req: any, callback: any) => {
   const origin = req.header('Origin');
