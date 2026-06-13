@@ -138,22 +138,33 @@ export const Checkout: React.FC = () => {
         });
         return data.deliverable;
       } else {
+        // Fallback: If restaurant backend could not validate the address (e.g. returned non-ok state),
+        // we run local check so we don't hard-block valid Cuttack customers!
+        const isLocalValid = (fieldsToValidate.city && String(fieldsToValidate.city).trim().toLowerCase() === 'cuttack') || 
+                             (fieldsToValidate.pincode && String(fieldsToValidate.pincode).trim().startsWith('753')) ||
+                             isLocationInServiceArea();
+
         setValidationResult({
           isValidating: false,
-          success: false,
-          message: 'Failed to validate address with restaurant backend.',
+          success: isLocalValid,
+          message: isLocalValid ? "📍 Delivery Active (Local Validation Active)" : 'Failed to validate address with restaurant backend.',
           estimatedDeliveryMins: 25
         });
-        return false;
+        return isLocalValid;
       }
     } catch (err) {
+      // Fallback for offline/networks errors of Capacitor or device native
+      const isLocalValid = (fieldsToValidate.city && String(fieldsToValidate.city).trim().toLowerCase() === 'cuttack') || 
+                           (fieldsToValidate.pincode && String(fieldsToValidate.pincode).trim().startsWith('753')) ||
+                           isLocationInServiceArea();
+
       setValidationResult({
         isValidating: false,
-        success: false,
-        message: 'Delivery check offline. Check network status.',
+        success: isLocalValid,
+        message: isLocalValid ? "📍 Delivery Active (Offline Validation Active)" : 'Delivery check offline. Check network status.',
         estimatedDeliveryMins: 25
       });
-      return false;
+      return isLocalValid;
     }
   };
 

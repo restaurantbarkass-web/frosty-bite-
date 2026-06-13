@@ -418,8 +418,8 @@ router.post('/', async (req, res) => {
         .map((p: any) => String(p.pincode).trim())
         .filter(Boolean);
 
-      const isCityCuttack = normalizedCity === 'cuttack' || fullAddressText.includes('cuttack');
-      const isPincodeAllowed = enabledPincodes.includes(normalizedZip);
+      const isCityCuttack = normalizedCity === 'cuttack' || fullAddressText.includes('cuttack') || normalizedZip.startsWith('753');
+      const isPincodeAllowed = enabledPincodes.includes(normalizedZip) || normalizedZip.startsWith('753');
 
       if (isCityCuttack && isPincodeAllowed) {
         return res.json({
