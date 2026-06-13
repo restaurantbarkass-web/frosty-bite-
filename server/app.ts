@@ -53,43 +53,47 @@ app.use((req, res, next) => {
 });
 
 // 2. Security Middlewares
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-    
+app.use(cors((req: any, callback: any) => {
+  const origin = req.header('Origin');
+  const host = req.header('Host');
+  
+  let isAllowed = false;
+  if (!origin) {
+    isAllowed = true;
+  } else {
     const isProd = process.env.NODE_ENV === "production";
     if (!isProd) {
-      callback(null, true);
-      return;
-    }
+      isAllowed = true;
+    } else {
+      const allowedOrigins = [
+        "capacitor://localhost",
+        "ionic://localhost"
+      ];
 
-    const allowedOrigins = [
-      "capacitor://localhost",
-      "ionic://localhost"
-    ];
-
-    try {
-      const url = new URL(origin);
-      const isAllowed = allowedOrigins.includes(origin) ||
-                        url.hostname === "localhost" ||
-                        url.hostname.endsWith(".run.app") ||
-                        url.hostname.endsWith(".supabase.co") ||
-                        url.hostname.endsWith("firebaseapp.com");
-      
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        callback(new Error("Blocked by CORS policy"));
+      try {
+        const url = new URL(origin);
+        isAllowed = allowedOrigins.includes(origin) ||
+                          url.hostname === "localhost" ||
+                          (host ? url.host === host : false) ||
+                          url.hostname.endsWith(".run.app") ||
+                          url.hostname.endsWith(".supabase.co") ||
+                          url.hostname.endsWith("firebaseapp.com") ||
+                          url.hostname.endsWith(".vercel.app") ||
+                          url.hostname.endsWith(".netlify.app") ||
+                          url.hostname.endsWith(".pages.dev") ||
+                          url.hostname.endsWith(".github.io") ||
+                          origin.startsWith('https://');
+      } catch (_) {
+        isAllowed = false;
       }
-    } catch (_) {
-      callback(new Error("Invalid Origin"));
     }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+  }
+
+  callback(null, {
+    origin: isAllowed,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"]
+  });
 }));
 
 // Route Debugger - log if we hit this area

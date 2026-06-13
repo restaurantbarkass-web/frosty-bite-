@@ -96,7 +96,7 @@ const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 const PageLoader = () => <LoadingScreen fullScreen={false} />;
 
 function AppContent() {
-  const { user, isVerified, isAdmin } = useAuth();
+  const { user, isVerified, isAdmin, loading } = useAuth();
   const { isCheckingPosition, isAllowed } = useGeofence();
   const { isCartOpen, setIsCartOpen } = useCart();
   const { items, loading: menuLoading } = useMenu();
@@ -146,10 +146,10 @@ function AppContent() {
   }, [navigate]);
 
   useEffect(() => {
-    if (!showSplash && !showOnboarding && !user && !isAuthPage) {
+    if (!loading && !showSplash && !showOnboarding && !user && !isAuthPage) {
       navigate('/login', { replace: true });
     }
-  }, [showSplash, showOnboarding, user, isAuthPage, navigate]);
+  }, [loading, showSplash, showOnboarding, user, isAuthPage, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -288,6 +288,11 @@ function AppContent() {
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
   const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
+
+  // 0. If we are actively restoring or synchronizing user identity, show a pristine cinematic loader
+  if (loading && !isAuthPage) {
+    return <LoadingScreen message="Restoring session..." />;
+  }
 
   // 1. Show the Intro Splash first if it hasn't been dismissed yet
   if (showSplash && !isAdmin && !isAuthPage && !bypassLocks) {
