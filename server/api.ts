@@ -23,7 +23,7 @@ if (process.env.NODE_ENV !== "production" && fs.existsSync(emgPath)) {
   }
 }
 
-import app from "../server/app";
+import app from "./app";
 
 export default app;
 
