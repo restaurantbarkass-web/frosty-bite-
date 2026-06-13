@@ -311,6 +311,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(unifiedUser);
         setRole(unifiedUser.role);
+        try {
+          localStorage.setItem('frostybite_has_active_session', 'true');
+        } catch (e) {}
 
         // 5. Background sync to Firestore for maximum compatibility with any leftover firestore hooks
         if (fbUser?.uid) {
@@ -348,13 +351,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // 600ms responsive safety timeout to quickly rescue stalled iframe/IndexedDB browsers
+    // Dynamic safety timeout: If we have a potential session, wait up to 4000ms.
+    // Otherwise, 1000ms is more than enough for guests.
+    let hasPotentialSession = false;
+    try {
+      hasPotentialSession = !!localStorage.getItem('frostybite_active_session_email') ||
+                            localStorage.getItem('frostybite_has_active_session') === 'true';
+      if (!hasPotentialSession) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+            hasPotentialSession = true;
+            break;
+          }
+        }
+      }
+    } catch (e) {}
+
+    const delay = hasPotentialSession ? 4000 : 1000;
+
     const timeoutId = setTimeout(() => {
-      console.log('[UnifiedAuth] Responsive safety timeout reached, forcing loading false');
+      console.log(`[UnifiedAuth] Safety timeout reached (${delay}ms), forcing loading false`);
       if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
       if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
       resolveAndSyncUser();
-    }, 600);
+    }, delay);
 
     // Live listener for Firebase
     const unsubscribeFirebase = onAuthStateChanged(auth, (fbUser) => {
@@ -393,6 +414,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up user cached items from localStorage while preserving onboarding configurations
       try {
         localStorage.removeItem('frostybite_active_session_email');
+        localStorage.removeItem('frostybite_has_active_session');
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -432,6 +454,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Clean up user cached items from localStorage while preserving onboarding configurations
         try {
           localStorage.removeItem('frostybite_active_session_email');
+          localStorage.removeItem('frostybite_has_active_session');
           const keysToRemove = [];
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
