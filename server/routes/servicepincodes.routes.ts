@@ -75,7 +75,7 @@ function readPincodesBackup(): any[] | null {
 
 function enforceAllCuttackPincodesActive(list: any[]): any[] {
   return list.map((item: any) => {
-    if (item.pincode && String(item.pincode).trim().startsWith('753') && !item.active) {
+    if (item && item.pincode && String(item.pincode).trim().startsWith('753') && !item.active) {
       const updated = {
         ...item,
         active: true,

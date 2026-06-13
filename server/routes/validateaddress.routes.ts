@@ -374,11 +374,11 @@ async function getServicePincodes(): Promise<any[]> {
 
   // Map to force all Cuttack (starts with '753') pincodes to be active
   return list.map((item: any) => {
-    if (item.pincode && String(item.pincode).trim().startsWith('753')) {
+    if (item && item.pincode && String(item.pincode).trim().startsWith('753')) {
       return { ...item, active: true };
     }
     return item;
-  });
+  }).filter(Boolean);
 }
 
 /**

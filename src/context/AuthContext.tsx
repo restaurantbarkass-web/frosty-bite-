@@ -60,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const lastFirebaseUserRef = React.useRef<any>(undefined);
   const lastSupabaseUserRef = React.useRef<any>(undefined);
+  const syncVersionRef = React.useRef<number>(0);
 
   const isVerified = useMemo(() => {
     if (!user) return false;
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Handle resolving user identity from database by email
   const resolveAndSyncUser = async (fbUserParam?: any, sbUserParam?: any) => {
+    const currentVersion = ++syncVersionRef.current;
     // 1. Maintain accurate streams in our synchronization refs
     if (fbUserParam !== undefined) {
       lastFirebaseUserRef.current = fbUserParam;
@@ -113,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const email = fbUser?.email || sbUser?.email || fallbackEmail;
       if (!email) {
+        if (currentVersion !== syncVersionRef.current) return;
         setUser(null);
         setRole('customer');
         return;
@@ -309,6 +312,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         };
 
+        if (currentVersion !== syncVersionRef.current) return;
         setUser(unifiedUser);
         setRole(unifiedUser.role);
         try {
@@ -339,13 +343,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('[UnifiedAuth] Error in resolveAndSyncUser:', error);
     } finally {
-      const hasFb = lastFirebaseUserRef.current !== null && lastFirebaseUserRef.current !== undefined;
-      const hasSb = lastSupabaseUserRef.current !== null && lastSupabaseUserRef.current !== undefined;
-      const hasSession = hasFb || hasSb || !!auth.currentUser;
-      const bothInitialized = lastFirebaseUserRef.current !== undefined && lastSupabaseUserRef.current !== undefined;
+      if (currentVersion === syncVersionRef.current) {
+        const hasFb = lastFirebaseUserRef.current !== null && lastFirebaseUserRef.current !== undefined;
+        const hasSb = lastSupabaseUserRef.current !== null && lastSupabaseUserRef.current !== undefined;
+        const hasSession = hasFb || hasSb || !!auth.currentUser;
+        const bothInitialized = lastFirebaseUserRef.current !== undefined && lastSupabaseUserRef.current !== undefined;
 
-      if (hasSession || bothInitialized) {
-        setLoading(false);
+        if (hasSession || bothInitialized) {
+          setLoading(false);
+        }
       }
     }
   };
