@@ -77,13 +77,8 @@ export const Orders: React.FC = () => {
          schema: 'public', 
          table: 'orders' 
       }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setAllOrders(prev => [payload.new as Order, ...prev]);
-        } else if (payload.eventType === 'UPDATE') {
-          setAllOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
-        } else if (payload.eventType === 'DELETE') {
-          setAllOrders(prev => prev.filter(o => o.id !== payload.old.id));
-        }
+        console.log('[Realtime] Admin orders table changed, re-fetching...');
+        fetchOrders();
       })
       .subscribe();
 

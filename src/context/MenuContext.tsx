@@ -56,7 +56,24 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     fetchMenu();
-  }, []);
+
+    // Set up real-time subscription for product/inventory changes
+    const channel = supabase
+      .channel('menu_products_realtime_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('[Realtime] Product change detected (MenuContext):', payload);
+          fetchMenu();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchMenu]);
 
   const categories = React.useMemo(() => {
     return ['All', ...Array.from(new Set(items.map(i => i.category)))].filter(Boolean);

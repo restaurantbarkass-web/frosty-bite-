@@ -166,6 +166,24 @@ const ProductDetail: React.FC = () => {
     };
 
     fetchProduct();
+
+    if (id) {
+      const channel = supabase
+        .channel(`product_detail_${id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'products', filter: `id=eq.${id}` },
+          () => {
+            console.log(`[Realtime] Product detail change detected for ${id}`);
+            fetchProduct();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, [id]);
 
   useEffect(() => {

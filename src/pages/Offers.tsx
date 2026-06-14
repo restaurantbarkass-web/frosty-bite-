@@ -21,7 +21,6 @@ const OffersPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
         const bannersPromise = supabase
           .from('banners')
@@ -45,18 +44,47 @@ const OffersPage = () => {
         if (couponsRes.data) setCoupons(couponsRes.data);
       } catch (error) {
         console.error('Error fetching offers:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
-    fetchData();
+    setLoading(true);
+    fetchData().finally(() => setLoading(false));
+
+    // Subscribe to banners realtime updates
+    const bannersChannel = supabase
+      .channel('banners_realtime_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'banners' },
+        () => {
+          console.log('[Realtime] Banners updated, re-fetching...');
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to coupons realtime updates
+    const couponsChannel = supabase
+      .channel('coupons_realtime_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'coupons' },
+        () => {
+          console.log('[Realtime] Coupons updated, re-fetching...');
+          fetchData();
+        }
+      )
+      .subscribe();
 
     const interval = setInterval(() => {
       setFlash((prev) => !prev);
     }, 1200);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(bannersChannel);
+      supabase.removeChannel(couponsChannel);
+    };
   }, []);
 
   useEffect(() => {

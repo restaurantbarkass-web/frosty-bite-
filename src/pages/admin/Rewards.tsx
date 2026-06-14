@@ -14,6 +14,7 @@ import {
   deleteDoc, 
   doc, 
   getDocs, 
+  onSnapshot, 
   query, 
   orderBy,
   serverTimestamp,
@@ -67,13 +68,10 @@ export const RewardsManager: React.FC = () => {
   const [giftForm, setGiftForm] = useState<Partial<GiftReward>>({});
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
     setLoading(true);
-    try {
-      const bSnapshot = await getDocs(query(collection(db, 'badge_configs'), orderBy('priority', 'asc')));
+
+    const bQuery = query(collection(db, 'badge_configs'), orderBy('priority', 'asc'));
+    const unsubscribeB = onSnapshot(bQuery, (bSnapshot) => {
       if (!bSnapshot.empty) {
         setBadges(bSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as BadgeConfig)));
       } else {
@@ -93,8 +91,9 @@ export const RewardsManager: React.FC = () => {
           prioritySupport: false
         } as BadgeConfig)));
       }
-    } catch (error) {
-      console.warn('Fetch badge_configs skipped/failed, using fallback:', error);
+      setLoading(false);
+    }, (error) => {
+      console.warn('Subscription to badge_configs failed, using fallback:', error);
       setBadges(DEFAULT_BADGES.map((b, i) => ({
         id: `default-${i}`,
         tierName: b.tierName || '',
@@ -110,16 +109,21 @@ export const RewardsManager: React.FC = () => {
         cashbackPercent: 0,
         prioritySupport: false
       } as BadgeConfig)));
-    }
+      setLoading(false);
+    });
 
-    try {
-      const gSnapshot = await getDocs(collection(db, 'gifts'));
+    const gRef = collection(db, 'gifts');
+    const unsubscribeG = onSnapshot(gRef, (gSnapshot) => {
       setGifts(gSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as GiftReward)));
-    } catch (error) {
-      console.warn('Fetch gifts skipped/failed:', error);
-    }
-    setLoading(false);
-  };
+    }, (error) => {
+      console.warn('Subscription to gifts failed:', error);
+    });
+
+    return () => {
+      unsubscribeB();
+      unsubscribeG();
+    };
+  }, []);
 
   const seedDefaultBadges = async () => {
     setIsSeedingLoading(true);
@@ -136,7 +140,6 @@ export const RewardsManager: React.FC = () => {
       await batch.commit();
       toast.success('Default tiers seeded');
       setIsSeedingConfirmOpen(false);
-      fetchData();
     } catch (error) {
       console.warn('Seeding failed:', error);
     } finally {
@@ -167,7 +170,6 @@ export const RewardsManager: React.FC = () => {
         toast.success('Badge updated');
       }
       setIsEditingBadge(null);
-      fetchData();
     } catch (error) {
       console.warn('[RewardsManager] Firestore operation skipped/failed, keeping local state update:', error);
       
@@ -223,7 +225,6 @@ export const RewardsManager: React.FC = () => {
         toast.success('Gift updated');
       }
       setIsEditingGift(null);
-      fetchData();
     } catch (error) {
       console.warn('[RewardsManager] Firestore gift operation failed, keeping local state update:', error);
       
