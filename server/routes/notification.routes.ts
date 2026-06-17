@@ -1,5 +1,5 @@
 import express from 'express';
-import admin from '../lib/firebase-admin';
+import admin, { getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 
 const router = express.Router();
@@ -14,32 +14,52 @@ router.post('/send-push', async (req, res) => {
   try {
     console.log(`[Push Notification] Attempting to send push to user "${userId}": "${title}"`);
     
-    // 1. Fetch user FCM tokens from Supabase users table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('fcm_tokens')
-      .eq('firebase_uid', userId)
-      .maybeSingle();
+    let tokens: string[] = [];
 
-    if (userError) {
-      console.error('[Push Notification] Error querying user from Supabase:', userError);
-      return res.status(500).json({ error: 'Failed to look up user tokens', details: userError });
+    // 1. Fetch user FCM tokens from Firestore (highly reliable, primary store)
+    try {
+      const dbInstance = getAdminDb();
+      const userDoc = await dbInstance.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        const docData = userDoc.data();
+        if (docData && Array.isArray(docData.fcm_tokens)) {
+          tokens = docData.fcm_tokens.filter((t: any) => typeof t === 'string' && t.trim() !== '');
+          console.log(`[Push Notification] Found ${tokens.length} token(s) in Firestore for "${userId}"`);
+        }
+      }
+    } catch (fsError: any) {
+      console.warn('[Push Notification] Error querying user from Firestore (non-fatal):', fsError.message);
     }
 
-    if (!userData || !userData.fcm_tokens || userData.fcm_tokens.length === 0) {
+    // 2. Fetch user FCM tokens from Supabase users table (as a fallback/merge, handling errors safely)
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('fcm_tokens')
+        .eq('firebase_uid', userId)
+        .maybeSingle();
+
+      if (userError) {
+        console.warn('[Push Notification] Supabase query returned warning (column may be missing):', userError.message);
+      } else if (userData && Array.isArray(userData.fcm_tokens)) {
+        const extraTokens = userData.fcm_tokens.filter(
+          (t: any) => typeof t === 'string' && t.trim() !== '' && !tokens.includes(t)
+        );
+        tokens = [...tokens, ...extraTokens];
+        console.log(`[Push Notification] Merged ${extraTokens.length} additional token(s) from Supabase for "${userId}"`);
+      }
+    } catch (sbError: any) {
+      console.warn('[Push Notification] Error querying user from Supabase (non-fatal):', sbError.message);
+    }
+
+    if (tokens.length === 0) {
       console.log(`[Push Notification] No FCM tokens found for user "${userId}". Skipping.`);
       return res.json({ success: true, message: 'No registered tokens found for user' });
     }
 
-    const tokens: string[] = userData.fcm_tokens.filter((t: any) => typeof t === 'string' && t.trim() !== '');
-
-    if (tokens.length === 0) {
-      return res.json({ success: true, message: 'FCM tokens array is empty' });
-    }
-
     console.log(`[Push Notification] Found ${tokens.length} active token(s) for user "${userId}". Sending messages via FCM...`);
-
-    // 2. Build the messages for FCM
+    
+    // 3. Build the messages for FCM
     const messages = tokens.map(token => ({
       token,
       notification: {
@@ -96,6 +116,18 @@ router.post('/send-push', async (req, res) => {
     });
 
     if (tokensModified) {
+      // 1. Clean up in Firestore
+      try {
+        const dbInstance = getAdminDb();
+        await dbInstance.collection('users').doc(userId).set({
+          fcm_tokens: tokensToKeep
+        }, { merge: true });
+        console.log(`[Push Notification] Cleaned up unregistered tokens in Firestore for user "${userId}". Current: ${tokensToKeep.length}`);
+      } catch (fsPruneErr: any) {
+        console.error('[Push Notification] Failed to update Firestore user tokens after pruning:', fsPruneErr.message);
+      }
+
+      // 2. Clean up in Supabase (as standard fallback, catch errors silently)
       try {
         await supabase
           .from('users')
@@ -104,9 +136,9 @@ router.post('/send-push', async (req, res) => {
             updated_at: new Date().toISOString()
           })
           .eq('firebase_uid', userId);
-        console.log(`[Push Notification] Cleaned up unregistered tokens for user "${userId}". Remaining tokens:`, tokensToKeep.length);
+        console.log(`[Push Notification] Cleaned up unregistered tokens in Supabase for user "${userId}". Remaining tokens:`, tokensToKeep.length);
       } catch (dbErr) {
-        console.error('[Push Notification] Failed to update user tokens after cleaning:', dbErr);
+        console.warn('[Push Notification] Failed to update Supabase tokens after pruning (non-fatal):', dbErr);
       }
     }
 

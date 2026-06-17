@@ -14,6 +14,7 @@ import { CartSidebar } from './components/CartSidebar';
 import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
+import { LocalErrorBoundary } from './components/LocalErrorBoundary';
 import { IntroSplash } from './components/IntroSplash';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { FlyingCartOverlay } from './components/FlyingCartOverlay';
@@ -103,7 +104,27 @@ function AppContent() {
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchOverlayOpen, setIsSearchOverlayOpen] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [showVerificationBanner, setShowVerificationBanner] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success("Welcome back online! Keep ordering your favorite treats.", { id: 'online-toast', duration: 4500 });
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.error("You are operating offline. Browsing cached menu is available.", { id: 'offline-toast', duration: 6000 });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const [showSplash, setShowSplash] = useState(() => {
     try {
       if (typeof window !== 'undefined' && window.sessionStorage) {
@@ -150,6 +171,16 @@ function AppContent() {
       navigate('/login', { replace: true });
     }
   }, [loading, showSplash, showOnboarding, user, isAuthPage, navigate]);
+
+  useEffect(() => {
+    if (!loading && user && isAuthPage) {
+      if (isAdmin) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    }
+  }, [loading, user, isAuthPage, isAdmin, navigate]);
 
   useEffect(() => {
     if (!user) return;
@@ -290,8 +321,13 @@ function AppContent() {
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
   // 0. If we are actively restoring or synchronizing user identity, show a pristine cinematic loader
-  if (loading && !isAuthPage) {
+  if (loading) {
     return <LoadingScreen message="Restoring session..." />;
+  }
+
+  // 0.5. If the user is already authenticated but lands on an auth page, show a splash transition during redirection
+  if (user && isAuthPage) {
+    return <LoadingScreen message="Accessing your gourmet kitchen..." />;
   }
 
   // 1. Show the Intro Splash first if it hasn't been dismissed yet
@@ -317,6 +353,12 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
       <Toaster position="top-right" />
+      
+      {isOffline && (
+        <div className="bg-amber-600 text-white font-sans px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 relative z-[100] shadow-md transition-all">
+          <span>📡 Operating in Offline Mode. Browsing local cached treats. Placed orders will sync upon active connection.</span>
+        </div>
+      )}
       
       {user && !isVerified && !isAdmin && showVerificationBanner && (
         <div className="bg-primary text-white px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center justify-between relative z-[100]">
@@ -374,46 +416,58 @@ function AppContent() {
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/index.html" element={<Home />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/finish-sign-in" element={<FinishSignIn />} />
+                <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                <Route path="/login" element={<LocalErrorBoundary fallbackName="Login Page"><Login /></LocalErrorBoundary>} />
+                <Route path="/signup" element={<LocalErrorBoundary fallbackName="Signup Page"><Login /></LocalErrorBoundary>} />
+                <Route path="/forgot-password" element={<LocalErrorBoundary fallbackName="Forgot Password Page"><ForgotPassword /></LocalErrorBoundary>} />
+                <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
                 <Route path="/checkout" element={
                   <ProtectedRoute>
-                    <Checkout />
+                    <LocalErrorBoundary fallbackName="Checkout Page">
+                      <Checkout />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
                 <Route path="/upi-checkout/:orderId" element={
                   <ProtectedRoute>
-                    <UPICheckout />
+                    <LocalErrorBoundary fallbackName="UPI Checkout Page">
+                      <UPICheckout />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
-                <Route path="/order-tracking/:orderId" element={<OrderTracking />} />
+                <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
                 <Route path="/admin/*" element={
                   <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
-                    <AdminLayout />
+                    <LocalErrorBoundary fallbackName="Admin Control Panel">
+                      <AdminLayout />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
                 <Route path="/profile" element={
                   <ProtectedRoute>
-                    <Profile />
+                    <LocalErrorBoundary fallbackName="User Profile Page">
+                      <Profile />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
                 <Route path="/orders" element={
                   <ProtectedRoute>
-                    <Orders />
+                    <LocalErrorBoundary fallbackName="Your Orders Page">
+                      <Orders />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
                 <Route path="/notifications" element={
                   <ProtectedRoute>
-                    <Notifications />
+                    <LocalErrorBoundary fallbackName="Notifications Page">
+                      <Notifications />
+                    </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
-                <Route path="/offers" element={<Offers />} />
-                <Route path="/product/:id" element={<ProductDetail />} />
-                <Route path="*" element={<NotFound />} />
+                <Route path="/offers" element={<LocalErrorBoundary fallbackName="Offers Page"><Offers /></LocalErrorBoundary>} />
+                <Route path="/product/:id" element={<LocalErrorBoundary fallbackName="Product Detail Page"><ProductDetail /></LocalErrorBoundary>} />
+                <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
               </Routes>
             </motion.div>
           </AnimatePresence>

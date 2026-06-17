@@ -92,6 +92,12 @@ export async function diagnosticFetch(input: RequestInfo | URL, init?: RequestIn
       diagnosticsHint,
     };
 
+    try {
+      const storedLogs = JSON.parse(localStorage.getItem('frostybite_api_failure_logs') || '[]');
+      storedLogs.push(logPayload);
+      localStorage.setItem('frostybite_api_failure_logs', JSON.stringify(storedLogs.slice(-30))); // Keep last 30 API exceptions
+    } catch (_) {}
+
     console.group(`[API CLIENT FAILURE REPORT - ${method} ${url}]`);
     console.info(`Failure timestamp: ${endTimestamp}`);
     console.table(logPayload);

@@ -1,6 +1,8 @@
-import { messaging, auth } from '../firebase';
+import { messaging, auth, db } from '../firebase';
 import { getToken, onMessage } from 'firebase/messaging';
 import { supabase } from '../supabase';
+import { doc, getDoc } from 'firebase/firestore';
+import { safeFirestore } from '../services/firestoreService';
 
 export const requestForToken = async () => {
   if (typeof window === 'undefined') return null;
@@ -34,27 +36,53 @@ export const requestForToken = async () => {
     if (currentToken) {
       console.log('Current token for client: ', currentToken);
       
-      // Save token to user document in Supabase
       if (auth.currentUser) {
+        const uid = auth.currentUser.uid;
+
+        // A. Save token to Firestore user document (Reliable primary)
         try {
-          const { data: user } = await supabase
+          const userRef = doc(db, 'users', uid);
+          const userSnap = await getDoc(userRef);
+          let currentFirestoreTokens: string[] = [];
+          if (userSnap.exists()) {
+            currentFirestoreTokens = userSnap.data()?.fcm_tokens || [];
+          }
+          if (!currentFirestoreTokens.includes(currentToken)) {
+            const updatedTokens = [...currentFirestoreTokens, currentToken];
+            await safeFirestore.set(userRef, {
+              fcm_tokens: updatedTokens
+            });
+            console.log('[FCM] Successfully synced FCM token to Firestore users');
+          }
+        } catch (fsErr) {
+          console.error('[FCM] Failed to sync FCM token to Firestore:', fsErr);
+        }
+
+        // B. Save token to user document in Supabase (Graceful fallback)
+        try {
+          const { data: user, error: selErr } = await supabase
             .from('users')
             .select('fcm_tokens')
-            .eq('firebase_uid', auth.currentUser.uid)
-            .single();
+            .eq('firebase_uid', uid)
+            .maybeSingle();
 
-          const tokens = user?.fcm_tokens || [];
-          if (!tokens.includes(currentToken)) {
-            await supabase
-              .from('users')
-              .update({
-                fcm_tokens: [...tokens, currentToken],
-                updated_at: new Date().toISOString()
-              })
-              .eq('firebase_uid', auth.currentUser.uid);
+          if (!selErr) {
+            const tokens = user?.fcm_tokens || [];
+            if (!tokens.includes(currentToken)) {
+              await supabase
+                .from('users')
+                .update({
+                  fcm_tokens: [...tokens, currentToken],
+                  updated_at: new Date().toISOString()
+                })
+                .eq('firebase_uid', uid);
+              console.log('[FCM] Successfully synced FCM token to Supabase users');
+            }
+          } else {
+            console.warn('[FCM] Supabase select failed (expected if fcm_tokens column does not exist):', selErr.message);
           }
         } catch (err) {
-          console.error('Failed to sync FCM token to Supabase:', err);
+          console.warn('[FCM] Failed to sync FCM token to Supabase (non-fatal):', err);
         }
       }
       

@@ -11,6 +11,43 @@ import { LogOut, HelpCircle } from 'lucide-react';
 
 type UserRole = 'customer' | 'admin';
 
+// Deduplicated Auth Sync requester to completely prevent duplicate concurrent /api/auth/sync requests
+async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
+  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  if (!windowObj.__activeAuthSyncs) {
+    windowObj.__activeAuthSyncs = new Map<string, Promise<any>>();
+  }
+  const cacheKey = `${idToken}_${markVerified}`;
+  if (windowObj.__activeAuthSyncs.has(cacheKey)) {
+    console.log('[DeduplicatedFetch] Reusing active sync fetch for key:', cacheKey);
+    return windowObj.__activeAuthSyncs.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken, markVerified }),
+      });
+      if (!response.ok) {
+        throw new Error(`Sync API returned status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      console.error('[DeduplicatedFetch] Sync API failed:', err);
+      throw err;
+    } finally {
+      windowObj.__activeAuthSyncs.delete(cacheKey);
+    }
+  })();
+
+  windowObj.__activeAuthSyncs.set(cacheKey, promise);
+  return promise;
+}
+
 export interface UnifiedUser {
   uid: string; // Unified stable ID (maps to the database public.users.id UUID)
   id: string;  // Also available as .id
@@ -138,23 +175,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (idToken) {
             localStorage.setItem('latest_admin_auth_token', idToken);
           }
-          const response = await fetch('/api/auth/sync', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              idToken,
-              markVerified: fbUser.emailVerified || localStorage.getItem(`verified_${fbUser.uid}`) === 'true',
-            }),
-          });
+          const markVerified = fbUser.emailVerified || localStorage.getItem(`verified_${fbUser.uid}`) === 'true';
+          const resData = await fetchSyncDeduplicated(idToken, markVerified);
           
-          if (response.ok) {
-            const resData = await response.json();
-            if (resData.success && resData.user) {
-              dbUser = resData.user;
-              console.log('[UnifiedAuth] User identity synced & obtained securely via server API:', dbUser.email);
-            }
+          if (resData && resData.success && resData.user) {
+            dbUser = resData.user;
+            console.log('[UnifiedAuth] User identity synced & obtained securely via server API:', dbUser.email);
           }
         } catch (syncErr) {
           console.warn('[UnifiedAuth] Error performing server-side sync, trying client-side fallback:', syncErr);

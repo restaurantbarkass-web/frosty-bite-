@@ -255,6 +255,21 @@
         "created_at": { "type": "string" }
       },
       "required": ["email", "created_at"]
+    },
+    "MobileOtp": {
+      "title": "Mobile OTP",
+      "description": "Represents a mobile verification OTP or signature for phone login in-progress.",
+      "type": "object",
+      "properties": {
+        "otp": { "type": "string" },
+        "expires_at": { "type": "number" },
+        "email": { "type": "string" },
+        "isSignup": { "type": "boolean" },
+        "name": { "type": "string" },
+        "password": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["otp", "expires_at"]
     }
   },
   "firestore": {
@@ -321,6 +336,10 @@
     "notify_requests/{requestId}": {
       "schema": "NotifyRequest",
       "description": "User notification requests for unserved locations."
+    },
+    "mobile_otps/{phone}": {
+      "schema": "MobileOtp",
+      "description": "Transient storage for verifying mobile devices."
     }
   }
 }

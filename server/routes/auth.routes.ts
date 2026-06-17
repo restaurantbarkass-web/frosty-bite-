@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAdminAuth } from '../lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 import { UserService } from '../services/user.service';
 import { EmailService } from '../services/email.service';
@@ -46,13 +46,11 @@ router.post('/sync', async (req, res) => {
       photoURL: decodedToken.picture
     });
 
-    // Send welcome email only to genuine new users
+    // Send welcome email only to genuine new users in the background (non-blocking)
     if (!existingUser && user?.email) {
-      try {
-        await EmailService.sendWelcomeEmail(user.email, user.name);
-      } catch (emailErr) {
-        console.warn('[AuthRoutes] Welcome email failed (non-fatal):', emailErr);
-      }
+      EmailService.sendWelcomeEmail(user.email, user.name).catch((emailErr) => {
+        console.warn('[AuthRoutes] Welcome email background task failed:', emailErr);
+      });
     }
 
     res.json({ success: true, user });
@@ -261,6 +259,239 @@ router.post('/reset-password', async (req, res) => {
   } catch (err: any) {
     console.error('[ResetPasswordRoute] Unexpected Exception:', err);
     return res.status(500).json({ error: err.message || 'An unexpected error occurred during password reset.' });
+  }
+});
+
+/**
+ * POST /api/auth/send-mobile-otp
+ * Generates and stores/sends an OTP code to a mobile phone number
+ */
+router.post('/send-mobile-otp', async (req, res) => {
+  const { phone, isSignup, email, name, password } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: 'Mobile phone number is required.' });
+  }
+
+  try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
+    }
+
+    // Check if user exists in our supabase db by this phone number
+    const { data: dbUser, error: dbErr } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+
+    if (dbErr) {
+      console.error('[SendMobileOtp] DB Query error:', dbErr.message);
+    }
+
+    let isRegistrationFlow = isSignup || !dbUser;
+
+    if (isSignup) {
+      if (dbUser) {
+        return res.status(400).json({ error: 'A Frosty Bite account is already registered with this phone number. Please sign in instead!' });
+      }
+
+      if (email) {
+        const cleanEmail = email.trim().toLowerCase();
+        const { data: dbUserByEmail } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+        if (dbUserByEmail) {
+          return res.status(400).json({ error: 'A Frosty Bite account is already registered with this email ID. Please sign in instead!' });
+        }
+      }
+    }
+
+    // Generate beautiful 8-digit OTP code to perfectly fit the UI grids
+    const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
+    const expires_at = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    // Save in Firestore under a safe collection 'mobile_otps'
+    const dbInstance = getAdminDb();
+    const otpPayload: any = {
+      otp,
+      expires_at,
+      email: (isRegistrationFlow && email) ? email.trim().toLowerCase() : (dbUser ? dbUser.email : `${cleanPhone}@frostybite.temp`),
+    };
+
+    if (isRegistrationFlow) {
+      otpPayload.isSignup = true;
+      otpPayload.name = name ? name.trim() : `User ${cleanPhone}`;
+      otpPayload.password = password ? password.trim() : '';
+    } else if (dbUser) {
+      otpPayload.userId = dbUser.id;
+    }
+
+    await dbInstance.collection('mobile_otps').doc(cleanPhone).set(otpPayload);
+
+    console.log('\n=============================================');
+    console.log(`📱 [MOBILE OTP] Generated ${isSignup ? 'Signup' : 'Signin'} OTP for +91${cleanPhone}: ${otp}`);
+    console.log('=============================================\n');
+
+    return res.json({
+      success: true,
+      message: `Verification code successfully sent to +91 ${cleanPhone}.`,
+      dev_otp_hint: otp // Helpful development hint returned directly to play with
+    });
+  } catch (err: any) {
+    console.error('[SendMobileOtp] Unexpected Error:', err);
+    return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching OTP.' });
+  }
+});
+
+/**
+ * POST /api/auth/verify-mobile-otp
+ * Verifies mobile phone number OTP code and logs the user in
+ */
+router.post('/verify-mobile-otp', async (req, res) => {
+  const { phone, otp } = req.body;
+  if (!phone || !otp) {
+    return res.status(400).json({ error: 'Phone number and verification OTP are required.' });
+  }
+
+  try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanOtp = otp.trim();
+
+    const dbInstance = getAdminDb();
+    const otpDocRef = dbInstance.collection('mobile_otps').doc(cleanPhone);
+    const otpSnap = await otpDocRef.get();
+
+    if (!otpSnap.exists) {
+      return res.status(401).json({ error: 'Verification code not found or has expired. Please request a new code.' });
+    }
+
+    const otpData = otpSnap.data();
+    if (!otpData) {
+      return res.status(401).json({ error: 'Verification data is empty.' });
+    }
+
+    if (otpData.expires_at < Date.now()) {
+      await otpDocRef.delete();
+      return res.status(401).json({ error: 'Verification code has expired. Please request a new code.' });
+    }
+
+    if (otpData.otp !== cleanOtp) {
+      return res.status(401).json({ error: 'Incorrect verification code. Please check your screen or console verification logs.' });
+    }
+
+    // Success! Prune the disposable code
+    await otpDocRef.delete();
+
+    // Fetch user from Supabase to complete profile synchronization
+    let dbUser = null;
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone', cleanPhone)
+      .maybeSingle();
+
+    dbUser = existingUser;
+
+    if (otpData.isSignup && !dbUser) {
+      // Create user in Supabase first
+      const { data: insertedUser, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          email: otpData.email || `${cleanPhone}@frostybite.temp`,
+          name: otpData.name || `User ${cleanPhone}`,
+          full_name: otpData.name || `User ${cleanPhone}`,
+          phone: cleanPhone,
+          password: otpData.password || '',
+          auth_methods: ['otp', 'mobile_otp'],
+          last_login: new Date().toISOString(),
+          last_login_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('[VerifyMobileOtp] Failed to register user in Supabase:', insertError);
+        if (insertError.code !== '23505') {
+          return res.status(500).json({ error: 'Failed to create your Frosty Bite account. ' + insertError.message });
+        }
+      } else {
+        dbUser = insertedUser;
+        console.log(`[VerifyMobileOtp] User registered successfully in Supabase for: ${otpData.email}`);
+      }
+    }
+
+    if (!dbUser) {
+      // Recheck the DB, just in case
+      const { data: refetchedUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+      dbUser = refetchedUser;
+    }
+
+    if (!dbUser) {
+      return res.status(401).json({ error: 'Failed to resolve user account credentials associated with this mobile phone.' });
+    }
+
+    // Generate Firebase custom login token
+    const adminAuth = getAdminAuth();
+    let firebaseUser;
+    try {
+      firebaseUser = await adminAuth.getUserByEmail(dbUser.email);
+      console.log(`[VerifyMobileOtp] Found Firebase User with Email: ${dbUser.email} (UID: ${firebaseUser.uid})`);
+    } catch (fbErr: any) {
+      if (fbErr.code === 'auth/user-not-found') {
+        console.log(`[VerifyMobileOtp] Account missing in Firebase Auth. Creating on the fly: ${dbUser.email}`);
+        firebaseUser = await adminAuth.createUser({
+          email: dbUser.email,
+          emailVerified: true,
+          displayName: dbUser.name || dbUser.email.split('@')[0],
+        });
+      } else {
+        throw fbErr;
+      }
+    }
+
+    const adminEmails = [
+      "restaurantbarkass@gmail.com",
+      "wasifmd924@gmail.com",
+      "sayedazainab216@gmail.com",
+      "sayedazainabali76@gmail.com"
+    ];
+    const isAdminUser = adminEmails.includes(dbUser.email.toLowerCase());
+
+    const firebaseCustomToken = await adminAuth.createCustomToken(firebaseUser.uid, {
+      email: dbUser.email,
+      email_verified: true,
+      role: isAdminUser ? 'admin' : 'customer',
+      isAdmin: isAdminUser
+    });
+
+    console.log(`[VerifyMobileOtp] Mobile Login/Registration complete. Syncing identity & generating Token for ${dbUser.email}`);
+    
+    // Sync login audit in UserService
+    await UserService.syncUser({
+      uid: firebaseUser.uid,
+      supabaseUid: dbUser.supabase_uid || dbUser.id,
+      email: dbUser.email,
+      displayName: dbUser.name || firebaseUser.displayName,
+      photoURL: dbUser.avatar_url || firebaseUser.photoURL
+    });
+
+    return res.json({
+      success: true,
+      customToken: firebaseCustomToken,
+      email: dbUser.email,
+      user: dbUser
+    });
+  } catch (err: any) {
+    console.error('[VerifyMobileOtp] unexpected failure:', err);
+    return res.status(500).json({ error: err.message || 'Verification failed. An unexpected error occurred on the authentication gateway.' });
   }
 });
 

@@ -19,6 +19,7 @@ import {
   Phone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 import { useGeofence } from '../context/GeofenceContext';
 import { ADMIN_EMAILS } from '../constants';
 import { authService } from '../services/authService';
@@ -103,7 +104,8 @@ export const Login: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [signInMethod, setSignInMethod] = useState<'password' | 'otp'>('password');
+  const [signInMethod, setSignInMethod] = useState<'password' | 'otp' | 'mobile_otp'>('password');
+  const [signupMethod, setSignupMethod] = useState<'email' | 'mobile_otp'>('email');
   const [isNewUser, setIsNewUser] = useState(false);
   
   // OTP array input
@@ -156,6 +158,49 @@ export const Login: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       setError(parseAuthError(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send mobile verification code step
+  const handleSendMobileOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone) {
+      setError('Please enter your mobile phone number.');
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      setError('Mobile number must be exactly 10 digits.');
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
+
+    try {
+      setIsNewUser(false); // Mobile OTP is for login
+      const res = await authService.sendMobileOTP(cleanPhone);
+      setResendTimer(60);
+      setSuccess(res.message || 'Verification code sent to your phone!');
+      
+      // Auto-populate hint in preview/development mode for testing convenience
+      if (res.dev_otp_hint) {
+        const hintDigits = res.dev_otp_hint.split('');
+        if (hintDigits.length === 8) {
+          setOtpArray(hintDigits);
+          setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to log in instantly!)`);
+        }
+      }
+      
+      setStep('otp');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to dispatch verification code. Please make sure your mobile number is registered.');
     } finally {
       setIsLoading(false);
     }
@@ -385,29 +430,66 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Check if email already exists
-      const { data: dbUser, error: dbErr } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', emailTrimmed)
-        .maybeSingle();
+      if (signupMethod === 'email') {
+        // Check if email already exists
+        const { data: dbUser, error: dbErr } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', emailTrimmed)
+          .maybeSingle();
 
-      if (dbErr) {
-        console.warn('DB check error:', dbErr);
+        if (dbErr) {
+          console.warn('DB check error:', dbErr);
+        }
+
+        if (dbUser) {
+          setError('User already exists. A Frosty Bite account is already registered with this email. Please switch to "Sign In" above to access your account.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Send Email OTP
+        setIsNewUser(true);
+        setSignInMethod('otp');
+        await authService.sendOTP(emailTrimmed);
+        setResendTimer(60);
+        setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
+        setStep('otp');
+      } else {
+        // Check if phone already exists
+        const { data: dbUserByPhone, error: dbErr } = await supabase
+          .from('users')
+          .select('*')
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (dbErr) {
+          console.warn('DB phone check error:', dbErr);
+        }
+
+        if (dbUserByPhone) {
+          setError('A Frosty Bite account is already registered with this mobile number. Please select "Sign In" above to access your account.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Send Mobile OTP
+        setIsNewUser(true);
+        setSignInMethod('mobile_otp');
+        const res = await authService.sendMobileOTP(cleanPhone, true, emailTrimmed, name.trim(), password.trim());
+        setResendTimer(60);
+        setSuccess(res.message || 'Verification code sent to your phone!');
+        
+        // Auto-populate hint in preview/development mode for testing convenience
+        if (res.dev_otp_hint) {
+          const hintDigits = res.dev_otp_hint.split('');
+          if (hintDigits.length === 8) {
+            setOtpArray(hintDigits);
+            setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to register instantly!)`);
+          }
+        }
+        setStep('otp');
       }
-
-      if (dbUser) {
-        setError('User already exists. A Frosty Bite account is already registered with this email. Please switch to "Sign In" above to access your account.');
-        setIsLoading(false);
-        return;
-      }
-
-      // User is brand new! Dispatch OTP and transition to email verification step
-      setIsNewUser(true);
-      await authService.sendOTP(emailTrimmed);
-      setResendTimer(60);
-      setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
-      setStep('otp');
     } catch (err: any) {
       console.error(err);
       setError(parseAuthError(err));
@@ -423,7 +505,7 @@ export const Login: React.FC = () => {
 
     const otpCode = otpArray.join('');
     if (otpCode.length < 8) {
-      setError('Incorrect or incomplete code. Please enter the full 8-digit verification code sent to your inbox.');
+      setError(`Incorrect or incomplete code. Please enter the full 8-digit verification code sent to your ${signInMethod === 'mobile_otp' ? 'phone' : 'inbox'}.`);
       return;
     }
 
@@ -432,13 +514,20 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const emailTrimmed = email.trim().toLowerCase();
-      const result = await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
+      let emailTrimmed = email.trim().toLowerCase();
+      
+      if (signInMethod === 'mobile_otp') {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const result = await authService.verifyMobileOTP(cleanPhone, otpCode);
+        emailTrimmed = result.email || emailTrimmed;
+      } else {
+        const result = await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
+      }
 
       // Store authenticating session email immediately to guarantee robust immediate login flow
       localStorage.setItem('frostybite_active_session_email', emailTrimmed);
 
-      if (isNewUser) {
+      if (isNewUser && signInMethod !== 'mobile_otp') {
         try {
           // Keep database synced with onboarding user name, phone, and password
           await supabase
@@ -505,10 +594,24 @@ export const Login: React.FC = () => {
     setSuccess(null);
     setIsLoading(true);
     try {
-      const emailTrimmed = email.trim().toLowerCase();
-      await authService.sendOTP(emailTrimmed);
-      setResendTimer(60);
-      setSuccess('A fresh code was sent! Check your inbox.');
+      if (signInMethod === 'mobile_otp') {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const res = await authService.sendMobileOTP(cleanPhone);
+        setResendTimer(60);
+        setSuccess(res.message || 'Verification code resent! Check your phone.');
+        if (res.dev_otp_hint) {
+          const hintDigits = res.dev_otp_hint.split('');
+          if (hintDigits.length === 8) {
+            setOtpArray(hintDigits);
+            setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to log in instantly!)`);
+          }
+        }
+      } else {
+        const emailTrimmed = email.trim().toLowerCase();
+        await authService.sendOTP(emailTrimmed);
+        setResendTimer(60);
+        setSuccess('A fresh code was sent! Check your inbox.');
+      }
     } catch (err: any) {
       console.error(err);
       setError(parseAuthError(err));
@@ -659,11 +762,26 @@ export const Login: React.FC = () => {
                 initial={{ opacity: 0, y: -10, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: 'auto' }}
                 exit={{ opacity: 0, y: -10, height: 0 }}
-                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-start gap-3 text-red-400 text-xs text-left"
+                className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex flex-col gap-2 text-red-400 text-xs text-left"
                 id="auth_error_box"
               >
-                <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-500 animate-pulse" />
-                {renderErrorMessage(error)}
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-500 animate-pulse" />
+                  {renderErrorMessage(error)}
+                </div>
+                {error.includes("register an account first") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('signup');
+                      setStep('name');
+                      setError(null);
+                    }}
+                    className="ml-7 mt-1 text-orange-400 hover:text-orange-300 font-bold underline text-[11px] self-start cursor-pointer transition-all active:scale-95"
+                  >
+                    👉 Click here to register your account now
+                  </button>
+                )}
               </motion.div>
             )}
             
@@ -738,6 +856,7 @@ export const Login: React.FC = () => {
                   <button
                     onClick={() => {
                       setAuthMode('signin');
+                      setSignInMethod('password');
                       setStep('email');
                     }}
                     className="w-full h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-white font-bold tracking-wide border border-white/10 hover:border-white/15 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
@@ -746,6 +865,29 @@ export const Login: React.FC = () => {
                     <Mail size={18} className="text-zinc-300" />
                     <span className="font-sans font-bold tracking-wide text-sm text-zinc-150">Continue with Email</span>
                   </button>
+
+                  {/* Mobile OTP Auth Link */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.error(
+                          "Mobile OTP authentication is currently locked. The developer is actively working on it and it will be coming soon!",
+                          { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
+                        );
+                      }}
+                      className="w-full h-14 rounded-2xl bg-white/[0.02] text-zinc-500 font-bold tracking-wide border border-white/5 opacity-60 flex items-center justify-center gap-3 cursor-not-allowed select-none relative overflow-hidden"
+                      id="btn_phone_init"
+                    >
+                      <Phone size={18} className="text-zinc-600" />
+                      <span className="font-sans font-bold tracking-wide text-sm text-zinc-600 font-sans">Continue with Mobile Number</span>
+                      
+                      {/* Under development badge */}
+                      <span className="absolute top-1.5 right-3 text-[7px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-widest leading-none">
+                        Coming Soon
+                      </span>
+                    </button>
+                  </div>
 
                   {/* Create Account Selector Link */}
                   <div className="text-center pt-2">
@@ -786,50 +928,54 @@ export const Login: React.FC = () => {
               >
                 <div className="space-y-1 text-center">
                   <h2 className="text-2xl font-bold tracking-tight text-white">
-                    {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+                    {signInMethod === 'mobile_otp' ? 'Continue with Mobile' : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
                   </h2>
                   <p className="text-zinc-400 text-xs">
-                    {authMode === 'signin' 
-                      ? 'Sign in to access your luxury patisserie account'
-                      : 'Create an account to start ordering gourmet bakery delights'}
+                    {signInMethod === 'mobile_otp' 
+                      ? 'Enter your mobile number to check-in or register instantly via OTP.' 
+                      : (authMode === 'signin' 
+                          ? 'Sign in to access your luxury patisserie account'
+                          : 'Create an account to start ordering gourmet bakery delights')}
                   </p>
                 </div>
 
                 {/* Premium Auth Mode Tabs Switcher */}
-                <div className="flex p-1 bg-white/[0.03] border border-white/10 rounded-2xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signin');
-                      setError(null);
-                    }}
-                    className={`flex-1 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
-                      authMode === 'signin' 
-                        ? 'bg-orange-600/90 text-white shadow-[0_5px_15px_rgba(249,115,22,0.25)] border border-white/10' 
-                        : 'text-zinc-400 hover:text-white bg-transparent'
-                    }`}
-                  >
-                    🔐 Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('signup');
-                      setError(null);
-                      setStep('name');
-                    }}
-                    className={`flex-1 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
-                      authMode === 'signup' 
-                        ? 'bg-orange-600/90 text-white shadow-[0_5px_15px_rgba(249,115,22,0.25)] border border-white/10' 
-                        : 'text-zinc-400 hover:text-white bg-transparent'
-                    }`}
-                  >
-                    ✨ Register
-                  </button>
-                </div>
+                {signInMethod !== 'mobile_otp' && (
+                  <div className="flex p-1 bg-white/[0.03] border border-white/10 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('signin');
+                        setError(null);
+                      }}
+                      className={`flex-1 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                        authMode === 'signin' 
+                          ? 'bg-orange-600/90 text-white shadow-[0_5px_15px_rgba(249,115,22,0.25)] border border-white/10' 
+                          : 'text-zinc-400 hover:text-white bg-transparent'
+                      }`}
+                    >
+                      🔐 Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('signup');
+                        setError(null);
+                        setStep('name');
+                      }}
+                      className={`flex-1 py-1.5 text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                        authMode === 'signup' 
+                          ? 'bg-orange-600/90 text-white shadow-[0_5px_15px_rgba(249,115,22,0.25)] border border-white/10' 
+                          : 'text-zinc-400 hover:text-white bg-transparent'
+                      }`}
+                    >
+                      ✨ Register
+                    </button>
+                  </div>
+                )}
 
-                {/* Sub-Switch for Sign-In Option: Password vs OTP */}
-                {authMode === 'signin' && (
+                {/* Sub-Switch for Sign-In Option: Password vs Email OTP vs Mobile OTP */}
+                {authMode === 'signin' && signInMethod !== 'mobile_otp' && (
                   <div className="flex p-1 bg-white/[0.01] border border-white/5 rounded-2xl gap-1 animate-in fade-in duration-200">
                     <button
                       type="button"
@@ -837,13 +983,13 @@ export const Login: React.FC = () => {
                         setSignInMethod('password');
                         setError(null);
                       }}
-                      className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                      className={`flex-1 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
                         signInMethod === 'password' 
                           ? 'bg-zinc-800 text-white border border-white/5 shadow-inner' 
                           : 'text-zinc-500 hover:text-zinc-300 bg-transparent'
                       }`}
                     >
-                      🔑 Password Login
+                      🔑 Password
                     </button>
                     <button
                       type="button"
@@ -851,13 +997,25 @@ export const Login: React.FC = () => {
                         setSignInMethod('otp');
                         setError(null);
                       }}
-                      className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                      className={`flex-1 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
                         signInMethod === 'otp' 
                           ? 'bg-zinc-800 text-white border border-white/5 shadow-inner' 
                           : 'text-zinc-500 hover:text-zinc-300 bg-transparent'
                       }`}
                     >
-                      ✉️ OTP Code Login
+                      ✉️ Email OTP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast.error(
+                          "Mobile OTP login is currently locked. The developer is actively working on it and it will be coming soon!",
+                          { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
+                        );
+                      }}
+                      className="flex-1 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-not-allowed text-zinc-600 bg-transparent opacity-50"
+                    >
+                      📱 Mobile OTP (Soon)
                     </button>
                   </div>
                 )}
@@ -867,28 +1025,49 @@ export const Login: React.FC = () => {
                     e.preventDefault();
                     if (authMode === 'signin' && signInMethod === 'password') {
                       handlePasswordLogin();
+                    } else if (authMode === 'signin' && signInMethod === 'mobile_otp') {
+                      handleSendMobileOtp(e);
                     } else {
                       handleCheckEmail(e);
                     }
                   }} 
                   className="space-y-4"
                 >
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
-                    <div className="relative">
-                      <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-                      <input
-                        type="email"
-                        placeholder="e.g. wasif@domain.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
-                        required
-                        autoFocus
-                        id="auth_email_input"
-                      />
+                  {signInMethod === 'mobile_otp' ? (
+                    <div className="space-y-1.5 animate-in fade-in duration-200">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Mobile Phone Number</label>
+                      <div className="relative">
+                        <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        <input
+                          type="tel"
+                          placeholder="e.g. 9876543210"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
+                          required
+                          autoFocus
+                          id="auth_phone_input"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
+                      <div className="relative">
+                        <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                        <input
+                          type="email"
+                          placeholder="e.g. wasif@domain.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                          required
+                          autoFocus
+                          id="auth_email_input"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {authMode === 'signin' && signInMethod === 'password' && (
                     <div className="space-y-1.5 animate-in fade-in duration-200 text-left">
@@ -989,6 +1168,39 @@ export const Login: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleCreateAccount} className="space-y-4">
+                  {/* Signup Verification Method Selection: Email OTP vs Mobile OTP */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Registration Verification Option</label>
+                    <div className="flex p-1 bg-white/[0.01] border border-white/5 rounded-2xl gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupMethod('email');
+                          setError(null);
+                        }}
+                        className={`flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                          signupMethod === 'email' 
+                            ? 'bg-zinc-800 text-white border border-white/5 shadow-inner' 
+                            : 'text-zinc-500 hover:text-zinc-300 bg-transparent'
+                        }`}
+                      >
+                        ✉️ Email OTP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toast.error(
+                            "Mobile OTP verification is currently locked. The developer is actively working on it and it will be coming soon!",
+                            { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
+                          );
+                        }}
+                        className="flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-not-allowed text-zinc-600 bg-transparent opacity-50"
+                      >
+                        📱 Mobile OTP (Soon)
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Your Full Name</label>
                     <div className="relative">

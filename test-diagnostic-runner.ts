@@ -21,6 +21,18 @@ async function runDiagnostics() {
     console.log('✅ Firestore Admin SDK Initialized.');
     const snapshot = await db.collection('delivery_areas').limit(1).get();
     console.log(`✅ successfully queried Firestore. Documents found: ${snapshot.size}`);
+
+    // Try verifying a write to mobile_otps with serverTimestamp
+    console.log('Testing a write to mobile_otps with serverTimestamp...');
+    const adminInst = (await import('./server/lib/firebase-admin')).default;
+    const ts = adminInst.firestore.FieldValue.serverTimestamp();
+    await db.collection('mobile_otps').doc('testphone123').set({
+      otp: '123hgs1',
+      expires_at: Date.now() + 60000,
+      email: 'test@frostybite.internal',
+      updated_at: ts
+    });
+    console.log('✅ successfully wrote to mobile_otps with serverTimestamp');
   } catch (err: any) {
     console.log('❌ Firestore Admin SDK access failed:', err.message);
   }
@@ -34,6 +46,9 @@ async function runDiagnostics() {
   console.log('--- DIAGNOSTIC RUN COMPLETE ---');
 }
 
-runDiagnostics().catch(e => {
+runDiagnostics().then(() => {
+  process.exit(0);
+}).catch(e => {
   console.error('Diagnostic crashed:', e);
+  process.exit(1);
 });

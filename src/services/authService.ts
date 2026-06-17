@@ -18,6 +18,43 @@ import { doc, serverTimestamp } from 'firebase/firestore';
 
 const googleProvider = new GoogleAuthProvider();
 
+// Deduplicated Auth Sync requester to completely prevent duplicate concurrent /api/auth/sync requests
+async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
+  const windowObj = typeof window !== 'undefined' ? (window as any) : {};
+  if (!windowObj.__activeAuthSyncs) {
+    windowObj.__activeAuthSyncs = new Map<string, Promise<any>>();
+  }
+  const cacheKey = `${idToken}_${markVerified}`;
+  if (windowObj.__activeAuthSyncs.has(cacheKey)) {
+    console.log('[DeduplicatedFetch] Reusing active sync fetch for key:', cacheKey);
+    return windowObj.__activeAuthSyncs.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    try {
+      const response = await fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken, markVerified }),
+      });
+      if (!response.ok) {
+        throw new Error(`Sync API returned status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      console.error('[DeduplicatedFetch] Sync API failed:', err);
+      throw err;
+    } finally {
+      windowObj.__activeAuthSyncs.delete(cacheKey);
+    }
+  })();
+
+  windowObj.__activeAuthSyncs.set(cacheKey, promise);
+  return promise;
+}
+
 export const logout = async () => {
   await signOut(auth);
 };
@@ -76,6 +113,46 @@ export const authService = {
     }
 
     console.log("OTP sent");
+  },
+
+  // Send mobile phone number verification code
+  async sendMobileOTP(phone: string, isSignup?: boolean, email?: string, name?: string, password?: string) {
+    const res = await fetch('/api/auth/send-mobile-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ phone, isSignup, email, name, password })
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || 'Failed to dispatch mobile verification code.');
+    }
+    return data;
+  },
+
+  // Verify mobile phone number verification code and sign in client-side to Firebase
+  async verifyMobileOTP(phone: string, otp: string) {
+    const res = await fetch('/api/auth/verify-mobile-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ phone, otp })
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || 'Mobile verification code is invalid.');
+    }
+
+    // Sign in to Firebase client-side with the generated custom authentication credentials
+    if (data.customToken) {
+      const { signInWithCustomToken } = await import('firebase/auth');
+      const { auth } = await import('../firebase');
+      const credential = await signInWithCustomToken(auth, data.customToken);
+      console.log('[AuthService] Mobile OTP Firebase client login succeeded!', credential.user.uid);
+    }
+    return data;
   },
 
   // Verify OTP directly using Supabase client and sign in client-side to Firebase
@@ -265,7 +342,10 @@ export const authService = {
   async loginWithGoogle() {
     const result = await signInWithPopup(auth, googleProvider);
     if (result.user) {
-      await this.syncUserWithDatabase(result.user, undefined, true);
+      // Fire-and-forget background sync: allows immediate interface responsiveness right after Google PopUp closes
+      this.syncUserWithDatabase(result.user, undefined, true).catch((e) => {
+        console.warn('[AuthService] Google login background sync error:', e);
+      });
     }
     return result;
   },
@@ -304,44 +384,50 @@ export const authService = {
       localStorage.setItem(`verified_${user.uid}`, 'true');
     }
 
-    // 1. Backend Sync (Supabase + Welcome Email) - Production approach
+    // Run Backend Sync and Firestore Sync concurrently for maximum performance
     let backendSyncSucceeded = false;
     try {
       const idToken = typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
-      const response = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, markVerified: markVerified || user.emailVerified })
-      });
       
-      if (!response.ok) {
-        console.warn('[AuthService] Backend sync failed, falling back to direct sync');
-      } else {
-        backendSyncSucceeded = true;
-        if (markVerified) {
-          try {
-            await user.reload();
-          } catch (reloadErr) {
-            console.warn('[AuthService] Error reloading user:', reloadErr);
+      const syncBackendPromise = idToken ? (async () => {
+        try {
+          const resData = await fetchSyncDeduplicated(idToken, markVerified || user.emailVerified);
+          if (resData && resData.success) {
+            backendSyncSucceeded = true;
+            if (markVerified) {
+              try {
+                await user.reload();
+              } catch (_) {}
+            }
+            return true;
           }
+        } catch (e) {
+          console.warn('[AuthService] Backend sync error:', e);
         }
-      }
-    } catch (syncErr) {
-      console.error('[AuthService] Sync error:', syncErr);
-    }
+        return false;
+      })() : Promise.resolve(false);
 
-    // 2. Firestore Sync (Using safeFirestore + hardened rules)
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      await safeFirestore.set(userRef, {
-        uid: user.uid,
-        email: user.email,
-        full_name: name || user.displayName || '',
-        role: determinedRole,
-        updated_at: serverTimestamp(),
-      });
+      const syncFirestorePromise = (async () => {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await safeFirestore.set(userRef, {
+            uid: user.uid,
+            email: user.email,
+            full_name: name || user.displayName || '',
+            role: determinedRole,
+            updated_at: serverTimestamp(),
+          });
+          return true;
+        } catch (err) {
+          console.warn('Firestore user sync warning:', err);
+          return false;
+        }
+      })();
+
+      const [backendOk] = await Promise.all([syncBackendPromise, syncFirestorePromise]);
+      backendSyncSucceeded = backendOk;
     } catch (err) {
-      console.warn('Firestore user sync warning:', err);
+      console.error('[AuthService] Fast sync error:', err);
     }
 
     // 3. Direct client-side Supabase backup sync (if backend was reachable but missed something)
