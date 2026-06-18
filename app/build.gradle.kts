@@ -21,12 +21,12 @@ if (versionPropsFile.exists()) {
 
 android {
     namespace = "com.frostybite.app"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.frostybite.app"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = currentVersionCode
         versionName = currentVersionName
 

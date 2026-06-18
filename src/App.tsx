@@ -94,7 +94,23 @@ const Orders = lazyWithRetry(() => import('./pages/Orders'));
 const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
 
-const PageLoader = () => <LoadingScreen fullScreen={false} />;
+const PageLoader = () => (
+  <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
+    <div className="h-[3px] w-full bg-white/5 relative overflow-hidden">
+      <motion.div 
+        animate={{ 
+          x: ["-100%", "200%"] 
+        }}
+        transition={{ 
+          duration: 1.5, 
+          repeat: Infinity, 
+          ease: "easeInOut" 
+        }}
+        className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+      />
+    </div>
+  </div>
+);
 
 function AppContent() {
   const { user, isVerified, isAdmin, loading } = useAuth();

@@ -27,6 +27,7 @@ import { supabase } from '../supabase';
 import confetti from 'canvas-confetti';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { FeatureComingSoon } from '../components/FeatureComingSoon';
 
 const parseAuthError = (err: any): string => {
   if (!err) return 'An unexpected authentication error occurred. Please try again.';
@@ -866,28 +867,12 @@ export const Login: React.FC = () => {
                     <span className="font-sans font-bold tracking-wide text-sm text-zinc-150">Continue with Email</span>
                   </button>
 
-                  {/* Mobile OTP Auth Link */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.error(
-                          "Mobile OTP authentication is currently locked. The developer is actively working on it and it will be coming soon!",
-                          { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
-                        );
-                      }}
-                      className="w-full h-14 rounded-2xl bg-white/[0.02] text-zinc-500 font-bold tracking-wide border border-white/5 opacity-60 flex items-center justify-center gap-3 cursor-not-allowed select-none relative overflow-hidden"
-                      id="btn_phone_init"
-                    >
-                      <Phone size={18} className="text-zinc-600" />
-                      <span className="font-sans font-bold tracking-wide text-sm text-zinc-600 font-sans">Continue with Mobile Number</span>
-                      
-                      {/* Under development badge */}
-                      <span className="absolute top-1.5 right-3 text-[7px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-widest leading-none">
-                        Coming Soon
-                      </span>
-                    </button>
-                  </div>
+                  {/* Mobile OTP Coming Soon Info */}
+                  <FeatureComingSoon 
+                    title="Mobile Login Coming Soon"
+                    description="We are preparing a fast, secure OTP mobile sign-in experience. Stay tuned!"
+                    className="w-full"
+                  />
 
                   {/* Create Account Selector Link */}
                   <div className="text-center pt-2">
