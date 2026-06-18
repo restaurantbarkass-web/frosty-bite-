@@ -167,19 +167,38 @@ export const CartSidebar: React.FC = () => {
                             <div className="flex justify-between items-center">
                               <span className="text-primary font-black italic text-xs sm:text-sm">₹{item.price * item.quantity}</span>
                               <div className="flex items-center space-x-3 bg-secondary/50 rounded-xl px-2 py-1 border border-white/5">
-                                <button
+                                <motion.button
+                                  whileHover={{ scale: 1.25, x: -1.5 }}
+                                  whileTap={{ scale: 0.8 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                                   onClick={() => updateQuantity(item.id, -1)}
-                                  className="text-zinc-400 hover:text-white transition-colors p-1"
+                                  className="text-zinc-400 hover:text-primary transition-colors p-1"
                                 >
-                                  <Minus size={12} />
-                                </button>
-                                <span className="text-[10px] font-black w-4 text-center">{item.quantity}</span>
-                                <button
+                                  <Minus size={12} className="stroke-[3px]" />
+                                </motion.button>
+                                <span className="overflow-hidden flex items-center justify-center w-5">
+                                  <AnimatePresence mode="popLayout" initial={false}>
+                                    <motion.span
+                                      key={item.quantity}
+                                      initial={{ scale: 0.6, y: -8, opacity: 0 }}
+                                      animate={{ scale: 1, y: 0, opacity: 1 }}
+                                      exit={{ scale: 0.6, y: 8, opacity: 0 }}
+                                      transition={{ type: 'spring', stiffness: 500, damping: 12 }}
+                                      className="text-[10px] font-black text-center text-white block shrink-0"
+                                    >
+                                      {item.quantity}
+                                    </motion.span>
+                                  </AnimatePresence>
+                                </span>
+                                <motion.button
+                                  whileHover={{ scale: 1.25, rotate: 90, x: 1.5 }}
+                                  whileTap={{ scale: 0.8 }}
+                                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                                   onClick={() => updateQuantity(item.id, 1)}
-                                  className="text-zinc-400 hover:text-white transition-colors p-1"
+                                  className="text-zinc-400 hover:text-primary transition-colors p-1"
                                 >
-                                  <Plus size={12} />
-                                </button>
+                                  <Plus size={12} className="stroke-[3px]" />
+                                </motion.button>
                               </div>
                             </div>
                           </div>

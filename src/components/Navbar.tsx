@@ -140,19 +140,21 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
           {/* Search Bar (Desktop) */}
           <div className="hidden lg:flex flex-1 max-w-sm mx-8">
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={onSearchClick}
               className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl py-2.5 px-4 group hover:border-primary/50 transition-all text-gray-500"
             >
               <div className="flex items-center gap-3">
-                <Search size={18} className="group-hover:text-primary transition-colors" />
-                <span className="text-sm font-medium">Search for premium treats...</span>
+                <Search size={18} className="group-hover:text-primary transition-colors group-hover:scale-110 duration-200" />
+                <span className="text-sm font-medium animate-pulse">Search for premium treats...</span>
               </div>
               <div className="flex items-center gap-1 px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold">
                 <Command size={10} />
                 <span>K</span>
               </div>
-            </button>
+            </motion.button>
           </div>
 
           {/* Desktop Nav */}
@@ -194,11 +196,31 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                     }
                   }}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-primary",
-                    isActive ? "text-primary" : "text-muted"
+                    "text-sm font-medium transition-colors relative py-1 px-2 rounded-lg",
+                    isActive ? "text-primary z-10" : "text-muted hover:text-white"
                   )}
                 >
-                  {link.name}
+                  <motion.span
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className="inline-block"
+                  >
+                    {link.name}
+                  </motion.span>
+                  {isActive ? (
+                    <motion.div
+                      layoutId="active-nav-dot"
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(255,107,38,0.8)]"
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    />
+                  ) : (
+                    <motion.div
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary/40 rounded-full opacity-0"
+                      whileHover={{ opacity: 1, scale: 1.2 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
                 </Link>
               );
             })}
@@ -228,21 +250,29 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                     </motion.span>
                   )}
                 </button>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 8 }}
+                  whileTap={{ scale: 0.85 }}
                   onClick={handleLogout}
                   className="p-2 text-muted hover:text-red-500 transition-colors"
                   title="Logout"
                 >
                   <LogOut size={20} />
-                </button>
+                </motion.button>
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="bg-primary text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-accent transition-colors"
+              <motion.div
+                whileHover={{ scale: 1.05, y: -1 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
               >
-                Login
-              </Link>
+                <Link
+                  to="/login"
+                  className="bg-primary hover:bg-orange-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 transition-all block"
+                >
+                  Login
+                </Link>
+              </motion.div>
             )}
           </div>
 
