@@ -346,6 +346,11 @@ function AppContent() {
     return <LoadingScreen message="Accessing your gourmet kitchen..." />;
   }
 
+  // 0.75. Prevent unauthenticated layout visual flicker by rendering a loading screen prior to login redirect
+  if (!user && !isAuthPage && !showSplash && !showOnboarding) {
+    return <LoadingScreen message="Securing connection..." />;
+  }
+
   // 1. Show the Intro Splash first if it hasn't been dismissed yet
   if (showSplash && !isAdmin && !isAuthPage && !bypassLocks) {
     return <IntroSplash onComplete={handleSplashComplete} />;

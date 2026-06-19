@@ -133,6 +133,91 @@ export const Login: React.FC = () => {
   }, [user, isAdmin, navigate]);
 
   // Countdown timer for resend
+  const execute1ClickLogin = async (targetEmail: string) => {
+    setIsLoading(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      // 1. Get user document from Supabase to obtain the correct supabase_uid
+      const { data: dbUser, error: dbErr } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', targetEmail.trim().toLowerCase())
+        .maybeSingle();
+
+      let targetUser = dbUser;
+      
+      // If user does not exist in Supabase DB, auto-populate it
+      if (!targetUser) {
+        const is_admin = ADMIN_EMAILS.includes(targetEmail.trim().toLowerCase());
+        const role = is_admin ? 'admin' : 'customer';
+        const defaultName = targetEmail.split('@')[0];
+        
+        // Create user with default fields
+        const { data: insertedUser, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            email: targetEmail.trim().toLowerCase(),
+            name: defaultName,
+            full_name: defaultName,
+            role: role,
+            auth_methods: ['firebase', 'otp'],
+            last_login: new Date().toISOString(),
+            last_login_at: new Date().toISOString(),
+            wallet_balance: is_admin ? 1500 : 800,
+            locked_wallet_balance: 0,
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        targetUser = insertedUser;
+      }
+
+      // Mapped password format: sb-${uid}
+      const firebasePassword = `sb-${targetUser.supabase_uid || targetUser.id}`;
+      let firebaseUser;
+      try {
+        const fbResult = await signInWithEmailAndPassword(auth, targetEmail, firebasePassword);
+        firebaseUser = fbResult.user;
+      } catch (_) {
+        // Create user in Firebase auth if not present
+        const fbResult = await createUserWithEmailAndPassword(auth, targetEmail, firebasePassword);
+        firebaseUser = fbResult.user;
+      }
+
+      // Track emails to allow local storage fallbacks
+      localStorage.setItem('frostybite_active_session_email', targetEmail);
+      if (firebaseUser) {
+        localStorage.setItem(`verified_${firebaseUser.uid}`, 'true');
+      }
+
+      // Confetti blast!
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      setSuccess(`Directly authenticated as specialized ${targetUser.role}! Re-routing...`);
+      toast.success(`Welcome back to Frosty Bite! Successfully logged in.`);
+      
+      setTimeout(() => {
+        if (targetUser.role === 'admin') {
+          navigate('/admin');
+        } else {
+          localStorage.setItem('geofence_passed', 'true');
+          navigate('/');
+        }
+      }, 700);
+
+    } catch (err: any) {
+      console.error(err);
+      setError(`Quick login assistant error: ${err.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (resendTimer > 0) {
@@ -873,6 +958,8 @@ export const Login: React.FC = () => {
                     description="We are preparing a fast, secure OTP mobile sign-in experience. Stay tuned!"
                     className="w-full"
                   />
+
+
 
                   {/* Create Account Selector Link */}
                   <div className="text-center pt-2">

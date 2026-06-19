@@ -23,18 +23,36 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       if (data && data.length > 0) {
-        const mapped = data.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          image: item.image,
-          category: item.category || 'General',
-          available: item.available ?? true,
-          stock_quantity: item.stock_quantity ?? 0,
-          description: item.description ?? '',
-          rating: item.rating ?? 5,
-          tags: item.tags ?? []
-        }));
+        const mapped = data.map((item: any) => {
+          let ai_desc = item.ai_description || '';
+          let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          
+          if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(ai_desc);
+              ai_desc = parsed.ai_description || '';
+              if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
+                est_time = Number(parsed.estimated_delivery_time);
+              }
+            } catch (e) {
+              // Ignore failure
+            }
+          }
+          
+          return {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            category: item.category || 'General',
+            available: item.available ?? true,
+            stock_quantity: item.stock_quantity ?? 0,
+            description: item.description ?? '',
+            rating: item.rating ?? 5,
+            tags: item.tags ?? [],
+            estimated_delivery_time: est_time || 30
+          };
+        });
         setItems(mapped);
         localStorage.setItem('menu_cache', JSON.stringify(mapped));
       } else {

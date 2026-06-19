@@ -33,6 +33,8 @@ import { toast } from 'react-hot-toast';
 
 import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
+import { SecureFundsLockModal } from '../components/SecureFundsLockModal';
+import { AddFundsLockedModal } from '../components/AddFundsLockedModal';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
 
@@ -118,12 +120,14 @@ const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary' }: { text: string
   </motion.div>
 );
 
-const StatCard = ({ label, value, icon: Icon, color, delay }: { label: string; value: string | number; icon: any; color: string; delay: number }) => (
+const StatCard = ({ label, value, icon: Icon, color, delay, onClick }: { label: string; value: string | number; icon: any; color: string; delay: number; onClick?: () => void }) => (
   <motion.div
     initial={{ x: 50, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay, type: 'spring', stiffness: 100 }}
-    whileHover={{ y: -5 }}
+    whileHover={{ y: -5, scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
     className="min-w-[150px] md:min-w-[180px] glass-dark border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 group cursor-pointer relative overflow-hidden"
   >
     <div className={cn("absolute top-0 right-0 p-3 md:p-4 opacity-5 group-hover:opacity-10 transition-all scale-125 md:scale-150 rotate-12", color)}>
@@ -134,7 +138,14 @@ const StatCard = ({ label, value, icon: Icon, color, delay }: { label: string; v
     </div>
     <div>
       <h4 className="text-2xl md:text-3xl font-black text-white tracking-tighter tabular-nums mb-1">{value}</h4>
-      <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors">{label}</p>
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors">{label}</p>
+        {label === 'Wallet' && onClick && (
+          <span className="text-[6px] md:text-[7px] bg-orange-500/10 text-primary border border-orange-500/10 px-1 py-0.5 rounded uppercase font-black tracking-widest leading-none">
+            Lock
+          </span>
+        )}
+      </div>
     </div>
     <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
   </motion.div>
@@ -202,7 +213,7 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 );
 
 export const Profile: React.FC = () => {
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser, logout, refreshProfile } = useAuth();
   const firebaseUid = auth.currentUser?.uid || authUser?.firebase_uid || authUser?.uid;
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();
@@ -228,6 +239,8 @@ export const Profile: React.FC = () => {
   const [badgeConfigs, setBadgeConfigs] = useState<BadgeConfig[]>([]);
   const [gifts, setGifts] = useState<any[]>([]);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [isFundsLockOpen, setIsFundsLockOpen] = useState(false);
+  const [isAddFundsLockOpen, setIsAddFundsLockOpen] = useState(false);
   const [newTierName, setNewTierName] = useState('');
   const [prevTier, setPrevTier] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -451,27 +464,20 @@ export const Profile: React.FC = () => {
     { label: 'Orders', value: userData?.total_orders || 0, icon: ShoppingBag, color: 'text-blue-400' },
     { label: 'Favorites', value: wishlist.length, icon: Heart, color: 'text-pink-500' },
     { label: 'Rewards', value: userData?.points || 0, icon: Gift, color: 'text-primary' },
-    { label: 'Wallet', value: `₹${userData?.wallet_balance || 0}`, icon: Wallet, color: 'text-emerald-400' },
+    { 
+      label: 'Wallet', 
+      value: userData?.locked_wallet_balance > 0 
+        ? `₹${userData?.wallet_balance || 0} (${userData?.locked_wallet_balance}🔒)` 
+        : `₹${userData?.wallet_balance || 0}`, 
+      icon: Wallet, 
+      color: 'text-emerald-400',
+      onClick: () => setIsFundsLockOpen(true)
+    },
     { label: 'Experience', value: `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: Zap, color: 'text-yellow-400' },
   ], [wishlist, userData]);
 
   const handleAddFunds = async () => {
-    if (!authUser) return;
-    try {
-      const userDocRef = doc(db, 'users', firebaseUid);
-      const currentBalance = userData?.wallet_balance || 0;
-      await updateDoc(userDocRef, {
-        wallet_balance: currentBalance + 500,
-        updated_at: serverTimestamp()
-      });
-      toast.success('₹500 added to your wallet!');
-    } catch (error: any) {
-      console.error('Error adding funds:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
-      }
-      toast.error('Failed to add funds');
-    }
+    setIsAddFundsLockOpen(true);
   };
 
   const handleLogout = async () => {
@@ -1030,8 +1036,9 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
               <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-primary/5 group-hover:bg-primary/10" />
+              <SmartActionCard label="Lock Funds" icon={Shield} onClick={() => setIsFundsLockOpen(true)} color="bg-orange-500/5 group-hover:bg-orange-500/10 border-orange-500/10" />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
               <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-gradient-to-tr from-purple-500/10 to-pink-500/10 border-pink-500/10" />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
@@ -1494,6 +1501,19 @@ export const Profile: React.FC = () => {
         onClose={() => setShowUnlockModal(false)}
         tierName={newTierName}
         themeColor={badgeConfigs.find(c => c.tierName === newTierName)?.themeColor}
+      />
+
+      <SecureFundsLockModal
+        isOpen={isFundsLockOpen}
+        onClose={() => setIsFundsLockOpen(false)}
+        firebaseUid={firebaseUid}
+        userData={userData}
+        onSuccess={refreshProfile}
+      />
+
+      <AddFundsLockedModal
+        isOpen={isAddFundsLockOpen}
+        onClose={() => setIsAddFundsLockOpen(false)}
       />
 
       <AvatarEditor 

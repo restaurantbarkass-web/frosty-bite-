@@ -96,6 +96,21 @@ const ProductDetail: React.FC = () => {
 
         if (!supabaseError && items && items.length > 0) {
           const item = items[0];
+          let ai_desc = item.ai_description || '';
+          let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          
+          if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(ai_desc);
+              ai_desc = parsed.ai_description || '';
+              if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
+                est_time = Number(parsed.estimated_delivery_time);
+              }
+            } catch (e) {
+              // Ignore failure
+            }
+          }
+
           currentProduct = {
             id: item.id,
             name: item.name,
@@ -105,7 +120,8 @@ const ProductDetail: React.FC = () => {
             available: item.available !== undefined ? item.available : true,
             stock_quantity: item.stock_quantity || 0,
             description: item.description || '',
-            rating: item.rating || 5
+            rating: item.rating || 5,
+            estimated_delivery_time: est_time || 30
           };
         }
 
@@ -140,17 +156,35 @@ const ProductDetail: React.FC = () => {
             if (!relError && relItems) {
               const mappedRel = relItems
                 .filter((item: any) => item.id !== id)
-                .map((item: any) => ({
-                  id: item.id,
-                  name: item.name,
-                  price: item.price,
-                  image: item.image,
-                  category: item.category || 'General',
-                  available: item.available !== undefined ? item.available : true,
-                  stock_quantity: item.stock_quantity || 0,
-                  description: item.description || '',
-                  rating: item.rating || 5
-                }))
+                .map((item: any) => {
+                  let ai_desc = item.ai_description || '';
+                  let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+                  
+                  if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
+                    try {
+                      const parsed = JSON.parse(ai_desc);
+                      ai_desc = parsed.ai_description || '';
+                      if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
+                        est_time = Number(parsed.estimated_delivery_time);
+                      }
+                    } catch (e) {
+                      // Ignore failure
+                    }
+                  }
+
+                  return {
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    image: item.image,
+                    category: item.category || 'General',
+                    available: item.available !== undefined ? item.available : true,
+                    stock_quantity: item.stock_quantity || 0,
+                    description: item.description || '',
+                    rating: item.rating || 5,
+                    estimated_delivery_time: est_time || 30
+                  };
+                })
                 .slice(0, 8);
               setRelatedItems(mappedRel);
             }
@@ -497,7 +531,7 @@ const ProductDetail: React.FC = () => {
           >
             <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
               <Clock size={20} className="text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">25-30 Min</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{product.estimated_delivery_time || 30} Min</span>
             </div>
             <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
               <Flame size={20} className="text-orange-500" />

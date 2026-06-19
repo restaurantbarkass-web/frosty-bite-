@@ -528,7 +528,10 @@ export const Checkout: React.FC = () => {
         phone: formData.phone,
         customer_name: formData.name,
         email: user?.email || null,
-        estimated_delivery_time: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+        estimated_delivery_time: Math.max(
+          validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+          ...cart.map(item => item.estimated_delivery_time || 30)
+        ),
         notes: formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
@@ -582,7 +585,10 @@ export const Checkout: React.FC = () => {
             discount: discountAmount,
             delivery_charge: deliveryFee,
             couponCode: appliedCoupon?.code,
-            estimatedDelivery: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+            estimatedDelivery: Math.max(
+              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+              ...cart.map(item => item.estimated_delivery_time || 30)
+            ),
             scrollToQR: true
           } 
         });
@@ -616,7 +622,10 @@ export const Checkout: React.FC = () => {
             quantity: item.quantity,
             image: item.image
           })),
-          estimatedDelivery: validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25
+          estimatedDelivery: Math.max(
+            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+            ...cart.map(item => item.estimated_delivery_time || 30)
+          )
         };
         
         setConfirmedOrder(orderSummary);
@@ -1038,7 +1047,12 @@ export const Checkout: React.FC = () => {
                       <span className="text-emerald-500 text-lg">✅</span>
                       <div>
                         <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
-                        <p className="text-zinc-200 text-xs font-semibold mt-0.5">Estimated delivery: {validationResult.estimatedDeliveryMins} mins</p>
+                        <p className="text-zinc-200 text-xs font-semibold mt-0.5">
+                          Estimated delivery: {Math.max(
+                            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                            ...cart.map(item => item.estimated_delivery_time || 30)
+                          )} mins
+                        </p>
                         {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
                       </div>
                     </div>

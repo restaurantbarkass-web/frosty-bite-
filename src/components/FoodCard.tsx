@@ -320,10 +320,17 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
         </div>
         
         {variant !== 'compact' && (
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider line-clamp-2 mb-6">
+          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider line-clamp-2 mb-4">
             {item.description}
           </p>
         )}
+
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-1 text-orange-500/85 text-[9px] font-black uppercase tracking-wider bg-[#f97316]/5 py-1.5 px-2.5 rounded-xl w-fit border border-[#f97316]/10">
+            <Zap size={9} className="fill-[#f97316] text-[#f97316]" />
+            <span>Delivers in {item.estimated_delivery_time || 30} Mins</span>
+          </div>
+        </div>
 
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <button

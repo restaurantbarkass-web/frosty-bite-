@@ -30,12 +30,26 @@ async function run() {
     console.log('Successfully fetched service_pincodes:', pins);
   }
 
-  console.log('Fetching delivery_areas records:');
-  const { data: areas, error: areaErr } = await client.from('delivery_areas').select('*').limit(3);
-  if (areaErr) {
-    console.error('Fetch delivery_areas Error:', areaErr);
+  console.log('Fetching products records:');
+  const { data: prods, error: prodErr } = await client.from('products').select('*').limit(1);
+  if (prodErr) {
+    console.error('Fetch products Error:', prodErr);
   } else {
-    console.log('Successfully fetched delivery_areas:', areas);
+    console.log('Successfully fetched products:', prods);
+    if (prods && prods.length > 0) {
+      console.log('Product columns:', Object.keys(prods[0]));
+      // Try calling run_sql, exec_sql or execute_sql
+      for (const rpcName of ['exec_sql', 'run_sql', 'execute_sql']) {
+        console.log(`Trying ${rpcName}...`);
+        const { data, error } = await client.rpc(rpcName, { sql: 'ALTER TABLE products ADD COLUMN IF NOT EXISTS estimated_delivery_time INTEGER DEFAULT 30;' });
+        if (error) {
+          console.log(`Failed ${rpcName}:`, error.message);
+        } else {
+          console.log(`✅ Success with ${rpcName}!`);
+          break;
+        }
+      }
+    }
   }
 }
 

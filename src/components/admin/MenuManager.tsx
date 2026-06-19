@@ -18,10 +18,11 @@ interface MenuItem {
   description: string;
   ai_description?: string;
   is_ai_boosted?: boolean;
+  estimated_delivery_time?: number;
 }
 
 import { ImageZoom } from '../ImageZoom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Clock } from 'lucide-react';
 
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 
@@ -44,7 +45,8 @@ export const MenuManager: React.FC = () => {
     available: true,
     description: '',
     ai_description: '',
-    is_ai_boosted: false
+    is_ai_boosted: false,
+    estimated_delivery_time: '30'
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,18 +81,36 @@ export const MenuManager: React.FC = () => {
       if (error) throw error;
       
       if (data) {
-        const mappedItems = data.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          image: item.image,
-          category: item.category || 'General',
-          available: item.available !== undefined ? item.available : true,
-          stock_quantity: item.stock_quantity || 0,
-          description: item.description || '',
-          ai_description: item.ai_description || '',
-          is_ai_boosted: item.is_ai_boosted || false
-        }));
+        const mappedItems = data.map((item: any) => {
+          let ai_desc = item.ai_description || '';
+          let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          
+          if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(ai_desc);
+              ai_desc = parsed.ai_description || '';
+              if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
+                est_time = Number(parsed.estimated_delivery_time);
+              }
+            } catch (e) {
+              // Ignore failure
+            }
+          }
+          
+          return {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            image: item.image,
+            category: item.category || 'General',
+            available: item.available !== undefined ? item.available : true,
+            stock_quantity: item.stock_quantity || 0,
+            description: item.description || '',
+            ai_description: ai_desc,
+            is_ai_boosted: item.is_ai_boosted || false,
+            estimated_delivery_time: est_time || 30
+          };
+        });
         setMenuItems(mappedItems);
       }
       setLoading(false);
@@ -148,16 +168,23 @@ export const MenuManager: React.FC = () => {
       }
 
       const stockQty = Number(formData.stock_quantity);
+      
+      const serializedAiDescription = JSON.stringify({
+        ai_description: formData.ai_description,
+        estimated_delivery_time: Number(formData.estimated_delivery_time || 30)
+      });
+
       const body = {
         name: formData.name,
         price: Number(formData.price),
         image: imageUrl,
         category: formData.category,
         description: formData.description,
-        ai_description: formData.ai_description,
+        ai_description: serializedAiDescription,
         is_ai_boosted: formData.is_ai_boosted,
         stock_quantity: stockQty,
-        available: stockQty === 0 ? false : formData.available
+        available: stockQty === 0 ? false : formData.available,
+        estimated_delivery_time: Number(formData.estimated_delivery_time || 30)
       };
 
       let result;
@@ -166,10 +193,29 @@ export const MenuManager: React.FC = () => {
           .from('products')
           .update(body)
           .eq('id', editingItem.id);
+          
+        if (result.error && (result.error.code === 'PGRST204' || result.error.message?.includes('estimated_delivery_time'))) {
+          console.warn('DB scheme does not have estimated_delivery_time, retrying using JSON serialization in ai_description...');
+          const fallbackBody = { ...body };
+          delete (fallbackBody as any).estimated_delivery_time;
+          result = await supabase
+            .from('products')
+            .update(fallbackBody)
+            .eq('id', editingItem.id);
+        }
       } else {
         result = await supabase
           .from('products')
           .insert([body]);
+          
+        if (result.error && (result.error.code === 'PGRST204' || result.error.message?.includes('estimated_delivery_time'))) {
+          console.warn('DB scheme does not have estimated_delivery_time, retrying using JSON serialization in ai_description...');
+          const fallbackBody = { ...body };
+          delete (fallbackBody as any).estimated_delivery_time;
+          result = await supabase
+            .from('products')
+            .insert([fallbackBody]);
+        }
       }
 
       if (result.error) {
@@ -193,7 +239,8 @@ export const MenuManager: React.FC = () => {
         available: true, 
         description: '',
         ai_description: '',
-        is_ai_boosted: false
+        is_ai_boosted: false,
+        estimated_delivery_time: '30'
       });
       fetchMenu(); // Refresh list from Supabase
     } catch (error: any) {
@@ -339,7 +386,8 @@ export const MenuManager: React.FC = () => {
                 available: true, 
                 description: '',
                 ai_description: '',
-                is_ai_boosted: false
+                is_ai_boosted: false,
+                estimated_delivery_time: '30'
               });
               setIsAdding(true);
             }}
@@ -417,7 +465,8 @@ export const MenuManager: React.FC = () => {
                         available: item.available,
                         description: item.description || '',
                         ai_description: item.ai_description || '',
-                        is_ai_boosted: !!item.is_ai_boosted
+                        is_ai_boosted: !!item.is_ai_boosted,
+                        estimated_delivery_time: (item.estimated_delivery_time || 30).toString()
                       });
                       setIsAdding(true);
                     }}
@@ -446,11 +495,16 @@ export const MenuManager: React.FC = () => {
                       <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
                       <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
                       
-                      {item.is_ai_boosted && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md text-[8px] font-black text-primary uppercase animate-pulse mt-2">
-                          <Sparkles size={10} /> AI Boosted
+                      <div className="flex gap-2 items-center flex-wrap mt-2">
+                        {item.is_ai_boosted && (
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f97316]/10 border border-[#f97316]/20 rounded-md text-[8px] font-black text-[#f97316] uppercase animate-pulse">
+                            <Sparkles size={10} /> AI Boosted
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded-md text-[8px] font-black text-orange-400 uppercase">
+                          <Clock size={10} /> {item.estimated_delivery_time || 30} Mins
                         </div>
-                      )}
+                      </div>
 
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Stock:</span>
@@ -592,6 +646,23 @@ export const MenuManager: React.FC = () => {
                           placeholder="e.g. 50" 
                           className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
                         />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Estimated Delivery Time (Minutes) <span className="text-orange-500">*</span></label>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          required
+                          value={formData.estimated_delivery_time}
+                          onChange={(e) => setFormData({...formData, estimated_delivery_time: e.target.value})}
+                          placeholder="e.g. 30" 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                          <Clock size={18} />
+                        </div>
                       </div>
                     </div>
 

@@ -13,6 +13,7 @@ export interface FoodItem {
   available?: boolean;
   tags?: string[];
   barcode?: string;
+  estimated_delivery_time?: number; // Estimated time of delivery in minutes
 }
 
 export interface CartItem extends FoodItem {
