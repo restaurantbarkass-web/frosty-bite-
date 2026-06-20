@@ -98,6 +98,8 @@ const ProductDetail: React.FC = () => {
           const item = items[0];
           let ai_desc = item.ai_description || '';
           let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          let est_unit = item.estimated_delivery_time_unit || '';
+          let est_string = item.estimated_delivery_time_string || '';
           
           if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
             try {
@@ -105,6 +107,12 @@ const ProductDetail: React.FC = () => {
               ai_desc = parsed.ai_description || '';
               if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
                 est_time = Number(parsed.estimated_delivery_time);
+              }
+              if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
+                est_unit = parsed.estimated_delivery_time_unit;
+              }
+              if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
+                est_string = parsed.estimated_delivery_time_string;
               }
             } catch (e) {
               // Ignore failure
@@ -121,7 +129,9 @@ const ProductDetail: React.FC = () => {
             stock_quantity: item.stock_quantity || 0,
             description: item.description || '',
             rating: item.rating || 5,
-            estimated_delivery_time: est_time || 30
+            estimated_delivery_time: est_time || 30,
+            estimated_delivery_time_unit: (est_unit || 'mins') as 'mins' | 'days',
+            estimated_delivery_time_string: est_string
           };
         }
 
@@ -159,6 +169,8 @@ const ProductDetail: React.FC = () => {
                 .map((item: any) => {
                   let ai_desc = item.ai_description || '';
                   let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+                  let est_unit = item.estimated_delivery_time_unit || '';
+                  let est_string = item.estimated_delivery_time_string || '';
                   
                   if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
                     try {
@@ -166,6 +178,12 @@ const ProductDetail: React.FC = () => {
                       ai_desc = parsed.ai_description || '';
                       if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
                         est_time = Number(parsed.estimated_delivery_time);
+                      }
+                      if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
+                        est_unit = parsed.estimated_delivery_time_unit;
+                      }
+                      if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
+                        est_string = parsed.estimated_delivery_time_string;
                       }
                     } catch (e) {
                       // Ignore failure
@@ -182,7 +200,9 @@ const ProductDetail: React.FC = () => {
                     stock_quantity: item.stock_quantity || 0,
                     description: item.description || '',
                     rating: item.rating || 5,
-                    estimated_delivery_time: est_time || 30
+                    estimated_delivery_time: est_time || 30,
+                    estimated_delivery_time_unit: (est_unit || 'mins') as 'mins' | 'days',
+                    estimated_delivery_time_string: est_string
                   };
                 })
                 .slice(0, 8);
@@ -531,7 +551,11 @@ const ProductDetail: React.FC = () => {
           >
             <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
               <Clock size={20} className="text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{product.estimated_delivery_time || 30} Min</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                {product.estimated_delivery_time_unit === 'days' 
+                  ? `${product.estimated_delivery_time_string || product.estimated_delivery_time || '1-2'} Days` 
+                  : `${product.estimated_delivery_time || 30} Min`}
+              </span>
             </div>
             <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
               <Flame size={20} className="text-orange-500" />

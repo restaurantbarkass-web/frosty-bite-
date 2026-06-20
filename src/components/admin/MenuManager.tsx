@@ -19,10 +19,14 @@ interface MenuItem {
   ai_description?: string;
   is_ai_boosted?: boolean;
   estimated_delivery_time?: number;
+  estimated_delivery_time_unit?: 'mins' | 'days';
+  estimated_delivery_time_string?: string;
+  available_date?: string;
+  available_day?: string;
 }
 
 import { ImageZoom } from '../ImageZoom';
-import { Sparkles, Clock } from 'lucide-react';
+import { Sparkles, Clock, Calendar } from 'lucide-react';
 
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 
@@ -46,7 +50,11 @@ export const MenuManager: React.FC = () => {
     description: '',
     ai_description: '',
     is_ai_boosted: false,
-    estimated_delivery_time: '30'
+    estimated_delivery_time: '30',
+    estimated_delivery_time_unit: 'mins' as 'mins' | 'days',
+    estimated_delivery_time_string: '',
+    available_date: '',
+    available_day: ''
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +92,10 @@ export const MenuManager: React.FC = () => {
         const mappedItems = data.map((item: any) => {
           let ai_desc = item.ai_description || '';
           let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          let est_unit = item.estimated_delivery_time_unit || '';
+          let est_string = item.estimated_delivery_time_string || '';
+          let avail_date = item.available_date || '';
+          let avail_day = item.available_day || '';
           
           if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
             try {
@@ -91,6 +103,18 @@ export const MenuManager: React.FC = () => {
               ai_desc = parsed.ai_description || '';
               if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
                 est_time = Number(parsed.estimated_delivery_time);
+              }
+              if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
+                est_unit = parsed.estimated_delivery_time_unit;
+              }
+              if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
+                est_string = parsed.estimated_delivery_time_string;
+              }
+              if (!avail_date && parsed.available_date !== undefined) {
+                avail_date = parsed.available_date;
+              }
+              if (!avail_day && parsed.available_day !== undefined) {
+                avail_day = parsed.available_day;
               }
             } catch (e) {
               // Ignore failure
@@ -108,7 +132,11 @@ export const MenuManager: React.FC = () => {
             description: item.description || '',
             ai_description: ai_desc,
             is_ai_boosted: item.is_ai_boosted || false,
-            estimated_delivery_time: est_time || 30
+            estimated_delivery_time: est_time || 30,
+            estimated_delivery_time_unit: (est_unit || 'mins') as 'mins' | 'days',
+            estimated_delivery_time_string: est_string,
+            available_date: avail_date,
+            available_day: avail_day
           };
         });
         setMenuItems(mappedItems);
@@ -169,9 +197,17 @@ export const MenuManager: React.FC = () => {
 
       const stockQty = Number(formData.stock_quantity);
       
+      const estTimeVal = formData.estimated_delivery_time_unit === 'days' 
+        ? (parseInt(formData.estimated_delivery_time_string) || 2) 
+        : Number(formData.estimated_delivery_time || 30);
+
       const serializedAiDescription = JSON.stringify({
         ai_description: formData.ai_description,
-        estimated_delivery_time: Number(formData.estimated_delivery_time || 30)
+        estimated_delivery_time: estTimeVal,
+        estimated_delivery_time_unit: formData.estimated_delivery_time_unit,
+        estimated_delivery_time_string: formData.estimated_delivery_time_unit === 'days' ? formData.estimated_delivery_time_string : '',
+        available_date: formData.available_date || '',
+        available_day: formData.available_day || ''
       });
 
       const body = {
@@ -184,7 +220,11 @@ export const MenuManager: React.FC = () => {
         is_ai_boosted: formData.is_ai_boosted,
         stock_quantity: stockQty,
         available: stockQty === 0 ? false : formData.available,
-        estimated_delivery_time: Number(formData.estimated_delivery_time || 30)
+        estimated_delivery_time: estTimeVal,
+        estimated_delivery_time_unit: formData.estimated_delivery_time_unit,
+        estimated_delivery_time_string: formData.estimated_delivery_time_unit === 'days' ? formData.estimated_delivery_time_string : '',
+        available_date: formData.available_date ? formData.available_date : null,
+        available_day: formData.available_day ? formData.available_day : null
       };
 
       let result;
@@ -194,10 +234,21 @@ export const MenuManager: React.FC = () => {
           .update(body)
           .eq('id', editingItem.id);
           
-        if (result.error && (result.error.code === 'PGRST204' || result.error.message?.includes('estimated_delivery_time'))) {
-          console.warn('DB scheme does not have estimated_delivery_time, retrying using JSON serialization in ai_description...');
+        if (result.error && (
+            result.error.code === 'PGRST204' || 
+            result.error.message?.includes('estimated_delivery_time') ||
+            result.error.message?.includes('estimated_delivery_time_unit') ||
+            result.error.message?.includes('estimated_delivery_time_string') ||
+            result.error.message?.includes('available_date') ||
+            result.error.message?.includes('available_day')
+        )) {
+          console.warn('DB scheme does not have columns, retrying using JSON serialization in ai_description...');
           const fallbackBody = { ...body };
           delete (fallbackBody as any).estimated_delivery_time;
+          delete (fallbackBody as any).estimated_delivery_time_unit;
+          delete (fallbackBody as any).estimated_delivery_time_string;
+          delete (fallbackBody as any).available_date;
+          delete (fallbackBody as any).available_day;
           result = await supabase
             .from('products')
             .update(fallbackBody)
@@ -208,10 +259,21 @@ export const MenuManager: React.FC = () => {
           .from('products')
           .insert([body]);
           
-        if (result.error && (result.error.code === 'PGRST204' || result.error.message?.includes('estimated_delivery_time'))) {
-          console.warn('DB scheme does not have estimated_delivery_time, retrying using JSON serialization in ai_description...');
+        if (result.error && (
+            result.error.code === 'PGRST204' || 
+            result.error.message?.includes('estimated_delivery_time') ||
+            result.error.message?.includes('estimated_delivery_time_unit') ||
+            result.error.message?.includes('estimated_delivery_time_string') ||
+            result.error.message?.includes('available_date') ||
+            result.error.message?.includes('available_day')
+        )) {
+          console.warn('DB scheme does not have columns, retrying using JSON serialization in ai_description...');
           const fallbackBody = { ...body };
           delete (fallbackBody as any).estimated_delivery_time;
+          delete (fallbackBody as any).estimated_delivery_time_unit;
+          delete (fallbackBody as any).estimated_delivery_time_string;
+          delete (fallbackBody as any).available_date;
+          delete (fallbackBody as any).available_day;
           result = await supabase
             .from('products')
             .insert([fallbackBody]);
@@ -240,7 +302,11 @@ export const MenuManager: React.FC = () => {
         description: '',
         ai_description: '',
         is_ai_boosted: false,
-        estimated_delivery_time: '30'
+        estimated_delivery_time: '30',
+        estimated_delivery_time_unit: 'mins' as 'mins' | 'days',
+        estimated_delivery_time_string: '',
+        available_date: '',
+        available_day: ''
       });
       fetchMenu(); // Refresh list from Supabase
     } catch (error: any) {
@@ -387,7 +453,11 @@ export const MenuManager: React.FC = () => {
                 description: '',
                 ai_description: '',
                 is_ai_boosted: false,
-                estimated_delivery_time: '30'
+                estimated_delivery_time: '30',
+                estimated_delivery_time_unit: 'mins' as 'mins' | 'days',
+                estimated_delivery_time_string: '',
+                available_date: '',
+                available_day: ''
               });
               setIsAdding(true);
             }}
@@ -453,7 +523,7 @@ export const MenuManager: React.FC = () => {
                   >
                     <LinkIcon size={16} />
                   </button>
-                  <button 
+                   <button 
                     onClick={() => {
                       setEditingItem(item);
                       setFormData({
@@ -466,7 +536,11 @@ export const MenuManager: React.FC = () => {
                         description: item.description || '',
                         ai_description: item.ai_description || '',
                         is_ai_boosted: !!item.is_ai_boosted,
-                        estimated_delivery_time: (item.estimated_delivery_time || 30).toString()
+                        estimated_delivery_time: (item.estimated_delivery_time || 30).toString(),
+                        estimated_delivery_time_unit: item.estimated_delivery_time_unit || 'mins',
+                        estimated_delivery_time_string: item.estimated_delivery_time_string || '',
+                        available_date: item.available_date || '',
+                        available_day: item.available_day || ''
                       });
                       setIsAdding(true);
                     }}
@@ -502,8 +576,15 @@ export const MenuManager: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded-md text-[8px] font-black text-orange-400 uppercase">
-                          <Clock size={10} /> {item.estimated_delivery_time || 30} Mins
+                          <Clock size={10} /> {item.estimated_delivery_time_unit === 'days' 
+                            ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
+                            : `${item.estimated_delivery_time || 30} Mins`}
                         </div>
+                        {item.available_date && (
+                          <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 rounded-md text-[8px] font-black text-sky-400 uppercase">
+                            <Calendar size={10} /> {item.available_date} ({item.available_day})
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2 mt-1">
@@ -649,20 +730,106 @@ export const MenuManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Estimated Delivery Time (Minutes) <span className="text-orange-500">*</span></label>
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          required
-                          value={formData.estimated_delivery_time}
-                          onChange={(e) => setFormData({...formData, estimated_delivery_time: e.target.value})}
-                          placeholder="e.g. 30" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
-                        />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                          <Clock size={18} />
+                    <div className="space-y-4 p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
+                      <div className="flex items-center justify-between col-span-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Estimated Delivery Duration <span className="text-orange-500">*</span></label>
+                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, estimated_delivery_time_unit: 'mins'})}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${formData.estimated_delivery_time_unit === 'mins' ? 'bg-orange-500 text-white font-bold text-xs' : 'text-zinc-400 hover:text-white text-xs'}`}
+                          >
+                            Minutes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({...formData, estimated_delivery_time_unit: 'days'})}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${formData.estimated_delivery_time_unit === 'days' ? 'bg-orange-500 text-white font-bold text-xs' : 'text-zinc-400 hover:text-white text-xs'}`}
+                          >
+                            Days
+                          </button>
                         </div>
+                      </div>
+
+                      {formData.estimated_delivery_time_unit === 'mins' ? (
+                        <div className="relative">
+                          <input 
+                            type="number" 
+                            required={formData.estimated_delivery_time_unit === 'mins'}
+                            value={formData.estimated_delivery_time}
+                            onChange={(e) => setFormData({...formData, estimated_delivery_time: e.target.value})}
+                            placeholder="e.g. 30" 
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                            <Clock size={18} />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            required={formData.estimated_delivery_time_unit === 'days'}
+                            value={formData.estimated_delivery_time_string}
+                            onChange={(e) => setFormData({...formData, estimated_delivery_time_string: e.target.value})}
+                            placeholder="e.g. 1-2 or 3" 
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12 text-sm" 
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                            <Calendar size={18} />
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-zinc-500 font-bold tracking-wide italic leading-relaxed">
+                        {formData.estimated_delivery_time_unit === 'mins' 
+                          ? 'Product delivery time in minutes (e.g. 30 for 30 minutes).' 
+                          : 'Enter days format as a range (e.g. "1-2" or singular "3") to display on cards.'}
+                      </p>
+                    </div>
+
+                    {/* Availability Scheduling */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Available On Date</label>
+                        <div className="relative">
+                          <input 
+                            type="date" 
+                            value={formData.available_date}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (v) {
+                                const d = new Date(v);
+                                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                setFormData({
+                                  ...formData,
+                                  available_date: v,
+                                  available_day: days[d.getDay()]
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  available_date: '',
+                                  available_day: ''
+                                });
+                              }
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold pr-12 text-sm [color-scheme:dark]" 
+                          />
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none">
+                            <Calendar size={18} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Computed Day of Week</label>
+                        <input 
+                          type="text" 
+                          readOnly
+                          value={formData.available_day || 'No date selected'}
+                          placeholder="Monday, Tuesday, etc." 
+                          className="w-full bg-white/[0.02] border border-white/5 rounded-2xl py-4 px-6 text-orange-400 focus:outline-none transition-all font-bold placeholder:text-zinc-700 text-sm cursor-not-allowed" 
+                        />
                       </div>
                     </div>
 

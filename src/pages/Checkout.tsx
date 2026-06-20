@@ -60,6 +60,7 @@ export const Checkout: React.FC = () => {
     geofencingLongitude,
     geofencingRadius,
     geofencingZones,
+    isInstantDeliveryClosed,
     isLoading 
   } = useAppConfig();
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -90,6 +91,10 @@ export const Checkout: React.FC = () => {
     pincode: ''
   });
 
+  const [deliveryMode, setDeliveryMode] = useState<'instant' | 'scheduled'>('instant');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledDay, setScheduledDay] = useState('');
+
   const [validationResult, setValidationResult] = useState<{
     isValidating: boolean;
     success: boolean | null;
@@ -112,6 +117,79 @@ export const Checkout: React.FC = () => {
       });
     }
   }, [defaultDeliveryTime]);
+
+  const hasDaysItems = cart.some(item => item.estimated_delivery_time_unit === 'days');
+
+  const getDaysMaxString = () => {
+    const daysItems = cart.filter(item => item.estimated_delivery_time_unit === 'days');
+    if (daysItems.length === 0) return '';
+    const maxDays = Math.max(...daysItems.map(item => item.estimated_delivery_time || 1));
+    const stringItem = daysItems.find(item => item.estimated_delivery_time === maxDays);
+    return stringItem?.estimated_delivery_time_string || `${maxDays} Days`;
+  };
+
+  const getCartAvailabilityWarning = () => {
+    if (!scheduledDate || deliveryMode !== 'scheduled') {
+      const daysItems = cart.filter(item => item.estimated_delivery_time_unit === 'days');
+      if (daysItems.length > 0) {
+        return `Instant delivery is not available as "${daysItems[0].name}" is a pre-order item requiring days. Please switch to Scheduled Delivery.`;
+      }
+      const restrictedItems = cart.filter(item => item.available_date || item.available_day);
+      if (restrictedItems.length > 0) {
+        return `"${restrictedItems[0].name}" is only available for pre-order. Please switch to Scheduled Delivery.`;
+      }
+      return null;
+    }
+
+    const todayNum = new Date();
+    todayNum.setHours(0,0,0,0);
+    const scheduledNum = new Date(scheduledDate);
+    scheduledNum.setHours(0,0,0,0);
+    
+    const diffTime = scheduledNum.getTime() - todayNum.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    for (const item of cart) {
+      if (item.estimated_delivery_time_unit === 'days') {
+        const requiredDays = item.estimated_delivery_time || 1;
+        if (diffDays < requiredDays) {
+          const earliestDate = new Date(todayNum.getTime() + requiredDays * 24 * 60 * 60 * 1000);
+          return `"${item.name}" requires at least ${requiredDays} days preparation. Please choose a scheduled date starting from ${earliestDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} onwards.`;
+        }
+      }
+      
+      if (item.available_date && scheduledDate !== item.available_date) {
+        const formattedDate = new Date(item.available_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        return `"${item.name}" is only available on ${formattedDate}. Please select this exact date for scheduling delivery.`;
+      }
+      
+      if (item.available_day && scheduledDay && item.available_day.toLowerCase() !== scheduledDay.toLowerCase()) {
+        return `"${item.name}" is only available on ${item.available_day}s. Please choose a ${item.available_day} for delivery.`;
+      }
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (isInstantDeliveryClosed || hasDaysItems) {
+      setDeliveryMode('scheduled');
+      if (!scheduledDate) {
+        const today = new Date().toISOString().split('T')[0];
+        handleDateChange(today);
+      }
+    }
+  }, [isInstantDeliveryClosed, hasDaysItems]);
+
+  const handleDateChange = (dateVal: string) => {
+    setScheduledDate(dateVal);
+    if (dateVal) {
+      const date = new Date(dateVal);
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      setScheduledDay(days[date.getDay()]);
+    } else {
+      setScheduledDay('');
+    }
+  };
 
   const validateDeliveryAddress = async (fieldsToValidate = addrFields, coords = formData.location) => {
     setValidationResult(prev => ({ ...prev, isValidating: true }));
@@ -511,6 +589,10 @@ export const Checkout: React.FC = () => {
         });
       }
 
+      const scheduledArrivalStr = deliveryMode === 'scheduled' && scheduledDate
+        ? `Scheduled: ${scheduledDay}, ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : null;
+
       const orderData = {
         id: orderId,
         user_id: user?.uid || 'guest',
@@ -528,11 +610,14 @@ export const Checkout: React.FC = () => {
         phone: formData.phone,
         customer_name: formData.name,
         email: user?.email || null,
-        estimated_delivery_time: Math.max(
-          validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-          ...cart.map(item => item.estimated_delivery_time || 30)
-        ),
-        notes: formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
+        estimated_delivery_time: hasDaysItems 
+          ? getDaysMaxString() 
+          : `${Math.max(
+              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+              ...cart.map(item => item.estimated_delivery_time || 30)
+            )} mins`,
+        estimated_arrival: scheduledArrivalStr,
+        notes: (deliveryMode === 'scheduled' && scheduledDate ? `[SCHEDULED: ${scheduledDay}, ${scheduledDate}] ` : '') + formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
 
@@ -1048,10 +1133,14 @@ export const Checkout: React.FC = () => {
                       <div>
                         <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
                         <p className="text-zinc-200 text-xs font-semibold mt-0.5">
-                          Estimated delivery: {Math.max(
-                            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-                            ...cart.map(item => item.estimated_delivery_time || 30)
-                          )} mins
+                          Estimated delivery: {hasDaysItems ? (
+                            `Within ${getDaysMaxString()}`
+                          ) : (
+                            `${Math.max(
+                              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                              ...cart.map(item => item.estimated_delivery_time || 30)
+                            )} mins`
+                          )}
                         </p>
                         {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
                       </div>
@@ -1069,6 +1158,93 @@ export const Checkout: React.FC = () => {
                       <span className="text-zinc-500">🚚</span>
                       <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
                     </div>
+                  )}
+                </div>
+
+                {/* Delivery Scheduling: Set date and convert to day also */}
+                <div className="pt-4 border-t border-white/5 mt-2 text-left">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">
+                    Delivery Schedule
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={isInstantDeliveryClosed || hasDaysItems}
+                      onClick={() => !isInstantDeliveryClosed && !hasDaysItems && setDeliveryMode('instant')}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all relative ${
+                        isInstantDeliveryClosed || hasDaysItems
+                          ? 'bg-zinc-900/40 border-zinc-900/50 text-zinc-650 cursor-not-allowed'
+                          : deliveryMode === 'instant'
+                            ? 'bg-[#f97316]/10 border-[#f97316] text-white'
+                            : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <Zap size={18} className={(isInstantDeliveryClosed || hasDaysItems) ? 'text-zinc-600' : (deliveryMode === 'instant' ? 'text-orange-500' : 'text-zinc-500')} />
+                      <span className="text-[11px] font-black uppercase tracking-wider mt-2">Instant Delivery</span>
+                      {isInstantDeliveryClosed ? (
+                        <span className="text-[8px] bg-red-500/10 text-red-500 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-red-500/20 leading-none">CLOSED</span>
+                      ) : hasDaysItems ? (
+                        <span className="text-[8px] bg-sky-500/10 text-sky-400 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-sky-500/20 leading-none">PRE-ORDER ONLY</span>
+                      ) : (
+                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                          {Math.max(
+                            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                            ...cart.map(item => item.estimated_delivery_time || 30)
+                          )} mins
+                        </span>
+                      )}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliveryMode('scheduled');
+                        if (!scheduledDate) {
+                          const today = new Date().toISOString().split('T')[0];
+                          handleDateChange(today);
+                        }
+                      }}
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
+                        deliveryMode === 'scheduled'
+                          ? 'bg-[#f97316]/10 border-[#f97316] text-white'
+                          : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="text-lg">📅</span>
+                      <span className="text-[11px] font-black uppercase tracking-wider mt-2">Schedule Delivery</span>
+                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Set Date & Day</span>
+                    </button>
+                  </div>
+
+                  {deliveryMode === 'scheduled' && (
+                    <motion.div 
+                      key="scheduling_picker"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3"
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+                          Select Delivery Date
+                        </label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          value={scheduledDate}
+                          onChange={(e) => handleDateChange(e.target.value)}
+                          className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-orange-500/50 transition-all font-semibold uppercase"
+                        />
+                      </div>
+
+                      {scheduledDate && (
+                        <div className="flex items-center gap-2 bg-[#f97316]/5 border border-[#f97316]/10 px-4 py-3 rounded-xl">
+                          <span className="text-xs">📅</span>
+                          <span className="text-[11px] font-extrabold text-zinc-300 uppercase tracking-wider">
+                            Selected Day: <span className="text-orange-400 font-black">{scheduledDay}</span> ({new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                          </span>
+                        </div>
+                      )}
+                    </motion.div>
                   )}
                 </div>
               </div>
@@ -1326,13 +1502,25 @@ export const Checkout: React.FC = () => {
                 </div>
               )}
 
+              {getCartAvailabilityWarning() && (
+                <div className="p-4 bg-orange-500/10 border border-orange-500/20 text-orange-500 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} />
+                    <span className="font-black text-xs uppercase tracking-widest leading-none">Availability Warning</span>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-wider leading-relaxed text-zinc-400 font-bold">
+                    {getCartAvailabilityWarning()}
+                  </p>
+                </div>
+              )}
+
               <button
                 id="checkout-action-btn"
                 onClick={handlePlaceOrder}
-                disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()}
+                disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
                 className={cn(
                   "w-full btn-premium group h-16 transition-all",
-                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
+                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
                 )}
               >
                 <div className="flex items-center justify-center gap-3">
@@ -1393,10 +1581,10 @@ export const Checkout: React.FC = () => {
             
             <button
               onClick={handlePlaceOrder}
-              disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea()}
+              disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
               className={cn(
                 "w-full h-14 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-primary/20",
-                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea()) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
+                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
               )}
             >
               {isOrdering ? (
@@ -1410,6 +1598,8 @@ export const Checkout: React.FC = () => {
                 'Orders Closed'
               ) : !isLocationInServiceArea() ? (
                 'Location Out of Boundary'
+              ) : getCartAvailabilityWarning() ? (
+                'Check Schedule Date'
               ) : (
                 <>
                   <span>

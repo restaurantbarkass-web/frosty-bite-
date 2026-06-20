@@ -14,6 +14,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 
 import { ImageZoom } from './ImageZoom';
+import { preloadRoute } from '../utils/preload';
 
 interface FoodCardProps {
   item: FoodItem;
@@ -208,6 +209,12 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
           "group relative bg-white/5 overflow-hidden border border-white/5 transition-all shadow-xl cursor-pointer",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
+        onMouseEnter={() => {
+          preloadRoute(`/product/${item.id}`);
+        }}
+        onTouchStart={() => {
+          preloadRoute(`/product/${item.id}`);
+        }}
         onClick={() => {
           navigate(`/product/${item.id}`);
           onClick?.();
@@ -328,7 +335,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-1 text-orange-500/85 text-[9px] font-black uppercase tracking-wider bg-[#f97316]/5 py-1.5 px-2.5 rounded-xl w-fit border border-[#f97316]/10">
             <Zap size={9} className="fill-[#f97316] text-[#f97316]" />
-            <span>Delivers in {item.estimated_delivery_time || 30} Mins</span>
+            <span>
+              Delivers in {item.estimated_delivery_time_unit === 'days' 
+                ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
+                : `${item.estimated_delivery_time || 30} Mins`}
+            </span>
           </div>
         </div>
 

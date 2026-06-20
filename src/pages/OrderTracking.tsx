@@ -158,9 +158,18 @@ export const OrderTracking: React.FC = () => {
   const getRemainingTime = React.useCallback(() => {
     if (!order || !order.created_at || !order.estimated_delivery_time) return null;
     
+    const estStr = String(order.estimated_delivery_time).trim();
+    const isMinutesOnly = /^\d+\s*(mins?|minutes?)?$/i.test(estStr);
+    if (!isMinutesOnly || estStr.toLowerCase().includes('day')) {
+      return null;
+    }
+    
     try {
+      const minsVal = parseInt(estStr, 10);
+      if (isNaN(minsVal)) return null;
+      
       const startTime = new Date(order.created_at).getTime();
-      const estimatedEndTime = startTime + (order.estimated_delivery_time * 60 * 1000);
+      const estimatedEndTime = startTime + (minsVal * 60 * 1000);
       const now = Date.now();
       const diff = estimatedEndTime - now;
       
@@ -320,9 +329,20 @@ export const OrderTracking: React.FC = () => {
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Estimated Arrival</span>
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-primary" />
-              <span className="text-xl font-black text-white tabular-nums">
-                {countdown || (order.estimated_delivery_time ? `${order.estimated_delivery_time} mins` : 'Calculating...')}
-              </span>
+              {order.estimated_arrival ? (
+                <span className="text-sm font-extrabold text-orange-400 uppercase tracking-wide">
+                  {order.estimated_arrival}
+                </span>
+              ) : (
+                <span className="text-xl font-black text-white tabular-nums">
+                  {countdown || (order.estimated_delivery_time ? (
+                    typeof order.estimated_delivery_time === 'string' &&
+                    (order.estimated_delivery_time.toLowerCase().includes('min') || order.estimated_delivery_time.toLowerCase().includes('day'))
+                      ? order.estimated_delivery_time
+                      : `${order.estimated_delivery_time} mins`
+                  ) : 'Calculating...')}
+                </span>
+              )}
             </div>
           </div>
         )}

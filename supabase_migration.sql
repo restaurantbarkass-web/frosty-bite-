@@ -65,6 +65,9 @@ ALTER TABLE public.products ADD COLUMN IF NOT EXISTS available BOOLEAN DEFAULT t
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock_quantity INTEGER DEFAULT 0;
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS estimated_delivery_time INTEGER DEFAULT 30;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS estimated_delivery_time_unit TEXT DEFAULT 'mins';
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS available_date TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS available_day TEXT;
 
 -- 4. Alter Orders table columns
 -- Drop incompatible foreign keys first if they exist

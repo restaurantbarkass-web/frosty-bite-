@@ -14,6 +14,10 @@ export interface FoodItem {
   tags?: string[];
   barcode?: string;
   estimated_delivery_time?: number; // Estimated time of delivery in minutes
+  estimated_delivery_time_unit?: 'mins' | 'days'; // Delivery time unit ('mins' or 'days')
+  estimated_delivery_time_string?: string; // Optional custom string like "1-2" or "3"
+  available_date?: string; // Optional specific date of availability
+  available_day?: string;  // Computed day of the week for availability
 }
 
 export interface CartItem extends FoodItem {
@@ -47,7 +51,7 @@ export interface Order {
   delivery_charge?: number;
   subtotal?: number;
   gst?: number;
-  estimated_delivery_time?: number; // in minutes
+  estimated_delivery_time?: number | string; // in minutes or custom string unit (e.g. days)
   estimated_arrival?: string; // ISO date string
   cancelled_at?: string;
   cancellation_reason?: string;

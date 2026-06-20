@@ -91,7 +91,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  const [editFormData, setEditFormData] = useState({
+  const [editFormData, setEditFormData] = useState<{
+    customer_name: string;
+    phone: string;
+    address: string;
+    notes: string;
+    estimated_delivery_time: number | string;
+  }>({
     customer_name: '',
     phone: '',
     address: '',
@@ -452,7 +458,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           phone: editFormData.phone,
           address: editFormData.address,
           notes: editFormData.notes,
-          estimated_delivery_time: Number(editFormData.estimated_delivery_time),
+          estimated_delivery_time: editFormData.estimated_delivery_time,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingOrder.id);
@@ -1231,15 +1237,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Estimated Delivery Time (minutes)</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Estimated Delivery Time (e.g. 30 mins, 3 Days)</label>
                     <div className="relative">
                       <input 
-                        type="number" 
+                        type="text" 
                         required
-                        min="1"
-                        max="180"
                         value={editFormData.estimated_delivery_time}
-                        onChange={(e) => setEditFormData({...editFormData, estimated_delivery_time: Number(e.target.value)})}
+                        onChange={(e) => setEditFormData({...editFormData, estimated_delivery_time: e.target.value})}
                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
                       />
                       <Clock size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-500" />

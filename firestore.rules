@@ -458,9 +458,9 @@ service cloud.firestore {
       allow list, update, delete: if isAdmin();
     }
 
-    // MOBILE OTPS: SMS Verification database
+    // MOBILE OTPS: SMS Verification database (Server-only / Admin-bypassed)
     match /mobile_otps/{phone} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
     // TEST CONNECTION: Publicly readable for testing database connectivity status

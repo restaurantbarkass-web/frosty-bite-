@@ -7,6 +7,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { LottieOfferButton } from './LottieOfferButton';
+import { preloadRoute } from '../utils/preload';
 
 export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
@@ -137,6 +138,16 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
                 damping: 25,
               }}
               className="relative flex flex-col items-center justify-center py-2 px-3 cursor-pointer group"
+              onMouseEnter={() => {
+                if (link.path && !link.path.startsWith('#')) {
+                  preloadRoute(link.path);
+                }
+              }}
+              onTouchStart={() => {
+                if (link.path && !link.path.startsWith('#')) {
+                  preloadRoute(link.path);
+                }
+              }}
               onClick={() => {
                 try {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -157,7 +168,6 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
                   transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
-
               {/* Icon */}
               <div className="relative">
                 <Icon 
@@ -216,6 +226,8 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
             <Link 
               key={link.path} 
               to={link.path}
+              onMouseEnter={() => preloadRoute(link.path)}
+              onTouchStart={() => preloadRoute(link.path)}
               onClick={(e) => {
                 if (isActive) {
                   e.preventDefault();

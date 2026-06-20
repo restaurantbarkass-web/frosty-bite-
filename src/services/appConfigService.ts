@@ -14,6 +14,7 @@ export interface AppConfig {
   geofencingLongitude?: number;
   geofencingRadius?: number;
   geofencingZones?: string; // JSON string of multiple zones
+  isInstantDeliveryClosed?: boolean;
 }
 
 let currentListeners: ((config: AppConfig) => void)[] = [];
@@ -66,6 +67,7 @@ const startFirebaseRealtime = () => {
           currentConfig.deliveryFeePerKm !== normalizedFresh.deliveryFeePerKm ||
           currentConfig.deliveryFreeKm !== normalizedFresh.deliveryFreeKm ||
           currentConfig.defaultDeliveryTime !== normalizedFresh.defaultDeliveryTime ||
+          currentConfig.isInstantDeliveryClosed !== normalizedFresh.isInstantDeliveryClosed ||
           JSON.stringify(currentConfig.updated_at) !== JSON.stringify(normalizedFresh.updated_at);
 
         if (changed) {
@@ -459,7 +461,7 @@ export const appConfigService = {
   /**
    * Updates delivery pricing settings in Firebase Firestore and Supabase.
    */
-  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number; defaultDeliveryTime: number }, customToken?: string | null) => {
+  updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number; defaultDeliveryTime: number; isInstantDeliveryClosed?: boolean }, customToken?: string | null) => {
     isUpdatingConfig = true;
     const oldConfig = currentConfig ? { ...currentConfig } : null;
     const updatedConfig = {
@@ -468,7 +470,8 @@ export const appConfigService = {
       deliveryBaseFee: pricing.baseFee,
       deliveryFeePerKm: pricing.perKm,
       deliveryFreeKm: pricing.freeKm,
-      defaultDeliveryTime: pricing.defaultDeliveryTime
+      defaultDeliveryTime: pricing.defaultDeliveryTime,
+      isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false
     } as AppConfig;
 
     // Perform optimistic local update so the UI changes instantly
@@ -491,6 +494,7 @@ export const appConfigService = {
           deliveryFeePerKm: pricing.perKm,
           deliveryFreeKm: pricing.freeKm,
           defaultDeliveryTime: pricing.defaultDeliveryTime,
+          isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false,
           updated_at: serverTimestamp()
         }, { merge: true }); // fallback merge
         console.log('[appConfigService] Direct Firestore delivery update succeeded!');

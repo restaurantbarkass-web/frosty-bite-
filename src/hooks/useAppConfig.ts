@@ -39,6 +39,7 @@ export const useAppConfig = () => {
     geofencingLatitude: config?.geofencingLatitude ?? 20.4625,
     geofencingLongitude: config?.geofencingLongitude ?? 85.8828,
     geofencingRadius: config?.geofencingRadius ?? 12,
-    geofencingZones: config?.geofencingZones ?? '[]'
+    geofencingZones: config?.geofencingZones ?? '[]',
+    isInstantDeliveryClosed: config?.isInstantDeliveryClosed ?? false
   };
 };

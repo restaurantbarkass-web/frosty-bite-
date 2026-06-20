@@ -12,6 +12,7 @@ export const Pricing: React.FC = () => {
   const [perKm, setPerKm] = useState(8);
   const [freeKm, setFreeKm] = useState(5);
   const [defaultDeliveryTime, setDefaultDeliveryTime] = useState(25);
+  const [isInstantDeliveryClosed, setIsInstantDeliveryClosed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,6 +41,7 @@ export const Pricing: React.FC = () => {
           setPerKm(config.deliveryFeePerKm ?? 8);
           setFreeKm(config.deliveryFreeKm ?? 5);
           setDefaultDeliveryTime(config.defaultDeliveryTime ?? 25);
+          setIsInstantDeliveryClosed(config.isInstantDeliveryClosed ?? false);
 
           setGeofencingEnabled(config.geofencingEnabled ?? true);
           setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
@@ -75,7 +77,8 @@ export const Pricing: React.FC = () => {
         baseFee,
         perKm,
         freeKm,
-        defaultDeliveryTime
+        defaultDeliveryTime,
+        isInstantDeliveryClosed
       }, token);
       toast.success('Delivery settings updated successfully!');
     } catch (error) {
@@ -220,6 +223,24 @@ export const Pricing: React.FC = () => {
                   <span>0 KM</span>
                   <span>10 KM</span>
                   <span>20 KM</span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-bold text-gray-300">Close 30-min Instant Delivery</span>
+                    <span className="text-[10px] text-gray-500 leading-relaxed max-w-[240px] block mt-1">
+                      Turn this ON to temporarily hide instant/rush 30-min delivery options for customers during checkout.
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsInstantDeliveryClosed(!isInstantDeliveryClosed)}
+                    className={`relative w-12 h-6 rounded-full transition-all duration-300 focus:outline-none flex-shrink-0 ${isInstantDeliveryClosed ? 'bg-orange-500' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${isInstantDeliveryClosed ? 'translate-x-6' : ''}`} />
+                  </button>
                 </div>
               </div>
             </div>

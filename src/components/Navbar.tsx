@@ -8,6 +8,7 @@ import { cn, smoothScroll } from '../lib/utils';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
+import { preloadRoute } from '../utils/preload';
 
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
@@ -167,6 +168,16 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   <Link 
                     key={link.path} 
                     to={link.path} 
+                    onMouseEnter={() => {
+                      if (link.path && !link.path.startsWith('#')) {
+                        preloadRoute(link.path);
+                      }
+                    }}
+                    onTouchStart={() => {
+                      if (link.path && !link.path.startsWith('#')) {
+                        preloadRoute(link.path);
+                      }
+                    }}
                     onClick={(e) => {
                       if (location.pathname === link.path) {
                         e.preventDefault();
@@ -184,6 +195,16 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                 <Link
                   key={link.path}
                   to={link.path}
+                  onMouseEnter={() => {
+                    if (link.path && !link.path.startsWith('#')) {
+                      preloadRoute(link.path);
+                    }
+                  }}
+                  onTouchStart={() => {
+                    if (link.path && !link.path.startsWith('#')) {
+                      preloadRoute(link.path);
+                    }
+                  }}
                   onClick={(e) => {
                     if ('onClick' in link && link.onClick) {
                       e.preventDefault();
