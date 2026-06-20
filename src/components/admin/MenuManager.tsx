@@ -236,11 +236,14 @@ export const MenuManager: React.FC = () => {
           
         if (result.error && (
             result.error.code === 'PGRST204' || 
+            result.error.code === '42703' ||
             result.error.message?.includes('estimated_delivery_time') ||
             result.error.message?.includes('estimated_delivery_time_unit') ||
             result.error.message?.includes('estimated_delivery_time_string') ||
             result.error.message?.includes('available_date') ||
-            result.error.message?.includes('available_day')
+            result.error.message?.includes('available_day') ||
+            result.error.message?.includes('column') ||
+            result.error.message?.includes('does not exist')
         )) {
           console.warn('DB scheme does not have columns, retrying using JSON serialization in ai_description...');
           const fallbackBody = { ...body };
@@ -261,11 +264,14 @@ export const MenuManager: React.FC = () => {
           
         if (result.error && (
             result.error.code === 'PGRST204' || 
+            result.error.code === '42703' ||
             result.error.message?.includes('estimated_delivery_time') ||
             result.error.message?.includes('estimated_delivery_time_unit') ||
             result.error.message?.includes('estimated_delivery_time_string') ||
             result.error.message?.includes('available_date') ||
-            result.error.message?.includes('available_day')
+            result.error.message?.includes('available_day') ||
+            result.error.message?.includes('column') ||
+            result.error.message?.includes('does not exist')
         )) {
           console.warn('DB scheme does not have columns, retrying using JSON serialization in ai_description...');
           const fallbackBody = { ...body };
