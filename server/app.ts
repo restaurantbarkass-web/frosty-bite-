@@ -66,8 +66,43 @@ app.use((req, res, next) => {
 
 // 2. Security Middlewares
 app.use(helmet({
-  contentSecurityPolicy: false,
-  frameguard: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://*.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: [
+        "'self'",
+        "https:",
+        "wss:",
+        "http:",
+        "ws:",
+        "https://*.googleapis.com",
+        "https://*.firebaseio.com"
+      ],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameAncestors: [
+        "'self'",
+        "https://*.google.com",
+        "https://*.web.app",
+        "https://*.run.app",
+        "https://*.aistudio.google",
+        "https://*.cloud.google",
+        "https://*.cloud",
+        "https://*.run"
+      ]
+    }
+  },
+  frameguard: false, // Kept false to support the AI Studio iframe preview environment safely
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   crossOriginEmbedderPolicy: false
 }));
 app.use(cors((req: any, callback: any) => {
