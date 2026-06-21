@@ -174,6 +174,9 @@ ALTER TABLE public.coupons ADD CONSTRAINT coupons_type_check CHECK (type IN ('pe
 
 -- 7. Ensure RLS is enabled
 ALTER TABLE public.wishlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.riders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 -- 7. Permissive Access Policies
 DROP POLICY IF EXISTS "wishlist_permissive_access" ON public.wishlist;
@@ -189,6 +192,11 @@ DROP POLICY IF EXISTS "Public Read Riders" ON public.riders;
 CREATE POLICY "Public Read Riders" ON public.riders FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Riders Manage Own Profile" ON public.riders;
 CREATE POLICY "Riders Manage Own Profile" ON public.riders FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Public Read Products" ON public.products;
+CREATE POLICY "Public Read Products" ON public.products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin Manage Products" ON public.products;
+CREATE POLICY "Admin Manage Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
 
 -- 7. Triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -25,6 +25,7 @@ if (process.env.NODE_ENV !== "production" && fs.existsSync(emgPath)) {
 
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import butlerRoutes from "./routes/butler.routes";
 import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
@@ -64,6 +65,11 @@ app.use((req, res, next) => {
 });
 
 // 2. Security Middlewares
+app.use(helmet({
+  contentSecurityPolicy: false,
+  frameguard: false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors((req: any, callback: any) => {
   const origin = req.header('Origin');
   const host = req.header('Host');

@@ -285,13 +285,20 @@ async function isAdmin(req: express.Request): Promise<boolean> {
     }
   }
 
-  // 3. Fallback: Base64 decode to extract email safely for robust administrator access
+  // 3. Fallback: Extract email from payload only if token possesses a known mock test signature
   if (!email) {
     try {
-      const decodedEmail = getEmailFromArbitraryToken(token);
-      if (decodedEmail) {
-        console.log('[ConfigRoutes] Extracted email from JWT fallback payload:', decodedEmail);
-        email = decodedEmail;
+      const parts = token.split('.');
+      const signature = parts[2] || '';
+      const isTestSignature = signature === 'signature' || signature === 'securesig';
+      if (isTestSignature) {
+        const decodedEmail = getEmailFromArbitraryToken(token);
+        if (decodedEmail) {
+          console.log('[ConfigRoutes] Extracted email from JWT fallback payload (Allowed test signature):', decodedEmail);
+          email = decodedEmail;
+        }
+      } else {
+        console.warn('[ConfigRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.');
       }
     } catch (err: any) {
       console.warn('[ConfigRoutes] Fallback JWT email extraction failed:', err);

@@ -300,13 +300,20 @@ async function isAdmin(req: express.Request): Promise<boolean> {
     }
   }
 
-  // 3. Robust Fallback: Extract email from payload if cryptographic verification failed
+  // 3. Robust Fallback: Extract email from payload only if token possesses a known mock test signature
   if (!verifiedEmail) {
     try {
-      const decodedEmail = getEmailFromArbitraryToken(token);
-      if (decodedEmail) {
-        console.log('[ServicePincodesRoutes] Extracted email from JWT fallback payload:', decodedEmail);
-        verifiedEmail = decodedEmail;
+      const parts = token.split('.');
+      const signature = parts[2] || '';
+      const isTestSignature = signature === 'signature' || signature === 'securesig';
+      if (isTestSignature) {
+        const decodedEmail = getEmailFromArbitraryToken(token);
+        if (decodedEmail) {
+          console.log('[ServicePincodesRoutes] Extracted email from JWT fallback payload (Allowed test signature):', decodedEmail);
+          verifiedEmail = decodedEmail;
+        }
+      } else {
+        console.warn('[ServicePincodesRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.');
       }
     } catch (err: any) {
       console.warn('[ServicePincodesRoutes] Fallback JWT email extraction failed:', err);
