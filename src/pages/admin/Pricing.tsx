@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Truck, Save, Info, MapPin, IndianRupee, Clock, Navigation, Plus, Trash2, ShieldAlert, Globe } from 'lucide-react';
-import { appConfigService, AppConfig } from '../../services/appConfigService';
+import { useConfig } from '../../context/ConfigContext';
 import { InputField } from '../../components/InputField';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
 export const Pricing: React.FC = () => {
   const { user } = useAuth();
+  const { config, updateDeliveryPricing, updateGeofencingSettings, isLoading: configLoading } = useConfig();
   const [baseFee, setBaseFee] = useState(20);
   const [perKm, setPerKm] = useState(8);
   const [freeKm, setFreeKm] = useState(5);
@@ -33,36 +34,28 @@ export const Pricing: React.FC = () => {
   const sampleDistance = 7.2;
 
   useEffect(() => {
-    const fetchConfig = async () => {
+    if (config) {
+      setBaseFee(config.deliveryBaseFee ?? 20);
+      setPerKm(config.deliveryFeePerKm ?? 8);
+      setFreeKm(config.deliveryFreeKm ?? 5);
+      setDefaultDeliveryTime(config.defaultDeliveryTime ?? 25);
+      setIsInstantDeliveryClosed(config.isInstantDeliveryClosed ?? false);
+
+      setGeofencingEnabled(config.geofencingEnabled ?? true);
+      setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
+      setGeofencingLongitude(config.geofencingLongitude ?? 85.8828);
+      setGeofencingRadius(config.geofencingRadius ?? 12);
       try {
-        const config = await appConfigService.getConfig();
-        if (config) {
-          setBaseFee(config.deliveryBaseFee ?? 20);
-          setPerKm(config.deliveryFeePerKm ?? 8);
-          setFreeKm(config.deliveryFreeKm ?? 5);
-          setDefaultDeliveryTime(config.defaultDeliveryTime ?? 25);
-          setIsInstantDeliveryClosed(config.isInstantDeliveryClosed ?? false);
-
-          setGeofencingEnabled(config.geofencingEnabled ?? true);
-          setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
-          setGeofencingLongitude(config.geofencingLongitude ?? 85.8828);
-          setGeofencingRadius(config.geofencingRadius ?? 12);
-          try {
-            const parsed = config.geofencingZones ? JSON.parse(config.geofencingZones) : [];
-            setZones(parsed);
-          } catch (e) {
-            setZones([]);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching config:', error);
-      } finally {
-        setIsLoading(false);
+        const parsed = config.geofencingZones ? JSON.parse(config.geofencingZones) : [];
+        setZones(parsed);
+      } catch (e) {
+        setZones([]);
       }
-    };
-
-    fetchConfig();
-  }, []);
+      setIsLoading(false);
+    } else if (!configLoading) {
+      setIsLoading(false);
+    }
+  }, [config, configLoading]);
 
   const actualCalculateFee = () => {
     if (sampleDistance <= freeKm) return baseFee;
@@ -73,7 +66,7 @@ export const Pricing: React.FC = () => {
     setIsSaving(true);
     try {
       const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
-      await appConfigService.updateDeliveryPricing({
+      await updateDeliveryPricing({
         baseFee,
         perKm,
         freeKm,
@@ -92,7 +85,7 @@ export const Pricing: React.FC = () => {
     setIsSavingGeo(true);
     try {
       const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
-      await appConfigService.updateGeofencingSettings({
+      await updateGeofencingSettings({
         geofencingEnabled,
         geofencingLatitude,
         geofencingLongitude,

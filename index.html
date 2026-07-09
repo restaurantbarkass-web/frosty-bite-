@@ -17,6 +17,38 @@
     <meta name="description" content="Artisan bakery and frosty treats">
     <script>
       (function() {
+        // Initialize global diagnostics
+        window.__frostybite_diagnostics = {
+          errors: [],
+          unhandledRejections: [],
+          resourceFailures: [],
+          appLogs: []
+        };
+
+        // Helper to push diagnostic logs safely
+        function logDiagnostic(type, data) {
+          try {
+            data.timestamp = new Date().toISOString();
+            data.url = window.location.href;
+            window.__frostybite_diagnostics[type].push(data);
+            
+            // Also store in localStorage crash logs
+            var logs = [];
+            try {
+              logs = JSON.parse(localStorage.getItem('frostybite_crash_logs') || '[]');
+            } catch (_) {}
+            logs.push({
+              timestamp: data.timestamp,
+              component: 'Global' + type,
+              message: data.message || String(data),
+              stack: data.stack || ''
+            });
+            localStorage.setItem('frostybite_crash_logs', JSON.stringify(logs.slice(-20)));
+          } catch (e) {
+            console.warn("Failed to write diagnostic:", e);
+          }
+        }
+
         // Intercept global WebSocket creation to silence connection errors in sandboxed environments
         if (window.WebSocket) {
           var OriginalWebSocket = window.WebSocket;
@@ -53,35 +85,142 @@
           window.WebSocket = SafeWebSocket;
         }
 
-        function isBenign(msg) {
+        // Refined benign checks - ONLY silence Vite/WebSocket noise
+        function isBenignNoise(msg) {
           if (!msg) return false;
           var m = String(msg).toLowerCase();
-          return m.includes('websocket') || 
-                 m.includes('web socket') || 
-                 m.includes('closed without opened') || 
-                 m.includes('closeevent') || 
-                 m.includes('vite') ||
-                 m.includes('hmr');
+          return (m.indexOf('websocket') !== -1 || 
+                  m.indexOf('web socket') !== -1 || 
+                  m.indexOf('closed without opened') !== -1 || 
+                  m.indexOf('closeevent') !== -1 || 
+                  m.indexOf('vite') !== -1 || 
+                  m.indexOf('hmr') !== -1 ||
+                  m.indexOf('pending promise was never set') !== -1);
         }
-        window.addEventListener('error', function(e) {
-          var msg = e.message || (e.error ? e.error.message : '');
-          if (isBenign(msg)) {
+
+        // Custom Console.error wrapper
+        if (window.console && window.console.error) {
+          var originalConsoleError = window.console.error;
+          window.console.error = function() {
+            var args = Array.prototype.slice.call(arguments);
+            var argStr = args.map(function(arg) {
+              try {
+                if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg || '');
+              } catch(_) {
+                return '';
+              }
+            }).join(' ');
+
+            if (isBenignNoise(argStr)) {
+              return; // Suppress developer environment noise
+            }
+
+            // Save to diagnostics
             try {
-              e.preventDefault();
-              e.stopImmediatePropagation();
-            } catch(_) {}
+              window.__frostybite_diagnostics.appLogs.push({
+                timestamp: new Date().toISOString(),
+                message: argStr
+              });
+            } catch (_) {}
+
+            originalConsoleError.apply(window.console, arguments);
+          };
+        }
+
+        // Uncaught exceptions
+        window.onerror = function(msg, url, line, col, error) {
+          var strMsg = String(msg || '');
+          
+          if (isBenignNoise(strMsg)) {
+            return true; // prevent browser console spam for HMR
+          }
+
+          var stack = error ? (error.stack || '') : '';
+          
+          if (strMsg.toLowerCase().indexOf('script error') !== -1) {
+            logDiagnostic('errors', {
+              message: "Script Error: Modern browser security restricts error details for cross-origin scripts. Load the script with crossorigin='anonymous' and ensure CORS is enabled on the server.",
+              source: url || 'Unknown',
+              line: line || 0,
+              col: col || 0,
+              stack: stack || 'No stack trace available (cross-origin script restriction)'
+            });
+            return false; // let standard handlers and react errorboundary capture the error
+          }
+
+          logDiagnostic('errors', {
+            message: strMsg,
+            source: url || 'Unknown',
+            line: line || 0,
+            col: col || 0,
+            stack: stack
+          });
+
+          return false; // allow standard error propagation so ErrorBoundary can catch it
+        };
+
+        // Capturing error event listener for resource load failures (e.g. dynamic chunk script load failures)
+        window.addEventListener('error', function(e) {
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK' || target.tagName === 'IMG')) {
+            var src = target.src || target.href || '';
+            
+            // Log resource failure
+            logDiagnostic('resourceFailures', {
+              tagName: target.tagName,
+              url: src,
+              message: "Resource failed to load: <" + target.tagName.toLowerCase() + "> at " + src,
+              outerHTML: target.outerHTML ? target.outerHTML.substring(0, 150) : ''
+            });
+
+            // If it is a critical bundle file, we don't preventDefault so that the ErrorBoundary can show "Update Available"
+            if (src.indexOf('assets/') !== -1) {
+              console.error("Critical asset loading failure occurred:", src);
+            }
+          } else {
+            // General error event (uncaught exception)
+            var msg = e.message || (e.error ? (e.error.message || String(e.error)) : 'Unknown error event');
+            if (isBenignNoise(msg)) {
+              try {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+              } catch(_) {}
+              return;
+            }
+
+            var stack = e.error ? (e.error.stack || '') : '';
+            logDiagnostic('errors', {
+              message: msg,
+              source: e.filename || 'Unknown',
+              line: e.lineno || 0,
+              col: e.colno || 0,
+              stack: stack
+            });
           }
         }, true);
+
+        // Unhandled promise rejections
         window.addEventListener('unhandledrejection', function(e) {
           var reason = e.reason;
           var msg = reason ? (reason.message || reason.description || reason.reason || reason) : '';
           var constructorName = (reason && reason.constructor) ? String(reason.constructor.name) : '';
-          if (isBenign(msg) || isBenign(constructorName) || (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined))) {
+          
+          var msgStr = String(msg || '');
+          if (isBenignNoise(msgStr) || isBenignNoise(constructorName)) {
             try {
               e.preventDefault();
               e.stopImmediatePropagation();
             } catch(_) {}
+            return;
           }
+
+          var stack = reason && reason.stack ? reason.stack : '';
+          logDiagnostic('unhandledRejections', {
+            message: msgStr,
+            constructorName: constructorName,
+            stack: stack
+          });
         }, true);
       })();
     </script>

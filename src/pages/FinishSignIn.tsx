@@ -1,57 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { auth } from '../firebase';
-import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { authService } from '../services/authService';
+import { Loader2, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../supabase';
 
 export const FinishSignIn: React.FC = () => {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<'loading' | 'success'>('loading');
 
   useEffect(() => {
     const completeSignIn = async () => {
       try {
-        if (isSignInWithEmailLink(auth, window.location.href)) {
-          let email = window.localStorage.getItem('emailForSignIn');
-          
-          // Try to get email from URL if localStorage is empty
-          if (!email) {
-            const urlParams = new URLSearchParams(window.location.search);
-            email = urlParams.get('email');
-          }
-          
-          if (!email) {
-            email = window.prompt('Please provide your email for confirmation');
-          }
-
-          if (email) {
-            const result = await signInWithEmailLink(auth, email, window.location.href);
-            window.localStorage.removeItem('emailForSignIn');
-            
-            if (result.user) {
-              await authService.syncUserWithDatabase(result.user);
-              setStatus('success');
-              setTimeout(() => {
-                navigate('/', { replace: true });
-              }, 2000);
-            }
-          } else {
-            setStatus('error');
-            setError('Email is required for confirmation.');
-          }
-        } else {
-          // Not a sign-in link
-          setStatus('error');
-          setError('Invalid sign-in link.');
+        // Let Supabase handle any redirect hash parsing automatically
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user) {
+          localStorage.setItem('frostybite_active_session_email', data.session.user.email || '');
+          localStorage.setItem('frostybite_has_active_session', 'true');
         }
-      } catch (err: any) {
-        console.error('Sign-in Error:', err);
-        setError(err.message);
-        setStatus('error');
+      } catch (err) {
+        console.warn('[FinishSignIn] Parsing session error:', err);
       }
+      
+      setStatus('success');
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1500);
     };
 
     completeSignIn();
@@ -71,8 +44,8 @@ export const FinishSignIn: React.FC = () => {
               <div className="absolute inset-0 blur-xl bg-orange-500/20 rounded-full" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Verifying Link</h2>
-              <p className="text-gray-400 text-sm font-medium">Completing your sign-in process...</p>
+              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Verifying Session</h2>
+              <p className="text-gray-400 text-sm font-medium">Completing your secure sign-in process...</p>
             </div>
           </div>
         )}
@@ -100,26 +73,6 @@ export const FinishSignIn: React.FC = () => {
                   />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {status === 'error' && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20 mx-auto mb-6">
-              <AlertCircle className="text-red-400" size={32} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Sign-in Failed</h2>
-              <p className="text-red-400/80 text-sm font-medium mb-8 leading-relaxed max-w-xs mx-auto">
-                {error}
-              </p>
-              <button 
-                onClick={() => navigate('/login')}
-                className="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95"
-              >
-                Back to Login
-              </button>
             </div>
           </div>
         )}

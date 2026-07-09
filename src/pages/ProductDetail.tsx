@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { FoodCard } from '../components/FoodCard';
-import { safeFirestore } from '../services/firestoreService';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 import { supabase } from '../supabase';
 import toast from 'react-hot-toast';
@@ -38,6 +36,15 @@ const ProductDetail: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews' | 'ingredients'>('description');
+
+  useMetadata({
+    title: product ? product.name : 'Delicious Treat',
+    description: product ? (product.description || `Order delicious ${product.name} from Frosty Bite! Try our freshly prepared treats.`) : 'Delicious treats, fresh cheesecakes and more from Frosty Bite.',
+    keywords: product ? [product.name, product.category || 'Desserts', 'delicious', 'Frosty Bite'] : ['desserts', 'fast food', 'Frosty Bite'],
+    ogImage: product?.image || undefined,
+    ogTitle: product ? `${product.name} - Order Online` : undefined,
+    ogDescription: product ? product.description : undefined,
+  }, [product]);
 
   useEffect(() => {
     const fetchWishlistStatus = async () => {

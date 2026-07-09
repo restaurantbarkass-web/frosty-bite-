@@ -328,6 +328,24 @@ CREATE TABLE IF NOT EXISTS public.otps (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
+-- 13b. WhatsApp OTPs Table for Authentication with Security Tracking
+CREATE TABLE IF NOT EXISTS public.whatsapp_otps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone_number TEXT NOT NULL,
+    otp_code TEXT NOT NULL, -- Hashed secure token representation
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Enable RLS on whatsapp_otps
+ALTER TABLE public.whatsapp_otps ENABLE ROW LEVEL SECURITY;
+
+-- Allow full access to whatsapp_otps for the service_role key (server-side logic)
+DROP POLICY IF EXISTS "Service Role Manage WhatsApp OTPs" ON public.whatsapp_otps;
+CREATE POLICY "Service Role Manage WhatsApp OTPs" ON public.whatsapp_otps FOR ALL USING (true);
+
+
 -- Ensure columns exist if table was already created without them
 ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
 ALTER TABLE public.otps ADD COLUMN IF NOT EXISTS locked_until BIGINT DEFAULT 0;
@@ -358,6 +376,30 @@ CREATE POLICY "Service Role Manage OTPs" ON public.otps FOR ALL USING (true);
 
 DROP POLICY IF EXISTS "Service Role Manage Users" ON public.users;
 CREATE POLICY "Service Role Manage Users" ON public.users FOR ALL USING (true);
+
+-- Allow public/guest/any client to select the system settings row
+DROP POLICY IF EXISTS "Allow public read of system settings" ON public.users;
+CREATE POLICY "Allow public read of system settings" ON public.users FOR SELECT USING (email = 'system_settings_v1@frostybite.internal');
+
+-- Allow authenticated admins to update the system settings row
+DROP POLICY IF EXISTS "Allow admins to update system settings" ON public.users;
+CREATE POLICY "Allow admins to update system settings" ON public.users FOR UPDATE USING (
+  (auth.jwt() ->> 'email') IN (SELECT email FROM public.admins)
+  OR (auth.jwt() ->> 'email') IN (
+    'restaurantbarkass@gmail.com',
+    'wasifmd924@gmail.com',
+    'sayedazainab216@gmail.com',
+    'sayedazainabali76@gmail.com'
+  )
+) WITH CHECK (
+  (auth.jwt() ->> 'email') IN (SELECT email FROM public.admins)
+  OR (auth.jwt() ->> 'email') IN (
+    'restaurantbarkass@gmail.com',
+    'wasifmd924@gmail.com',
+    'sayedazainab216@gmail.com',
+    'sayedazainabali76@gmail.com'
+  )
+);
 
 -- Allow users to read their own profile
 DROP POLICY IF EXISTS "Users view own profile" ON public.users;
@@ -421,6 +463,7 @@ DROP POLICY IF EXISTS "permissive_all_service_pincodes" ON public.service_pincod
 CREATE POLICY "permissive_all_service_pincodes" ON public.service_pincodes FOR ALL USING (true) WITH CHECK (true);
 
 -- Allow anonymous read to service_pincodes for general accessibility
+DROP POLICY IF EXISTS "read_all_service_pincodes" ON public.service_pincodes;
 CREATE POLICY "read_all_service_pincodes" ON public.service_pincodes FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "permissive_all_service_zones" ON public.service_zones;
@@ -430,9 +473,46 @@ CREATE POLICY "permissive_all_service_zones" ON public.service_zones FOR ALL USI
 DO $$ 
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
-        ALTER publication supabase_realtime ADD TABLE public.delivery_areas;
-        ALTER publication supabase_realtime ADD TABLE public.service_pincodes;
-        ALTER publication supabase_realtime ADD TABLE public.service_zones;
+        -- Safely add tables to publication if not already added
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_rel pr 
+            JOIN pg_class c ON pr.prrelid = c.oid 
+            JOIN pg_namespace n ON c.relnamespace = n.oid 
+            WHERE pr.prpubid = (SELECT oid FROM pg_publication WHERE pubname = 'supabase_realtime') 
+            AND n.nspname = 'public' AND c.relname = 'users'
+        ) THEN
+            ALTER publication supabase_realtime ADD TABLE public.users;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_rel pr 
+            JOIN pg_class c ON pr.prrelid = c.oid 
+            JOIN pg_namespace n ON c.relnamespace = n.oid 
+            WHERE pr.prpubid = (SELECT oid FROM pg_publication WHERE pubname = 'supabase_realtime') 
+            AND n.nspname = 'public' AND c.relname = 'delivery_areas'
+        ) THEN
+            ALTER publication supabase_realtime ADD TABLE public.delivery_areas;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_rel pr 
+            JOIN pg_class c ON pr.prrelid = c.oid 
+            JOIN pg_namespace n ON c.relnamespace = n.oid 
+            WHERE pr.prpubid = (SELECT oid FROM pg_publication WHERE pubname = 'supabase_realtime') 
+            AND n.nspname = 'public' AND c.relname = 'service_pincodes'
+        ) THEN
+            ALTER publication supabase_realtime ADD TABLE public.service_pincodes;
+        END IF;
+
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_publication_rel pr 
+            JOIN pg_class c ON pr.prrelid = c.oid 
+            JOIN pg_namespace n ON c.relnamespace = n.oid 
+            WHERE pr.prpubid = (SELECT oid FROM pg_publication WHERE pubname = 'supabase_realtime') 
+            AND n.nspname = 'public' AND c.relname = 'service_zones'
+        ) THEN
+            ALTER publication supabase_realtime ADD TABLE public.service_zones;
+        END IF;
     END IF;
 EXCEPTION
     WHEN OTHERS THEN

@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import fs from "fs";
+import http from "http";
 
 // Load .env if it exists
 if (fs.existsSync(".env")) {
@@ -27,6 +28,7 @@ const PORT = 3000;
 
 async function startServer() {
   const app = express();
+  const httpServer = http.createServer(app);
   
   console.log(`[Server] Starting in ${process.env.NODE_ENV || 'development'} mode...`);
   console.log(`[Server] Gemini API Key present: ${!!process.env.GEMINI_API_KEY}`);
@@ -52,16 +54,24 @@ async function startServer() {
   // It's important to mount this BEFORE Vite or static middlewares
   app.use("/api", baseApp);
 
+  let viteInstance: any = null;
+
   // Priority 1: Vite middleware for development (only if NOT in production)
   if (!isProduction) {
     console.log("[Server] Mounting Vite middleware (Dev Mode)...");
     try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: { 
+          middlewareMode: true,
+          hmr: {
+            server: httpServer
+          }
+        },
         appType: "spa",
         root: process.cwd(),
       });
+      viteInstance = vite;
       app.use(vite.middlewares);
     } catch (err) {
       console.error("[Server] Failed to load Vite middleware, falling back to static:", err);
@@ -112,7 +122,7 @@ async function startServer() {
     res.status(500).json({ error: "Internal Server Error", message: err.message });
   });
 
-  app.listen(PORT, "0.0.0.0", () => {
+  httpServer.listen(PORT, "0.0.0.0", () => {
     console.log(`[Server] ✅ Production server is listening on 0.0.0.0:${PORT}`);
     console.log(`[Server] Health check: http://localhost:${PORT}/api/health`);
     console.log('PROJECT:', process.env.FIREBASE_PROJECT_ID);

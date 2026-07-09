@@ -50,6 +50,22 @@ export const BannerManager: React.FC = () => {
   useEffect(() => {
     fetchBanners();
     fetchAnalytics();
+
+    const channel = supabase
+      .channel('admin_banners_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'banners' },
+        () => {
+          console.log('[Realtime] Admin BannerManager detected banner changes, re-fetching...');
+          fetchBanners();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchBanners = async () => {

@@ -1,7 +1,17 @@
 {
-  "isOrderingOpen": true,
-  "deliveryBaseFee": 15,
-  "deliveryFeePerKm": 5,
-  "deliveryFreeKm": 3,
-  "updated_at": "2026-06-11T10:53:08.848Z"
+  "geofencingEnabled": false,
+  "geofencingRadius": 25,
+  "updated_at": "2026-07-07T20:49:10.320Z",
+  "geofencingLatitude": 20.4625,
+  "updatedAt": {
+    "type": "firestore/timestamp/1.0",
+    "seconds": 1777642877,
+    "nanoseconds": 769000000
+  },
+  "geofencingLongitude": 85.8828,
+  "deliveryFeePerKm": 0,
+  "isOrderingOpen": false,
+  "geofencingZones": [],
+  "deliveryBaseFee": 0,
+  "deliveryFreeKm": 5
 }

@@ -14,9 +14,7 @@ import { toPng } from 'html-to-image';
 import { StoryCard } from '../components/StoryCard';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
-import { db, auth } from '../firebase';
-import { doc, collection, query, where, orderBy, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { safeFirestore, handleFirestoreError, OperationType } from '../services/firestoreService';
+import { supabase } from '../supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
 import { Order, FoodItem } from '../types';
@@ -214,7 +212,6 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 
 export const Profile: React.FC = () => {
   const { user: authUser, logout, refreshProfile } = useAuth();
-  const firebaseUid = auth.currentUser?.uid || authUser?.firebase_uid || authUser?.uid;
   const { items: menuItems } = useMenu();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -339,32 +336,28 @@ export const Profile: React.FC = () => {
         setBadgeConfigs(configs);
 
         // User data
-        if (auth.currentUser) {
-          const userDataObj = await safeFirestore.get<any>(doc(db, 'users', firebaseUid));
-          
-          if (userDataObj) {
-            setUserData(userDataObj);
-            setFormData({
-              name: userDataObj.full_name || '',
-              phone: userDataObj.phone || '',
-              address: userDataObj.address || ''
-            });
-            if (userDataObj.settings) setSettingsData(userDataObj.settings);
-          }
+        if (authUser) {
+          setUserData(authUser);
+          setFormData({
+            name: authUser.full_name || authUser.name || '',
+            phone: authUser.phone || '',
+            address: authUser.address || ''
+          });
+          if (authUser.settings) setSettingsData(authUser.settings);
         }
 
         // Recent orders
-        if (auth.currentUser) {
-          const qOrders = query(
-            collection(db, 'orders'),
-            where('user_id', '==', firebaseUid),
-            orderBy('created_at', 'desc'),
-            limit(5)
-          );
-          const ordersData = await safeFirestore.list<Order>(qOrders);
+        if (authUser) {
+          const stableId = authUser.id || authUser.uid;
+          const { data: ordersData, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', stableId)
+            .order('created_at', { ascending: false })
+            .limit(5);
 
-          if (ordersData && ordersData.length > 0) {
-            setRecentOrders(ordersData);
+          if (!ordersError && ordersData) {
+            setRecentOrders(ordersData as any[]);
           }
         }
 
@@ -394,45 +387,63 @@ export const Profile: React.FC = () => {
     fetchData();
 
     // Real-time subscriptions
-    let unsubUser = () => {};
-    let unsubOrders = () => {};
+    let userSubscription: any = null;
+    let ordersSubscription: any = null;
 
-    if (auth.currentUser) {
-      unsubUser = safeFirestore.subscribe<any>(doc(db, 'users', firebaseUid), (data) => {
-        if (data) {
-          // Check for tier upgrade
-          if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
-            setNewTierName(data.badge_tier);
-            setPrevTier(userData.badge_tier);
-            setShowUnlockModal(true);
+    if (authUser) {
+      const stableUid = authUser.id || authUser.uid;
+
+      userSubscription = supabase
+        .channel(`profile-user-${stableUid}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${stableUid}`
+        }, (payload) => {
+          if (payload.new) {
+            const data = payload.new as any;
+            if (userData && data.badge_tier && data.badge_tier !== userData.badge_tier) {
+              setNewTierName(data.badge_tier);
+              setPrevTier(userData.badge_tier);
+              setShowUnlockModal(true);
+            }
+
+            setUserData(data);
+            setFormData({
+              name: data.full_name || data.name || '',
+              phone: data.phone || '',
+              address: data.address || ''
+            });
+            if (data.settings) setSettingsData(data.settings);
           }
+        })
+        .subscribe();
 
-          setUserData(data);
-          setFormData({
-            name: data.full_name || '',
-            phone: data.phone || '',
-            address: data.address || ''
-          });
-          if (data.settings) setSettingsData(data.settings);
-        }
-      });
-
-      const qOrdersRealtime = query(
-        collection(db, 'orders'),
-        where('user_id', '==', firebaseUid),
-        orderBy('created_at', 'desc'),
-        limit(5)
-      );
-      unsubOrders = safeFirestore.subscribe<Order>(qOrdersRealtime, (data) => {
-        if (Array.isArray(data)) {
-          setRecentOrders(data);
-        }
-      });
+      ordersSubscription = supabase
+        .channel(`profile-orders-${stableUid}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${stableUid}`
+        }, async () => {
+          const { data: ordersData } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('user_id', stableUid)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          if (ordersData) {
+            setRecentOrders(ordersData as any[]);
+          }
+        })
+        .subscribe();
     }
 
     return () => {
-      unsubUser();
-      unsubOrders();
+      if (userSubscription) supabase.removeChannel(userSubscription);
+      if (ordersSubscription) supabase.removeChannel(ordersSubscription);
     };
   }, [authUser, menuItems]);
 
@@ -569,44 +580,51 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
 
     try {
-      const userDocRef = doc(db, 'users', firebaseUid);
-      await updateDoc(userDocRef, {
-        full_name: formData.name,
-        phone: formData.phone,
-        address: formData.address,
-        updated_at: serverTimestamp()
-      });
+      const stableId = authUser.id || authUser.uid;
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: formData.name,
+          full_name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', stableId);
       
+      if (error) throw error;
       setIsEditing(false);
+      refreshProfile();
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
-      }
+      toast.error('Failed to update profile information.');
     }
   };
 
   const handleUpdateSettings = async (newSettings: any) => {
     if (!authUser) return;
     try {
-      const userDocRef = doc(db, 'users', firebaseUid);
-      await updateDoc(userDocRef, { 
-        settings: newSettings,
-        updated_at: serverTimestamp()
-      });
+      const stableId = authUser.id || authUser.uid;
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          settings: newSettings,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', stableId);
       
+      if (error) throw error;
       setSettingsData(newSettings);
+      refreshProfile();
     } catch (error: any) {
       console.error('Error updating settings:', error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
-      }
+      toast.error('Failed to update preferences.');
     }
   };
 
   const handleExportData = () => {
     const data = {
-      profile: user,
+      profile: userData || authUser,
       orders: recentOrders,
       settings: settingsData,
       exportedAt: new Date().toISOString()
@@ -615,7 +633,7 @@ export const Profile: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `frosty-bite-data-${authUser?.uid ? authUser.uid.slice(0, 8) : 'guest'}.json`;
+    link.download = `frosty-bite-data-${authUser?.id ? authUser.id.slice(0, 8) : 'guest'}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -625,9 +643,11 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
     const loadingToast = toast.loading('Claiming reward...');
     try {
-      const success = await rewardsService.claimGift(firebaseUid, giftId);
+      const stableId = authUser.id || authUser.uid;
+      const success = await rewardsService.claimGift(stableId, giftId);
       if (success) {
         toast.success('Reward claimed! Check your email for details.', { id: loadingToast });
+        refreshProfile();
       }
     } catch (error) {
       toast.error('Failed to claim reward', { id: loadingToast });
@@ -637,22 +657,23 @@ export const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
-      const userDocRef = doc(db, 'users', firebaseUid);
-      await updateDoc(userDocRef, { 
-        deleted: true,
-        deleted_at: new Date().toISOString(),
-        status: 'deactivated',
-        updated_at: serverTimestamp()
-      });
+      const stableId = authUser.id || authUser.uid;
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          deleted: true,
+          deleted_at: new Date().toISOString(),
+          status: 'deactivated',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', stableId);
       
+      if (error) throw error;
       setShowDeleteConfirm(false);
       toast.success("Account deactivated. Data deletion in progress.");
-      await handleLogout();
+      await logout(true);
     } catch (error: any) {
       console.error("Account deletion failed:", error);
-      if (error.code === 'permission-denied') {
-        handleFirestoreError(error, OperationType.WRITE, `users/${firebaseUid}`);
-      }
       toast.error("Failed to delete account");
     } finally {
       setIsDeletingAccount(false);
@@ -709,8 +730,6 @@ export const Profile: React.FC = () => {
     if (!authUser) return;
     const loadingToast = toast.loading('Applying your new identity...');
     try {
-      const userDocRef = doc(db, 'users', firebaseUid);
-      
       let finalAvatarUrl = avatarConfig.avatar_url;
 
       // If it's a new AI generation (base64), we MUST upload it to Cloudinary first
@@ -768,7 +787,7 @@ export const Profile: React.FC = () => {
       }
 
       const updateData: any = {
-        updated_at: serverTimestamp(),
+        updated_at: new Date().toISOString(),
         ai_usage_stats: updatedAiUsage,
         avatar_generation_count: updatedAiUsage.count
       };
@@ -788,9 +807,17 @@ export const Profile: React.FC = () => {
         updateData.avatar_vibe = avatarConfig.avatar_vibe;
       }
 
-      await updateDoc(userDocRef, updateData);
+      const stableId = authUser.id || authUser.uid;
+      const { error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', stableId);
+
+      if (error) throw error;
+
       setIsAvatarEditorOpen(false);
       toast.success('Avatar style applied!', { id: loadingToast });
+      refreshProfile();
     } catch (error: any) {
       console.error('Error saving avatar:', error);
       toast.error('Failed to save avatar', { id: loadingToast });
@@ -1506,7 +1533,7 @@ export const Profile: React.FC = () => {
       <SecureFundsLockModal
         isOpen={isFundsLockOpen}
         onClose={() => setIsFundsLockOpen(false)}
-        firebaseUid={firebaseUid}
+        firebaseUid={authUser?.id || authUser?.uid || ''}
         userData={userData}
         onSuccess={refreshProfile}
       />

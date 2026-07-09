@@ -64,7 +64,12 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 3000,
       strictPort: true,
-      hmr: false,
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: 3000,
+        overlay: false,
+      },
     },
   };
 });

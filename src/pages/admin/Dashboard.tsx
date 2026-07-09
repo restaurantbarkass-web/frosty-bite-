@@ -3,20 +3,17 @@ import { DashboardCards } from '../../components/admin/DashboardCards';
 import { OrdersChart, PopularItemsChart, RevenueChart } from '../../components/admin/Charts';
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { motion } from 'motion/react';
-import { appConfigService, AppConfig } from '../../services/appConfigService';
+import { useConfig } from '../../context/ConfigContext';
 import { Power, CheckCircle2, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
-import { db } from '../../firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { safeFirestore } from '../../services/firestoreService';
 import { supabase } from '../../supabase';
 import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const { config, toggleOrderingStatus } = useConfig();
   const [isToggling, setIsToggling] = useState(false);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -24,18 +21,10 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     // Load initial data from cache
-    const configCacheKey = 'admin_config_cache';
     const ordersCacheKey = 'admin_orders_cache';
     
-    const cachedConfig = localStorage.getItem(configCacheKey);
     const cachedOrders = localStorage.getItem(ordersCacheKey);
     
-    if (cachedConfig) {
-      try { 
-        const parsed = JSON.parse(cachedConfig);
-        setConfig(parsed.data || parsed); 
-      } catch (e) {}
-    }
     if (cachedOrders) {
       try { 
         const parsed = JSON.parse(cachedOrders);
@@ -46,11 +35,6 @@ export const Dashboard: React.FC = () => {
         }
       } catch (e) {}
     }
-
-    const unsubscribeConfig = appConfigService.subscribeToConfig((data) => {
-      setConfig(data);
-      localStorage.setItem(configCacheKey, JSON.stringify(data));
-    });
 
     const fetchRecentOrders = async () => {
       try {
@@ -93,7 +77,6 @@ export const Dashboard: React.FC = () => {
       .subscribe();
 
     return () => {
-      unsubscribeConfig();
       supabase.removeChannel(channel);
     };
   }, []);
@@ -104,7 +87,7 @@ export const Dashboard: React.FC = () => {
     const newStatus = !config.isOrderingOpen;
     try {
       const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
-      await appConfigService.toggleOrderingStatus(config.isOrderingOpen, token);
+      await toggleOrderingStatus(token);
       toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
     } catch (error) {
       console.error('Error toggling ordering status:', error);

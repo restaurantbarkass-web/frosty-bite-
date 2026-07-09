@@ -2,14 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, Loader2, Sparkles, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { supabase } from '../supabase';
 
-const API_KEY =
-  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
-  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
-  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
-  '';
-
-const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
-
 interface GooglePlacesAutocompleteProps {
   onAddressSelect: (data: {
     houseNumber: string;
@@ -23,63 +15,6 @@ interface GooglePlacesAutocompleteProps {
   }) => void;
   currentAddressValue?: string;
   onManualStreetChange?: (value: string) => void;
-}
-
-// Global script loading state to handle fast mounting / multiple renders safely
-let isScriptLoaded = false;
-let isScriptLoading = false;
-let scriptLoadingPromise: Promise<void> | null = null;
-
-function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (typeof window === 'undefined') return Promise.resolve();
-  
-  const google = (window as any).google;
-  if (google?.maps?.places) {
-    isScriptLoaded = true;
-    return Promise.resolve();
-  }
-
-  if (scriptLoadingPromise) {
-    return scriptLoadingPromise;
-  }
-
-  scriptLoadingPromise = new Promise((resolve, reject) => {
-    const scriptId = 'google-maps-places';
-    const existingScript = document.getElementById(scriptId);
-
-    if (existingScript) {
-      const interval = setInterval(() => {
-        if ((window as any).google?.maps?.places) {
-          clearInterval(interval);
-          isScriptLoaded = true;
-          resolve();
-        }
-      }, 100);
-      return;
-    }
-
-    isScriptLoading = true;
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initGoogleMapsAutocomplete`;
-    script.async = true;
-    script.defer = true;
-
-    (window as any).initGoogleMapsAutocomplete = () => {
-      isScriptLoading = false;
-      isScriptLoaded = true;
-      resolve();
-    };
-
-    script.onerror = (err) => {
-      isScriptLoading = false;
-      reject(err);
-    };
-
-    document.head.appendChild(script);
-  });
-
-  return scriptLoadingPromise;
 }
 
 // Pre-seeded Cuttack local areas fallback
@@ -99,19 +34,12 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
   currentAddressValue,
   onManualStreetChange,
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-
-  const [autocompleteService, setAutocompleteService] = useState<any>(null);
-  const [sessionToken, setSessionToken] = useState<any>(null);
-
   const [query, setQuery] = useState(currentAddressValue || '');
-  const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
+  const [osmPredictions, setOsmPredictions] = useState<any[]>([]);
   const [localAreas, setLocalAreas] = useState<any[]>(DEFAULT_LOCAL_AREAS);
   const [localSuggestions, setLocalSuggestions] = useState<any[]>([]);
   
   const [isSearching, setIsSearching] = useState(false);
-  const [isSelecting, setIsSelecting] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -146,7 +74,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     const channel = supabase
       .channel('realtime_autocomplete_areas')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_areas' }, () => {
-        console.log('[GooglePlacesAutocomplete] Realtime update to delivery_areas, re-fetching...');
+        console.log('[OSMAutocomplete] Realtime update to delivery_areas, re-fetching...');
         fetchLocalAreas();
       })
       .subscribe();
@@ -154,27 +82,6 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  // Load Google Maps Script (if key has been provided)
-  useEffect(() => {
-    if (!hasValidKey) return;
-
-    loadGoogleMapsScript(API_KEY)
-      .then(() => {
-        const google = (window as any).google;
-        if (google?.maps?.places) {
-          setIsLoaded(true);
-          setAutocompleteService(new google.maps.places.AutocompleteService());
-          setSessionToken(new google.maps.places.AutocompleteSessionToken());
-        } else {
-          setLoadError(true);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load Google Maps script:', err);
-        setLoadError(true);
-      });
   }, []);
 
   // Click outside to hide suggestions dropdown
@@ -188,7 +95,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Search handler (Local filtering + Google fetching)
+  // Search handler (Local filtering + OpenStreetMap fetching)
   useEffect(() => {
     const searchVal = query.trim().toLowerCase();
     
@@ -203,9 +110,9 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
       setLocalSuggestions([]);
     }
 
-    // 2. Fetch Google Predictions
-    if (!isLoaded || !autocompleteService || !query || query.length < 3) {
-      setGooglePredictions([]);
+    // 2. Fetch OpenStreetMap Nominatim Predictions
+    if (!query || query.length < 3) {
+      setOsmPredictions([]);
       if (searchVal.length >= 1) {
         setShowDropdown(true);
       } else {
@@ -215,28 +122,30 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     }
 
     setIsSearching(true);
-    const delayDebounceFn = setTimeout(() => {
-      autocompleteService.getPlacePredictions(
-        {
-          input: query,
-          sessionToken: sessionToken || undefined,
-          componentRestrictions: { country: 'in' },
-        },
-        (results: any, status: any) => {
-          setIsSearching(false);
-          const google = (window as any).google;
-          if (status === google?.maps?.places?.PlacesServiceStatus?.OK && results) {
-            setGooglePredictions(results);
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5&addressdetails=1`
+        );
+        if (response.ok) {
+          const results = await response.json();
+          if (Array.isArray(results)) {
+            setOsmPredictions(results);
             setShowDropdown(true);
           } else {
-            setGooglePredictions([]);
+            setOsmPredictions([]);
           }
         }
-      );
-    }, 300);
+      } catch (err) {
+        console.error('OSM Nominatim search failed:', err);
+        setOsmPredictions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query, isLoaded, autocompleteService, sessionToken, localAreas]);
+  }, [query, localAreas]);
 
   // Handle local suggestion selection
   const handleSelectLocalArea = (area: any) => {
@@ -256,90 +165,41 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
     });
   };
 
-  // Handle Google place selection
-  const handleSelectGooglePrediction = (prediction: any) => {
-    const google = (window as any).google;
-    if (!google?.maps?.places) return;
-
-    setIsSelecting(true);
+  // Handle OSM place selection
+  const handleSelectOsmPrediction = (prediction: any) => {
     setShowDropdown(false);
-    setQuery(prediction.description);
+    
+    // Shorten the display text or keep description
+    const displayName = prediction.display_name;
+    setQuery(displayName);
     if (onManualStreetChange) {
-      onManualStreetChange(prediction.description);
+      onManualStreetChange(displayName);
     }
 
-    const dummyDiv = document.createElement('div');
-    const placesService = new google.maps.places.PlacesService(dummyDiv);
+    const addr = prediction.address || {};
+    
+    const lat = parseFloat(prediction.lat);
+    const lng = parseFloat(prediction.lon);
 
-    placesService.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['address_components', 'geometry', 'formatted_address'],
-        sessionToken: sessionToken || undefined,
-      },
-      (place: any, status: any) => {
-        setIsSelecting(false);
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          const lat = place.geometry?.location?.lat();
-          const lng = place.geometry?.location?.lng();
-          const formattedAddress = place.formatted_address || '';
+    const houseNumber = addr.house_number || '';
+    const streetName = addr.road || addr.suburb || addr.neighbourhood || addr.sublocality || '';
+    const landmark = addr.amenity || addr.shop || addr.landmark || '';
+    const city = addr.city || addr.town || addr.village || 'Cuttack';
+    const pincode = addr.postcode || '';
 
-          let houseNumber = '';
-          let streetName = '';
-          let landmark = '';
-          let city = 'Cuttack';
-          let pincode = '';
-
-          if (place.address_components) {
-            for (const comp of place.address_components) {
-              const types = comp.types;
-              if (types.includes('street_number')) {
-                houseNumber = comp.long_name;
-              } else if (
-                types.includes('sublocality') ||
-                types.includes('sublocality_level_1') ||
-                types.includes('route')
-              ) {
-                if (streetName) streetName += ', ' + comp.long_name;
-                else streetName = comp.long_name;
-              } else if (types.includes('sublocality_level_2')) {
-                landmark = comp.long_name;
-              } else if (types.includes('locality')) {
-                city = comp.long_name;
-              } else if (types.includes('postal_code')) {
-                pincode = comp.long_name;
-              }
-            }
-          }
-
-          if (!streetName && prediction.structured_formatting) {
-            streetName = prediction.structured_formatting.main_text;
-          }
-
-          if (!pincode) {
-            const pinMatch = formattedAddress.match(/\b\d{6}\b/);
-            if (pinMatch) pincode = pinMatch[0];
-          }
-
-          onAddressSelect({
-            houseNumber,
-            streetName: streetName || prediction.description,
-            landmark,
-            city,
-            pincode,
-            lat,
-            lng,
-            formattedAddress,
-          });
-
-          // Refresh token for next session flow
-          setSessionToken(new google.maps.places.AutocompleteSessionToken());
-        }
-      }
-    );
+    onAddressSelect({
+      houseNumber,
+      streetName: streetName || displayName.split(',')[0],
+      landmark,
+      city,
+      pincode,
+      lat,
+      lng,
+      formattedAddress: displayName,
+    });
   };
 
-  const hasSuggestions = localSuggestions.length > 0 || googlePredictions.length > 0;
+  const hasSuggestions = localSuggestions.length > 0 || osmPredictions.length > 0;
 
   return (
     <div className="relative w-full text-left" ref={dropdownRef}>
@@ -375,7 +235,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
               type="button"
               onClick={() => {
                 setQuery('');
-                setGooglePredictions([]);
+                setOsmPredictions([]);
                 setLocalSuggestions([]);
                 setShowDropdown(false);
                 if (onManualStreetChange) onManualStreetChange('');
@@ -390,7 +250,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
       {showDropdown && hasSuggestions && (
         <div className="absolute top-[calc(100%+4px)] left-0 w-full z-150 bg-[#121214] border border-white/10 rounded-xl overflow-hidden shadow-2xl backdrop-blur-md">
-          {/* 1. Local Cuttack Sugessions */}
+          {/* 1. Local Cuttack Suggestions */}
           {localSuggestions.length > 0 && (
             <div className="border-b border-white/5 last:border-0">
               <div className="px-4 py-1.5 bg-black/60 text-[9px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
@@ -433,27 +293,27 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
             </div>
           )}
 
-          {/* 2. Google Predictions */}
-          {googlePredictions.length > 0 && (
+          {/* 2. OpenStreetMap Predictions */}
+          {osmPredictions.length > 0 && (
             <div>
               <div className="px-4 py-1.5 bg-black/60 text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
-                Google Maps Suggestions
+                OpenStreetMap Suggestions
               </div>
               <div className="py-1">
-                {googlePredictions.map((p: any) => (
+                {osmPredictions.map((p: any) => (
                   <button
                     key={p.place_id}
                     type="button"
                     className="w-full text-left px-4 py-3 hover:bg-white/5 transition-all duration-150 flex items-start gap-3 border-b border-white/[0.03] last:border-0"
-                    onClick={() => handleSelectGooglePrediction(p)}
+                    onClick={() => handleSelectOsmPrediction(p)}
                   >
                     <MapPin size={16} className="text-zinc-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-white leading-tight">
-                        {p.structured_formatting?.main_text || p.description}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white truncate leading-tight">
+                        {p.address?.road || p.address?.suburb || p.address?.neighbourhood || p.display_name.split(',')[0]}
                       </p>
-                      <p className="text-[10px] font-medium text-zinc-500 mt-0.5 leading-snug">
-                        {p.structured_formatting?.secondary_text || ''}
+                      <p className="text-[10px] font-medium text-zinc-500 mt-0.5 truncate leading-snug">
+                        {p.display_name}
                       </p>
                     </div>
                   </button>
@@ -465,15 +325,6 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
           <div className="px-4 py-1.5 bg-[#09090b] border-t border-white/5 flex items-center justify-between text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
             <span>Served Areas of Cuttack</span>
             <span className="text-primary/70">Tap a locality for 1-click fill</span>
-          </div>
-        </div>
-      )}
-
-      {isSelecting && (
-        <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center z-50 backdrop-blur-[1px]">
-          <div className="bg-zinc-900 border border-white/10 px-4 py-2 rounded-full flex items-center gap-2 shadow-2xl">
-            <Loader2 size={14} className="animate-spin text-primary" />
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">Pinpointing Location Coordinates...</span>
           </div>
         </div>
       )}

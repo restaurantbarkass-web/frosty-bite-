@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronDown, SlidersHorizontal } from 'lucide-react';
@@ -56,6 +57,12 @@ export const Home: React.FC = () => {
   const { isOrderingOpen } = useAppConfig();
   const navigate = useNavigate();
 
+  useMetadata({
+    title: 'Delicious Desserts & Quick Bites',
+    description: 'Order your favorite treats from Frosty Bite! Explore our delicious cheesecakes, ice creams, burgers, and more with lightning fast hot/cold delivery.',
+    keywords: ['desserts', 'fast food', 'cheesecakes', 'burgers', 'shakes', 'Frosty Bite ordering', 'Cuttack sweets']
+  });
+
   const recommendedItems = React.useMemo(() => {
     if (!displayItems || displayItems.length === 0) return [];
     const filtered = displayItems.filter(item => item.available !== false);
@@ -100,13 +107,29 @@ export const Home: React.FC = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const { data } = await supabase.from('banners').select('*');
+        const { data } = await supabase.from('banners').select('*').order('priority', { ascending: false });
         if (data) setBanners(data);
       } catch (err) {
         console.error('Error fetching banners:', err);
       }
     };
     fetchBanners();
+
+    const channel = supabase
+      .channel('homepage_banners_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'banners' },
+        () => {
+          console.log('[Realtime] HomePage banners changed, re-fetching...');
+          fetchBanners();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
   
   // Dynamic categories based on menu items

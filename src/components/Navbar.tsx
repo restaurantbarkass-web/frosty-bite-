@@ -5,7 +5,7 @@ import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, smoothScroll } from '../lib/utils';
-import { appConfigService, AppConfig } from '../services/appConfigService';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
 import { preloadRoute } from '../utils/preload';
@@ -16,7 +16,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const { config } = useAppConfig();
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -37,13 +37,6 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = appConfigService.subscribeToConfig((data) => {
-      setConfig(data);
-    });
-    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {

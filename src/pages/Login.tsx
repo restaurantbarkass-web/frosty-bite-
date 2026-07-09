@@ -16,7 +16,8 @@ import {
   User,
   ShieldCheck,
   Check,
-  Phone
+  Phone,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -25,9 +26,23 @@ import { ADMIN_EMAILS } from '../constants';
 import { authService } from '../services/authService';
 import { supabase } from '../supabase';
 import confetti from 'canvas-confetti';
-import { auth } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { FeatureComingSoon } from '../components/FeatureComingSoon';
+
+const normalizePhone = (phone: string): string => {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 11 && clean.startsWith('0')) {
+    return clean.slice(1);
+  }
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return clean.slice(2);
+  }
+  return clean;
+};
+
+const formatDisplayPhone = (phone: string): string => {
+  const clean = normalizePhone(phone);
+  return `+91 ${clean}`;
+};
 
 const parseAuthError = (err: any): string => {
   if (!err) return 'An unexpected authentication error occurred. Please try again.';
@@ -76,7 +91,7 @@ const renderErrorMessage = (msg: string | null) => {
   if (!msg) return null;
   const isIdentityToolkitDisabled = msg.includes('identitytoolkit.googleapis.com') || msg.includes('Identity Toolkit');
   return (
-    <div className="flex-1 space-y-1 text-xs text-left leading-relaxed">
+    <div className="flex-1 space-y-1.5 text-xs text-left leading-relaxed">
       {isIdentityToolkitDisabled && (
         <span className="font-black text-yellow-500 uppercase tracking-widest text-[10px] block mb-1">
           ⚠️ Activate Firebase Auth
@@ -103,6 +118,16 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+
+  const handlePhoneChange = (val: string) => {
+    let clean = val.replace(/\D/g, '');
+    if (clean.startsWith('91') && clean.length > 10) {
+      clean = clean.slice(2);
+    } else if (clean.startsWith('0') && clean.length > 10) {
+      clean = clean.slice(1);
+    }
+    setPhone(clean.slice(0, 10));
+  };
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signInMethod, setSignInMethod] = useState<'password' | 'otp' | 'mobile_otp'>('password');
@@ -113,8 +138,23 @@ export const Login: React.FC = () => {
   const [otpArray, setOtpArray] = useState<string[]>(['', '', '', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Premium WhatsApp OTP additional states
+  const [timerSeconds, setTimerSeconds] = useState(300);
+  const [isErrorShaking, setIsErrorShaking] = useState(false);
+  const [isVerifiedSuccess, setIsVerifiedSuccess] = useState(false);
+
   // Timer parameters
   const [resendTimer, setResendTimer] = useState<number>(0);
+
+  // Developer and Testing support for local WhatsApp dispatch
+  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [whatsappServerUrl, setWhatsappServerUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001';
+    }
+    return 'http://localhost:3001';
+  });
 
   // Autoredirect after full authentication and geofence verification
   useEffect(() => {
@@ -173,23 +213,9 @@ export const Login: React.FC = () => {
         targetUser = insertedUser;
       }
 
-      // Mapped password format: sb-${uid}
-      const firebasePassword = `sb-${targetUser.supabase_uid || targetUser.id}`;
-      let firebaseUser;
-      try {
-        const fbResult = await signInWithEmailAndPassword(auth, targetEmail, firebasePassword);
-        firebaseUser = fbResult.user;
-      } catch (_) {
-        // Create user in Firebase auth if not present
-        const fbResult = await createUserWithEmailAndPassword(auth, targetEmail, firebasePassword);
-        firebaseUser = fbResult.user;
-      }
-
       // Track emails to allow local storage fallbacks
       localStorage.setItem('frostybite_active_session_email', targetEmail);
-      if (firebaseUser) {
-        localStorage.setItem(`verified_${firebaseUser.uid}`, 'true');
-      }
+      localStorage.setItem('frostybite_has_active_session', 'true');
 
       // Confetti blast!
       confetti({
@@ -228,6 +254,20 @@ export const Login: React.FC = () => {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
+  // Premium WhatsApp 5-minute (300s) countdown timer
+  useEffect(() => {
+    if (step !== 'otp' || signInMethod !== 'mobile_otp') return;
+    if (timerSeconds <= 0) return;
+    
+    const interval = setInterval(() => {
+      setTimerSeconds((prev) => prev - 1);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [step, signInMethod, timerSeconds]);
+
+
+
   // Handle Google OAuth authentication
   const handleGoogleAuth = async () => {
     if (isLoading) return;
@@ -254,13 +294,13 @@ export const Login: React.FC = () => {
     e.preventDefault();
     if (isLoading) return;
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = normalizePhone(phone);
     if (!cleanPhone) {
       setError('Please enter your mobile phone number.');
       return;
     }
-    if (cleanPhone.length < 10) {
-      setError('Mobile number must be exactly 10 digits.');
+    if (cleanPhone.length !== 10) {
+      setError('Please enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -270,20 +310,22 @@ export const Login: React.FC = () => {
 
     try {
       setIsNewUser(false); // Mobile OTP is for login
+      setSignInMethod('mobile_otp');
       const res = await authService.sendMobileOTP(cleanPhone);
       setResendTimer(60);
-      setSuccess(res.message || 'Verification code sent to your phone!');
-      
-      // Auto-populate hint in preview/development mode for testing convenience
+      setTimerSeconds(300);
+      setOtpArray(['', '', '', '', '', '']);
       if (res.dev_otp_hint) {
-        const hintDigits = res.dev_otp_hint.split('');
-        if (hintDigits.length === 8) {
-          setOtpArray(hintDigits);
-          setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to log in instantly!)`);
-        }
+        setDevOtpHint(res.dev_otp_hint);
+      } else {
+        setDevOtpHint(null);
       }
-      
       setStep('otp');
+      if (res.local_dispatch_error) {
+        setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+      } else {
+        setSuccess(res.message || 'Verification code sent to your phone!');
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to dispatch verification code. Please make sure your mobile number is registered.');
@@ -324,9 +366,12 @@ export const Login: React.FC = () => {
         if (dbUser) {
           // Pre-existing user found! Immediately dispatch OTP and step directly to OTP screen
           setIsNewUser(false);
+          setSignInMethod('otp');
           await authService.sendOTP(emailTrimmed);
           setResendTimer(60); 
           setSuccess('Verification code sent! Please check your inbox.');
+          setTimerSeconds(300);
+          setOtpArray(['', '', '', '', '', '', '', '']);
           setStep('otp');
         } else {
           // No user found in signin mode
@@ -400,41 +445,17 @@ export const Login: React.FC = () => {
         return;
       }
 
-      // 2. Perform Firebase Auth Sign-In using mapped password sb-${uid}
-      const firebasePassword = `sb-${dbUser.supabase_uid || dbUser.id}`;
-      let firebaseAuthResult;
-      
-      try {
-        firebaseAuthResult = await signInWithEmailAndPassword(auth, emailTrimmed, firebasePassword);
-        console.log('[PasswordLogin] Direct client-side Firebase signin succeeded!');
-      } catch (signInErr: any) {
-        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/wrong-password') {
-          console.log('[PasswordLogin] Client-side user not fully mapped in Firebase, auto-registering standard fallback...');
-          try {
-            firebaseAuthResult = await createUserWithEmailAndPassword(auth, emailTrimmed, firebasePassword);
-            console.log('[PasswordLogin] Direct client-side Firebase registration succeeded!');
-          } catch (signUpErr: any) {
-            console.warn('[PasswordLogin] Firebase fallback sign-up skipped/failed:', signUpErr);
-          }
-        } else {
-          console.warn('[PasswordLogin] Firebase Auth offline or fetch block encountered, proceeding with Supabase native session:', signInErr.code || signInErr.message || signInErr);
-        }
-      }
-
       // Store authenticating session email immediately to guarantee robust immediate login flow
       localStorage.setItem('frostybite_active_session_email', emailTrimmed);
+      localStorage.setItem('frostybite_has_active_session', 'true');
 
-      if (firebaseAuthResult && firebaseAuthResult.user) {
-        try {
-          localStorage.setItem(`verified_${firebaseAuthResult.user.uid}`, 'true');
-          // Dispatch sync in background without awaiting to speed up responsiveness significantly
-          authService.syncUserWithDatabase(firebaseAuthResult.user, undefined, true).catch(syncErr => {
-            console.warn('[PasswordLogin] Background database sync warning on client:', syncErr);
-          });
-        } catch (syncErr) {
-          console.warn('[PasswordLogin] Background sync invoke error:', syncErr);
+      // Attempt background auth service sync with Supabase
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          authService.syncUserWithDatabase(user).catch(() => {});
         }
-      }
+      } catch (_) {}
 
       if (dbUser) {
         // Celebratory Blast
@@ -488,13 +509,13 @@ export const Login: React.FC = () => {
       return;
     }
 
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = normalizePhone(phone);
     if (!phone.trim()) {
       setError('Please enter your mobile phone number so we can coordinate your bakery delivery.');
       return;
     }
-    if (cleanPhone.length < 10) {
-      setError('Mobile number must be exactly 10 digits.');
+    if (cleanPhone.length !== 10) {
+      setError('Please enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -540,6 +561,8 @@ export const Login: React.FC = () => {
         await authService.sendOTP(emailTrimmed);
         setResendTimer(60);
         setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
+        setTimerSeconds(300);
+        setOtpArray(['', '', '', '', '', '', '', '']);
         setStep('otp');
       } else {
         // Check if phone already exists
@@ -564,17 +587,19 @@ export const Login: React.FC = () => {
         setSignInMethod('mobile_otp');
         const res = await authService.sendMobileOTP(cleanPhone, true, emailTrimmed, name.trim(), password.trim());
         setResendTimer(60);
-        setSuccess(res.message || 'Verification code sent to your phone!');
-        
-        // Auto-populate hint in preview/development mode for testing convenience
+        setTimerSeconds(300);
+        setOtpArray(['', '', '', '', '', '']);
         if (res.dev_otp_hint) {
-          const hintDigits = res.dev_otp_hint.split('');
-          if (hintDigits.length === 8) {
-            setOtpArray(hintDigits);
-            setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to register instantly!)`);
-          }
+          setDevOtpHint(res.dev_otp_hint);
+        } else {
+          setDevOtpHint(null);
         }
         setStep('otp');
+        if (res.local_dispatch_error) {
+          setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+        } else {
+          setSuccess(res.message || 'Verification code sent to your phone!');
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -587,11 +612,15 @@ export const Login: React.FC = () => {
   // Verify OTP and complete sign-in
   const handleVerifyOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isLoading) return;
+    if (isLoading || isVerifiedSuccess) return;
 
     const otpCode = otpArray.join('');
-    if (otpCode.length < 8) {
-      setError(`Incorrect or incomplete code. Please enter the full 8-digit verification code sent to your ${signInMethod === 'mobile_otp' ? 'phone' : 'inbox'}.`);
+    const expectedLength = signInMethod === 'mobile_otp' ? 6 : 8;
+
+    if (otpCode.length < expectedLength) {
+      setError(`Incorrect or incomplete code. Please enter the full ${expectedLength}-digit verification code.`);
+      setIsErrorShaking(true);
+      setTimeout(() => setIsErrorShaking(false), 500);
       return;
     }
 
@@ -603,11 +632,11 @@ export const Login: React.FC = () => {
       let emailTrimmed = email.trim().toLowerCase();
       
       if (signInMethod === 'mobile_otp') {
-        const cleanPhone = phone.replace(/\D/g, '');
+        const cleanPhone = normalizePhone(phone);
         const result = await authService.verifyMobileOTP(cleanPhone, otpCode);
         emailTrimmed = result.email || emailTrimmed;
       } else {
-        const result = await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
+        await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
       }
 
       // Store authenticating session email immediately to guarantee robust immediate login flow
@@ -621,7 +650,7 @@ export const Login: React.FC = () => {
             .update({ 
               name: name.trim(), 
               full_name: name.trim(),
-              phone: phone.trim(),
+              phone: normalizePhone(phone),
               password: password.trim()
             })
             .eq('email', emailTrimmed);
@@ -630,6 +659,9 @@ export const Login: React.FC = () => {
           console.warn('[Onboarding] Error syncing profile metadata:', dbErr);
         }
       }
+
+      // Premium Success State Transition
+      setIsVerifiedSuccess(true);
 
       // Celebratory Blast
       confetti({
@@ -640,6 +672,7 @@ export const Login: React.FC = () => {
       });
 
       setSuccess('Account verified successfully!');
+      
       try {
         const { data: dbUser } = await supabase
           .from('users')
@@ -658,16 +691,19 @@ export const Login: React.FC = () => {
           } else {
             setStep('location');
           }
-        }, 800);
+        }, 1200); // 1.2s delay for glorious success check animation!
       } catch (dbErr) {
         console.warn('[VerifyOtp] Failed evaluating redirect target, falling back to location state:', dbErr);
         setTimeout(() => {
           setStep('location');
-        }, 800);
+        }, 1200);
       }
     } catch (err: any) {
       console.error(err);
       setError(parseAuthError(err));
+      // Trigger error shake animation
+      setIsErrorShaking(true);
+      setTimeout(() => setIsErrorShaking(false), 500);
     } finally {
       setIsLoading(false);
     }
@@ -675,32 +711,46 @@ export const Login: React.FC = () => {
 
   // Resend OTP
   const handleResendOtp = async () => {
-    if (resendTimer > 0 || isLoading) return;
+    // Cooldown check
+    if (signInMethod === 'mobile_otp') {
+      if (timerSeconds > 0 || isLoading) return;
+    } else {
+      if (resendTimer > 0 || isLoading) return;
+    }
+
     setError(null);
     setSuccess(null);
     setIsLoading(true);
     try {
       if (signInMethod === 'mobile_otp') {
-        const cleanPhone = phone.replace(/\D/g, '');
-        const res = await authService.sendMobileOTP(cleanPhone);
-        setResendTimer(60);
-        setSuccess(res.message || 'Verification code resent! Check your phone.');
+        const cleanPhone = normalizePhone(phone);
+        const res = await authService.resendMobileOTP(cleanPhone);
+        
+        // WhatsApp reset timers and clear inputs
+        setTimerSeconds(300); // 5 minutes reset
+        setOtpArray(['', '', '', '', '', '']);
         if (res.dev_otp_hint) {
-          const hintDigits = res.dev_otp_hint.split('');
-          if (hintDigits.length === 8) {
-            setOtpArray(hintDigits);
-            setSuccess(`${res.message} (🚨 Testing Hint: We generated the OTP "${res.dev_otp_hint}" for you automatically. You can click 'Continue' to log in instantly!)`);
-          }
+          setDevOtpHint(res.dev_otp_hint);
+        } else {
+          setDevOtpHint(null);
+        }
+        if (res.local_dispatch_error) {
+          setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+        } else {
+          setSuccess(res.message || 'A fresh WhatsApp verification code was sent! Please check your WhatsApp.');
         }
       } else {
         const emailTrimmed = email.trim().toLowerCase();
         await authService.sendOTP(emailTrimmed);
         setResendTimer(60);
+        setOtpArray(['', '', '', '', '', '', '', '']);
         setSuccess('A fresh code was sent! Check your inbox.');
       }
     } catch (err: any) {
       console.error(err);
       setError(parseAuthError(err));
+      setIsErrorShaking(true);
+      setTimeout(() => setIsErrorShaking(false), 500);
     } finally {
       setIsLoading(false);
     }
@@ -952,12 +1002,22 @@ export const Login: React.FC = () => {
                     <span className="font-sans font-bold tracking-wide text-sm text-zinc-150">Continue with Email</span>
                   </button>
 
-                  {/* Mobile OTP Coming Soon Info */}
-                  <FeatureComingSoon 
-                    title="Mobile Login Coming Soon"
-                    description="We are preparing a fast, secure OTP mobile sign-in experience. Stay tuned!"
-                    className="w-full"
-                  />
+                  {/* Continue with Mobile (Unlocked & Beautifully Styled) */}
+                  <button
+                    onClick={() => {
+                      setAuthMode('signin');
+                      setSignInMethod('mobile_otp');
+                      setStep('email');
+                    }}
+                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-orange-600/90 to-amber-600/90 hover:from-orange-500 hover:to-amber-500 text-white font-bold tracking-wide border border-white/10 hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_25px_rgba(249,115,22,0.15)] hover:shadow-[0_15px_30px_rgba(249,115,22,0.25)] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+                    id="btn_mobile_init"
+                  >
+                    <Phone size={18} className="text-white shrink-0" />
+                    <span className="font-sans font-bold tracking-wide text-sm">Continue with Mobile</span>
+                    <span className="bg-white/15 border border-white/10 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full select-none ml-1 shrink-0">
+                      ⚡ OTP
+                    </span>
+                  </button>
 
 
 
@@ -1077,18 +1137,6 @@ export const Login: React.FC = () => {
                     >
                       ✉️ Email OTP
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toast.error(
-                          "Mobile OTP login is currently locked. The developer is actively working on it and it will be coming soon!",
-                          { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
-                        );
-                      }}
-                      className="flex-1 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-not-allowed text-zinc-600 bg-transparent opacity-50"
-                    >
-                      📱 Mobile OTP (Soon)
-                    </button>
                   </div>
                 )}
 
@@ -1108,14 +1156,17 @@ export const Login: React.FC = () => {
                   {signInMethod === 'mobile_otp' ? (
                     <div className="space-y-1.5 animate-in fade-in duration-200">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Mobile Phone Number</label>
-                      <div className="relative">
-                        <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                      <div className="relative flex items-center">
+                        <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none text-zinc-500">
+                          <Phone size={18} />
+                          <span className="text-sm font-semibold border-r border-white/10 pr-2 font-mono text-zinc-400 leading-none">+91</span>
+                        </div>
                         <input
                           type="tel"
-                          placeholder="e.g. 9876543210"
+                          placeholder="9876543210"
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
+                          onChange={(e) => handlePhoneChange(e.target.value)}
+                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
                           required
                           autoFocus
                           id="auth_phone_input"
@@ -1261,14 +1312,16 @@ export const Login: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          toast.error(
-                            "Mobile OTP verification is currently locked. The developer is actively working on it and it will be coming soon!",
-                            { id: 'mobile-otp-locked-toast', duration: 5000, icon: '🧑‍💻' }
-                          );
+                          setSignupMethod('mobile_otp');
+                          setError(null);
                         }}
-                        className="flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-not-allowed text-zinc-600 bg-transparent opacity-50"
+                        className={`flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
+                          signupMethod === 'mobile_otp' 
+                            ? 'bg-zinc-800 text-white border border-white/5 shadow-inner' 
+                            : 'text-zinc-500 hover:text-zinc-300 bg-transparent'
+                        }`}
                       >
-                        📱 Mobile OTP (Soon)
+                        📱 Mobile OTP
                       </button>
                     </div>
                   </div>
@@ -1292,14 +1345,17 @@ export const Login: React.FC = () => {
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Mobile Phone Number</label>
-                    <div className="relative">
-                      <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <div className="relative flex items-center">
+                      <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none text-zinc-500">
+                        <Phone size={18} />
+                        <span className="text-sm font-semibold border-r border-white/10 pr-2 font-mono text-zinc-400 leading-none">+91</span>
+                      </div>
                       <input
                         type="tel"
-                        placeholder="e.g. 9876543210"
+                        placeholder="9876543210"
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
                         required
                         id="auth_phone_input"
                       />
@@ -1383,80 +1439,244 @@ export const Login: React.FC = () => {
                 transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-6"
               >
-                <div className="space-y-1.5 text-center">
-                  <h2 className="text-2xl font-bold tracking-tight text-white">Verify Account</h2>
-                  <p className="text-zinc-400 text-xs">
-                    We've sent an 8-digit verification code to
-                  </p>
-                  <p className="text-orange-400 text-xs font-black truncate max-w-[280px] mx-auto">
-                    {email}
-                  </p>
-                </div>
-
-                <form onSubmit={handleVerifyOtp} className="space-y-6">
-                  
-                  {/* Premium Isolated Digital Code Box Grid */}
-                  <div className="flex justify-between gap-1.5 sm:gap-2 max-w-[380px] mx-auto py-2">
-                    {otpArray.map((digit, idx) => (
-                      <div key={idx} className="relative flex-1 aspect-square max-w-[40px]">
-                        <input
-                          ref={(el) => { otpRefs.current[idx] = el; }}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => handleOtpChange(idx, e.target.value)}
-                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                          className="absolute inset-0 w-full h-full text-center bg-white/[0.02] border border-white/10 hover:border-white/15 focus:border-orange-500/55 rounded-xl text-lg font-black font-mono text-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all select-all focus:scale-105"
-                          autoComplete="one-time-code"
-                          pattern="\d*"
-                          inputMode="numeric"
-                          id={`otp_box_${idx}`}
-                        />
-                        {/* Dynamic glow spotlight on focus */}
-                        {digit !== '' && (
-                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-orange-500 rounded-full blur-[1px]" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-4">
-                    <button
-                      type="submit"
-                      disabled={isLoading || otpArray.some(d => d === '')}
-                      className="w-full h-14 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_10px_30px_rgba(249,115,22,0.15)] disabled:opacity-40 disabled:pointer-events-none"
-                      id="auth_otp_submit"
-                    >
-                      {isLoading ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="font-sans font-black tracking-wide text-sm flex items-center gap-2">
-                          <ShieldCheck size={18} />
-                          Verify Account
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Resend details */}
-                    <div className="text-xs text-zinc-500">
-                      Didn’t receive the code?{' '}
-                      {resendTimer > 0 ? (
-                        <span className="text-zinc-400 font-mono font-medium">
-                          Resend in {resendTimer}s
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleResendOtp}
-                          className="text-orange-500 hover:text-orange-400 font-bold focus:outline-none underline cursor-pointer"
-                        >
-                          Send Again
-                        </button>
-                      )}
+                {isVerifiedSuccess ? (
+                  /* Premium Full-Container Success Transition card */
+                  <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: [0, 1.2, 1] }}
+                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                        className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 relative z-10"
+                      >
+                        <Check size={40} className="stroke-[3]" />
+                      </motion.div>
                     </div>
+                    <h3 className="text-2xl font-black tracking-tight text-white mt-4">Verification Successful!</h3>
+                    <p className="text-zinc-400 text-xs max-w-[280px] mx-auto leading-relaxed font-sans">
+                      Welcome to Frosty Bite Patisserie. Setting up your premium confectionery experience...
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    {/* Header back button and description */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep(isNewUser ? 'name' : 'email');
+                        }}
+                        className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
+                        title="Back to previous screen"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                      
+                      <div className="space-y-1 text-center">
+                        <h2 className="text-2xl font-bold tracking-tight text-white font-sans">Verify Account</h2>
+                        <p className="text-zinc-400 text-xs max-w-[260px] mx-auto leading-normal">
+                          {signInMethod === 'mobile_otp' ? (
+                            <>We've sent a 6-digit WhatsApp verification code to</>
+                          ) : (
+                            <>We've sent an 8-digit verification code to</>
+                          )}
+                        </p>
+                        <p className="text-orange-400 text-xs font-black truncate max-w-[280px] mx-auto font-sans">
+                          {signInMethod === 'mobile_otp' ? `+${phone.replace(/\D/g, '')}` : email}
+                        </p>
+                      </div>
+                    </div>
 
-                </form>
+
+
+                    <form onSubmit={handleVerifyOtp} className="space-y-6">
+                      
+                      {/* Premium Isolated Digital Code Box Grid */}
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 text-center block">
+                          Enter {signInMethod === 'mobile_otp' ? '6-Digit' : '8-Digit'} Code
+                        </label>
+                        <div className={`flex justify-center gap-1.5 sm:gap-2 max-w-[340px] mx-auto py-2 ${isErrorShaking ? 'animate-shake' : ''}`}>
+                          {otpArray.map((digit, idx) => (
+                            <div key={idx} className="relative flex-1 aspect-square max-w-[42px] min-w-[32px]">
+                              <input
+                                ref={(el) => { otpRefs.current[idx] = el; }}
+                                type="text"
+                                maxLength={1}
+                                value={digit}
+                                onChange={(e) => {
+                                  // Clear errors on edit
+                                  setError(null);
+                                  
+                                  const val = e.target.value.replace(/[^0-9]/g, '');
+                                  const nextArr = [...otpArray];
+                                  nextArr[idx] = val;
+                                  setOtpArray(nextArr);
+
+                                  // Auto focus next box
+                                  if (val !== '' && idx < otpArray.length - 1) {
+                                    otpRefs.current[idx + 1]?.focus();
+                                  }
+
+                                  // Auto submit if complete
+                                  if (nextArr.every(cell => cell !== '')) {
+                                    setTimeout(() => {
+                                      otpRefs.current[idx]?.blur();
+                                      
+                                      // Trigger verification directly
+                                      const fullOtp = nextArr.join('');
+                                      if (signInMethod === 'mobile_otp') {
+                                        const cleanPhone = normalizePhone(phone);
+                                        authService.verifyMobileOTP(cleanPhone, fullOtp)
+                                          .then(result => {
+                                            localStorage.setItem('frostybite_active_session_email', result.email || email.trim().toLowerCase());
+                                            setIsVerifiedSuccess(true);
+                                            confetti({
+                                              particleCount: 120,
+                                              spread: 80,
+                                              origin: { y: 0.6 },
+                                              colors: ['#ff6b00', '#ffa500', '#ffffff']
+                                            });
+                                            setSuccess('Account verified successfully!');
+                                            setTimeout(() => {
+                                              navigate('/');
+                                            }, 1200);
+                                          })
+                                          .catch(err => {
+                                            console.error(err);
+                                            setError(parseAuthError(err));
+                                            setIsErrorShaking(true);
+                                            setTimeout(() => setIsErrorShaking(false), 500);
+                                          });
+                                      } else {
+                                        handleVerifyOtp();
+                                      }
+                                    }, 200);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Backspace') {
+                                    if (otpArray[idx] === '' && idx > 0) {
+                                      const nextArr = [...otpArray];
+                                      nextArr[idx - 1] = '';
+                                      setOtpArray(nextArr);
+                                      otpRefs.current[idx - 1]?.focus();
+                                    } else {
+                                      const nextArr = [...otpArray];
+                                      nextArr[idx] = '';
+                                      setOtpArray(nextArr);
+                                    }
+                                  }
+                                }}
+                                onPaste={(e) => {
+                                  e.preventDefault();
+                                  const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpArray.length);
+                                  if (!pastedData) return;
+                                  
+                                  const nextArr = [...otpArray];
+                                  for (let i = 0; i < otpArray.length; i++) {
+                                    if (i < pastedData.length) {
+                                      nextArr[i] = pastedData[i];
+                                    }
+                                  }
+                                  setOtpArray(nextArr);
+
+                                  // Focus last filled box
+                                  const focusIndex = Math.min(pastedData.length, otpArray.length - 1);
+                                  otpRefs.current[focusIndex]?.focus();
+
+                                  // Auto submit if complete
+                                  if (nextArr.every(cell => cell !== '')) {
+                                    setTimeout(() => {
+                                      handleVerifyOtp();
+                                    }, 200);
+                                  }
+                                }}
+                                className="absolute inset-0 w-full h-full text-center bg-white/[0.02] border border-white/10 hover:border-white/15 focus:border-orange-500/50 rounded-xl text-lg font-black font-mono text-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all select-all focus:scale-105"
+                                autoComplete="one-time-code"
+                                pattern="\d*"
+                                inputMode="numeric"
+                                id={`otp_box_${idx}`}
+                              />
+                              {/* Dynamic glow spotlight on focus */}
+                              {digit !== '' && (
+                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-orange-500 rounded-full blur-[1px]" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+
+
+                      <div className="space-y-4 pt-2">
+                        <button
+                          type="submit"
+                          disabled={isLoading || otpArray.some(d => d === '')}
+                          className="w-full h-14 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_10px_30px_rgba(249,115,22,0.15)] disabled:opacity-40 disabled:pointer-events-none"
+                          id="auth_otp_submit"
+                        >
+                          {isLoading ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <span className="font-sans font-black tracking-wide text-sm flex items-center gap-2">
+                              <ShieldCheck size={18} />
+                              Verify Account
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Cooldown clock timer & Resend Option */}
+                        <div className="flex flex-col items-center justify-center space-y-1.5 py-1 text-xs">
+                          {signInMethod === 'mobile_otp' ? (
+                            <>
+                              {timerSeconds > 0 ? (
+                                <div className="flex items-center gap-1.5 text-zinc-500 font-sans">
+                                  <span className="w-1.5 h-1.5 bg-orange-500/75 rounded-full animate-ping" />
+                                  <span>WhatsApp code expires in </span>
+                                  <span className="text-orange-400 font-mono font-black">
+                                    {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:
+                                    {(timerSeconds % 60).toString().padStart(2, '0')}
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="text-zinc-500">
+                                  Didn't receive the WhatsApp text?{' '}
+                                  <button
+                                    type="button"
+                                    onClick={handleResendOtp}
+                                    className="text-orange-500 hover:text-orange-400 font-bold focus:outline-none underline cursor-pointer"
+                                  >
+                                    Send Again via WhatsApp
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-zinc-500">
+                              Didn’t receive the email code?{' '}
+                              {resendTimer > 0 ? (
+                                <span className="text-zinc-400 font-mono font-medium">
+                                  Resend in {resendTimer}s
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleResendOtp}
+                                  className="text-orange-500 hover:text-orange-400 font-bold focus:outline-none underline cursor-pointer"
+                                >
+                                  Send Again
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </form>
+                  </>
+                )}
               </motion.div>
             )}
 

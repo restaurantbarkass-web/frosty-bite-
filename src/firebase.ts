@@ -1,64 +1,41 @@
-import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
-} from 'firebase/auth';
-import { 
-  initializeFirestore, 
-  doc, 
-  getDocFromServer,
-  persistentLocalCache,
-  persistentMultipleTabManager
-} from 'firebase/firestore';
-import { getMessaging } from 'firebase/messaging';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { getMessaging, isSupported } from 'firebase/messaging';
 import { supabase } from './supabase';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
-// Force long-polling and local persistent cache to prevent WebSocket connection degradation and timeout blocks in sandbox proxies.
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  }),
-  experimentalForceLongPolling: true
-}, (firebaseConfig as any).firestoreDatabaseId);
+// Safe initialization of messaging since FCM might not be supported in all testing environments or iframes
+let messagingInstance: any = null;
+isSupported().then((supported) => {
+  if (supported) {
+    try {
+      messagingInstance = getMessaging(app);
+    } catch (err) {
+      console.warn('[Firebase] Failed to initialize Messaging:', err);
+    }
+  } else {
+    console.warn('[Firebase] Messaging is not supported in this browser environment.');
+  }
+}).catch((err) => {
+  console.warn('[Firebase] Error checking Messaging support:', err);
+});
 
-// Core connection test required by firebase-integration skill guidelines
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    const isOffline = error instanceof Error && (
-      error.message.includes('offline') ||
-      error.message.includes('unavailable') ||
-      error.message.includes('could not be completed') ||
-      error.message.includes('Could not reach Cloud Firestore')
-    );
-    if (isOffline) {
-      console.log('[Firebase Init] Connection check: Client is offline or sandbox proxy blocks direct network. Standard resilient offline cache is active.');
-    } else {
-      console.warn('[Firebase Init] Connection test trace: ', error instanceof Error ? error.message : error);
+export const getMessagingInstance = async () => {
+  const supported = await isSupported();
+  if (supported && !messagingInstance) {
+    try {
+      messagingInstance = getMessaging(app);
+    } catch (err) {
+      console.warn('[Firebase] Failed to initialize Messaging dynamically:', err);
     }
   }
-}
-testConnection();
-
-export const messaging = typeof window !== 'undefined' ? (() => {
-  try {
-    return getMessaging(app);
-  } catch (e) {
-    console.warn('Firebase Messaging not supported in this environment');
-    return null;
-  }
-})() : null;
-
-export const googleProvider = new GoogleAuthProvider();
+  return messagingInstance;
+};
 
 export const logout = async () => {
   try {

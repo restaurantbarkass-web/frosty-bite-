@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
+import { validate } from '../middleware/validate';
+import { validateAddressSchema, notifyRequestSchema } from '../validators/validateaddress.schema';
 
 const router = express.Router();
 
@@ -116,7 +118,36 @@ async function fetchConfigFromFirestoreREST(): Promise<any> {
  */
 async function getAppConfig(): Promise<any> {
   try {
-    // 1. REST Firestore
+    // 1. Primary Source: Supabase
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', '1')
+        .maybeSingle();
+      
+      if (!error && data && data.value) {
+        const val = data.value;
+        return typeof val === 'string' ? JSON.parse(val) : val;
+      }
+      if (error) {
+        console.warn('[ValidateAddressRoutes] getAppConfig Supabase error:', error.message);
+      }
+    } catch (sbErr: any) {
+      console.warn('[ValidateAddressRoutes] getAppConfig Supabase fetch failed:', sbErr.message);
+    }
+
+    // 2. Fallback: File-system backup
+    try {
+      const backupPath2 = path.join(process.cwd(), 'appConfig_backup.json');
+      if (fs.existsSync(backupPath2)) {
+        return JSON.parse(fs.readFileSync(backupPath2, 'utf8'));
+      }
+    } catch (fsErr) {
+      // Ignore
+    }
+
+    // 3. Fallback: REST Firestore
     try {
       const restConfig = await fetchConfigFromFirestoreREST();
       if (restConfig) return restConfig;
@@ -124,7 +155,7 @@ async function getAppConfig(): Promise<any> {
       console.log('[ValidateAddressRoutes] getAppConfig REST failed:', e.message);
     }
 
-    // 2. Admin SDK Firestore
+    // 4. Fallback: Admin SDK Firestore
     try {
       const db = getAdminDb();
       const docSnap = await db.doc('settings/appConfig').get();
@@ -133,30 +164,6 @@ async function getAppConfig(): Promise<any> {
       }
     } catch (e: any) {
       console.log('[ValidateAddressRoutes] getAppConfig Admin SDK failed:', e.message);
-    }
-
-    // 3. Supabase fallback
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('address')
-        .eq('email', 'system_settings_v1@frostybite.internal')
-        .maybeSingle();
-      if (!error && data && data.address) {
-        return JSON.parse(data.address);
-      }
-    } catch (sbErr: any) {
-      console.warn('[ValidateAddressRoutes] getAppConfig Supabase fallback failed:', sbErr.message);
-    }
-
-    // 4. File-system or default
-    try {
-      const backupPath2 = path.join(process.cwd(), 'appConfig_backup.json');
-      if (fs.existsSync(backupPath2)) {
-        return JSON.parse(fs.readFileSync(backupPath2, 'utf8'));
-      }
-    } catch (fsErr) {
-      // Ignore
     }
   } catch (error: any) {
     console.error('[ValidateAddressRoutes] Error in getAppConfig:', error);
@@ -385,7 +392,7 @@ async function getServicePincodes(): Promise<any[]> {
  * POST /api/validate-address
  * Checks if a user's address or coordinates are inside active delivery boundaries.
  */
-router.post('/', async (req, res) => {
+router.post('/', validate(validateAddressSchema), async (req, res) => {
   try {
     const { address, coordinates, fields } = req.body;
 
@@ -608,7 +615,7 @@ router.get('/check-pincode/:pincode', async (req, res) => {
  * POST /api/validate-address/notify
  * Saves out of service notification requests into local backup storage and attempts table insertions into Supabase.
  */
-router.post('/notify', async (req, res) => {
+router.post('/notify', validate(notifyRequestSchema), async (req, res) => {
   try {
     const { email, phone, city, coords } = req.body;
     const emailTrimmed = email ? String(email).trim().toLowerCase() : '';

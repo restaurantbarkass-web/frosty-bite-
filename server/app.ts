@@ -65,6 +65,8 @@ app.use((req, res, next) => {
 });
 
 // 2. Security Middlewares
+const isProd = process.env.NODE_ENV === "production";
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -79,7 +81,9 @@ app.use(helmet({
         "http:",
         "ws:",
         "https://*.googleapis.com",
-        "https://*.firebaseio.com"
+        "https://*.firebaseio.com",
+        "http://localhost:*",
+        "ws://localhost:*"
       ],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
@@ -96,14 +100,16 @@ app.use(helmet({
       ]
     }
   },
-  frameguard: false, // Kept false to support the AI Studio iframe preview environment safely
-  hsts: {
+  frameguard: false, // Must be false to support the AI Studio iframe preview environment safely
+  hsts: isProd ? {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
     preload: true
-  },
+  } : false,
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false
 }));
 app.use(cors((req: any, callback: any) => {
   const origin = req.header('Origin');

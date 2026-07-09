@@ -106,3 +106,9 @@ export interface BannerClick {
   clicked_at: string;
   user_id?: string;
 }
+
+export interface AppConfig {
+  isOrderingOpen: boolean;
+  [key: string]: any;
+}
+

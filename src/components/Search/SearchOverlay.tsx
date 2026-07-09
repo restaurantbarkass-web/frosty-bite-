@@ -623,8 +623,8 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                             <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
                                             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
                                                 <div className="flex gap-2">
-                                                  {bestMatch.tags?.slice(0, 2).map(tag => (
-                                                    <span key={tag} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
+                                                  {bestMatch.tags?.slice(0, 2).map((tag, tagIdx) => (
+                                                    <span key={`${tag}-${tagIdx}`} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
                                                   ))}
                                                 </div>
                                                 

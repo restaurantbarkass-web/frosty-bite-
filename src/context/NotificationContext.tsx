@@ -2,23 +2,6 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
-import { db, auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  addDoc, 
-  Timestamp,
-  writeBatch,
-  getDocs,
-  serverTimestamp
-} from 'firebase/firestore';
 
 export interface Notification {
   id: string;
@@ -26,7 +9,7 @@ export interface Notification {
   message: string;
   type: 'order' | 'system';
   read: boolean;
-  created_at: any; // Can be string or Timestamp
+  created_at: string;
   user_id: string;
   link?: string;
 }
@@ -43,132 +26,56 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(auth: any, error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth?.currentUser?.uid,
-      email: auth?.currentUser?.email,
-      emailVerified: auth?.currentUser?.emailVerified,
-      isAnonymous: auth?.currentUser?.isAnonymous,
-      tenantId: auth?.currentUser?.tenantId,
-      providerInfo: auth?.currentUser?.providerData?.map((provider: any) => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.warn('Firestore Error suppressed:', JSON.stringify(errInfo));
-  if (operationType !== OperationType.GET && operationType !== OperationType.LIST) {
-    toast.success('Content updated successfully', {
-      id: `notif-content-update-${operationType}`,
-      duration: 3500
-    });
-  }
-}
-
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, role, isAdmin } = useAuth() as any;
-  const authInstance = auth;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
-  const [fbUser, setFbUser] = useState<any>(auth.currentUser);
 
   const userRef = useRef(user);
-  const fbUserRef = useRef(fbUser);
 
   useEffect(() => {
     userRef.current = user;
-    fbUserRef.current = fbUser;
-  }, [user, fbUser]);
+  }, [user]);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(authInstance, (u) => {
-      setFbUser(u);
-    });
-    return unsub;
-  }, [authInstance]);
-
+  // Load notifications from local storage on auth state change
   useEffect(() => {
     const currentUser = userRef.current;
-    const currentFbUser = fbUserRef.current;
-
-    if (!currentUser || !currentFbUser) {
+    if (!currentUser) {
       setNotifications([]);
       return;
     }
 
-    // Initial load from cache
-    const cacheKey = `user_notifications_${currentUser.uid}`;
+    const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        setNotifications(parsed.data || parsed);
-      } catch (e) {}
+        setNotifications(Array.isArray(parsed) ? parsed : (parsed.data || []));
+      } catch (e) {
+        setNotifications([]);
+      }
+    } else {
+      // Default initial welcome notification if none exist
+      const welcomeNotif: Notification = {
+        id: `welcome-${Date.now()}`,
+        title: 'Welcome to Frosty Bite! ✨',
+        message: 'Explore our curated premium menu and start earning loyalty points today.',
+        type: 'system',
+        read: false,
+        created_at: new Date().toISOString(),
+        user_id: currentUser.id || currentUser.uid
+      };
+      setNotifications([welcomeNotif]);
+      localStorage.setItem(cacheKey, JSON.stringify([welcomeNotif]));
     }
 
-    // Firestore Notifications listener
-    const path = 'notifications';
-    const targetUserId = currentUser.firebase_uid || currentUser.uid;
-    const q = query(
-      collection(db, path),
-      where('user_id', '==', targetUserId),
-      orderBy('created_at', 'desc'),
-      limit(50)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          // Convert Firestore Timestamp to string for Date constructor compatibility
-          created_at: data.created_at?.toDate?.() ? data.created_at.toDate().toISOString() : data.created_at
-        };
-      }) as Notification[];
-      
-      setNotifications(notifs);
-      localStorage.setItem(cacheKey, JSON.stringify(notifs));
-    }, (error) => {
-      handleFirestoreError(authInstance, error, OperationType.GET, path);
-    });
-
-    // Admin new order monitor - Orders still in Supabase
+    // Admin new order monitor using Supabase Realtime
     let unsubAdminOrders: (() => void) | null = null;
     if (isAdmin || role === 'admin') {
+      const stableUid = currentUser.id || currentUser.uid;
       const channel = supabase
-        .channel('admin_order_monitor')
+        .channel('admin_order_monitor_notifications')
         .on('postgres_changes', { 
           event: 'INSERT', 
           schema: 'public', 
@@ -198,6 +105,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 icon: '/logo.png'
               });
             }
+
+            // Also save a notification locally for the admin
+            const newNotif: Notification = {
+              id: `order-notif-${latestOrder.id}`,
+              title: 'New Order Received! 🍕',
+              message: `${latestOrder.customer_name} placed order #${latestOrder.id.slice(-6).toUpperCase()} for ₹${latestOrder.total}`,
+              type: 'order',
+              read: false,
+              created_at: new Date().toISOString(),
+              user_id: stableUid,
+              link: `/admin/orders?id=${latestOrder.id}`
+            };
+
+            setNotifications(prev => {
+              const updated = [newNotif, ...prev];
+              localStorage.setItem(cacheKey, JSON.stringify(updated));
+              return updated;
+            });
           }
           lastOrderIdRef.current = latestOrder.id;
         })
@@ -225,98 +150,80 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     return () => {
-      unsubscribe();
       if (unsubAdminOrders) unsubAdminOrders();
     };
-  }, [user?.uid, role, isAdmin, fbUser?.uid]);
+  }, [user?.id, user?.uid, role, isAdmin]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAsRead = React.useCallback(async (id: string) => {
-    const path = 'notifications';
-    try {
-      const docRef = doc(db, path, id);
-      await updateDoc(docRef, { read: true });
-    } catch (error) {
-      handleFirestoreError(authInstance, error, OperationType.UPDATE, `${path}/${id}`);
-    }
-  }, [authInstance]);
+    const currentUser = userRef.current;
+    if (!currentUser) return;
+
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const markAllAsRead = React.useCallback(async () => {
-    if (!user) return;
-    const path = 'notifications';
-    try {
-      const targetUserId = user.firebase_uid || user.uid;
-      console.log(`Attempting to mark all notifications as read for user ${targetUserId}`);
-      const q = query(
-        collection(db, path),
-        where('user_id', '==', targetUserId),
-        where('read', '==', false)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      console.log(`Found ${querySnapshot.size} unread notifications`);
-      if (querySnapshot.empty) return;
+    const currentUser = userRef.current;
+    if (!currentUser) return;
 
-      const batch = writeBatch(db);
-      querySnapshot.forEach((doc) => {
-        batch.update(doc.ref, { read: true });
-      });
-      
-      await batch.commit();
-      console.log('Successfully committed batch update');
-      toast.success('All notifications marked as read');
-    } catch (error: any) {
-      console.error('Error marking all as read:', error);
-      const errorMessage = error?.message || String(error);
-      toast.error(`Failed to mark notifications as read: ${errorMessage}`);
-      handleFirestoreError(authInstance, error, OperationType.WRITE, path);
-    }
-  }, [user, authInstance]);
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      return updated;
+    });
+    toast.success('All notifications marked as read');
+  }, []);
 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
-    const path = 'notifications';
-    try {
-      const targetUserId = notif.user_id || authInstance?.currentUser?.uid || user?.firebase_uid || '';
-      await addDoc(collection(db, path), {
-        ...notif,
-        user_id: targetUserId,
-        read: false,
-        created_at: serverTimestamp()
-      });
+    const currentUser = userRef.current;
+    const targetUserId = notif.user_id || currentUser?.id || currentUser?.uid || '';
+    if (!targetUserId) return;
 
-      // Trigger background FCM push notification via backend API proxy
-      if (targetUserId) {
-        fetch('/api/notifications/send-push', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            userId: targetUserId,
-            title: notif.title,
-            body: notif.message,
-            data: {
-              link: notif.link || '',
-              type: notif.type || 'order'
-            }
-          })
-        }).then(async (res) => {
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}));
-            console.warn('[FCM Push] Server returned error sending push notification:', errBody);
-          } else {
-            const data = await res.json();
-            console.log('[FCM Push] Push dispatch response:', data);
+    const newNotif: Notification = {
+      ...notif,
+      id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      read: false,
+      created_at: new Date().toISOString(),
+      user_id: targetUserId
+    };
+
+    setNotifications(prev => {
+      const updated = [newNotif, ...prev];
+      const cacheKey = `user_notifications_${targetUserId}`;
+      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      return updated;
+    });
+
+    // Trigger FCM push notification via backend API proxy if supported
+    try {
+      fetch('/api/notifications/send-push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+          title: notif.title,
+          body: notif.message,
+          data: {
+            link: notif.link || '',
+            type: notif.type || 'order'
           }
-        }).catch((err) => {
-          console.warn('[FCM Push] Network error posting to FCM push service:', err);
-        });
-      }
-    } catch (error) {
-      handleFirestoreError(authInstance, error, OperationType.CREATE, path);
+        })
+      }).catch((err) => {
+        console.warn('[FCM Push] Network warning posting to FCM push service:', err);
+      });
+    } catch (err) {
+      console.warn('[FCM Push] Failed to trigger push notification:', err);
     }
-  }, [authInstance, user]);
+  }, []);
 
   const value = React.useMemo(() => ({ 
     notifications, 

@@ -20,6 +20,13 @@
   }
   --animate-shine: shine 1.5s infinite;
 
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+    20%, 40%, 60%, 80% { transform: translateX(6px); }
+  }
+  --animate-shake: shake 0.5s ease-in-out;
+
   @keyframes gradient-x {
     0%, 100% {
       background-size: 200% 200%;

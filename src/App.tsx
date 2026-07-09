@@ -7,10 +7,10 @@ import { LockedGeofenceScreen } from './components/LockedGeofenceScreen';
 import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ConfigProvider, useConfig } from './context/ConfigContext';
 import { Toaster, toast } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
-import { CartSidebar } from './components/CartSidebar';
 import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -31,8 +31,6 @@ import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
-
-import Offers from './pages/Offers';
 
 // Resilient wrapper to retry dynamic lazy imports with progressive backoff and infinite reload protection
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -81,6 +79,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
 
 // Lazy load pages for performance with automatic reload retry fallback
 const Home = lazyWithRetry(() => import('./pages/HomePage'));
+const Offers = lazyWithRetry(() => import('./pages/Offers'));
 const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
 const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
 const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
@@ -93,6 +92,7 @@ const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
 const Orders = lazyWithRetry(() => import('./pages/Orders'));
 const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
 const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
+const CartSidebar = lazyWithRetry(() => import('./components/CartSidebar').then(module => ({ default: module.CartSidebar })));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -239,9 +239,18 @@ function AppContent() {
       return;
     }
 
-    const lenis = new Lenis({
+    let LenisConstructor = Lenis as any;
+    if (LenisConstructor && LenisConstructor.default) {
+      LenisConstructor = LenisConstructor.default;
+    }
+    if (typeof LenisConstructor !== 'function') {
+      console.warn('[Lenis] Lenis import is not a valid constructor, skipping smooth scroll.');
+      return;
+    }
+
+    const lenis = new LenisConstructor({
       duration: 2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
@@ -336,8 +345,10 @@ function AppContent() {
   const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
-  // 0. If we are actively restoring or synchronizing user identity, show a pristine cinematic loader
-  if (loading) {
+  const { isLoading: configLoading } = useConfig();
+
+  // 0. If we are actively restoring or synchronizing user identity or loading configuration settings, show a pristine cinematic loader
+  if (loading || configLoading) {
     return <LoadingScreen message="Restoring session..." />;
   }
 
@@ -404,7 +415,11 @@ function AppContent() {
       )}
 
       {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} onSearchClick={() => setIsSearchOverlayOpen(true)} />}
-      {showCartSidebar && <CartSidebar />}
+      {showCartSidebar && (
+        <Suspense fallback={null}>
+          <CartSidebar />
+        </Suspense>
+      )}
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       <FlyingCartOverlay />
       
@@ -548,15 +563,17 @@ export default function App() {
     <Router>
       <ThemeProvider>
         <AuthProvider>
-          <GeofenceProvider>
-            <MenuProvider>
-              <NotificationProvider>
-                <CartProvider>
-                  <AppContent />
-                </CartProvider>
-              </NotificationProvider>
-            </MenuProvider>
-          </GeofenceProvider>
+          <ConfigProvider>
+            <GeofenceProvider>
+              <MenuProvider>
+                <NotificationProvider>
+                  <CartProvider>
+                    <AppContent />
+                  </CartProvider>
+                </NotificationProvider>
+              </MenuProvider>
+            </GeofenceProvider>
+          </ConfigProvider>
         </AuthProvider>
       </ThemeProvider>
     </Router>

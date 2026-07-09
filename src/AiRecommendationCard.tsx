@@ -113,8 +113,8 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
                     <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed mb-4">{item.description}</p>
                     
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {item.tags?.slice(0, 3).map(tag => (
-                        <span key={tag} className="px-2 py-0.5 bg-white/5 rounded text-[10px] font-medium text-gray-400 capitalize">
+                      {item.tags?.slice(0, 3).map((tag, tagIdx) => (
+                        <span key={`${tag}-${tagIdx}`} className="px-2 py-0.5 bg-white/5 rounded text-[10px] font-medium text-gray-400 capitalize">
                           {tag}
                         </span>
                       ))}

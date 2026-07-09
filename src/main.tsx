@@ -16,59 +16,6 @@ function Loader() {
   );
 }
 
-/* ---------------- GLOBAL ERROR HANDLING ---------------- */
-
-window.addEventListener('error', (event) => {
-  const errorMsg = event.message || '';
-  const errorStr = event.error ? String(event.error.message || event.error) : '';
-  if (
-    errorMsg.toLowerCase().includes('websocket') ||
-    errorMsg.toLowerCase().includes('web socket') ||
-    errorMsg.toLowerCase().includes('vite') ||
-    errorMsg.toLowerCase().includes('closed without opened') ||
-    errorMsg.toLowerCase().includes('closeevent') ||
-    errorStr.toLowerCase().includes('websocket') ||
-    errorStr.toLowerCase().includes('web socket') ||
-    errorStr.toLowerCase().includes('vite') ||
-    errorStr.toLowerCase().includes('closed without opened') ||
-    errorStr.toLowerCase().includes('closeevent') ||
-    errorMsg.includes('Pending promise was never set') ||
-    errorStr.includes('Pending promise was never set')
-  ) {
-    try {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    } catch (_) {}
-    return;
-  }
-  console.error('Global Error:', event.error?.stack || event.error?.message || event.error || event);
-});
-
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason;
-  const reasonStr = reason ? String(reason.message || reason.description || reason.reason || reason) : '';
-  const reasonConstructorName = reason && reason.constructor ? String(reason.constructor.name) : '';
-  
-  if (
-    reasonStr.toLowerCase().includes('websocket') ||
-    reasonStr.toLowerCase().includes('web socket') ||
-    reasonStr.toLowerCase().includes('vite') ||
-    reasonStr.toLowerCase().includes('closed without opened') ||
-    reasonStr.toLowerCase().includes('closeevent') ||
-    reasonConstructorName.toLowerCase().includes('closeevent') ||
-    reasonConstructorName.toLowerCase().includes('websocket') ||
-    (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined)) ||
-    reasonStr.includes('Pending promise was never set')
-  ) {
-    try {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    } catch (_) {}
-    return;
-  }
-  console.error('Unhandled Promise:', reason?.stack || reason?.message || reason || event);
-});
-
 /* ---------------- PREVENT REFRESH LOOPS ---------------- */
 
 const lastReload = sessionStorage.getItem('lastReload');

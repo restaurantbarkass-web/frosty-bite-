@@ -314,68 +314,75 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     return new Promise<void>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setPermissionState('granted');
-          const { latitude, longitude, accuracy } = position.coords;
-          setUserCoords({ latitude, longitude });
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setPermissionState('granted');
+            const { latitude, longitude, accuracy } = position.coords;
+            setUserCoords({ latitude, longitude });
 
-          const isSuspicious = accuracy <= 0.01;
-          setIsMockLocationDetected(isSuspicious);
+            const isSuspicious = accuracy <= 0.01;
+            setIsMockLocationDetected(isSuspicious);
 
-          // Reverse geocoding and accessibility checks using OpenStreetMap and delivery_pincodes
-          fetchReverseGeocode(latitude, longitude).then(async (geo) => {
-            if (geo) {
-              setDetectedCity(geo.city || null);
-              setDetectedState(geo.state || null);
-              setDetectedPincode(geo.pincode || null);
-              setDetectedAddress(geo.fullAddress || null);
-              
-              try {
-                localStorage.setItem('frostybite_detected_city', geo.city || '');
-                localStorage.setItem('frostybite_detected_state', geo.state || '');
-                localStorage.setItem('frostybite_detected_pincode', geo.pincode || '');
-                localStorage.setItem('frostybite_detected_address', geo.fullAddress || '');
-              } catch (e) {}
+            // Reverse geocoding and accessibility checks using OpenStreetMap and delivery_pincodes
+            fetchReverseGeocode(latitude, longitude).then(async (geo) => {
+              if (geo) {
+                setDetectedCity(geo.city || null);
+                setDetectedState(geo.state || null);
+                setDetectedPincode(geo.pincode || null);
+                setDetectedAddress(geo.fullAddress || null);
+                
+                try {
+                  localStorage.setItem('frostybite_detected_city', geo.city || '');
+                  localStorage.setItem('frostybite_detected_state', geo.state || '');
+                  localStorage.setItem('frostybite_detected_pincode', geo.pincode || '');
+                  localStorage.setItem('frostybite_detected_address', geo.fullAddress || '');
+                } catch (e) {}
 
-              if (geo.pincode) {
-                const isAvailable = await checkPincodeAvailability(geo.pincode);
-                setIsPincodeAllowed(isAvailable);
-                if (isAvailable) {
-                  setUnlockedPincode(geo.pincode);
-                  try {
-                    localStorage.setItem('frostybite_unlocked_pincode', geo.pincode);
-                  } catch (e) {}
-                } else {
-                  setUnlockedPincode(null);
-                  try {
-                    localStorage.removeItem('frostybite_unlocked_pincode');
-                  } catch (e) {}
+                if (geo.pincode) {
+                  const isAvailable = await checkPincodeAvailability(geo.pincode);
+                  setIsPincodeAllowed(isAvailable);
+                  if (isAvailable) {
+                    setUnlockedPincode(geo.pincode);
+                    try {
+                      localStorage.setItem('frostybite_unlocked_pincode', geo.pincode);
+                    } catch (e) {}
+                  } else {
+                    setUnlockedPincode(null);
+                    try {
+                      localStorage.removeItem('frostybite_unlocked_pincode');
+                    } catch (e) {}
+                  }
                 }
               }
+              resolve();
+            }).catch((err) => {
+              console.error('[Geofence] Reverse geocode error inside geolocation callback:', err);
+              resolve();
+            });
+          },
+          (error) => {
+            console.warn('[GeofenceProvider] Geolocation query failed:', error);
+            if (error.code === error.PERMISSION_DENIED) {
+              setPermissionState('denied');
+              setErrorMessage('Location permission was denied. We require location access to verify service coverage.');
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+              setErrorMessage('Your precise location is currently unavailable. Please check your system GPS settings.');
+            } else if (error.code === error.TIMEOUT) {
+              setErrorMessage('Location request timed out. Please check signal strength or retry.');
+            } else {
+              setErrorMessage('An unexpected error occurred while verifying location coordinates.');
             }
             resolve();
-          }).catch((err) => {
-            console.error('[Geofence] Reverse geocode error inside geolocation callback:', err);
-            resolve();
-          });
-        },
-        (error) => {
-          console.warn('[GeofenceProvider] Geolocation query failed:', error);
-          if (error.code === error.PERMISSION_DENIED) {
-            setPermissionState('denied');
-            setErrorMessage('Location permission was denied. We require location access to verify service coverage.');
-          } else if (error.code === error.POSITION_UNAVAILABLE) {
-            setErrorMessage('Your precise location is currently unavailable. Please check your system GPS settings.');
-          } else if (error.code === error.TIMEOUT) {
-            setErrorMessage('Location request timed out. Please check signal strength or retry.');
-          } else {
-            setErrorMessage('An unexpected error occurred while verifying location coordinates.');
-          }
-          resolve();
-        },
-        options
-      );
+          },
+          options
+        );
+      } catch (err: any) {
+        console.warn('[GeofenceProvider] Synchronous error calling getCurrentPosition (possibly blocked by iframe feature policy):', err);
+        setPermissionState('unsupported');
+        setErrorMessage('Geolocation access is restricted or unsupported in this view.');
+        resolve();
+      }
     });
   }, [fetchReverseGeocode, checkPincodeAvailability]);
 

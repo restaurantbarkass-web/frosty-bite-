@@ -1,31 +1,7 @@
-import { useState, useEffect } from 'react';
-import { appConfigService, AppConfig } from '../services/appConfigService';
+import { useConfig } from '../context/ConfigContext';
 
 export const useAppConfig = () => {
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    let unsubscribe: (() => void) | null = null;
-    
-    try {
-      unsubscribe = appConfigService.subscribeToConfig((data) => {
-        if (mounted) {
-          setConfig(data);
-          setIsLoading(false);
-        }
-      });
-    } catch (err) {
-      console.warn('Failed to subscribe to app config:', err);
-      if (mounted) setIsLoading(false);
-    }
-
-    return () => {
-      mounted = false;
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+  const { config, isLoading } = useConfig();
 
   return { 
     config, 

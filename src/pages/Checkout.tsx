@@ -977,15 +977,29 @@ export const Checkout: React.FC = () => {
                   <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
                     <Phone size={12} className="text-primary" /> Phone Number *
                   </label>
-                  <input
-                    ref={phoneRef}
-                    type="tel"
-                    required
-                    placeholder="10-digit mobile number"
-                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, '').slice(0, 10) })}
-                  />
+                  <div className="relative flex items-center">
+                    <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none text-zinc-500">
+                      <Phone size={16} className="text-primary" />
+                      <span className="text-sm font-semibold border-r border-white/10 pr-2 font-mono text-zinc-400 leading-none">+91</span>
+                    </div>
+                    <input
+                      ref={phoneRef}
+                      type="tel"
+                      required
+                      placeholder="9876543210"
+                      className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 pl-[5.5rem] pr-4 h-14 rounded-2xl transition-all font-mono text-white text-sm"
+                      value={formData.phone}
+                      onChange={(e) => {
+                        let clean = e.target.value.replace(/[^0-9]/g, '');
+                        if (clean.startsWith('91') && clean.length > 10) {
+                          clean = clean.slice(2);
+                        } else if (clean.startsWith('0') && clean.length > 10) {
+                          clean = clean.slice(1);
+                        }
+                        setFormData({ ...formData, phone: clean.slice(0, 10) });
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 

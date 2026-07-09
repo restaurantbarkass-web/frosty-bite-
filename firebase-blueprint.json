@@ -27,6 +27,7 @@
         "avatar_vibe": { "type": "string" },
         "avatar_generation_count": { "type": "number" },
         "ai_usage_stats": { "type": "object" },
+        "fcm_tokens": { "type": "array" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" }
       },

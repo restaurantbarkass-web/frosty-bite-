@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "192721758806",
+    "firebase_url": "https://frostybite07-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "frostybite07",
+    "storage_bucket": "frostybite07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:192721758806:android:3057e2ab3a8b87acaf69f7",
+        "android_client_info": {
+          "package_name": "com.frostybite.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "192721758806-v2rql3bdhnpura72c737v8pu2i1oehj5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9armMbaJX1S3Ki0WrbY7G6npE8vBzPkA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "192721758806-v2rql3bdhnpura72c737v8pu2i1oehj5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

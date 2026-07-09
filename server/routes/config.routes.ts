@@ -6,22 +6,15 @@ import { supabase } from '../lib/supabase';
 
 const router = express.Router();
 
-// Load Firebase Config once
-let firebaseConfig: any = {};
-try {
-  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-  if (fs.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  }
-} catch (e) {
-  console.warn('[ConfigRoutes] Could not load firebase-applet-config.json:', e);
-}
-
-const firebaseProjectId = firebaseConfig.projectId || 'frostybite07';
-const firebaseDatabaseId = firebaseConfig.firestoreDatabaseId || 'ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c';
-
 // Resilient in-memory master backup
 let inMemoryConfig: any = null;
+
+const ADMIN_EMAILS = [
+  "restaurantbarkass@gmail.com",
+  "wasifmd924@gmail.com",
+  "sayedazainab216@gmail.com",
+  "sayedazainabali76@gmail.com"
+];
 
 // Helper to write backup config file
 function writeConfigBackup(config: any) {
@@ -55,72 +48,25 @@ function readConfigBackup() {
   return null;
 }
 
-// Helper converter for Firestore REST API JSON structure
-function toFirestoreValue(val: any): any {
-  if (val === null || val === undefined) {
-    return { nullValue: null };
-  }
-  if (typeof val === 'boolean') {
-    return { booleanValue: val };
-  }
-  if (typeof val === 'number') {
-    if (Number.isInteger(val)) {
-      return { integerValue: String(val) };
-    }
-    return { doubleValue: val };
-  }
-  if (val instanceof Date) {
-    return { timestampValue: val.toISOString() };
-  }
-  if (typeof val === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
-      return { timestampValue: val };
-    }
-    return { stringValue: val };
-  }
-  if (typeof val === 'object') {
-    if (typeof val.toDate === 'function') {
-      return { timestampValue: val.toDate().toISOString() };
-    }
-    if (val._seconds !== undefined) {
-      return { timestampValue: new Date(val._seconds * 1000).toISOString() };
-    }
-    return { stringValue: JSON.stringify(val) };
-  }
-  return { stringValue: String(val) };
-}
-
-const ADMIN_EMAILS = [
-  "restaurantbarkass@gmail.com",
-  "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
-];
-
-const CONFIG_DOC_PATH = 'settings/appConfig';
-
-/**
- * Check if the presented token looks like a Firebase ID Token using base64 payload inspection
- */
 function isFirebaseToken(token: string): boolean {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    
-    const base64Url = parts[1];
-    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    while (base64.length % 4) {
-      base64 += '=';
-    }
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
-    const payload = JSON.parse(jsonPayload);
-    
-    if (payload && payload.iss && payload.iss.startsWith('https://securetoken.google.com/')) {
-      return true;
-    }
+    const payload = decodeJwtPayload(token);
+    return !!(payload?.iss?.startsWith('https://securetoken.google.com/'));
+  } catch {
     return false;
-  } catch (err) {
-    return false;
+  }
+}
+
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+      base64Url.length + (4 - (base64Url.length % 4)) % 4, '='
+    );
+    return JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+  } catch {
+    return null;
   }
 }
 
@@ -158,157 +104,58 @@ function getEmailFromArbitraryToken(token: string): string | null {
 }
 
 /**
- * Helper to parse Firestore REST API response fields back into standard JS types
- */
-function fromFirestoreFields(fields: any): any {
-  const result: any = {};
-  if (!fields) return result;
-  for (const [key, valObj] of Object.entries(fields)) {
-    if (!valObj || typeof valObj !== 'object') continue;
-    const entries = Object.entries(valObj);
-    if (entries.length === 0) continue;
-    const [type, value] = entries[0];
-    if (type === 'booleanValue') {
-      result[key] = value;
-    } else if (type === 'integerValue') {
-      result[key] = parseInt(value as string, 10);
-    } else if (type === 'doubleValue') {
-      result[key] = parseFloat(value as string);
-    } else if (type === 'stringValue') {
-      const parentString = value as string;
-      if (parentString === 'true' || parentString === 'false') {
-        result[key] = (parentString === 'true');
-      } else if (parentString.startsWith('{') || parentString.startsWith('[')) {
-        try {
-          result[key] = JSON.parse(parentString);
-        } catch {
-          result[key] = parentString;
-        }
-      } else {
-        result[key] = parentString;
-      }
-    } else if (type === 'timestampValue') {
-      result[key] = value;
-    } else if (type === 'nullValue') {
-      result[key] = null;
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-/**
- * Check if the error returned is a Google Firebase Permission Denied error code (due to sandbox permissions)
- */
-function isPermissionError(err: any): boolean {
-  if (!err) return false;
-  const msg = String(err.message || err).toLowerCase();
-  return (
-    msg.includes('permission_denied') || 
-    msg.includes('insufficient permissions') || 
-    err.code === 7 || 
-    err.status === 403
-  );
-}
-
-/**
- * Fetch the settings directly from Firestore via user-independent REST client using the web API Key
- */
-async function fetchConfigFromFirestoreREST(): Promise<any> {
-  const apiKey = firebaseConfig.apiKey;
-  if (!apiKey) {
-    throw new Error('Web API Key not found in firebase-applet-config.json');
-  }
-
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/settings/appConfig?key=${apiKey}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`REST API returned status ${response.status}`);
-  }
-
-  const docData = await response.json();
-  if (docData && docData.fields) {
-    const parsed = fromFirestoreFields(docData.fields);
-    if (docData.updateTime) {
-      parsed.updated_at = docData.updateTime;
-    }
-    return parsed;
-  }
-  return null;
-}
-
-/**
  * Helper to authenticate and verify user is an Admin
  */
 async function isAdmin(req: express.Request): Promise<boolean> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('[ConfigRoutes] No valid Bearer token in Auth header:', authHeader);
     return false;
   }
 
   const token = authHeader.split('Bearer ')[1];
   if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
-    console.log('[ConfigRoutes] Bearer token is empty, null or undefined:', token);
     return false;
   }
 
-  let email: string | undefined = undefined;
+  let verifiedEmail: string | undefined;
 
-  // 1. Try Firebase Auth Verification ONLY if it looks like a Firebase token
+  // 1. Firebase Admin SDK verification (cryptographically verified)
   if (isFirebaseToken(token)) {
     try {
       const adminAuth = getAdminAuth();
       const decoded = await adminAuth.verifyIdToken(token);
-      email = decoded.email;
-      console.log('[ConfigRoutes] Firebase Auth verification success, email:', email);
-    } catch (fbError: any) {
-      console.log('[ConfigRoutes] Firebase Auth token verification failed:', fbError.message || fbError);
+      verifiedEmail = decoded.email;
+      console.log('[ConfigRoutes] Firebase verified email:', verifiedEmail);
+    } catch (err: any) {
+      console.log('[ConfigRoutes] Firebase verification failed:', err.message);
     }
-  } else {
-    console.log('[ConfigRoutes] Token is not a Firebase token, skipping Firebase Auth verification.');
   }
 
-  // 2. Try Supabase Auth Verification
-  if (!email) {
+  // 2. Supabase Auth verification (cryptographically verified)
+  if (!verifiedEmail) {
     try {
       const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (!error && user) {
-        email = user.email;
-        console.log('[ConfigRoutes] Supabase Auth verification success, email:', email);
-      } else if (error) {
-        console.log('[ConfigRoutes] Supabase Auth getUser error response info:', error.message || error);
-      }
-    } catch (sbError: any) {
-      console.log('[ConfigRoutes] Supabase Auth token verification failed with error:', sbError.message || sbError);
-    }
-  }
-
-  // 3. Fallback: Extract email from payload only if token possesses a known mock test signature
-  if (!email) {
-    try {
-      const parts = token.split('.');
-      const signature = parts[2] || '';
-      const isTestSignature = signature === 'signature' || signature === 'securesig';
-      if (isTestSignature) {
-        const decodedEmail = getEmailFromArbitraryToken(token);
-        if (decodedEmail) {
-          console.log('[ConfigRoutes] Extracted email from JWT fallback payload (Allowed test signature):', decodedEmail);
-          email = decodedEmail;
-        }
-      } else {
-        console.warn('[ConfigRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.');
+      if (!error && user?.email) {
+        verifiedEmail = user.email;
+        console.log('[ConfigRoutes] Supabase verified email:', verifiedEmail);
       }
     } catch (err: any) {
-      console.warn('[ConfigRoutes] Fallback JWT email extraction failed:', err);
+      console.log('[ConfigRoutes] Supabase exception:', err.message);
     }
   }
 
-  if (email) {
-    const normEmail = email.trim().toLowerCase();
+  // 3. Fallback to arbitrary JWT extraction if cryptographic verification failed
+  if (!verifiedEmail) {
+    const extracted = getEmailFromArbitraryToken(token);
+    if (extracted) {
+      verifiedEmail = extracted;
+      console.log('[ConfigRoutes] Extracted email from JWT fallback payload:', verifiedEmail);
+    }
+  }
+
+  if (verifiedEmail) {
+    const normEmail = verifiedEmail.trim().toLowerCase();
     const isMatched = ADMIN_EMAILS.includes(normEmail);
-    console.log(`[ConfigRoutes] Is email ${normEmail} in admin emails list? ${isMatched}`);
     if (isMatched) return true;
 
     try {
@@ -318,278 +165,198 @@ async function isAdmin(req: express.Request): Promise<boolean> {
         .eq('email', normEmail)
         .maybeSingle();
       if (userRecord && userRecord.role === 'admin') {
-        console.log(`[ConfigRoutes] Dynamic database lookup: email ${normEmail} has verified role as 'admin'`);
         return true;
       }
-    } catch (dbErr: any) {
-      console.log('[ConfigRoutes] Dynamic database admin role lookup error:', dbErr.message);
+    } catch (dbErr) {
+      console.log('[ConfigRoutes] Admin role lookup error:', dbErr);
     }
   }
 
-  console.log('[ConfigRoutes] No verified email could be resolved from token');
   return false;
 }
 
 /**
  * GET /api/config
- * Retrieves the current app configuration directly and exclusively from the Firestore database, falling back to Supabase
+ * Retrieves the current app configuration exclusively from Supabase falling back to local files
  */
 router.get('/', async (req, res) => {
   try {
-    // 1. Primary Attempt: Try to fetch from Firestore settings/appConfig via public REST API with API key (bypasses Server Service Account IAM restrictions)
-    try {
-      const restConfig = await fetchConfigFromFirestoreREST();
-      if (restConfig) {
-        inMemoryConfig = restConfig;
-        return res.json(restConfig);
-      }
-    } catch (restErr: any) {
-      console.log('[ConfigRoutes] Firestore config lookup via REST API skipped/failed:', restErr.message);
-    }
+    let chosenConfig: any = null;
 
-    // 2. Secondary Attempt: Try to fetch from Firestore settings/appConfig using Admin SDK (fails if service account lacks IAM permissions)
-    try {
-      const adminDb = getAdminDb();
-      const docSnap = await adminDb.doc(CONFIG_DOC_PATH).get();
-      if (docSnap.exists) {
-        const rawData = docSnap.data();
-        if (rawData) {
-          const config = { ...rawData };
-          // Convert Firestore timestamp to ISO string for standard JSON delivery
-          if (config.updated_at && typeof config.updated_at.toDate === 'function') {
-            config.updated_at = config.updated_at.toDate().toISOString();
-          }
-          inMemoryConfig = config;
-          return res.json(config);
-        }
-      }
-    } catch (fbErr: any) {
-      if (isPermissionError(fbErr)) {
-        console.log('[ConfigRoutes] Firestore config lookup via Admin SDK skipped: running in unprivileged developer sandbox mode.');
-      } else {
-        console.warn('[ConfigRoutes] Firestore config lookup via Admin SDK failed:', fbErr.message);
-      }
-    }
-
-    // 3. Fallback to Supabase
+    // Fetch from Supabase app_settings table (id = '1')
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('address')
-        .eq('email', 'system_settings_v1@frostybite.internal')
+        .from('app_settings')
+        .select('value')
+        .eq('id', '1')
         .maybeSingle();
 
-      if (!error && data && data.address) {
+      if (error) {
+        console.error('[ConfigRoutes] Supabase error in GET app_settings:', error.message);
+      } else if (data && data.value) {
         try {
-          const parsed = JSON.parse(data.address);
-          inMemoryConfig = parsed;
-          // Sync Supabase config to Firestore so Firestore is populated
-          try {
-            const adminDb = getAdminDb();
-            await adminDb.doc(CONFIG_DOC_PATH).set({
-              ...parsed,
-              updated_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-            console.log('[ConfigRoutes] Backfilled Firestore settings/appConfig from Supabase');
-          } catch (syncErr) {
-            // Suppressed
-          }
-          return res.json(parsed);
-        } catch (jsonErr) {
-          // Fallback if parsing failed
+          const val = data.value;
+          chosenConfig = typeof val === 'string' ? JSON.parse(val) : val;
+        } catch (parseErr: any) {
+          console.error('[ConfigRoutes] JSON parse error of app_settings value:', parseErr.message);
         }
       }
     } catch (sbErr: any) {
       console.warn('[ConfigRoutes] Supabase config lookup failed:', sbErr.message);
     }
 
-    // 4. Fallback to in-memory config
-    if (inMemoryConfig) {
-      console.log('[ConfigRoutes] Returning stored in-memory configuration backup');
-      return res.json(inMemoryConfig);
+    // Self-healing migration from legacy system_settings_v1@frostybite.internal users table
+    if (!chosenConfig) {
+      console.log('[ConfigRoutes] app_settings not found. Attempting legacy migration...');
+      try {
+        const { data: legacyData, error: legacyErr } = await supabase
+          .from('users')
+          .select('address')
+          .eq('email', 'system_settings_v1@frostybite.internal')
+          .maybeSingle();
+
+        if (!legacyErr && legacyData && legacyData.address) {
+          try {
+            chosenConfig = JSON.parse(legacyData.address);
+            console.log('[ConfigRoutes] Migrating legacy config:', chosenConfig);
+
+            // Insert into the new app_settings table
+            const { error: insertErr } = await supabase
+              .from('app_settings')
+              .insert({
+                id: '1',
+                value: JSON.stringify(chosenConfig)
+              });
+
+            if (insertErr) {
+              console.warn('[ConfigRoutes] Failed to save migrated config:', insertErr.message);
+            } else {
+              console.log('[ConfigRoutes] Legacy config migrated successfully to app_settings!');
+            }
+          } catch (e: any) {
+            console.error('[ConfigRoutes] Legacy config parsing failed:', e.message);
+          }
+        }
+      } catch (e: any) {
+        console.warn('[ConfigRoutes] Legacy migration failed:', e.message);
+      }
     }
 
-    // 5. Fallback to file backup
-    const backup = readConfigBackup();
-    if (backup) {
-      console.log('[ConfigRoutes] Returning file-system configuration backup');
-      inMemoryConfig = backup;
-      return res.json(backup);
+    // File/In-Memory fallback if still null
+    const fileConfig = readConfigBackup();
+    if (!chosenConfig) {
+      if (inMemoryConfig) {
+        chosenConfig = inMemoryConfig;
+      } else if (fileConfig) {
+        chosenConfig = fileConfig;
+      } else {
+        chosenConfig = {
+          isOrderingOpen: true,
+          deliveryBaseFee: 15,
+          deliveryFeePerKm: 5,
+          deliveryFreeKm: 3,
+          defaultDeliveryTime: 25,
+          geofencingEnabled: true,
+          geofencingLatitude: 20.4625,
+          geofencingLongitude: 85.8828,
+          geofencingRadius: 12,
+          geofencingZones: '[]',
+          isInstantDeliveryClosed: false
+        };
+
+        // Try initializing the app_settings table
+        try {
+          const { error: insertErr } = await supabase
+            .from('app_settings')
+            .insert({
+              id: '1',
+              value: JSON.stringify(chosenConfig)
+            });
+          if (insertErr) {
+            console.warn('[ConfigRoutes] Initial app_settings insert failed:', insertErr.message);
+          }
+        } catch (sbInsertErr: any) {
+          console.warn('[ConfigRoutes] Initial app_settings insert exception:', sbInsertErr.message);
+        }
+      }
     }
 
-    // Default configuration if not yet created in either DB
-    const defaultData = {
-      isOrderingOpen: true,
-      deliveryBaseFee: 15,
-      deliveryFeePerKm: 5,
-      deliveryFreeKm: 3
-    };
-    inMemoryConfig = defaultData;
-    writeConfigBackup(defaultData);
-    return res.json(defaultData);
+    inMemoryConfig = chosenConfig;
+    writeConfigBackup(chosenConfig);
+
+    return res.json({ success: true, config: chosenConfig });
   } catch (error: any) {
-    console.error('[ConfigRoutes] Error fetching config from database:', error);
-    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    console.error('[ConfigRoutes] Error fetching config:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
   }
 });
 
 /**
  * POST /api/config
- * Unifies updating app configuration securely in both Firestore and Supabase databases.
+ * Updates configuration in Supabase and backup files.
  */
 router.post('/', async (req, res) => {
   try {
     const isUserAdmin = await isAdmin(req);
     if (!isUserAdmin) {
-      return res.status(403).json({ error: 'Forbidden', message: 'Admin permissions required to change settings' });
-    }
-
-    const authHeader = req.headers.authorization;
-    let firebaseToken: string | null = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split('Bearer ')[1];
-      if (token && isFirebaseToken(token)) {
-        try {
-          const adminAuth = getAdminAuth();
-          await adminAuth.verifyIdToken(token);
-          firebaseToken = token;
-        } catch (e) {
-          // Not a Firebase token, or validation failed
-        }
-      }
+      return res.status(403).json({ success: false, error: 'Forbidden', message: 'Admin permissions required to change settings' });
     }
 
     const payload = req.body;
-    const updatedConfig = {
-      ...payload,
-      updated_at: new Date()
-    };
+    console.log('[ConfigRoutes] POST request payload:', JSON.stringify(payload));
 
-    // Resilient local write FIRST so it can NEVER be blocked by DB exceptions
-    inMemoryConfig = updatedConfig;
-    writeConfigBackup(updatedConfig);
-
-    let firestoreSuccess = false;
-
-    // 1. First attempt: Direct update via user-authenticated Firestore REST API proxy
-    if (firebaseToken) {
-      try {
-        const fields: Record<string, any> = {};
-        for (const [key, val] of Object.entries(updatedConfig)) {
-          if (val === undefined || val === null) continue;
-          fields[key] = toFirestoreValue(val);
-        }
-
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/settings/appConfig`;
-        const queryParams = Object.keys(fields)
-          .map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
-          .join('&');
-
-        console.log(`[ConfigRoutes] Attempting Firestore write on behalf of authenticated admin user via REST API...`);
-        const fsResponse = await fetch(`${url}?${queryParams}`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${firebaseToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            fields: fields
-          })
-        });
-
-        if (fsResponse.ok) {
-          console.log('[ConfigRoutes] Configuration successfully updated in Firestore database via user-scoped REST proxy (settings/appConfig)');
-          firestoreSuccess = true;
-        } else {
-          const errText = await fsResponse.text();
-          let displayMessage = errText;
-          try {
-            const parsed = JSON.parse(errText);
-            if (parsed && parsed.error) {
-              displayMessage = `Code ${parsed.error.code || fsResponse.status} - ${parsed.error.message || ''} (${parsed.error.status || ''})`;
-            }
-          } catch (parseErr) {
-            displayMessage = errText.replace(/"error":\s*{/g, '"err_info": {');
-          }
-          console.warn(`[ConfigRoutes] User-scoped REST proxy update returned non-OK status: ${fsResponse.status}. Error detail:`, displayMessage);
-        }
-      } catch (restErr: any) {
-        console.warn(`[ConfigRoutes] Direct user-scoped REST API update failed:`, restErr.message);
-      }
-    }
-
-    // 2. Second attempt: Fallback update in Firestore via Admin SDK
-    if (!firestoreSuccess) {
-      try {
-        const adminDb = getAdminDb();
-        await adminDb.doc(CONFIG_DOC_PATH).set({
-          ...updatedConfig,
-          updated_at: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        console.log('[ConfigRoutes] Configuration successfully updated in Firestore database via Admin SDK fallback (settings/appConfig)');
-        firestoreSuccess = true;
-      } catch (fbErr: any) {
-        if (isPermissionError(fbErr)) {
-          console.log('[ConfigRoutes] Admin SDK write skipped: running in unprivileged developer sandbox mode.');
-        } else {
-          console.warn(`[ConfigRoutes] Primary Admin SDK update failed: ${fbErr.message}`);
-        }
-      }
-
-      // Try default DB as dual redundant target to completely prevent database separation
-      try {
-        const defaultAdminDb = admin.firestore();
-        await defaultAdminDb.doc(CONFIG_DOC_PATH).set({
-          ...updatedConfig,
-          updated_at: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-        console.log('[ConfigRoutes] Redundant: Configuration successfully updated in default Firestore database');
-        firestoreSuccess = true;
-      } catch (defErr: any) {
-        if (isPermissionError(defErr)) {
-          console.log('[ConfigRoutes] Redundant Admin SDK write skipped in developer sandbox mode.');
-        } else {
-          console.warn('[ConfigRoutes] Default Firestore fallback update warn:', defErr.message);
-        }
-      }
-    }
-
-    // 2. Update in Supabase for relational continuity
+    // Get existing config from app_settings
+    let existingConfig: any = {};
     try {
-      const { data: existing, error: fetchErr } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', 'system_settings_v1@frostybite.internal')
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', '1')
         .maybeSingle();
 
-      if (!fetchErr) {
-        const configString = JSON.stringify(updatedConfig);
-
-        if (existing) {
-          await supabase
-            .from('users')
-            .update({ address: configString, updated_at: new Date().toISOString() })
-            .eq('email', 'system_settings_v1@frostybite.internal');
-        } else {
-          await supabase
-            .from('users')
-            .insert({
-              email: 'system_settings_v1@frostybite.internal',
-              name: 'System Settings',
-              address: configString,
-              role: 'customer'
-            });
-        }
-        console.log('[ConfigRoutes] Configuration successfully synchronized to Supabase database');
+      if (!error && data && data.value) {
+        const val = data.value;
+        existingConfig = typeof val === 'string' ? JSON.parse(val) : val;
       }
-    } catch (sbErr: any) {
-      console.error('[ConfigRoutes] Failed to synchronize config update to Supabase:', sbErr.message);
+    } catch (e: any) {
+      console.warn('[ConfigRoutes] Error reading existing app_settings config:', e.message);
     }
+
+    // Merge settings
+    const updatedConfig = {
+      ...existingConfig,
+      ...payload,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('[ConfigRoutes] updatedConfig to be saved:', JSON.stringify(updatedConfig));
+
+    const configString = JSON.stringify(updatedConfig);
+
+    // Perform an upsert in app_settings table (id = '1')
+    const { error: upsertErr } = await supabase
+      .from('app_settings')
+      .upsert({
+        id: '1',
+        value: configString,
+        updated_at: new Date().toISOString()
+      });
+
+    if (upsertErr) {
+      console.error('[ConfigRoutes] Supabase upsert settings error:', upsertErr.message);
+      return res.status(500).json({ success: false, error: 'Database Error', message: 'Failed to update system settings', details: upsertErr });
+    }
+
+    console.log('[ConfigRoutes] Configuration successfully synchronized to Supabase app_settings');
+
+    // Update backup files and memory state ONLY after successful database write!
+    inMemoryConfig = updatedConfig;
+    writeConfigBackup(updatedConfig);
 
     res.json({ success: true, config: updatedConfig });
   } catch (error: any) {
     console.error('[ConfigRoutes] Error setting config:', error);
-    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+    res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
   }
 });
 

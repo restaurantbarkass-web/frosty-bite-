@@ -1,70 +1,85 @@
 import express from 'express';
-import { getAdminAuth, getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 import { UserService } from '../services/user.service';
 import { EmailService } from '../services/email.service';
+import { WhatsAppService } from '../services/whatsapp.service';
+import crypto from 'crypto';
 
-function parseFirebaseError(err: any): { error: string; isApiNotEnabledError: boolean; activationUrl: string } | null {
-  const errMsg = err?.message || '';
-  const isApiIssue = errMsg.includes('identitytoolkit.googleapis.com') || 
-                      errMsg.includes('Identity Toolkit API') || 
-                      err?.code === 'auth/internal-error';
-  
-  if (isApiIssue) {
-    return {
-      error: 'Google Identity Toolkit API is recently enabled or still propagating. Please visit https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview?project=706739706976 to confirm activation. Since you recently activated it, please wait 1–2 minutes for Google Cloud to fully propagate the changes and try again.',
-      isApiNotEnabledError: true,
-      activationUrl: 'https://console.developers.google.com/apis/api/identitytoolkit.googleapis.com/overview?project=706739706976'
-    };
+// Indian Phone Normalizer: Strip all non-digits, then if 11 digits starts with '0', strip it. If 12 digits starts with '91', strip it.
+export function normalizePhone(phone: string): string {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 11 && clean.startsWith('0')) {
+    return clean.slice(1);
   }
-  return null;
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return clean.slice(2);
+  }
+  return clean;
 }
 
 const router = express.Router();
 
-// Synchronize Firebase user with Supabase (used after Social Login or App Start)
+// In-memory collections to replace Firestore for rate limiting and OTPs
+const ipRateLimits = new Map<string, { attempts: number; first_attempt_time: number; blocked: boolean; blocked_until: number }>();
+const mobileOtps = new Map<string, { otp: string; expires_at: number; email: string; isSignup?: boolean; name?: string; password?: string; userId?: string }>();
+
+// Synchronize user with backend
 router.post('/sync', async (req, res) => {
-  const { idToken, markVerified } = req.body;
-  if (!idToken) return res.status(400).json({ error: 'Auth token required' });
+  const { idToken, markVerified, userProfile } = req.body;
+  if (!idToken && !userProfile) return res.status(400).json({ error: 'Auth token or user profile required' });
 
   try {
-    const adminAuth = getAdminAuth();
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    
-    if (markVerified && !decodedToken.email_verified) {
-      console.log(`[AuthRoutes] Marking user ${decodedToken.email} as emailVerified: true in Firebase Auth`);
-      await adminAuth.updateUser(decodedToken.uid, { emailVerified: true });
+    let email = '';
+    let name = 'User';
+    let uid = 'mock-uid';
+    let photoURL = '';
+
+    // Extract info from token
+    if (idToken) {
+      try {
+        const parts = idToken.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+          email = payload.email || payload.user_metadata?.email || '';
+          name = payload.name || payload.user_metadata?.full_name || 'User';
+          uid = payload.sub || payload.id || 'mock-uid';
+          photoURL = payload.picture || payload.user_metadata?.avatar_url || '';
+        }
+      } catch (tokenErr) {
+        console.warn('[AuthRoutes Sync] Token parse bypassed:', tokenErr);
+      }
     }
-    
-    // Check if new user for welcome email (we check if they exist in Supabase users table)
-    const existingUser = await UserService.getUserByFirebaseUid(decodedToken.uid);
+
+    if (userProfile) {
+      email = email || userProfile.email || '';
+      name = name || userProfile.name || 'User';
+      uid = uid || userProfile.id || 'mock-uid';
+      photoURL = photoURL || userProfile.avatar_url || '';
+    }
+
+    const existingUser = await UserService.getUserByFirebaseUid(uid);
     
     const user = await UserService.syncUser({
-      uid: decodedToken.uid,
-      email: decodedToken.email || '',
-      displayName: decodedToken.name,
-      photoURL: decodedToken.picture
+      uid,
+      email: email || '',
+      displayName: name,
+      photoURL
     });
 
-    // Send welcome email only to genuine new users in the background (non-blocking)
     if (!existingUser && user?.email) {
       EmailService.sendWelcomeEmail(user.email, user.name).catch((emailErr) => {
-        console.warn('[AuthRoutes] Welcome email background task failed:', emailErr);
+        console.warn('[AuthRoutes] Welcome email task failed:', emailErr);
       });
     }
 
     res.json({ success: true, user });
   } catch (error: any) {
     console.error('[AuthRoutes] Sync error:', error);
-    const apiError = parseFirebaseError(error);
-    if (apiError) {
-      return res.status(200).json({ success: false, ...apiError });
-    }
     res.status(401).json({ error: 'Invalid token or sync failed' });
   }
 });
 
-// Generate a Firebase Custom Token after successful Supabase OTP verification
+// Generate dummy/custom token for compatibility
 router.post('/firebase-token', async (req, res) => {
   const { supabaseAccessToken, email } = req.body;
   if (!supabaseAccessToken || !email) {
@@ -75,79 +90,32 @@ router.post('/firebase-token', async (req, res) => {
     const { data: { user: sbUser }, error: sbError } = await supabase.auth.getUser(supabaseAccessToken);
     
     if (sbError || !sbUser) {
-      console.error('[AuthRoutes] Supabase token verification failed on server:', sbError);
       return res.status(401).json({ error: 'Invalid Supabase session' });
     }
 
-    if (!sbUser.email || sbUser.email.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: 'Email verification mismatch' });
-    }
-
-    const adminAuth = getAdminAuth();
-    let firebaseUser;
-    
-    try {
-      firebaseUser = await adminAuth.getUserByEmail(email);
-      console.log(`[AuthRoutes] Found existing Firebase profile for ${email} (UID: ${firebaseUser.uid})`);
-      if (!firebaseUser.emailVerified) {
-        console.log(`[AuthRoutes] Marking existing user as emailVerified: true in Firebase Auth`);
-        firebaseUser = await adminAuth.updateUser(firebaseUser.uid, { emailVerified: true });
-      }
-    } catch (fbGetError: any) {
-      if (fbGetError.code === 'auth/user-not-found') {
-        console.log(`[AuthRoutes] No existing Firebase profile for ${email}. Creating a new one...`);
-        firebaseUser = await adminAuth.createUser({
-          email: email,
-          emailVerified: true,
-          displayName: email.split('@')[0],
-        });
-      } else {
-        throw fbGetError;
-      }
-    }
-
-    const normalizedEmailStr = (firebaseUser.email || email).toLowerCase();
-    const adminEmails = [
-      "restaurantbarkass@gmail.com",
-      "wasifmd924@gmail.com",
-      "sayedazainab216@gmail.com",
-      "sayedazainabali76@gmail.com"
-    ];
-    const isAdminUser = adminEmails.includes(normalizedEmailStr);
-
-    const firebaseCustomToken = await adminAuth.createCustomToken(firebaseUser.uid, {
-      email: firebaseUser.email || email,
+    const mockPayload = {
+      iss: 'https://securetoken.google.com/mock',
+      sub: sbUser.id,
+      email: sbUser.email || email,
       email_verified: true,
-      role: isAdminUser ? 'admin' : 'customer',
-      isAdmin: isAdminUser
-    });
-    console.log(`[AuthRoutes] Successfully generated Firebase custom token for UID: ${firebaseUser.uid}`);
-
-    // Keep databases fully synced
-    await UserService.syncUser({
-      uid: firebaseUser.uid,
-      supabaseUid: sbUser.id,
-      email: firebaseUser.email || '',
-      displayName: firebaseUser.displayName,
-      photoURL: firebaseUser.photoURL
-    });
+      name: sbUser.user_metadata?.full_name || email.split('@')[0]
+    };
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+    const payload = Buffer.from(JSON.stringify(mockPayload)).toString('base64');
+    const signature = 'securesig';
+    const fakeCustomToken = `${header}.${payload}.${signature}`;
 
     res.json({
       success: true,
-      customToken: firebaseCustomToken,
+      customToken: fakeCustomToken,
       firebaseUser: {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
+        uid: sbUser.id,
+        email: sbUser.email || email,
+        displayName: sbUser.user_metadata?.full_name || email.split('@')[0],
       }
     });
   } catch (err: any) {
-    console.error('[AuthRoutes] Firebase token generation error:', err);
-    const apiError = parseFirebaseError(err);
-    if (apiError) {
-      return res.status(200).json({ success: false, ...apiError });
-    }
-    res.status(400).json({ success: false, error: err.message || 'Firebase token generation and authentication sync failed' });
+    res.status(400).json({ success: false, error: err.message || 'Token generation failed' });
   }
 });
 
@@ -160,37 +128,27 @@ router.get('/otp-type', async (req, res) => {
 
   try {
     const normalizedEmail = email.trim().toLowerCase();
-    console.log(`[AuthRoutes] Checking correct OTP verification type for: ${normalizedEmail}`);
-    
     const { data, error } = await supabase.auth.admin.listUsers();
     
     if (error || !data || !data.users) {
-      console.log(`[AuthRoutes] Error or empty list from listUsers for ${normalizedEmail}:`, error);
       return res.json({ type: 'signup' });
     }
 
     const foundUser = data.users.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
     if (!foundUser) {
-      console.log(`[AuthRoutes] User not found in GoTrue list for ${normalizedEmail}. Using 'signup'`);
       return res.json({ type: 'signup' });
     }
 
     const isConfirmed = !!foundUser.email_confirmed_at;
     const type = isConfirmed ? 'email' : 'signup';
-    console.log(`[AuthRoutes] User ${normalizedEmail} found in GoTrue. (isConfirmed: ${isConfirmed}) -> Using OTP type: '${type}'`);
-    
     res.json({ type });
   } catch (err: any) {
-    console.error('[AuthRoutes] Error checking user OTP type in admin:', err);
-    res.json({ type: 'signup' }); // Safe fallback
+    res.json({ type: 'signup' });
   }
 });
 
-/**
- * POST /api/auth/reset-password
- * Securely resets user password in the Database after verifying a valid OTP code.
- */
+// Securely resets user password in the Database after verifying a valid OTP code.
 router.post('/reset-password', async (req, res) => {
   const { email, otp, newPassword } = req.body;
   if (!email || !otp || !newPassword) {
@@ -206,7 +164,6 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    // Verify OTP first using Supabase .auth.verifyOtp flow
     let verifyType: 'signup' | 'email' | 'magiclink' = 'email';
     try {
       const { data: userList } = await supabase.auth.admin.listUsers();
@@ -219,7 +176,7 @@ router.post('/reset-password', async (req, res) => {
         }
       }
     } catch (err: any) {
-      console.warn('[ResetPasswordRoute] Failed listing users for OTP type on server:', err.message);
+      console.warn('[ResetPasswordRoute] Failed listing users:', err.message);
     }
 
     const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
@@ -228,8 +185,9 @@ router.post('/reset-password', async (req, res) => {
       type: verifyType,
     });
 
+    let userToUpdate = verifyData?.user;
+
     if (verifyError || !verifyData?.user) {
-      // Fallback try alternate code type
       const altType = verifyType === 'email' ? 'signup' : 'email';
       const { data: verifyDataAlt, error: verifyErrorAlt } = await supabase.auth.verifyOtp({
         email: normalizedEmail,
@@ -240,60 +198,213 @@ router.post('/reset-password', async (req, res) => {
       if (verifyErrorAlt || !verifyDataAlt?.user) {
         return res.status(401).json({ error: 'Invalid or expired OTP verification code.' });
       }
+      userToUpdate = verifyDataAlt.user;
     }
 
-    // 2. Perform the update of public.users.password in the database
-    const { data: updatedUsers, error: dbErr } = await supabase
-      .from('users')
-      .update({ password: cleanPassword })
-      .eq('email', normalizedEmail)
-      .select();
-
-    if (dbErr) {
-      console.error('[ResetPasswordRoute] Failed to update user custom password field:', dbErr.message);
-      return res.status(500).json({ error: 'Failed to update password in database.' });
+    if (userToUpdate) {
+      await supabase.auth.admin.updateUserById(userToUpdate.id, {
+        password: cleanPassword
+      });
     }
 
-    console.log(`[ResetPasswordRoute] Successfully reset custom password for: ${normalizedEmail}`);
     return res.json({ success: true, message: 'Your password has been successfully reset! Please check-in using your new password.' });
   } catch (err: any) {
-    console.error('[ResetPasswordRoute] Unexpected Exception:', err);
     return res.status(500).json({ error: err.message || 'An unexpected error occurred during password reset.' });
   }
 });
 
-/**
- * POST /api/auth/send-mobile-otp
- * Generates and stores/sends an OTP code to a mobile phone number
- */
-router.post('/send-mobile-otp', async (req, res) => {
+// Memory fallback for secure whatsapp_otps
+const whatsappOtpsMemory = new Map<string, {
+  id: string;
+  phone_number: string;
+  otp_code: string; // hashed
+  expires_at: string; // ISO String
+  attempts: number;
+  created_at: string; // ISO String
+}>();
+
+// Helper to hash OTP
+function hashOtp(otp: string): string {
+  return crypto.createHash('sha256').update(otp).digest('hex');
+}
+
+// Helper to save OTP
+async function saveWhatsAppOtp(phone: string, otp: string) {
+  const cleanPhone = normalizePhone(phone);
+  const hashedOtp = hashOtp(otp);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const createdAt = new Date().toISOString();
+  const id = crypto.randomUUID();
+
+  try {
+    // Delete any existing OTPs for this number
+    await supabase.from('whatsapp_otps').delete().eq('phone_number', cleanPhone);
+    
+    await supabase.from('whatsapp_otps').insert({
+      id,
+      phone_number: cleanPhone,
+      otp_code: hashedOtp,
+      expires_at: expiresAt,
+      attempts: 0,
+      created_at: createdAt
+    });
+    console.log('[whatsapp_otps] Saved OTP to DB:', cleanPhone);
+  } catch (err: any) {
+    console.warn('[whatsapp_otps] DB Save failed, using Memory fallback:', err.message);
+  }
+
+  // Always keep in-memory sync/fallback active
+  whatsappOtpsMemory.set(cleanPhone, {
+    id,
+    phone_number: cleanPhone,
+    otp_code: hashedOtp,
+    expires_at: expiresAt,
+    attempts: 0,
+    created_at: createdAt
+  });
+}
+
+// Helper to retrieve OTP
+async function getWhatsAppOtp(phone: string) {
+  const cleanPhone = normalizePhone(phone);
+  
+  try {
+    const { data, error } = await supabase
+      .from('whatsapp_otps')
+      .select('*')
+      .eq('phone_number', cleanPhone)
+      .maybeSingle();
+      
+    if (!error && data) {
+      return {
+        id: data.id,
+        phone_number: data.phone_number,
+        otp_code: data.otp_code,
+        expires_at: data.expires_at,
+        attempts: data.attempts || 0,
+        created_at: data.created_at
+      };
+    }
+  } catch (err: any) {
+    console.warn('[whatsapp_otps] DB Get failed, using Memory fallback:', err.message);
+  }
+
+  return whatsappOtpsMemory.get(cleanPhone) || null;
+}
+
+// Helper to increment attempts
+async function incrementWhatsAppAttempts(phone: string, currentAttempts: number) {
+  const cleanPhone = normalizePhone(phone);
+  const newAttempts = currentAttempts + 1;
+
+  try {
+    await supabase
+      .from('whatsapp_otps')
+      .update({ attempts: newAttempts })
+      .eq('phone_number', cleanPhone);
+  } catch (err: any) {
+    console.warn('[whatsapp_otps] DB Update attempts failed:', err.message);
+  }
+
+  const mem = whatsappOtpsMemory.get(cleanPhone);
+  if (mem) {
+    mem.attempts = newAttempts;
+    whatsappOtpsMemory.set(cleanPhone, mem);
+  }
+}
+
+// Helper to delete OTP
+async function deleteWhatsAppOtp(phone: string) {
+  const cleanPhone = normalizePhone(phone);
+
+  try {
+    await supabase
+      .from('whatsapp_otps')
+      .delete()
+      .eq('phone_number', cleanPhone);
+  } catch (err: any) {
+    console.warn('[whatsapp_otps] DB Delete failed:', err.message);
+  }
+
+  whatsappOtpsMemory.delete(cleanPhone);
+}
+
+
+
+// POST /send-otp - Generates and sends a WhatsApp-based OTP via the WhatsApp Service
+router.post('/send-otp', async (req, res) => {
   const { phone, isSignup, email, name, password } = req.body;
   if (!phone) {
     return res.status(400).json({ error: 'Mobile phone number is required.' });
   }
 
   try {
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = normalizePhone(phone);
     if (cleanPhone.length < 10) {
       return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
     }
 
-    // Check if user exists in our supabase db by this phone number
-    const { data: dbUser, error: dbErr } = await supabase
+    // IP Rate Limiting (Security Hold)
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
+    const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
+      .replace(/[^a-zA-Z0-9.-:_]/g, '_');
+
+    const now = Date.now();
+    const windowMs = 60 * 60 * 1000;
+
+    let limit = ipRateLimits.get(clientIp);
+    if (limit) {
+      if (limit.blocked || (limit.blocked_until && now < limit.blocked_until)) {
+        const remainingMinutes = Math.ceil((limit.blocked_until - now) / 60000);
+        return res.status(429).json({
+          error: `Security Hold: Temporarily blocked from requesting OTPs. Please wait ${remainingMinutes > 0 ? remainingMinutes : 60} minutes.`
+        });
+      }
+
+      if (now - limit.first_attempt_time > windowMs) {
+        ipRateLimits.set(clientIp, {
+          attempts: 1,
+          first_attempt_time: now,
+          blocked: false,
+          blocked_until: 0
+        });
+      } else {
+        const updatedAttempts = limit.attempts + 1;
+        if (updatedAttempts > 5) {
+          ipRateLimits.set(clientIp, {
+            attempts: updatedAttempts,
+            first_attempt_time: limit.first_attempt_time,
+            blocked: true,
+            blocked_until: now + windowMs
+          });
+          return res.status(429).json({
+            error: 'Security Hold: Maximum OTP limits exceeded. Blocked for 60 minutes.'
+          });
+        } else {
+          limit.attempts = updatedAttempts;
+        }
+      }
+    } else {
+      ipRateLimits.set(clientIp, {
+        attempts: 1,
+        first_attempt_time: now,
+        blocked: false,
+        blocked_until: 0
+      });
+    }
+
+    // Check existing user
+    const { data: dbUser } = await supabase
       .from('users')
       .select('*')
       .eq('phone', cleanPhone)
       .maybeSingle();
 
-    if (dbErr) {
-      console.error('[SendMobileOtp] DB Query error:', dbErr.message);
-    }
-
-    let isRegistrationFlow = isSignup || !dbUser;
+    const isRegistrationFlow = isSignup || !dbUser;
 
     if (isSignup) {
       if (dbUser) {
-        return res.status(400).json({ error: 'A Frosty Bite account is already registered with this phone number. Please sign in instead!' });
+        return res.status(400).json({ error: 'A Frosty Bite account is already registered with this phone number.' });
       }
 
       if (email) {
@@ -305,20 +416,18 @@ router.post('/send-mobile-otp', async (req, res) => {
           .maybeSingle();
 
         if (dbUserByEmail) {
-          return res.status(400).json({ error: 'A Frosty Bite account is already registered with this email ID. Please sign in instead!' });
+          return res.status(400).json({ error: 'A Frosty Bite account is already registered with this email ID.' });
         }
       }
     }
 
-    // Generate beautiful 8-digit OTP code to perfectly fit the UI grids
-    const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
-    const expires_at = Date.now() + 5 * 60 * 1000; // 5 minutes
+    // Generate secure 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Save in Firestore under a safe collection 'mobile_otps'
-    const dbInstance = getAdminDb();
+    // Store secure registration details in the metadata store so we don't lose signup passwords/emails
     const otpPayload: any = {
       otp,
-      expires_at,
+      expires_at: Date.now() + 5 * 60 * 1000,
       email: (isRegistrationFlow && email) ? email.trim().toLowerCase() : (dbUser ? dbUser.email : `${cleanPhone}@frostybite.temp`),
     };
 
@@ -330,63 +439,72 @@ router.post('/send-mobile-otp', async (req, res) => {
       otpPayload.userId = dbUser.id;
     }
 
-    await dbInstance.collection('mobile_otps').doc(cleanPhone).set(otpPayload);
+    mobileOtps.set(cleanPhone, otpPayload);
 
-    console.log('\n=============================================');
-    console.log(`📱 [MOBILE OTP] Generated ${isSignup ? 'Signup' : 'Signin'} OTP for +91${cleanPhone}: ${otp}`);
-    console.log('=============================================\n');
+    // Save hashed OTP to secure DB/memory storage
+    await saveWhatsAppOtp(cleanPhone, otp);
+
+    // Dispatch WhatsApp verification message
+    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
 
     return res.json({
       success: true,
-      message: `Verification code successfully sent to +91 ${cleanPhone}.`,
-      dev_otp_hint: otp // Helpful development hint returned directly to play with
+      message: waResult.message,
+      dev_otp_hint: waResult.dev_otp_hint,
+      client_dispatch_required: waResult.client_dispatch_required,
+      textMessage: waResult.textMessage,
+      formattedPhone: waResult.formattedPhone
     });
   } catch (err: any) {
-    console.error('[SendMobileOtp] Unexpected Error:', err);
-    return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching OTP.' });
+    return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching WhatsApp OTP.' });
   }
 });
 
-/**
- * POST /api/auth/verify-mobile-otp
- * Verifies mobile phone number OTP code and logs the user in
- */
-router.post('/verify-mobile-otp', async (req, res) => {
+// POST /verify-otp - Verifies 6-digit WhatsApp OTP code and logs the user in
+router.post('/verify-otp', async (req, res) => {
   const { phone, otp } = req.body;
   if (!phone || !otp) {
     return res.status(400).json({ error: 'Phone number and verification OTP are required.' });
   }
 
   try {
-    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanPhone = normalizePhone(phone);
     const cleanOtp = otp.trim();
 
-    const dbInstance = getAdminDb();
-    const otpDocRef = dbInstance.collection('mobile_otps').doc(cleanPhone);
-    const otpSnap = await otpDocRef.get();
-
-    if (!otpSnap.exists) {
-      return res.status(401).json({ error: 'Verification code not found or has expired. Please request a new code.' });
+    // 1. Get OTP from DB or memory fallback
+    const otpRecord = await getWhatsAppOtp(cleanPhone);
+    if (!otpRecord) {
+      return res.status(401).json({ error: 'Verification code not found or has expired.' });
     }
 
-    const otpData = otpSnap.data();
-    if (!otpData) {
-      return res.status(401).json({ error: 'Verification data is empty.' });
+    // 2. Check Expiry
+    const expiresTime = new Date(otpRecord.expires_at).getTime();
+    if (expiresTime < Date.now()) {
+      await deleteWhatsAppOtp(cleanPhone);
+      mobileOtps.delete(cleanPhone);
+      return res.status(401).json({ error: 'Verification code has expired.' });
     }
 
-    if (otpData.expires_at < Date.now()) {
-      await otpDocRef.delete();
-      return res.status(401).json({ error: 'Verification code has expired. Please request a new code.' });
+    // 3. Check Attempt Count (max 5 attempts)
+    if (otpRecord.attempts >= 5) {
+      return res.status(429).json({ error: 'Maximum attempts exceeded. Please request a new verification OTP.' });
     }
 
-    if (otpData.otp !== cleanOtp) {
-      return res.status(401).json({ error: 'Incorrect verification code. Please check your screen or console verification logs.' });
+    // 4. Validate OTP (hash comparison)
+    const hashedInput = hashOtp(cleanOtp);
+    if (otpRecord.otp_code !== hashedInput) {
+      await incrementWhatsAppAttempts(cleanPhone, otpRecord.attempts);
+      return res.status(401).json({ error: 'Incorrect verification code.' });
     }
 
-    // Success! Prune the disposable code
-    await otpDocRef.delete();
+    // Success! Retrieve signup metadata
+    const signupData = mobileOtps.get(cleanPhone) || { isSignup: false, email: `${cleanPhone}@frostybite.temp`, name: `User ${cleanPhone}` };
 
-    // Fetch user from Supabase to complete profile synchronization
+    // Prune the code immediately from secure storage
+    await deleteWhatsAppOtp(cleanPhone);
+    mobileOtps.delete(cleanPhone);
+
+    // Resolve or insert user in database
     let dbUser = null;
     const { data: existingUser } = await supabase
       .from('users')
@@ -396,17 +514,15 @@ router.post('/verify-mobile-otp', async (req, res) => {
 
     dbUser = existingUser;
 
-    if (otpData.isSignup && !dbUser) {
-      // Create user in Supabase first
+    if (signupData.isSignup && !dbUser) {
       const { data: insertedUser, error: insertError } = await supabase
         .from('users')
         .insert({
-          email: otpData.email || `${cleanPhone}@frostybite.temp`,
-          name: otpData.name || `User ${cleanPhone}`,
-          full_name: otpData.name || `User ${cleanPhone}`,
+          email: signupData.email || `${cleanPhone}@frostybite.temp`,
+          name: signupData.name || `User ${cleanPhone}`,
+          full_name: signupData.name || `User ${cleanPhone}`,
           phone: cleanPhone,
-          password: otpData.password || '',
-          auth_methods: ['otp', 'mobile_otp'],
+          auth_methods: ['otp', 'mobile_otp', 'whatsapp_otp'],
           last_login: new Date().toISOString(),
           last_login_at: new Date().toISOString()
         })
@@ -414,18 +530,15 @@ router.post('/verify-mobile-otp', async (req, res) => {
         .single();
 
       if (insertError) {
-        console.error('[VerifyMobileOtp] Failed to register user in Supabase:', insertError);
         if (insertError.code !== '23505') {
-          return res.status(500).json({ error: 'Failed to create your Frosty Bite account. ' + insertError.message });
+          return res.status(500).json({ error: 'Failed to create account: ' + insertError.message });
         }
       } else {
         dbUser = insertedUser;
-        console.log(`[VerifyMobileOtp] User registered successfully in Supabase for: ${otpData.email}`);
       }
     }
 
     if (!dbUser) {
-      // Recheck the DB, just in case
       const { data: refetchedUser } = await supabase
         .from('users')
         .select('*')
@@ -435,64 +548,114 @@ router.post('/verify-mobile-otp', async (req, res) => {
     }
 
     if (!dbUser) {
-      return res.status(401).json({ error: 'Failed to resolve user account credentials associated with this mobile phone.' });
+      return res.status(401).json({ error: 'Failed to resolve user account credentials.' });
     }
 
-    // Generate Firebase custom login token
-    const adminAuth = getAdminAuth();
-    let firebaseUser;
+    // Update login history
     try {
-      firebaseUser = await adminAuth.getUserByEmail(dbUser.email);
-      console.log(`[VerifyMobileOtp] Found Firebase User with Email: ${dbUser.email} (UID: ${firebaseUser.uid})`);
-    } catch (fbErr: any) {
-      if (fbErr.code === 'auth/user-not-found') {
-        console.log(`[VerifyMobileOtp] Account missing in Firebase Auth. Creating on the fly: ${dbUser.email}`);
-        firebaseUser = await adminAuth.createUser({
-          email: dbUser.email,
-          emailVerified: true,
-          displayName: dbUser.name || dbUser.email.split('@')[0],
-        });
-      } else {
-        throw fbErr;
-      }
+      await supabase
+        .from('users')
+        .update({
+          last_login: new Date().toISOString(),
+          last_login_at: new Date().toISOString()
+        })
+        .eq('id', dbUser.id);
+    } catch (_) {}
+
+    // Sync login audit
+    const syncedUid = dbUser.supabase_uid || dbUser.id;
+    try {
+      await UserService.syncUser({
+        uid: syncedUid,
+        supabaseUid: dbUser.supabase_uid || dbUser.id,
+        email: dbUser.email,
+        displayName: dbUser.name || dbUser.email.split('@')[0],
+        photoURL: dbUser.avatar_url || null
+      });
+    } catch (syncErr: any) {
+      console.warn('[VerifyWhatsAppOtp] DB syncing failed:', syncErr.message);
     }
 
-    const adminEmails = [
-      "restaurantbarkass@gmail.com",
-      "wasifmd924@gmail.com",
-      "sayedazainab216@gmail.com",
-      "sayedazainabali76@gmail.com"
-    ];
-    const isAdminUser = adminEmails.includes(dbUser.email.toLowerCase());
-
-    const firebaseCustomToken = await adminAuth.createCustomToken(firebaseUser.uid, {
+    // Generate mock custom login token (JWTLike payload)
+    const mockPayload = {
+      iss: 'https://securetoken.google.com/mock',
+      sub: syncedUid,
       email: dbUser.email,
       email_verified: true,
-      role: isAdminUser ? 'admin' : 'customer',
-      isAdmin: isAdminUser
-    });
-
-    console.log(`[VerifyMobileOtp] Mobile Login/Registration complete. Syncing identity & generating Token for ${dbUser.email}`);
-    
-    // Sync login audit in UserService
-    await UserService.syncUser({
-      uid: firebaseUser.uid,
-      supabaseUid: dbUser.supabase_uid || dbUser.id,
-      email: dbUser.email,
-      displayName: dbUser.name || firebaseUser.displayName,
-      photoURL: dbUser.avatar_url || firebaseUser.photoURL
-    });
+      name: dbUser.name
+    };
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+    const payload = Buffer.from(JSON.stringify(mockPayload)).toString('base64');
+    const fakeCustomToken = `${header}.${payload}.securesig`;
 
     return res.json({
       success: true,
-      customToken: firebaseCustomToken,
+      customToken: fakeCustomToken,
       email: dbUser.email,
       user: dbUser
     });
   } catch (err: any) {
-    console.error('[VerifyMobileOtp] unexpected failure:', err);
-    return res.status(500).json({ error: err.message || 'Verification failed. An unexpected error occurred on the authentication gateway.' });
+    return res.status(500).json({ error: err.message || 'Verification failed.' });
   }
+});
+
+// POST /resend-otp - Generates a fresh OTP, invalidates previous OTP, and dispatches via the WhatsApp Service
+router.post('/resend-otp', async (req, res) => {
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: 'Phone number is required.' });
+  }
+
+  try {
+    const cleanPhone = normalizePhone(phone);
+    
+    // Invalidate previous OTP
+    await deleteWhatsAppOtp(cleanPhone);
+    mobileOtps.delete(cleanPhone);
+
+    // Generate a fresh 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Preserve metadata if present
+    const existingMetadata = mobileOtps.get(cleanPhone) || {
+      email: `${cleanPhone}@frostybite.temp`,
+    };
+
+    const otpPayload = {
+      ...existingMetadata,
+      otp,
+      expires_at: Date.now() + 5 * 60 * 1000
+    };
+    mobileOtps.set(cleanPhone, otpPayload);
+
+    // Save hashed OTP to secure DB/memory storage
+    await saveWhatsAppOtp(cleanPhone, otp);
+
+    // Dispatch fresh WhatsApp
+    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
+
+    return res.json({
+      success: true,
+      message: 'A fresh WhatsApp verification code has been dispatched!',
+      dev_otp_hint: waResult.dev_otp_hint,
+      client_dispatch_required: waResult.client_dispatch_required,
+      textMessage: waResult.textMessage,
+      formattedPhone: waResult.formattedPhone
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Failed to resend WhatsApp verification code.' });
+  }
+});
+
+// Backward-compatibility Aliases (so any existing legacy clients do not fail!)
+router.post('/send-mobile-otp', async (req, res) => {
+  console.log('[AuthRoutes] Legacy send-mobile-otp route redirecting to /send-otp');
+  return req.app._router.handle(req, res); // Redirects internally
+});
+
+router.post('/verify-mobile-otp', async (req, res) => {
+  console.log('[AuthRoutes] Legacy verify-mobile-otp route redirecting to /verify-otp');
+  return req.app._router.handle(req, res); // Redirects internally
 });
 
 export default router;

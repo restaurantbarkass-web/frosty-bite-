@@ -7,6 +7,84 @@ import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { supabase } from '../supabase';
+import { OptimizedImage } from './ui/OptimizedImage';
+
+interface CartItemRowProps {
+  item: any;
+  updateQuantity: (id: string, amount: number) => void;
+  removeFromCart: (id: string) => void;
+}
+
+const CartItemRow: React.FC<CartItemRowProps> = React.memo(({ item, updateQuantity, removeFromCart }) => {
+  return (
+    <motion.div
+      layout
+      key={item.id}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="flex space-x-3 sm:space-x-4 bg-white/5 p-3 rounded-2xl border border-white/5"
+    >
+      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-white/10 shrink-0">
+        <OptimizedImage
+          src={item.image}
+          alt={item.name}
+          containerClassName="w-full h-full"
+        />
+      </div>
+      <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0">
+        <div className="flex justify-between items-start">
+          <h4 className="font-black text-[11px] sm:text-sm uppercase tracking-tight italic truncate pr-2">{item.name}</h4>
+          <button
+            onClick={() => removeFromCart(item.id)}
+            className="text-zinc-600 hover:text-red-500 transition-colors p-1 shrink-0"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-primary font-black italic text-xs sm:text-sm">₹{item.price * item.quantity}</span>
+          <div className="flex items-center space-x-3 bg-secondary/50 rounded-xl px-2 py-1 border border-white/5">
+            <motion.button
+              whileHover={{ scale: 1.25, x: -1.5 }}
+              whileTap={{ scale: 0.8 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              onClick={() => updateQuantity(item.id, -1)}
+              className="text-zinc-400 hover:text-primary transition-colors p-1"
+            >
+              <Minus size={12} className="stroke-[3px]" />
+            </motion.button>
+            <span className="overflow-hidden flex items-center justify-center w-5">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={item.quantity}
+                  initial={{ scale: 0.6, y: -8, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.6, y: 8, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 12 }}
+                  className="text-[10px] font-black text-center text-white block shrink-0"
+                >
+                  {item.quantity}
+                </motion.span>
+              </AnimatePresence>
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.25, rotate: 90, x: 1.5 }}
+              whileTap={{ scale: 0.8 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              onClick={() => updateQuantity(item.id, 1)}
+              className="text-zinc-400 hover:text-primary transition-colors p-1"
+            >
+              <Plus size={12} className="stroke-[3px]" />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
+CartItemRow.displayName = 'CartItemRow';
 
 export const CartSidebar: React.FC = () => {
   const { cart, totalPrice, subtotal, totalItems, appliedCoupon, isCartOpen: isOpen } = useCartState();
@@ -141,68 +219,12 @@ export const CartSidebar: React.FC = () => {
                   
                     <div className="space-y-4">
                       {cart.map((item) => (
-                        <motion.div
-                          layout
+                        <CartItemRow
                           key={item.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="flex space-x-3 sm:space-x-4 bg-white/5 p-3 rounded-2xl border border-white/5"
-                        >
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border border-white/10"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="flex-1 flex flex-col justify-between py-0.5">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-black text-[11px] sm:text-sm uppercase tracking-tight italic">{item.name}</h4>
-                              <button
-                                onClick={() => removeFromCart(item.id)}
-                                className="text-zinc-600 hover:text-red-500 transition-colors p-1"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-primary font-black italic text-xs sm:text-sm">₹{item.price * item.quantity}</span>
-                              <div className="flex items-center space-x-3 bg-secondary/50 rounded-xl px-2 py-1 border border-white/5">
-                                <motion.button
-                                  whileHover={{ scale: 1.25, x: -1.5 }}
-                                  whileTap={{ scale: 0.8 }}
-                                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                                  onClick={() => updateQuantity(item.id, -1)}
-                                  className="text-zinc-400 hover:text-primary transition-colors p-1"
-                                >
-                                  <Minus size={12} className="stroke-[3px]" />
-                                </motion.button>
-                                <span className="overflow-hidden flex items-center justify-center w-5">
-                                  <AnimatePresence mode="popLayout" initial={false}>
-                                    <motion.span
-                                      key={item.quantity}
-                                      initial={{ scale: 0.6, y: -8, opacity: 0 }}
-                                      animate={{ scale: 1, y: 0, opacity: 1 }}
-                                      exit={{ scale: 0.6, y: 8, opacity: 0 }}
-                                      transition={{ type: 'spring', stiffness: 500, damping: 12 }}
-                                      className="text-[10px] font-black text-center text-white block shrink-0"
-                                    >
-                                      {item.quantity}
-                                    </motion.span>
-                                  </AnimatePresence>
-                                </span>
-                                <motion.button
-                                  whileHover={{ scale: 1.25, rotate: 90, x: 1.5 }}
-                                  whileTap={{ scale: 0.8 }}
-                                  transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                                  onClick={() => updateQuantity(item.id, 1)}
-                                  className="text-zinc-400 hover:text-primary transition-colors p-1"
-                                >
-                                  <Plus size={12} className="stroke-[3px]" />
-                                </motion.button>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
+                          item={item}
+                          updateQuantity={updateQuantity}
+                          removeFromCart={removeFromCart}
+                        />
                       ))}
                     </div>
 
@@ -227,9 +249,14 @@ export const CartSidebar: React.FC = () => {
                               className="w-40 shrink-0 bg-white/5 rounded-2xl border border-white/5 p-2 text-left group"
                             >
                               <div className="relative aspect-square rounded-xl overflow-hidden mb-2">
-                                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                <OptimizedImage
+                                  src={item.image}
+                                  alt={item.name}
+                                  containerClassName="w-full h-full"
+                                  className="transition-transform duration-500 group-hover:scale-110"
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <div className="absolute bottom-2 right-2 p-1.5 bg-primary rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                                <div className="absolute bottom-2 right-2 p-1.5 bg-primary rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 z-10">
                                   <Plus size={14} strokeWidth={3} />
                                 </div>
                               </div>

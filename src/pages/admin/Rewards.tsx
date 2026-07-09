@@ -1,52 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Award, Gift, Star, Shield, Trophy, Crown, Plus, Trash2, 
-  Edit2, Save, X, Check, Search, TrendingUp, Sparkles, 
-  Zap, Heart, Coffee, Pizza, IceCream, MessageSquare, 
-  ChevronRight, ArrowRight, Settings, Users, Percent,
-  ArrowUpCircle, Info, RefreshCw
+  Award, Gift, Star, Plus, Trash2, 
+  Edit2, Save, X, RefreshCw
 } from 'lucide-react';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  onSnapshot, 
-  query, 
-  orderBy,
-  serverTimestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../../firebase';
 import { toast } from 'react-hot-toast';
 import { cn } from '../../lib/utils';
 import { Button } from '../../components/Button';
-import { BadgeConfig } from '../../services/rewardsService';
+import { rewardsService, BadgeConfig, GiftReward } from '../../services/rewardsService';
 import { ConfirmationModal } from '../../components/ui/ConfirmationModal';
-
-interface GiftReward {
-  id: string;
-  title: string;
-  image: string;
-  description: string;
-  requiredTier: string;
-  stock: number;
-  active: boolean;
-  costPoints?: number;
-}
-
-const DEFAULT_BADGES: Partial<BadgeConfig>[] = [
-  { tierName: 'Foodie Starter', minOrders: 0, minSpend: 0, priority: 1, themeColor: '#94A3B8', badgeIcon: 'Star', benefits: ['Standard Menu Access'] },
-  { tierName: 'Snack Hunter', minOrders: 5, minSpend: 1000, priority: 2, themeColor: '#FB923C', badgeIcon: 'Zap', benefits: ['5% Cashback', 'Priority Order Processing'] },
-  { tierName: 'Midnight Explorer', minOrders: 15, minSpend: 3000, priority: 3, themeColor: '#818CF8', badgeIcon: 'Moon', benefits: ['Free Midnight Delivery', '10% Cashback'] },
-  { tierName: 'Gold Craver', minOrders: 30, minSpend: 7000, priority: 4, themeColor: '#FBBF24', badgeIcon: 'Crown', benefits: ['20% OFF Coupons', 'Birthday Gift', 'Exclusive Menu'] },
-  { tierName: 'Platinum Foodie', minOrders: 60, minSpend: 15000, priority: 5, themeColor: '#E2E8F0', badgeIcon: 'Shield', benefits: ['VIP Support', 'Hidden Premium Dishes', 'Personal Concierge'] },
-  { tierName: 'Diamond Gourmet', minOrders: 120, minSpend: 35000, priority: 6, themeColor: '#2DD4BF', badgeIcon: 'Award', benefits: ['Chef Table Invites', 'Custom Menu Orders', 'Zero Delivery Fee'] },
-  { tierName: 'Elite Taste Master', minOrders: 250, minSpend: 75000, priority: 7, themeColor: '#F472B6', badgeIcon: 'Trophy', benefits: ['Lifetime Membership Card', 'Private Event Invites', 'Elite Concierge 24/7'] },
-];
 
 export const RewardsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'badges' | 'gifts'>('badges');
@@ -56,240 +18,116 @@ export const RewardsManager: React.FC = () => {
   const [isEditingBadge, setIsEditingBadge] = useState<string | null>(null);
   const [isEditingGift, setIsEditingGift] = useState<string | null>(null);
 
-  // Custom confirmation modal states to bypass iframe-blocked window.confirm
   const [deletingBadgeId, setDeletingBadgeId] = useState<string | null>(null);
   const [deletingGiftId, setDeletingGiftId] = useState<string | null>(null);
   const [isSeedingConfirmOpen, setIsSeedingConfirmOpen] = useState(false);
-  const [isDeletingBadgeLoading, setIsDeletingBadgeLoading] = useState(false);
-  const [isDeletingGiftLoading, setIsDeletingGiftLoading] = useState(false);
   const [isSeedingLoading, setIsSeedingLoading] = useState(false);
 
   const [badgeForm, setBadgeForm] = useState<Partial<BadgeConfig>>({});
   const [giftForm, setGiftForm] = useState<Partial<GiftReward>>({});
 
-  useEffect(() => {
+  const loadData = async () => {
     setLoading(true);
-
-    const bQuery = query(collection(db, 'badge_configs'), orderBy('priority', 'asc'));
-    const unsubscribeB = onSnapshot(bQuery, (bSnapshot) => {
-      if (!bSnapshot.empty) {
-        setBadges(bSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as BadgeConfig)));
-      } else {
-        setBadges(DEFAULT_BADGES.map((b, i) => ({
-          id: `default-${i}`,
-          tierName: b.tierName || '',
-          minOrders: b.minOrders || 0,
-          minSpend: b.minSpend || 0,
-          priority: b.priority || 1,
-          themeColor: b.themeColor || '#94A3B8',
-          badgeIcon: b.badgeIcon || 'Star',
-          benefits: b.benefits || [],
-          couponIds: [],
-          giftIds: [],
-          freeDelivery: false,
-          cashbackPercent: 0,
-          prioritySupport: false
-        } as BadgeConfig)));
-      }
-      setLoading(false);
-    }, (error) => {
-      console.warn('Subscription to badge_configs failed, using fallback:', error);
-      setBadges(DEFAULT_BADGES.map((b, i) => ({
-        id: `default-${i}`,
-        tierName: b.tierName || '',
-        minOrders: b.minOrders || 0,
-        minSpend: b.minSpend || 0,
-        priority: b.priority || 1,
-        themeColor: b.themeColor || '#94A3B8',
-        badgeIcon: b.badgeIcon || 'Star',
-        benefits: b.benefits || [],
-        couponIds: [],
-        giftIds: [],
-        freeDelivery: false,
-        cashbackPercent: 0,
-        prioritySupport: false
-      } as BadgeConfig)));
-      setLoading(false);
-    });
-
-    const gRef = collection(db, 'gifts');
-    const unsubscribeG = onSnapshot(gRef, (gSnapshot) => {
-      setGifts(gSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as GiftReward)));
-    }, (error) => {
-      console.warn('Subscription to gifts failed:', error);
-    });
-
-    return () => {
-      unsubscribeB();
-      unsubscribeG();
-    };
-  }, []);
-
-  const seedDefaultBadges = async () => {
-    setIsSeedingLoading(true);
     try {
-      const batch = writeBatch(db);
-      DEFAULT_BADGES.forEach(badge => {
-        const ref = doc(collection(db, 'badge_configs'));
-        batch.set(ref, {
-          ...badge,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp()
-        });
-      });
-      await batch.commit();
-      toast.success('Default tiers seeded');
-      setIsSeedingConfirmOpen(false);
-    } catch (error) {
-      console.warn('Seeding failed:', error);
+      const b = await rewardsService.getBadgeConfigs();
+      setBadges(b);
+      const g = await rewardsService.getGifts();
+      setGifts(g);
+    } catch (e) {
+      console.warn('Failed loading rewards config:', e);
     } finally {
-      setIsSeedingLoading(false);
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
   const handleSaveBadge = async () => {
+    const priorityNum = Number(badgeForm.priority || 1);
+    const minOrdersNum = Number(badgeForm.minOrders || 0);
+    const minSpendNum = Number(badgeForm.minSpend || 0);
+
+    const payload = {
+      ...badgeForm,
+      priority: priorityNum,
+      minOrders: minOrdersNum,
+      minSpend: minSpendNum,
+      tierName: badgeForm.tierName || 'Custom Tier',
+      themeColor: badgeForm.themeColor || '#f97316',
+      badgeIcon: badgeForm.badgeIcon || 'Award',
+      benefits: badgeForm.benefits || [],
+      couponIds: badgeForm.couponIds || [],
+      giftIds: badgeForm.giftIds || [],
+      freeDelivery: badgeForm.freeDelivery ?? false,
+      cashbackPercent: Number(badgeForm.cashbackPercent || 0),
+      prioritySupport: badgeForm.prioritySupport ?? false,
+    } as BadgeConfig;
+
     try {
       if (isEditingBadge === 'new') {
-        await addDoc(collection(db, 'badge_configs'), {
-          ...badgeForm,
-          priority: Number(badgeForm.priority),
-          minOrders: Number(badgeForm.minOrders),
-          minSpend: Number(badgeForm.minSpend),
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp()
-        });
-        toast.success('Badge created');
+        await rewardsService.addBadge(payload);
+        toast.success('Tier badge created successfully');
       } else if (isEditingBadge) {
-        await updateDoc(doc(db, 'badge_configs', isEditingBadge), {
-          ...badgeForm,
-          priority: Number(badgeForm.priority),
-          minOrders: Number(badgeForm.minOrders),
-          minSpend: Number(badgeForm.minSpend),
-          updated_at: serverTimestamp()
-        });
-        toast.success('Badge updated');
+        await rewardsService.updateBadge(isEditingBadge, payload);
+        toast.success('Tier badge updated successfully');
       }
       setIsEditingBadge(null);
+      loadData();
     } catch (error) {
-      console.warn('[RewardsManager] Firestore operation skipped/failed, keeping local state update:', error);
-      
-      // Update local state so user changes show up immediately and seamlessly 
-      const mockBadge: BadgeConfig = {
-        id: isEditingBadge === 'new' ? 'mock-badge-' + Date.now() : isEditingBadge,
-        tierName: badgeForm.tierName || 'Custom Tier',
-        priority: Number(badgeForm.priority || 1),
-        minOrders: Number(badgeForm.minOrders || 1),
-        minSpend: Number(badgeForm.minSpend || 1),
-        themeColor: badgeForm.themeColor || '#f97316',
-        badgeIcon: badgeForm.badgeIcon || '🥇',
-        benefits: badgeForm.benefits || [],
-        couponIds: badgeForm.couponIds || [],
-        giftIds: badgeForm.giftIds || [],
-        freeDelivery: badgeForm.freeDelivery ?? false,
-        cashbackPercent: Number(badgeForm.cashbackPercent || 0),
-        prioritySupport: badgeForm.prioritySupport ?? false,
-      };
-
-      if (isEditingBadge === 'new') {
-        setBadges(prev => [...prev, mockBadge].sort((a, b) => a.priority - b.priority));
-      } else if (isEditingBadge) {
-        setBadges(prev => prev.map(b => b.id === isEditingBadge ? { ...b, ...mockBadge } : b).sort((a, b) => a.priority - b.priority));
-      }
-
-      toast.success('Content updated successfully');
-      setIsEditingBadge(null);
+      toast.error('Failed to save tier badge configuration');
     }
   };
 
   const handleSaveGift = async () => {
+    const payload = {
+      ...giftForm,
+      title: giftForm.title || 'New Reward Gift',
+      image: giftForm.image || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500',
+      description: giftForm.description || '',
+      requiredTier: giftForm.requiredTier || 'Silver Gourmet',
+      stock: Number(giftForm.stock || 10),
+      active: giftForm.active ?? true,
+      costPoints: Number(giftForm.costPoints || 100)
+    } as GiftReward;
+
     try {
-      const giftData = {
-        ...giftForm,
-        stock: Number(giftForm.stock),
-        costPoints: Number(giftForm.costPoints || 0),
-        active: giftForm.active ?? true,
-      };
-
       if (isEditingGift === 'new') {
-        await addDoc(collection(db, 'gifts'), {
-          ...giftData,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp()
-        });
-        toast.success('Gift created');
+        await rewardsService.addGift(payload);
+        toast.success('Reward gift created successfully');
       } else if (isEditingGift) {
-        await updateDoc(doc(db, 'gifts', isEditingGift), {
-          ...giftData,
-          updated_at: serverTimestamp()
-        });
-        toast.success('Gift updated');
+        await rewardsService.updateGift(isEditingGift, payload);
+        toast.success('Reward gift updated successfully');
       }
       setIsEditingGift(null);
+      loadData();
     } catch (error) {
-      console.warn('[RewardsManager] Firestore gift operation failed, keeping local state update:', error);
-      
-      // Update local state so changes show up immediately and seamlessly
-      const mockGift: GiftReward = {
-        id: isEditingGift === 'new' ? 'mock-gift-' + Date.now() : isEditingGift,
-        title: giftForm.title || 'New Custom Reward',
-        image: giftForm.image || 'https://images.unsplash.com/photo-1544025162-d76694265947',
-        description: giftForm.description || '',
-        requiredTier: giftForm.requiredTier || 'Silver',
-        stock: Number(giftForm.stock || 5),
-        active: giftForm.active ?? true,
-        costPoints: Number(giftForm.costPoints || 100),
-      };
-
-      if (isEditingGift === 'new') {
-        setGifts(prev => [...prev, mockGift]);
-      } else if (isEditingGift) {
-        setGifts(prev => prev.map(g => g.id === isEditingGift ? { ...g, ...mockGift } : g));
-      }
-
-      toast.success('Content updated successfully');
-      setIsEditingGift(null);
+      toast.error('Failed to save reward gift');
     }
   };
 
   const handleDeleteBadge = async () => {
     if (!deletingBadgeId) return;
-    setIsDeletingBadgeLoading(true);
     try {
-      if (!deletingBadgeId.startsWith('default-') && !deletingBadgeId.startsWith('mock-badge-')) {
-        await deleteDoc(doc(db, 'badge_configs', deletingBadgeId));
-      }
-      setBadges(prev => prev.filter(b => b.id !== deletingBadgeId));
+      await rewardsService.deleteBadge(deletingBadgeId);
       toast.success('Tier deleted successfully');
       setDeletingBadgeId(null);
-    } catch (error: any) {
-      console.warn('[RewardsManager] Failed to delete tier in Firestore:', error);
-      // Seamlessly update local component state
-      setBadges(prev => prev.filter(b => b.id !== deletingBadgeId));
-      toast.success('Tier deleted successfully');
-      setDeletingBadgeId(null);
-    } finally {
-      setIsDeletingBadgeLoading(false);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete tier');
     }
   };
 
   const handleDeleteGift = async () => {
     if (!deletingGiftId) return;
-    setIsDeletingGiftLoading(true);
     try {
-      if (!deletingGiftId.startsWith('mock-gift-')) {
-        await deleteDoc(doc(db, 'gifts', deletingGiftId));
-      }
-      setGifts(prev => prev.filter(g => g.id !== deletingGiftId));
+      await rewardsService.deleteGift(deletingGiftId);
       toast.success('Gift deleted successfully');
       setDeletingGiftId(null);
-    } catch (error: any) {
-      console.warn('[RewardsManager] Failed to delete gift in Firestore:', error);
-      // Seamlessly update local component state
-      setGifts(prev => prev.filter(g => g.id !== deletingGiftId));
-      toast.success('Gift deleted successfully');
-      setDeletingGiftId(null);
-    } finally {
-      setIsDeletingGiftLoading(false);
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete gift');
     }
   };
 
@@ -298,434 +136,469 @@ export const RewardsManager: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-4xl font-black text-white tracking-tighter italic uppercase">REWARDS ENGINE</h2>
-          <p className="text-zinc-500 text-xs font-bold uppercase tracking-[0.2em] mt-1">Manage Loyalty Tiers & Rewards</p>
+          <p className="text-zinc-400 text-sm font-sans">Configure high-loyalty custom tiers, reward gifts, and system benefits.</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           <Button 
             variant="outline" 
-            onClick={() => setIsSeedingConfirmOpen(true)}
-            className="rounded-2xl border-white/10 hover:bg-white/5"
+            onClick={loadData}
+            className="flex items-center gap-2 border-white/10 text-zinc-300 hover:text-white"
           >
-            <RefreshCw size={16} className="mr-2" /> Seed Tiers
+            <RefreshCw size={15} /> Sync
           </Button>
           <Button 
-            variant="primary" 
             onClick={() => {
               if (activeTab === 'badges') {
+                setBadgeForm({ benefits: [], couponIds: [], giftIds: [], freeDelivery: false, cashbackPercent: 0, prioritySupport: false });
                 setIsEditingBadge('new');
-                setBadgeForm({ priority: badges.length + 1, benefits: [] });
               } else {
+                setGiftForm({ active: true, stock: 10, costPoints: 100 });
                 setIsEditingGift('new');
-                setGiftForm({ active: true, stock: 10, requiredTier: badges[0]?.tierName || 'Foodie Starter' });
               }
             }}
-            className="rounded-2xl shadow-xl shadow-primary/20"
+            className="bg-orange-600 hover:bg-orange-500 text-white font-bold tracking-wide flex items-center gap-2"
           >
-            <Plus size={16} className="mr-2" /> {activeTab === 'badges' ? 'New Tier' : 'New Gift'}
+            <Plus size={16} /> {activeTab === 'badges' ? 'Add Tier' : 'Add Gift'}
           </Button>
         </div>
       </div>
 
-      <div className="flex p-1.5 bg-white/5 rounded-full w-fit mb-10">
-        {(['badges', 'gifts'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === tab ? "bg-white text-black" : "text-zinc-500 hover:text-white"
-            )}
-          >
-            {tab}
-          </button>
-        ))}
+      {/* Tabs Layout */}
+      <div className="flex border-b border-white/5 gap-6">
+        <button
+          onClick={() => setActiveTab('badges')}
+          className={cn(
+            "pb-4 font-black tracking-widest text-xs uppercase border-b-2 transition-all duration-200 cursor-pointer",
+            activeTab === 'badges' ? "border-orange-500 text-orange-500" : "border-transparent text-zinc-400 hover:text-white"
+          )}
+        >
+          Tiers & Badges
+        </button>
+        <button
+          onClick={() => setActiveTab('gifts')}
+          className={cn(
+            "pb-4 font-black tracking-widest text-xs uppercase border-b-2 transition-all duration-200 cursor-pointer",
+            activeTab === 'gifts' ? "border-orange-500 text-orange-500" : "border-transparent text-zinc-400 hover:text-white"
+          )}
+        >
+          Claimable Gifts
+        </button>
       </div>
 
-      {activeTab === 'badges' ? (
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <RefreshCw className="animate-spin text-orange-500" size={36} />
+        </div>
+      ) : activeTab === 'badges' ? (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {badges.map(badge => (
-            <motion.div
-              layout
-              key={badge.id}
-              className="glass-dark border border-white/5 rounded-[2.5rem] p-8 group relative overflow-hidden"
-            >
+          <div className="space-y-6">
+            {badges.map((badge) => (
               <div 
-                className="absolute inset-0 opacity-5 pointer-events-none"
-                style={{ background: `linear-gradient(135deg, ${badge.themeColor}, transparent)` }}
-              />
-              
-              <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center md:items-start">
+                key={badge.id}
+                className="bg-zinc-900/50 backdrop-blur border border-white/5 rounded-3xl p-6 relative overflow-hidden"
+              >
                 <div 
-                  className="w-24 h-24 rounded-full flex items-center justify-center shadow-2xl relative shrink-0"
-                  style={{ backgroundColor: badge.themeColor }}
-                >
-                  <Award size={48} className="text-white" />
-                  <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black w-8 h-8 rounded-full flex items-center justify-center border border-white/10">
-                    #{badge.priority}
+                  className="absolute top-0 right-0 w-24 h-24 blur-3xl rounded-full"
+                  style={{ backgroundColor: badge.themeColor + '15' }}
+                />
+                
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center border text-lg"
+                      style={{ 
+                        borderColor: badge.themeColor + '30',
+                        color: badge.themeColor,
+                        backgroundColor: badge.themeColor + '10' 
+                      }}
+                    >
+                      <Award size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white tracking-tight">{badge.tierName}</h4>
+                      <p className="text-zinc-500 text-xs">Priority Index: {badge.priority}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setBadgeForm(badge);
+                        setIsEditingBadge(badge.id);
+                      }}
+                      className="p-2 text-zinc-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.08] border border-white/5 rounded-xl"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={() => setDeletingBadgeId(badge.id)}
+                      className="p-2 text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 rounded-xl"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex-1 space-y-6 text-center md:text-left">
+                <div className="grid grid-cols-3 gap-4 mt-6 py-4 border-y border-white/5">
                   <div>
-                    <h3 className="text-2xl font-black text-white tracking-tight uppercase italic">{badge.tierName}</h3>
-                    <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-2">
-                      <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                        Min Orders: <span className="text-white">{badge.minOrders}</span>
-                      </span>
-                      <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                        Min Spend: <span className="text-white">₹{badge.minSpend}</span>
-                      </span>
+                    <span className="text-[10px] text-zinc-500 block uppercase font-mono tracking-widest">Min Spend</span>
+                    <span className="text-sm font-black text-white">₹{badge.minSpend}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 block uppercase font-mono tracking-widest">Min Orders</span>
+                    <span className="text-sm font-black text-white">{badge.minOrders}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-zinc-500 block uppercase font-mono tracking-widest">Cashback</span>
+                    <span className="text-sm font-black text-emerald-400">{badge.cashbackPercent}%</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-2">
+                  <span className="text-[10px] text-zinc-400 block uppercase font-mono tracking-widest mb-3">Privileges & Benefits</span>
+                  {badge.benefits?.map((benefit, bIdx) => (
+                    <div key={bIdx} className="flex items-center gap-2 text-xs text-zinc-300">
+                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                      {benefit}
+                    </div>
+                  ))}
+                  {badge.freeDelivery && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-400 font-bold">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Free standard home deliveries
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {isEditingBadge && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="bg-zinc-900 border border-white/5 rounded-3xl p-6 space-y-6 h-fit"
+              >
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-black text-white tracking-tight">
+                    {isEditingBadge === 'new' ? 'CREATE TIER' : 'EDIT TIER'}
+                  </h3>
+                  <button onClick={() => setIsEditingBadge(null)} className="text-zinc-500 hover:text-white">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Tier Title Name</label>
+                    <input 
+                      type="text" 
+                      value={badgeForm.tierName || ''}
+                      onChange={e => setBadgeForm(p => ({ ...p, tierName: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      placeholder="e.g., Gold Connoisseur"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Min Orders Required</label>
+                      <input 
+                        type="number" 
+                        value={badgeForm.minOrders || 0}
+                        onChange={e => setBadgeForm(p => ({ ...p, minOrders: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Min Spend Required (₹)</label>
+                      <input 
+                        type="number" 
+                        value={badgeForm.minSpend || 0}
+                        onChange={e => setBadgeForm(p => ({ ...p, minSpend: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap justify-center md:justify-start gap-2">
-                    {badge.benefits?.map((benefit, i) => (
-                      <span key={i} className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-bold text-zinc-400 border border-white/5 uppercase">
-                        ✓ {benefit}
-                      </span>
-                    ))}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Priority Rank</label>
+                      <input 
+                        type="number" 
+                        value={badgeForm.priority || 1}
+                        onChange={e => setBadgeForm(p => ({ ...p, priority: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Cashback %</label>
+                      <input 
+                        type="number" 
+                        value={badgeForm.cashbackPercent || 0}
+                        onChange={e => setBadgeForm(p => ({ ...p, cashbackPercent: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Theme Color Code</label>
+                      <input 
+                        type="text" 
+                        value={badgeForm.themeColor || '#f97316'}
+                        onChange={e => setBadgeForm(p => ({ ...p, themeColor: e.target.value }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                        placeholder="#ff6b00"
+                      />
+                    </div>
                   </div>
 
-                   <div className="flex justify-center md:justify-start gap-3">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => {
-                        setIsEditingBadge(badge.id);
-                        setBadgeForm(badge);
-                      }}
-                      className="rounded-xl hover:bg-white/10"
-                    >
-                      <Edit2 size={14} className="mr-2" /> Edit
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setDeletingBadgeId(badge.id)}
-                      className="rounded-xl hover:bg-red-500/10 text-red-500"
-                    >
-                      <Trash2 size={14} className="mr-2" /> Delete
-                    </Button>
+                  <div className="flex gap-6 py-2">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={badgeForm.freeDelivery || false}
+                        onChange={e => setBadgeForm(p => ({ ...p, freeDelivery: e.target.checked }))}
+                        className="rounded border-white/5 text-orange-500 bg-zinc-950"
+                      />
+                      <span className="text-xs text-zinc-300">Always Free Delivery</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={badgeForm.prioritySupport || false}
+                        onChange={e => setBadgeForm(p => ({ ...p, prioritySupport: e.target.checked }))}
+                        className="rounded border-white/5 text-orange-500 bg-zinc-950"
+                      />
+                      <span className="text-xs text-zinc-300">24/7 VIP Chat Support</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Benefits (Comma-separated)</label>
+                    <textarea 
+                      value={badgeForm.benefits?.join(', ') || ''}
+                      onChange={e => setBadgeForm(p => ({ ...p, benefits: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white h-20"
+                      placeholder="e.g., Double reward points, Private invite, Instant service"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setIsEditingBadge(null)} className="flex-1">Cancel</Button>
+                  <Button onClick={handleSaveBadge} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold">
+                    <Save size={16} className="mr-2" /> Save Tier
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            {gifts.map((gift) => (
+              <div 
+                key={gift.id}
+                className="bg-zinc-900/50 backdrop-blur border border-white/5 rounded-3xl p-6 flex flex-col sm:flex-row gap-6 relative"
+              >
+                <img 
+                  src={gift.image} 
+                  alt={gift.title} 
+                  className="w-24 h-24 object-cover rounded-2xl border border-white/5"
+                  referrerPolicy="no-referrer"
+                />
+                
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-xl font-bold text-white tracking-tight">{gift.title}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-orange-500/10 border border-orange-500/10 text-orange-400 font-mono">
+                          {gift.requiredTier}
+                        </span>
+                        <span className={cn(
+                          "text-[10px] px-2 py-0.5 rounded font-mono",
+                          gift.active ? "bg-emerald-500/10 border border-emerald-500/10 text-emerald-400" : "bg-red-500/10 border border-red-500/10 text-red-400"
+                        )}>
+                          {gift.active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          setGiftForm(gift);
+                          setIsEditingGift(gift.id);
+                        }}
+                        className="p-2 text-zinc-400 hover:text-white bg-white/[0.02] hover:bg-white/[0.08] border border-white/5 rounded-xl"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => setDeletingGiftId(gift.id)}
+                        className="p-2 text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 rounded-xl"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-zinc-400 leading-relaxed">{gift.description}</p>
+
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
+                    <div>
+                      <span className="text-[10px] text-zinc-500 block uppercase font-mono">Available Stock</span>
+                      <span className="text-sm font-black text-white">{gift.stock} remaining</span>
+                    </div>
+                    {gift.costPoints && (
+                      <div>
+                        <span className="text-[10px] text-zinc-500 block uppercase font-mono">Cost Points</span>
+                        <span className="text-sm font-black text-orange-400">{gift.costPoints} PTS</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {gifts.length > 0 ? (
-            gifts.map(gift => (
-              <motion.div
-                layout
-                key={gift.id}
-                className="glass-dark border border-white/5 rounded-[2.5rem] overflow-hidden group"
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {isEditingGift && (
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="bg-zinc-900 border border-white/5 rounded-3xl p-6 space-y-6 h-fit"
               >
-                <div className="h-48 relative">
-                  <img src={gift.image} alt={gift.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-6">
-                    <span className="px-3 py-1 bg-primary/20 text-primary rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20">
-                      {gift.requiredTier}
-                    </span>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-black text-white tracking-tight">
+                    {isEditingGift === 'new' ? 'CREATE GIFT' : 'EDIT GIFT'}
+                  </h3>
+                  <button onClick={() => setIsEditingGift(null)} className="text-zinc-500 hover:text-white">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Gift Title</label>
+                    <input 
+                      type="text" 
+                      value={giftForm.title || ''}
+                      onChange={e => setGiftForm(p => ({ ...p, title: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      placeholder="e.g., Steel Thermal Bottle"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Gift Image URL</label>
+                    <input 
+                      type="text" 
+                      value={giftForm.image || ''}
+                      onChange={e => setGiftForm(p => ({ ...p, image: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      placeholder="https://images.unsplash.com..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Required Member Tier</label>
+                      <select 
+                        value={giftForm.requiredTier || 'Silver Gourmet'}
+                        onChange={e => setGiftForm(p => ({ ...p, requiredTier: e.target.value }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      >
+                        <option value="Foodie Starter">Foodie Starter</option>
+                        <option value="Bronze Eater">Bronze Eater</option>
+                        <option value="Silver Gourmet">Silver Gourmet</option>
+                        <option value="Gold Connoisseur">Gold Connoisseur</option>
+                        <option value="Platinum Legend">Platinum Legend</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Reward Points Cost</label>
+                      <input 
+                        type="number" 
+                        value={giftForm.costPoints || 100}
+                        onChange={e => setGiftForm(p => ({ ...p, costPoints: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-zinc-400 block mb-1">Available Stock Units</label>
+                      <input 
+                        type="number" 
+                        value={giftForm.stock || 10}
+                        onChange={e => setGiftForm(p => ({ ...p, stock: Number(e.target.value) }))}
+                        className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white"
+                      />
+                    </div>
+                    <div className="flex items-end pb-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={giftForm.active ?? true}
+                          onChange={e => setGiftForm(p => ({ ...p, active: e.target.checked }))}
+                          className="rounded border-white/5 text-orange-500 bg-zinc-950"
+                        />
+                        <span className="text-xs text-zinc-300">Gift Active in Store</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-zinc-400 block mb-1">Description</label>
+                    <textarea 
+                      value={giftForm.description || ''}
+                      onChange={e => setGiftForm(p => ({ ...p, description: e.target.value }))}
+                      className="w-full bg-zinc-950 border border-white/5 rounded-xl px-4 py-3 text-sm text-white h-20"
+                      placeholder="Give a charming brief description of this product..."
+                    />
                   </div>
                 </div>
-                
-                <div className="p-6 space-y-4">
-                  <div>
-                    <h3 className="text-xl font-black text-white italic uppercase tracking-tight">{gift.title}</h3>
-                    <p className="text-zinc-500 text-xs mt-1 line-clamp-2">{gift.description}</p>
-                  </div>
 
-                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                    <span>Stock: <span className="text-white">{gift.stock}</span></span>
-                    <span>Cost: <span className="text-white">{gift.costPoints || 0} pts</span></span>
-                  </div>
-
-                   <div className="flex gap-2 pt-2">
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => {
-                        setIsEditingGift(gift.id);
-                        setGiftForm(gift);
-                      }}
-                      className="flex-1 rounded-xl hover:bg-white/10"
-                    >
-                      <Edit2 size={14} className="mr-2" /> Edit
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setDeletingGiftId(gift.id)}
-                      className="rounded-xl hover:bg-red-500/10 text-red-500"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setIsEditingGift(null)} className="flex-1">Cancel</Button>
+                  <Button onClick={handleSaveGift} className="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold">
+                    <Save size={16} className="mr-2" /> Save Gift
+                  </Button>
                 </div>
               </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-20 bg-white/5 rounded-[3rem] border border-dashed border-white/10">
-              <Gift size={48} className="text-zinc-700 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-zinc-500 uppercase tracking-widest italic">Inventory Empty</h3>
-              <p className="text-zinc-600 text-xs mt-2">Create exclusive gifts for your loyal customers</p>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
         </div>
       )}
 
-      {/* Badge Edit Modal */}
-      <AnimatePresence>
-        {isEditingBadge && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
-              onClick={() => setIsEditingBadge(null)}
-            />
-            
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl glass-dark border border-white/10 rounded-[2.5rem] p-10 overflow-hidden"
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">
-                  {isEditingBadge === 'new' ? 'Create Tier' : 'Edit Tier'}
-                </h3>
-                <button onClick={() => setIsEditingBadge(null)} className="p-2 hover:bg-white/10 rounded-full text-white">
-                  <X />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tier Name</label>
-                  <input 
-                    type="text" 
-                    value={badgeForm.tierName || ''}
-                    onChange={e => setBadgeForm({...badgeForm, tierName: e.target.value})}
-                    placeholder="Elite Foodie"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Priority (1 = Starter)</label>
-                  <input 
-                    type="number" 
-                    value={badgeForm.priority || ''}
-                    onChange={e => setBadgeForm({...badgeForm, priority: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Min Orders</label>
-                  <input 
-                    type="number" 
-                    value={badgeForm.minOrders || ''}
-                    onChange={e => setBadgeForm({...badgeForm, minOrders: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Min Spend (₹)</label>
-                  <input 
-                    type="number" 
-                    value={badgeForm.minSpend || ''}
-                    onChange={e => setBadgeForm({...badgeForm, minSpend: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Theme Color (Hex)</label>
-                  <input 
-                    type="text" 
-                    value={badgeForm.themeColor || ''}
-                    onChange={e => setBadgeForm({...badgeForm, themeColor: e.target.value})}
-                    placeholder="#F97316"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Badge Icon</label>
-                  <input 
-                    type="text" 
-                    value={badgeForm.badgeIcon || ''}
-                    onChange={e => setBadgeForm({...badgeForm, badgeIcon: e.target.value})}
-                    placeholder="Crown"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Benefits (Comma separated)</label>
-                  <textarea 
-                    value={badgeForm.benefits?.join(', ') || ''}
-                    onChange={e => setBadgeForm({...badgeForm, benefits: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                    placeholder="Free Delivery, 20% OFF, Priority Support"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none h-24"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-10 flex gap-4">
-                <Button variant="ghost" onClick={() => setIsEditingBadge(null)} className="flex-1 rounded-2xl">Cancel</Button>
-                <Button variant="primary" onClick={handleSaveBadge} className="flex-1 rounded-2xl shadow-xl shadow-primary/20">
-                  <Save size={16} className="mr-2" /> {isEditingBadge === 'new' ? 'Create' : 'Save Changes'}
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Gift Edit Modal */}
-      <AnimatePresence>
-        {isEditingGift && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
-              onClick={() => setIsEditingGift(null)}
-            />
-            
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-2xl glass-dark border border-white/10 rounded-[2.5rem] p-10 overflow-hidden"
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">
-                  {isEditingGift === 'new' ? 'Create Gift' : 'Edit Gift'}
-                </h3>
-                <button onClick={() => setIsEditingGift(null)} className="p-2 hover:bg-white/10 rounded-full text-white">
-                  <X />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="col-span-2 space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Gift Title</label>
-                  <input 
-                    type="text" 
-                    value={giftForm.title || ''}
-                    onChange={e => setGiftForm({...giftForm, title: e.target.value})}
-                    placeholder="Gourmet Dessert Box"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Image URL</label>
-                  <input 
-                    type="text" 
-                    value={giftForm.image || ''}
-                    onChange={e => setGiftForm({...giftForm, image: e.target.value})}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Required Tier</label>
-                  <select 
-                    value={giftForm.requiredTier || ''}
-                    onChange={e => setGiftForm({...giftForm, requiredTier: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none appearance-none"
-                  >
-                    {badges.map(b => (
-                      <option key={b.id} value={b.tierName} className="bg-zinc-900">{b.tierName}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Stock</label>
-                  <input 
-                    type="number" 
-                    value={giftForm.stock || ''}
-                    onChange={e => setGiftForm({...giftForm, stock: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Cost (Points)</label>
-                  <input 
-                    type="number" 
-                    value={giftForm.costPoints || ''}
-                    onChange={e => setGiftForm({...giftForm, costPoints: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Status</label>
-                  <div className="flex gap-4 p-1 bg-white/5 rounded-xl">
-                    <button 
-                      onClick={() => setGiftForm({...giftForm, active: true})}
-                      className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", giftForm.active ? "bg-primary text-white" : "text-zinc-500 font-bold")}
-                    >Active</button>
-                    <button 
-                      onClick={() => setGiftForm({...giftForm, active: false})}
-                      className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", !giftForm.active ? "bg-red-500 text-white" : "text-zinc-500 font-bold")}
-                    >Inactive</button>
-                  </div>
-                </div>
-                <div className="col-span-2 space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Description</label>
-                  <textarea 
-                    value={giftForm.description || ''}
-                    onChange={e => setGiftForm({...giftForm, description: e.target.value})}
-                    placeholder="Describe the reward..."
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none h-24"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-10 flex gap-4">
-                <Button variant="ghost" onClick={() => setIsEditingGift(null)} className="flex-1 rounded-2xl">Cancel</Button>
-                <Button variant="primary" onClick={handleSaveGift} className="flex-1 rounded-2xl shadow-xl shadow-primary/20">
-                  <Save size={16} className="mr-2" /> {isEditingGift === 'new' ? 'Create Gift' : 'Save Changes'}
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
+      {/* Confirmation Modals */}
       <ConfirmationModal
-        isOpen={isSeedingConfirmOpen}
-        onClose={() => setIsSeedingConfirmOpen(false)}
-        onConfirm={seedDefaultBadges}
-        title="Seed Default Tiers?"
-        description="This will populate the loyalty rewards engine with Frosty Bite's default pre-configured master tiers. Do you want to proceed?"
-        confirmText="Confirm Seeding"
-        isLoading={isSeedingLoading}
-        variant="info"
-      />
-
-      <ConfirmationModal
-        isOpen={deletingBadgeId !== null}
+        isOpen={!!deletingBadgeId}
         onClose={() => setDeletingBadgeId(null)}
         onConfirm={handleDeleteBadge}
-        title="Delete Loyalty Tier?"
-        description="Are you absolutely sure you want to delete this specific loyalty tier configuration? This action is irreversible."
+        title="Delete Tier Badge?"
+        description="Are you sure you want to permanently delete this member tier? Eligible members will lose their associated privileges."
         confirmText="Delete Tier"
-        isLoading={isDeletingBadgeLoading}
         variant="danger"
       />
 
       <ConfirmationModal
-        isOpen={deletingGiftId !== null}
+        isOpen={!!deletingGiftId}
         onClose={() => setDeletingGiftId(null)}
         onConfirm={handleDeleteGift}
-        title="Delete Gift Reward?"
-        description="Are you sure you want to delete this customer reward? Users will no longer be able to claim it."
-        confirmText="Remove Gift"
-        isLoading={isDeletingGiftLoading}
+        title="Delete Reward Gift?"
+        description="Are you sure you want to permanently delete this reward gift item from the catalog?"
+        confirmText="Delete Gift"
         variant="danger"
       />
     </div>
   );
 };
-
-export default RewardsManager;

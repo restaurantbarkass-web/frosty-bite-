@@ -14,12 +14,12 @@ async function run() {
 
   const client = createClient(url, anonKey);
 
-  console.log('Fetching active service_zones records:');
-  const { data, error } = await client.from('service_zones').select('*').limit(3);
-  if (error) {
-    console.error('Fetch service_zones Error:', error);
+  console.log('Fetching active app_settings records:');
+  const { data: sysSettings, error: sysErr } = await client.from('app_settings').select('*').eq('id', '1').maybeSingle();
+  if (sysErr) {
+    console.error('Fetch app_settings row Error:', sysErr);
   } else {
-    console.log('Successfully fetched service_zones:', data);
+    console.log('Successfully fetched app_settings row:', sysSettings);
   }
 
   console.log('Fetching service_pincodes records:');

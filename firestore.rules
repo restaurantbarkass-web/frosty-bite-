@@ -100,6 +100,7 @@ service cloud.firestore {
              (!('avatar_vibe' in data) || (data.avatar_vibe is string && data.avatar_vibe.size() <= 64)) &&
              (!('avatar_generation_count' in data) || (data.avatar_generation_count is number && data.avatar_generation_count >= 0)) &&
              (!('ai_usage_stats' in data) || data.ai_usage_stats is map) &&
+              (!('fcm_tokens' in data) || data.fcm_tokens is list) &&
              (!('reward_points' in data) || (data.reward_points is number && data.reward_points >= 0)) &&
              (!('updated_at' in data) || (data.updated_at is timestamp));
     }
@@ -292,6 +293,9 @@ service cloud.firestore {
           // Action: Profile Details Update
           (incoming().role == existing().role && 
            incoming().diff(existing()).affectedKeys().hasOnly(['full_name', 'phone', 'address', 'updated_at'])) ||
+          // Action: FCM Token Registration/Update
+          (incoming().role == existing().role && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['fcm_tokens', 'updated_at'])) ||
           // Action: Settings & Avatar Update
           (incoming().role == existing().role && 
            incoming().diff(existing()).affectedKeys().hasOnly(['settings', 'avatar_config', 'avatar_url', 'avatar_style', 'avatar_vibe', 'avatar_generation_count', 'updated_at'])) ||

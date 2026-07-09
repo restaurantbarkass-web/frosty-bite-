@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
 import { Gift, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -15,6 +16,12 @@ const OffersPage = () => {
   const [flash, setFlash] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useMetadata({
+    title: 'Discounts, Promo Codes & Special Offers',
+    description: 'Save big with active discount codes, special dessert combo offers, and exclusive flash deals available only at Frosty Bite.',
+    keywords: ['coupons', 'discounts', 'sweets promo codes', 'burger deals', 'Frosty Bite coupons', 'Cuttack restaurant discount']
+  });
 
   const flashDeal = banners.find(b => b.is_flash_deal);
   const regularBanners = banners.filter(b => !b.is_flash_deal);

@@ -1,22 +1,5 @@
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendSignInLinkToEmail,
-  sendEmailVerification,
-  signInWithCustomToken
-} from 'firebase/auth';
-import { auth, db } from '../firebase';
 import { supabase } from '../supabase';
 import { getRoleFromEmail } from '../constants';
-import { safeFirestore } from './firestoreService';
-import { doc, serverTimestamp } from 'firebase/firestore';
-
-const googleProvider = new GoogleAuthProvider();
 
 // Deduplicated Auth Sync requester to completely prevent duplicate concurrent /api/auth/sync requests
 async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
@@ -56,49 +39,96 @@ async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
 }
 
 export const logout = async () => {
-  await signOut(auth);
+  await supabase.auth.signOut();
 };
 
 export const authService = {
   // Email/Password Login
   async handleEmailLogin(email: string, pass: string) {
-    const result = await signInWithEmailAndPassword(auth, email, pass);
-    if (result.user) {
-      await this.syncUserWithDatabase(result.user);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: pass,
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message || 'Incorrect email or password.');
     }
-    return result;
+
+    console.log('[handleEmailLogin] Supabase login succeeded!', data.user.id);
+    localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+    
+    // Perform background sync of user details
+    try {
+      await this.syncUserWithDatabase(data.user);
+    } catch (syncErr) {
+      console.warn('[handleEmailLogin] Background user sync warning:', syncErr);
+    }
+
+    return {
+      user: {
+        uid: data.user.id,
+        email: data.user.email,
+        displayName: data.user.user_metadata?.name || data.user.user_metadata?.full_name || email.trim().split('@')[0],
+        emailVerified: true,
+      }
+    } as any;
   },
 
   // Signup
   async handleSignup(email: string, pass: string, name?: string) {
-    const result = await createUserWithEmailAndPassword(auth, email, pass);
-    if (result.user) {
-      if (name) {
-        await updateProfile(result.user, { displayName: name });
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: pass,
+      options: {
+        data: {
+          name: name,
+          full_name: name,
+        }
       }
-      await this.syncUserWithDatabase(result.user, name);
-      // Automatically send verification
-      await sendEmailVerification(result.user);
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message || 'Failed to create your Frosty Bite account.');
     }
-    return result;
+
+    console.log('[handleSignup] Supabase signup succeeded!', data.user.id);
+    localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+
+    try {
+      await supabase.from('users').insert({
+        email: email.trim().toLowerCase(),
+        name: name || email.trim().split('@')[0],
+        full_name: name || email.trim().split('@')[0],
+        auth_methods: ['password'],
+      });
+    } catch (dbErr) {
+      console.warn('DB user sync during signup warning:', dbErr);
+    }
+
+    return {
+      user: {
+        uid: data.user.id,
+        email: data.user.email,
+        displayName: name || email.trim().split('@')[0],
+        emailVerified: true,
+      }
+    } as any;
   },
 
   // Send Email Verification
   async verifyEmail() {
-    if (auth.currentUser) {
-      await sendEmailVerification(auth.currentUser);
-    }
+    // Supabase sends sign up / confirmation emails automatically if enabled
   },
 
   // Magic Link Login
   async sendSignInLink(email: string) {
-    const actionCodeSettings = {
-      // Point to our finishing page
-      url: `${window.location.origin}/finish-sign-in?email=${encodeURIComponent(email)}`,
-      handleCodeInApp: true,
-    };
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    window.localStorage.setItem('emailForSignIn', email);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
   },
 
   // Send OTP directly using Supabase client
@@ -115,9 +145,9 @@ export const authService = {
     console.log("OTP sent");
   },
 
-  // Send mobile phone number verification code
+  // Send mobile phone number verification code via WhatsApp
   async sendMobileOTP(phone: string, isSignup?: boolean, email?: string, name?: string, password?: string) {
-    const res = await fetch('/api/auth/send-mobile-otp', {
+    const res = await fetch('/api/auth/send-otp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -126,14 +156,92 @@ export const authService = {
     });
     const data = await res.json();
     if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'Failed to dispatch mobile verification code.');
+      throw new Error(data.error || 'Failed to dispatch WhatsApp verification code.');
     }
+
+    // Client-side local WhatsApp server dispatch fallback
+    if (data.client_dispatch_required) {
+      let configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
+        configuredUrl = 'http://127.0.0.1:3001';
+        try {
+          localStorage.setItem('whatsapp_server_url', 'http://127.0.0.1:3001');
+        } catch (e) {}
+      }
+      
+      const uniqueUrls = new Set<string>();
+      uniqueUrls.add(configuredUrl);
+      
+      const defaults = [
+        'http://127.0.0.1:3001',
+        'http://localhost:3001',
+        'http://127.0.0.1:3002',
+        'http://localhost:3002'
+      ];
+      for (const d of defaults) {
+        uniqueUrls.add(d);
+      }
+      const urlsToTry = Array.from(uniqueUrls);
+
+      let success = false;
+      let lastError: any = null;
+      let successfulUrl = '';
+
+      for (const url of urlsToTry) {
+        try {
+          console.log(`[authService] Attempting dispatch to local WhatsApp server at ${url}...`);
+          const localRes = await fetch(`${url}/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              number: data.formattedPhone,
+              message: data.textMessage
+            })
+          });
+
+          if (!localRes.ok) {
+            const errText = await localRes.text().catch(() => '');
+            throw new Error(errText || `Server returned status ${localRes.status}`);
+          }
+
+          console.log(`[authService] Local WhatsApp dispatch succeeded on ${url}!`);
+          success = true;
+          successfulUrl = url;
+          try {
+            localStorage.setItem('whatsapp_server_url', url);
+          } catch (e) {
+            console.warn('[authService] Failed to persist whatsapp_server_url to localStorage:', e);
+          }
+          break;
+        } catch (err: any) {
+          console.warn(`[authService] Attempt on ${url} failed:`, err);
+          lastError = err;
+        }
+      }
+
+      if (success) {
+        return {
+          ...data,
+          message: "Verification code sent to your WhatsApp successfully!"
+        };
+      } else {
+        return {
+          ...data,
+          local_dispatch_error: true,
+          local_dispatch_error_message: `Local WhatsApp server is unreachable. Tried: ${urlsToTry.join(', ')}. Last error: ${lastError?.message || lastError}`,
+          message: "WhatsApp server is unreachable. Please verify your local WhatsApp server is running."
+        };
+      }
+    }
+
     return data;
   },
 
-  // Verify mobile phone number verification code and sign in client-side to Firebase
+  // Verify mobile phone number WhatsApp verification code
   async verifyMobileOTP(phone: string, otp: string) {
-    const res = await fetch('/api/auth/verify-mobile-otp', {
+    const res = await fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -142,20 +250,112 @@ export const authService = {
     });
     const data = await res.json();
     if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'Mobile verification code is invalid.');
+      throw new Error(data.error || 'WhatsApp verification code is invalid.');
     }
 
-    // Sign in to Firebase client-side with the generated custom authentication credentials
-    if (data.customToken) {
-      const { signInWithCustomToken } = await import('firebase/auth');
-      const { auth } = await import('../firebase');
-      const credential = await signInWithCustomToken(auth, data.customToken);
-      console.log('[AuthService] Mobile OTP Firebase client login succeeded!', credential.user.uid);
+    // Direct local state authentication sync
+    if (data.user) {
+      localStorage.setItem('frostybite_active_session_email', data.user.email);
+      localStorage.setItem('frostybite_has_active_session', 'true');
     }
     return data;
   },
 
-  // Verify OTP directly using Supabase client and sign in client-side to Firebase
+  // Resend mobile WhatsApp verification code
+  async resendMobileOTP(phone: string) {
+    const res = await fetch('/api/auth/resend-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || 'Failed to resend WhatsApp verification code.');
+    }
+
+    // Client-side local WhatsApp server dispatch fallback
+    if (data.client_dispatch_required) {
+      let configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
+        configuredUrl = 'http://127.0.0.1:3001';
+        try {
+          localStorage.setItem('whatsapp_server_url', 'http://127.0.0.1:3001');
+        } catch (e) {}
+      }
+      
+      const uniqueUrls = new Set<string>();
+      uniqueUrls.add(configuredUrl);
+      
+      const defaults = [
+        'http://127.0.0.1:3001',
+        'http://localhost:3001',
+        'http://127.0.0.1:3002',
+        'http://localhost:3002'
+      ];
+      for (const d of defaults) {
+        uniqueUrls.add(d);
+      }
+      const urlsToTry = Array.from(uniqueUrls);
+
+      let success = false;
+      let lastError: any = null;
+      let successfulUrl = '';
+
+      for (const url of urlsToTry) {
+        try {
+          console.log(`[authService] Attempting resend to local WhatsApp server at ${url}...`);
+          const localRes = await fetch(`${url}/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              number: data.formattedPhone,
+              message: data.textMessage
+            })
+          });
+
+          if (!localRes.ok) {
+            const errText = await localRes.text().catch(() => '');
+            throw new Error(errText || `Server returned status ${localRes.status}`);
+          }
+
+          console.log(`[authService] Local WhatsApp resend succeeded on ${url}!`);
+          success = true;
+          successfulUrl = url;
+          try {
+            localStorage.setItem('whatsapp_server_url', url);
+          } catch (e) {
+            console.warn('[authService] Failed to persist whatsapp_server_url to localStorage:', e);
+          }
+          break;
+        } catch (err: any) {
+          console.warn(`[authService] Attempt on ${url} failed:`, err);
+          lastError = err;
+        }
+      }
+
+      if (success) {
+        return {
+          ...data,
+          message: "Verification code resent to your WhatsApp successfully!"
+        };
+      } else {
+        return {
+          ...data,
+          local_dispatch_error: true,
+          local_dispatch_error_message: `Local WhatsApp server is unreachable. Tried: ${urlsToTry.join(', ')}. Last error: ${lastError?.message || lastError}`,
+          message: "WhatsApp server is unreachable. Please verify your local WhatsApp server is running."
+        };
+      }
+    }
+
+    return data;
+  },
+
+  // Verify OTP directly using Supabase client
   async verifyOTP(email: string, otp: string, isSignupHint?: boolean) {
     const normalizedEmail = email.trim().toLowerCase();
     const cleanOtp = otp.trim();
@@ -179,12 +379,6 @@ export const authService = {
       }
     }
 
-    // 1. Resolve exact Supabase OTP type from our secure server admin endpoint as a hint.
-    // However, because we dispatch the OTP using signInWithOtp (in sendOTP), the expected GoTrue
-    // verification type is almost always 'email' (for numeric OTP codes), regardless of whether
-    // the user is new or existing.
-    // To be exceptionally resilient, we will use a fallback sequence: trying 'email' first
-    // (since signUp with password was never called), and fallback to other types if needed.
     let verifyTypeHint: 'signup' | 'email' | 'magiclink' = isNewUser ? 'signup' : 'email';
     try {
       const typeRes = await fetch(`/api/auth/otp-type?email=${encodeURIComponent(normalizedEmail)}`);
@@ -195,11 +389,9 @@ export const authService = {
         }
       }
     } catch (err) {
-      console.warn('[AuthService] Error checking OTP type with server, falling back to client heuristic:', err);
+      console.warn('[AuthService] Error checking OTP type with server:', err);
     }
 
-    // Since signInWithOtp is passwordless, 'email' is the proper GoTrue type.
-    // We try 'email' first, then the hint or manual fallbacks.
     const verificationTypes: Array<'signup' | 'email' | 'magiclink'> = verifyTypeHint === 'signup'
       ? ['email', 'signup', 'magiclink']
       : [verifyTypeHint, 'email', 'signup', 'magiclink'];
@@ -224,7 +416,7 @@ export const authService = {
           console.log(`[AuthService] verifyOtp succeeded with type: ${currentType}!`);
           supabaseAuthSession = resData;
           lastError = null;
-          break; // Succeeded!
+          break;
         } else {
           lastError = resError || new Error(`No user returned for type ${currentType}`);
           console.log(`[AuthService] verifyOtp failed for type ${currentType}:`, lastError.message || lastError);
@@ -246,86 +438,14 @@ export const authService = {
       throw new Error('Supabase login completed but no authenticated token was provided.');
     }
 
-    // Call server to fetch the old Firebase user profile or establish a clean synced profile
+    localStorage.setItem('frostybite_active_session_email', normalizedEmail);
+    localStorage.setItem('frostybite_has_active_session', 'true');
+
+    // Sync profile
     try {
-      const response = await fetch('/api/auth/firebase-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          supabaseAccessToken: accessToken,
-          email: normalizedEmail,
-        }),
-      });
+      await this.syncUserWithDatabase(supabaseAuthSession.user);
+    } catch (err) {}
 
-      const isJson = response.headers.get('content-type')?.includes('application/json');
-      if (response.ok && isJson) {
-        const { customToken } = await response.json();
-        if (customToken) {
-          // Authenticate clean and securely on client to Firebase using the server-generated Custom Token
-          const result = await signInWithCustomToken(auth, customToken);
-
-          if (result && result.user) {
-            localStorage.setItem(`verified_${result.user.uid}`, 'true');
-            await this.syncUserWithDatabase(result.user, undefined, true);
-          }
-          return result;
-        }
-      } else {
-        let errorMsg = 'Server-side Firebase flow mapping failed.';
-        if (isJson && response) {
-          const errBody = await response.json().catch(() => ({}));
-          errorMsg = errBody.error || errorMsg;
-        } else if (response) {
-          const text = await response.text().catch(() => '');
-          console.error('[AuthService] Non-JSON error response received:', text);
-        }
-        console.warn(`[AuthService] Firebase token generation did not complete: ${errorMsg}. Continuing with Supabase OTP session...`);
-      }
-    } catch (fbTokenError) {
-      console.warn('[AuthService] Firebase custom token exchange failed. Using secure direct Supabase master identity session: ', fbTokenError);
-    }
-
-    // Direct Client-side Firebase authenticating fallback
-    const sbUserUid = supabaseAuthSession.user?.id;
-    if (sbUserUid) {
-      try {
-        console.log('[AuthService] Attempting direct client-side Firebase Auth authentication using Supabase identity mapping...');
-        const firebasePassword = `sb-${sbUserUid}`;
-        let firebaseAuthResult;
-        try {
-          firebaseAuthResult = await signInWithEmailAndPassword(auth, normalizedEmail, firebasePassword);
-          console.log('[AuthService] Direct client-side Firebase signin succeeded!');
-        } catch (signInErr: any) {
-          // If user doesn't exist yet, auto-register them
-          if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential' || signInErr.code === 'auth/wrong-password') {
-            console.log('[AuthService] Direct Firebase user check empty. Auto-registering...');
-            try {
-              firebaseAuthResult = await createUserWithEmailAndPassword(auth, normalizedEmail, firebasePassword);
-              console.log('[AuthService] Direct client-side Firebase registration succeeded!');
-            } catch (signUpErr: any) {
-              console.error('[AuthService] Firebase direct registration failed:', signUpErr);
-              throw signUpErr;
-            }
-          } else {
-            console.error('[AuthService] Firebase direct sign-in failed with error:', signInErr.code, signInErr.message);
-            throw signInErr;
-          }
-        }
-
-        if (firebaseAuthResult && firebaseAuthResult.user) {
-          localStorage.setItem(`verified_${firebaseAuthResult.user.uid}`, 'true');
-          await this.syncUserWithDatabase(firebaseAuthResult.user, undefined, true);
-          return firebaseAuthResult;
-        }
-      } catch (directFbErr: any) {
-        console.error('[AuthService] Direct client-side Firebase Auth mapper failed:', directFbErr);
-      }
-    }
-
-    // Fallback: If Firebase custom token flow is unavailable/unlicensed, complete authentication using public master DB Session
-    console.log('[AuthService] Completing authentication fallback using Supabase master/public database record.');
     return {
       user: {
         uid: supabaseAuthSession.user?.id || 'sb-user',
@@ -338,25 +458,25 @@ export const authService = {
     };
   },
 
-  // Google Login
+  // Google Login via Firebase OAuth
   async loginWithGoogle() {
-    const result = await signInWithPopup(auth, googleProvider);
-    if (result.user) {
-      // Fire-and-forget background sync: allows immediate interface responsiveness right after Google PopUp closes
-      this.syncUserWithDatabase(result.user, undefined, true).catch((e) => {
-        console.warn('[AuthService] Google login background sync error:', e);
-      });
+    const { signInWithPopup } = await import('firebase/auth');
+    const { auth, googleProvider } = await import('../firebase');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    } catch (error: any) {
+      console.error('[Firebase OAuth] signInWithPopup failed:', error);
+      throw error;
     }
-    return result;
   },
 
   // Password Reset
   async forgotPassword(email: string) {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (fbErr: any) {
-      console.warn('[authService] Firebase sendPasswordResetEmail skipped/failed:', fbErr.message || fbErr);
-    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+    if (error) throw error;
   },
 
   // Secure client-side wrapper to reset custom password via verified OTP code
@@ -376,129 +496,41 @@ export const authService = {
     return data;
   },
 
-  // Sync user with tables (Firestore + Supabase via Backend sync)
-  async syncUserWithDatabase(user: any, name?: string, markVerified: boolean = false) {
-    const determinedRole = getRoleFromEmail(user.email);
-
-    if (markVerified && user?.uid) {
-      localStorage.setItem(`verified_${user.uid}`, 'true');
-    }
-
-    // Run Backend Sync and Firestore Sync concurrently for maximum performance
-    let backendSyncSucceeded = false;
+  // Sync user profile directly in Supabase Postgres
+  async syncUserWithDatabase(user: any, name?: string) {
     try {
-      const idToken = typeof user.getIdToken === 'function' ? await user.getIdToken() : null;
-      
-      const syncBackendPromise = idToken ? (async () => {
-        try {
-          const resData = await fetchSyncDeduplicated(idToken, markVerified || user.emailVerified);
-          if (resData && resData.success) {
-            backendSyncSucceeded = true;
-            if (markVerified) {
-              try {
-                await user.reload();
-              } catch (_) {}
-            }
-            return true;
-          }
-        } catch (e) {
-          console.warn('[AuthService] Backend sync error:', e);
-        }
-        return false;
-      })() : Promise.resolve(false);
-
-      const syncFirestorePromise = (async () => {
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          await safeFirestore.set(userRef, {
-            uid: user.uid,
-            email: user.email,
-            full_name: name || user.displayName || '',
-            role: determinedRole,
-            updated_at: serverTimestamp(),
-          });
-          return true;
-        } catch (err) {
-          console.warn('Firestore user sync warning:', err);
-          return false;
-        }
-      })();
-
-      const [backendOk] = await Promise.all([syncBackendPromise, syncFirestorePromise]);
-      backendSyncSucceeded = backendOk;
-    } catch (err) {
-      console.error('[AuthService] Fast sync error:', err);
-    }
-
-    // 3. Direct client-side Supabase backup sync (if backend was reachable but missed something)
-    if (!backendSyncSucceeded) {
-      try {
-        const { data: { user: sbUser } } = await supabase.auth.getUser();
-      const sbUid = sbUser?.id || null;
       const userEmail = (user.email || '').trim().toLowerCase();
+      const sbUid = user.id || user.uid;
 
-      // Check if user already exists in public.users by email first, then firebase_uid, then supabase_uid
-      let existingDbUser = null;
-      if (userEmail) {
-        const { data: emailDb } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', userEmail)
-          .maybeSingle();
-        existingDbUser = emailDb;
-      }
+      let { data: existingDbUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', userEmail)
+        .maybeSingle();
 
-      if (!existingDbUser && user.uid) {
-        const { data: fbDb } = await supabase
-          .from('users')
-          .select('*')
-          .eq('firebase_uid', user.uid)
-          .maybeSingle();
-        existingDbUser = fbDb;
-      }
-
-      if (!existingDbUser && sbUid) {
-        const { data: sbDb } = await supabase
-          .from('users')
-          .select('*')
-          .eq('supabase_uid', sbUid)
-          .maybeSingle();
-        existingDbUser = sbDb;
-      }
-
-      const determinedRole = getRoleFromEmail(user.email);
-      const nameVal = name || user.displayName || '';
+      const determinedRole = getRoleFromEmail(userEmail);
+      const nameVal = name || user.user_metadata?.full_name || user.user_metadata?.name || user.displayName || userEmail.split('@')[0];
+      const photoURL = user.user_metadata?.avatar_url || user.photoURL || null;
 
       if (existingDbUser) {
-        const existingMethods = existingDbUser.auth_methods || [];
-        const updatedMethods = [...existingMethods];
-        if (user.uid && !updatedMethods.includes('firebase')) updatedMethods.push('firebase');
-        if (sbUid && !updatedMethods.includes('otp')) updatedMethods.push('otp');
-
         const updates: any = {
           last_login: new Date().toISOString(),
           last_login_at: new Date().toISOString()
         };
 
-        if (userEmail && existingDbUser.email !== userEmail) {
+        if (existingDbUser.email !== userEmail) {
           updates.email = userEmail;
         }
         if (nameVal && (!existingDbUser.name || existingDbUser.name === existingDbUser.email.split('@')[0])) {
           updates.name = nameVal;
           updates.full_name = nameVal;
         }
-        if (user.photoURL && !existingDbUser.avatar_url) {
-          updates.avatar_url = user.photoURL;
-          updates.avatar = user.photoURL;
-        }
-        if (user.uid && existingDbUser.firebase_uid !== user.uid) {
-          updates.firebase_uid = user.uid;
+        if (photoURL && !existingDbUser.avatar_url) {
+          updates.avatar_url = photoURL;
+          updates.avatar = photoURL;
         }
         if (sbUid && existingDbUser.supabase_uid !== sbUid) {
           updates.supabase_uid = sbUid;
-        }
-        if (JSON.stringify(existingMethods.sort()) !== JSON.stringify(updatedMethods.sort())) {
-          updates.auth_methods = updatedMethods;
         }
 
         await supabase
@@ -510,22 +542,14 @@ export const authService = {
           email: userEmail,
           name: nameVal,
           full_name: nameVal,
-          avatar_url: user.photoURL,
-          avatar: user.photoURL,
+          avatar_url: photoURL,
+          avatar: photoURL,
           role: determinedRole,
+          supabase_uid: sbUid,
+          auth_methods: ['otp'],
           last_login: new Date().toISOString(),
           last_login_at: new Date().toISOString()
         };
-
-        if (user.uid) insertPayload.firebase_uid = user.uid;
-        if (sbUid) insertPayload.supabase_uid = sbUid;
-
-        const methods = [];
-        if (user.uid) methods.push('firebase');
-        if (sbUid) methods.push('otp');
-        if (methods.length > 0) {
-          insertPayload.auth_methods = methods;
-        }
 
         await supabase
           .from('users')
@@ -533,7 +557,6 @@ export const authService = {
       }
     } catch (error) {
        console.error('[AuthService] Supabase client sync error:', error);
-    }
     }
   },
 
