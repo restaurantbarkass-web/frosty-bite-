@@ -148,6 +148,7 @@ export const Login: React.FC = () => {
 
   // Developer and Testing support for local WhatsApp dispatch
   const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
+  const [localDispatchOffline, setLocalDispatchOffline] = useState(false);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [whatsappServerUrl, setWhatsappServerUrl] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -322,8 +323,10 @@ export const Login: React.FC = () => {
       }
       setStep('otp');
       if (res.local_dispatch_error) {
-        setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+        setLocalDispatchOffline(true);
+        setSuccess('Verification code queued! 📡 Standard local dispatch fell back to polling queue.');
       } else {
+        setLocalDispatchOffline(false);
         setSuccess(res.message || 'Verification code sent to your phone!');
       }
     } catch (err: any) {
@@ -596,8 +599,10 @@ export const Login: React.FC = () => {
         }
         setStep('otp');
         if (res.local_dispatch_error) {
-          setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+          setLocalDispatchOffline(true);
+          setSuccess('Verification code queued! 📡 Standard local dispatch fell back to polling queue.');
         } else {
+          setLocalDispatchOffline(false);
           setSuccess(res.message || 'Verification code sent to your phone!');
         }
       }
@@ -735,8 +740,10 @@ export const Login: React.FC = () => {
           setDevOtpHint(null);
         }
         if (res.local_dispatch_error) {
-          setError(`⚠️ Local WhatsApp Server Offline: Could not auto-dispatch code to ${formatDisplayPhone(cleanPhone)}. Ensure your local WhatsApp server is running at ${localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001'} and CORS is enabled.`);
+          setLocalDispatchOffline(true);
+          setSuccess('Fresh verification code queued! 📡 Standard local dispatch fell back to polling queue.');
         } else {
+          setLocalDispatchOffline(false);
           setSuccess(res.message || 'A fresh WhatsApp verification code was sent! Please check your WhatsApp.');
         }
       } else {
@@ -1608,7 +1615,32 @@ export const Login: React.FC = () => {
                         </div>
                       </div>
 
+                      {devOtpHint && (
+                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 text-center space-y-1.5 max-w-[340px] mx-auto animate-fade-in shadow-[0_5px_15px_rgba(249,115,22,0.05)]">
+                          <p className="text-[10px] uppercase font-black tracking-widest text-[#FFD6A5] flex items-center justify-center gap-1.5">
+                            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+                            <span>⚡ Development OTP Hint</span>
+                          </p>
+                          <p className="text-2xl font-black font-mono tracking-widest text-orange-400 select-all">{devOtpHint}</p>
+                          <p className="text-[10px] text-zinc-400 leading-normal font-sans">
+                            Since you are running in test/sandbox mode, you can copy-paste this code directly to sign in instantly!
+                          </p>
+                        </div>
+                      )}
 
+                      {localDispatchOffline && (
+                        <div className="bg-zinc-850/60 border border-zinc-700/40 rounded-2xl p-4 text-left space-y-2 max-w-[340px] mx-auto text-[11px] text-zinc-400 font-sans leading-relaxed">
+                          <p className="font-bold text-zinc-300 flex items-center gap-1.5">
+                            <span className="text-amber-500 text-xs">ℹ️</span> Local Helper Queue Active
+                          </p>
+                          <p className="text-[10.5px]">
+                            We've placed your message in the queue. To route actual WhatsApp messages using your local machine, start your server with this command:
+                          </p>
+                          <div className="bg-zinc-950 p-2.5 rounded-xl border border-white/5 font-mono text-[9.5px] text-orange-300 overflow-x-auto break-all select-all">
+                            APP_URL={window.location.origin} node local-whatsapp-server.js
+                          </div>
+                        </div>
+                      )}
 
                       <div className="space-y-4 pt-2">
                         <button
