@@ -41,13 +41,14 @@ export class ErrorBoundary extends Component<Props, State> {
     const reasonStr = reason ? String(reason.message || reason.description || reason.reason || reason) : '';
     const reasonConstructorName = reason && reason.constructor ? String(reason.constructor.name) : '';
     
-    // Ignore benign websocket, close events, and vite dev server HMR noise
+    // Ignore benign websocket, close events, cross-origin script errors, and vite dev server HMR noise
     if (
       reasonStr.toLowerCase().includes('websocket') ||
       reasonStr.toLowerCase().includes('web socket') ||
       reasonStr.toLowerCase().includes('vite') ||
       reasonStr.toLowerCase().includes('closed without opened') ||
       reasonStr.toLowerCase().includes('closeevent') ||
+      reasonStr.toLowerCase().includes('script error') ||
       reasonConstructorName.toLowerCase().includes('closeevent') ||
       reasonConstructorName.toLowerCase().includes('websocket') ||
       (reason && (reason.type === 'close' || reason.type === 'error' || reason.wasClean !== undefined))
@@ -99,18 +100,20 @@ export class ErrorBoundary extends Component<Props, State> {
       const errorMsg = errEvent.message || '';
       const errorStr = errEvent.error ? String(errEvent.error.message || errEvent.error) : '';
       
-      // Ignore benign websocket and vite dev server HMR noise
+      // Ignore benign websocket, cross-origin script errors, and vite dev server HMR noise
       if (
         errorMsg.toLowerCase().includes('websocket') ||
         errorMsg.toLowerCase().includes('web socket') ||
         errorMsg.toLowerCase().includes('vite') ||
         errorMsg.toLowerCase().includes('closed without opened') ||
         errorMsg.toLowerCase().includes('closeevent') ||
+        errorMsg.toLowerCase().includes('script error') ||
         errorStr.toLowerCase().includes('websocket') ||
         errorStr.toLowerCase().includes('web socket') ||
         errorStr.toLowerCase().includes('vite') ||
         errorStr.toLowerCase().includes('closed without opened') ||
-        errorStr.toLowerCase().includes('closeevent')
+        errorStr.toLowerCase().includes('closeevent') ||
+        errorStr.toLowerCase().includes('script error')
       ) {
         try {
           event.preventDefault();

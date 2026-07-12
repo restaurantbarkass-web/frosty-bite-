@@ -25,6 +25,7 @@ import { FoodCard } from '../FoodCard';
 import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { OptimizedImage } from '../ui/OptimizedImage';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -469,11 +470,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                             className="group relative bg-zinc-950/80 border border-white/5 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300 flex flex-col cursor-pointer shadow-lg hover:shadow-primary/5"
                           >
                             <div className="relative aspect-video w-full overflow-hidden bg-zinc-900 flex-shrink-0">
-                              <img 
+                              <OptimizedImage 
                                 src={item.image} 
                                 alt={item.name} 
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                                referrerPolicy="no-referrer"
                               />
                               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3 pt-6" />
                               <div className="absolute top-2 right-2 flex gap-1">
@@ -607,11 +607,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                       className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
                                     >
                                         <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
-                                            <img 
+                                            <OptimizedImage 
                                               src={bestMatch.image} 
                                               alt={bestMatch.name} 
                                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                                              referrerPolicy="no-referrer"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                         </div>

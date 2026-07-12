@@ -647,6 +647,33 @@ router.post('/resend-otp', async (req, res) => {
   }
 });
 
+// GET /whatsapp-poll - Local WhatsApp server polls this to find any queued OTP messages to send
+router.get('/whatsapp-poll', (req, res) => {
+  const now = Date.now();
+  const maxAge = 120000; // 2 minutes expiration
+  
+  // Clean up stale or expired queued items
+  const validMessages = WhatsAppService.pendingQueue.filter(m => (now - m.timestamp) < maxAge);
+  WhatsAppService.pendingQueue = validMessages;
+
+  res.json({ messages: WhatsAppService.pendingQueue });
+});
+
+// POST /whatsapp-ack - Local WhatsApp server calls this once a message is successfully sent
+router.post('/whatsapp-ack', (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: 'Message ID is required for acknowledgement.' });
+  }
+
+  const index = WhatsAppService.pendingQueue.findIndex(m => m.id === id);
+  if (index !== -1) {
+    WhatsAppService.pendingQueue.splice(index, 1);
+  }
+
+  res.json({ success: true });
+});
+
 // Backward-compatibility Aliases (so any existing legacy clients do not fail!)
 router.post('/send-mobile-otp', async (req, res) => {
   console.log('[AuthRoutes] Legacy send-mobile-otp route redirecting to /send-otp');

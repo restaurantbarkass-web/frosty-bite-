@@ -39,6 +39,7 @@ import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { appConfigService } from '../services/appConfigService';
 import { useNotifications } from '../context/NotificationContext';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 
 const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
@@ -1468,7 +1469,7 @@ export const Checkout: React.FC = () => {
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-4 group">
                     <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/5">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                      <OptimizedImage src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                     </div>
                     <div className="flex-1 min-w-0 py-1">
                       <h4 className="text-sm font-black text-white uppercase italic tracking-tight truncate leading-tight">{item.name}</h4>

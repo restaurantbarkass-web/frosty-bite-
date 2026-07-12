@@ -4,6 +4,9 @@
  * through the user's running whatsapp-web.js server or OpenWA API.
  */
 export class WhatsAppService {
+  // Static outbox queue for local WhatsApp server polling
+  public static pendingQueue: Array<{ id: string; phone: string; message: string; timestamp: number }> = [];
+
   /**
    * Dispatches a 6-digit verification code to the recipient's WhatsApp account
    */
@@ -26,20 +29,30 @@ export class WhatsAppService {
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
     // 2. Format the official Frosty Bite WhatsApp text template
-    const textMessage = `🍰 *Frosty Bite Bakery*\n\nYour verification code is:\n\n*${otp}*\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.`;
+    const textMessage = `Cake *Frosty Bite Bakery*\n\nYour verification code is:\n\n*${otp}*\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.`;
 
     // 3. Resolve the configured WhatsApp server URL
     const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || 'http://localhost:3001').replace(/\/+$/, '');
 
     const isCloudEnv = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production';
-    if (isCloudEnv && (whatsappUrl.includes('localhost') || whatsappUrl.includes('127.0.0.1'))) {
-      console.log(`[WhatsAppService] Running in cloud environment. Localhost is unreachable. Instantly delegating dispatch to browser client.`);
+
+    // If using local/custom WhatsApp server, we always delegate to the background polling queue
+    // to bypass CORS and HTTPS mixed content browser blocks completely.
+    if (whatsappUrl.includes('localhost') || whatsappUrl.includes('127.0.0.1')) {
+      console.log(`[WhatsAppService] Queueing WhatsApp message for polling delivery and client fallback.`);
+      const messageId = Math.random().toString(36).substring(2, 15);
+      WhatsAppService.pendingQueue.push({
+        id: messageId,
+        phone: formattedPhone,
+        message: textMessage,
+        timestamp: Date.now()
+      });
       return {
         success: true,
-        provider: 'client-delegate',
-        message: `Delegating dispatch to your local WhatsApp server...`,
+        provider: 'polling-queue',
+        message: `Verification code queued for WhatsApp delivery.`,
         dev_otp_hint: otp,
-        client_dispatch_required: true,
+        client_dispatch_required: !isCloudEnv,
         textMessage,
         formattedPhone
       };
@@ -99,15 +112,22 @@ export class WhatsAppService {
       console.warn(`[WhatsAppService] Dispatch error:`, err.message || err);
 
       // If we are using a local server, and we are running in the cloud (which cannot reach localhost),
-      // we request the client/browser to perform the dispatch to their local server!
+      // we request the client/browser to perform the dispatch via background polling and client fallback!
       if (whatsappUrl.includes('localhost') || whatsappUrl.includes('127.0.0.1')) {
-        console.log(`[WhatsAppService] Backend cannot reach local server ${whatsappUrl}. Delegating dispatch to browser client.`);
+        console.log(`[WhatsAppService] Backend cannot reach local server ${whatsappUrl}. Queueing WhatsApp message for polling delivery and client fallback.`);
+        const messageId = Math.random().toString(36).substring(2, 15);
+        WhatsAppService.pendingQueue.push({
+          id: messageId,
+          phone: formattedPhone,
+          message: textMessage,
+          timestamp: Date.now()
+        });
         return {
           success: true,
-          provider: 'client-delegate',
-          message: `Delegating dispatch to your local WhatsApp server...`,
+          provider: 'polling-queue',
+          message: `Verification code queued for WhatsApp delivery.`,
           dev_otp_hint: otp,
-          client_dispatch_required: true,
+          client_dispatch_required: !isCloudEnv,
           textMessage,
           formattedPhone
         };

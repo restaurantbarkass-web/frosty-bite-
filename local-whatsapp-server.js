@@ -30,10 +30,125 @@ client.on("ready", () => {
     console.log("✅ WhatsApp Connected!");
 
     // Runs on port 3001 to avoid EADDRINUSE conflicts on port 3000
-    app.listen(process.env.PORT || 3001, () => {
+    const server = app.listen(process.env.PORT || 3001, () => {
         console.log("🚀 Server running on port 3001");
+        startAppletPolling();
+    });
+
+    server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+            console.warn("\n⚠️  [Resilient Warning] Port 3001 is already in use by another instance!");
+            console.warn("⚠️  No problem! We are still running the background polling loop to dispatch queued OTP messages successfully.");
+            startAppletPolling();
+        } else {
+            console.error("❌ Express server error:", err);
+        }
     });
 });
+
+const http = require("http");
+const https = require("https");
+const { URL } = require("url");
+
+// Zero-dependency HTTP/HTTPS json helper supporting all Node.js versions (including old Node.js < 18)
+function customFetchJson(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        try {
+            const parsedUrl = new URL(url);
+            const protocol = parsedUrl.protocol === "https:" ? https : http;
+            const reqOptions = {
+                method: options.method || "GET",
+                headers: {
+                    "Accept": "application/json",
+                    ...(options.headers || {})
+                }
+            };
+
+            if (options.body) {
+                reqOptions.headers["Content-Type"] = "application/json";
+            }
+
+            const req = protocol.request(url, reqOptions, (res) => {
+                let data = "";
+                res.on("data", (chunk) => {
+                    data += chunk;
+                });
+                res.on("end", () => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        try {
+                            resolve(JSON.parse(data));
+                        } catch (e) {
+                            resolve({});
+                        }
+                    } else {
+                        reject(new Error(`Server returned status ${res.statusCode}`));
+                    }
+                });
+            });
+
+            req.on("error", (err) => {
+                reject(err);
+            });
+
+            if (options.body) {
+                req.write(typeof options.body === "string" ? options.body : JSON.stringify(options.body));
+            }
+            req.end();
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+// Background polling loop to pull pending WhatsApp messages from the cloud/local backend
+async function startAppletPolling() {
+    const rawAppUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = rawAppUrl.replace(/\/+$/, "");
+    console.log(`📡 Background WhatsApp Dispatch queue polling started for: ${appUrl}`);
+
+    setInterval(async () => {
+        try {
+            // Poll for pending messages
+            const data = await customFetchJson(`${appUrl}/api/auth/whatsapp-poll`, {
+                method: "GET"
+            }).catch(() => null);
+
+            if (!data) {
+                return; // Silence connection errors when offline/stale
+            }
+
+            const messages = data.messages || [];
+
+            for (const item of messages) {
+                try {
+                    const cleanNum = item.phone.replace(/\D/g, "");
+                    const chatId = `${cleanNum}@c.us`;
+
+                    console.log(`📨 Received pending WhatsApp message for +${cleanNum} from queue. Sending...`);
+                    
+                    const isRegistered = await client.isRegisteredUser(chatId).catch(() => true);
+                    if (!isRegistered) {
+                        console.warn(`⚠️ Phone +${cleanNum} is not registered on WhatsApp.`);
+                    }
+
+                    await client.sendMessage(chatId, item.message);
+                    console.log(`✅ Message successfully delivered to +${cleanNum}!`);
+
+                    // Acknowledge receipt to clear it from the server outbox queue
+                    await customFetchJson(`${appUrl}/api/auth/whatsapp-ack`, {
+                        method: "POST",
+                        body: { id: item.id }
+                    }).catch(e => console.warn("⚠️ Failed to send ack to app server:", e.message));
+
+                } catch (sendErr) {
+                    console.error(`❌ Failed to deliver message for item ${item.id}:`, sendErr.message);
+                }
+            }
+        } catch (pollErr) {
+            // Silence standard poll errors to avoid terminal spam
+        }
+    }, 1500); // Poll every 1.5 seconds
+}
 
 app.post("/send", async (req, res) => {
     try {

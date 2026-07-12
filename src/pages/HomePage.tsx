@@ -20,6 +20,7 @@ import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
 import { VoiceAssistant } from '../components/VoiceAssistant';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 
 // Variants for staggered animations
 const containerVariants: any = {
@@ -450,11 +451,11 @@ export const Home: React.FC = () => {
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary via-white to-primary rounded-full blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-gradient-x" />
               <div className="relative w-56 h-56 bg-white backdrop-blur-3xl rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_80px_rgba(125,211,252,0.15)] p-0 overflow-hidden outline outline-1 outline-white/5 outline-offset-8">
-                <img 
+                <OptimizedImage 
                   src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
                   alt="Frosty Bite" 
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  referrerPolicy="no-referrer"
+                  priority={true}
                 />
               </div>
             </div>

@@ -4,6 +4,7 @@ import { Sparkles, ShoppingCart, Info, Star, Clock } from 'lucide-react';
 import { FoodItem } from './types';
 import { AiRecommendationResponse } from './services/searchService';
 import { cn } from './lib/utils';
+import { OptimizedImage } from './components/ui/OptimizedImage';
 
 interface AiRecommendationCardProps {
   recommendation: AiRecommendationResponse;
@@ -89,11 +90,10 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
             <div className="p-4 sm:p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-white/10 transition-all group/item">
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="w-full sm:w-40 aspect-square rounded-2xl overflow-hidden shadow-2xl relative">
-                  <img 
+                  <OptimizedImage 
                     src={item.image} 
                     alt={item.name} 
                     className="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   <div className="absolute bottom-3 left-3 flex items-center gap-1.5">

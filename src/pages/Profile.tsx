@@ -23,6 +23,7 @@ import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
 import { usePWA } from '../hooks/usePWA';
 import { AiRecommendationCard } from '../AiRecommendationCard';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { searchService, AiRecommendationResponse } from '../services/searchService';
 import { useMenu } from '../context/MenuContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -1243,7 +1244,7 @@ export const Profile: React.FC = () => {
                       )}
                     >
                       <div className="shrink-0 w-24 h-24 rounded-3xl overflow-hidden border border-white/10 relative">
-                        <img src={gift.image} alt={gift.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        <OptimizedImage src={gift.image} alt={gift.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                         {isLocked && (
                           <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
                             <Shield size={32} className="text-white/40" />

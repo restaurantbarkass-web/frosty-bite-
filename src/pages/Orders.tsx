@@ -11,6 +11,7 @@ import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { useCart } from '../context/CartContext';
 import { CancelOrderModal } from '../components/CancelOrderModal';
 import toast from 'react-hot-toast';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -330,7 +331,7 @@ const Orders: React.FC = () => {
                             <div key={i} className="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 group/item">
                               <div className="flex items-center gap-3">
                                 {item.image && (
-                                  <img src={item.image} alt={item.name || 'Item'} className="w-10 h-10 rounded-xl object-cover" />
+                                  <OptimizedImage src={item.image} alt={item.name || 'Item'} className="w-10 h-10 rounded-xl object-cover" />
                                 )}
                                 <div>
                                   <p className="text-xs font-black text-white italic leading-tight uppercase">{item.name || 'Item'}</p>

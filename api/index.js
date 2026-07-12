@@ -1342,23 +1342,10 @@ The Frosty Bite Team`,
 };
 
 // server/services/whatsapp.service.ts
-import fetch2 from "node-fetch";
-var WhatsAppService = class {
+var WhatsAppService = class _WhatsAppService {
   static {
-    // Store the latest dispatched message in memory for the simulator API
-    this.latestMessage = null;
-  }
-  /**
-   * Retrieves the latest simulated WhatsApp message for the frontend simulator overlay
-   */
-  static getLatestSimulatedMessage() {
-    return this.latestMessage;
-  }
-  /**
-   * Clear simulator messages
-   */
-  static clearLatestSimulatedMessage() {
-    this.latestMessage = null;
+    // Static outbox queue for local WhatsApp server polling
+    this.pendingQueue = [];
   }
   /**
    * Dispatches a 6-digit verification code to the recipient's WhatsApp account
@@ -1369,7 +1356,7 @@ var WhatsAppService = class {
       throw new Error("Invalid phone number format. Must be at least 10 digits.");
     }
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    const textMessage = `\u{1F370} *Frosty Bite Bakery*
+    const textMessage = `Cake *Frosty Bite Bakery*
 
 Your verification code is:
 
@@ -1378,104 +1365,100 @@ Your verification code is:
 This code expires in 5 minutes.
 
 Do not share this code with anyone.`;
-    this.latestMessage = {
-      phone: formattedPhone,
-      otp,
-      message: textMessage,
-      timestamp: Date.now()
-    };
-    const openwaUrl = process.env.OPENWA_API_URL;
-    const openwaKey = process.env.OPENWA_API_KEY;
-    if (openwaUrl) {
-      try {
-        console.log(`[WhatsAppService] Dispatching WhatsApp message to +${formattedPhone} using OpenWA...`);
-        const sessionId = process.env.OPENWA_SESSION_ID || "my-bot";
-        let endpoint = "";
-        const normalizedUrl = openwaUrl.replace(/\/+$/, "");
-        if (normalizedUrl.includes("/api/sessions/") || normalizedUrl.includes("/sessions/")) {
-          endpoint = `${normalizedUrl}/messages/send-text`;
-        } else {
-          const baseWithApi = normalizedUrl.endsWith("/api") ? normalizedUrl : `${normalizedUrl}/api`;
-          endpoint = `${baseWithApi}/sessions/${sessionId}/messages/send-text`;
-        }
-        console.log(`[WhatsAppService] OpenWA Session Endpoint: ${endpoint}`);
-        const requestBody = {
-          chatId: `${formattedPhone}@c.us`,
-          text: textMessage
-        };
-        const headers = {
-          "Content-Type": "application/json"
-        };
-        if (openwaKey) {
-          headers["X-API-Key"] = openwaKey;
-          headers["Authorization"] = `Bearer ${openwaKey}`;
-        }
-        let response = await fetch2(endpoint, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(requestBody)
+    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || "http://localhost:3001").replace(/\/+$/, "");
+    const isCloudEnv = !!process.env.K_SERVICE || process.env.NODE_ENV === "production";
+    if (whatsappUrl.includes("localhost") || whatsappUrl.includes("127.0.0.1")) {
+      console.log(`[WhatsAppService] Queueing WhatsApp message for polling delivery and client fallback.`);
+      const messageId = Math.random().toString(36).substring(2, 15);
+      _WhatsAppService.pendingQueue.push({
+        id: messageId,
+        phone: formattedPhone,
+        message: textMessage,
+        timestamp: Date.now()
+      });
+      return {
+        success: true,
+        provider: "polling-queue",
+        message: `Verification code queued for WhatsApp delivery.`,
+        dev_otp_hint: otp,
+        client_dispatch_required: !isCloudEnv,
+        textMessage,
+        formattedPhone
+      };
+    }
+    console.log(`[WhatsAppService] Dispatching WhatsApp message to +${formattedPhone} using server at: ${whatsappUrl}...`);
+    try {
+      const isCustomServer = whatsappUrl.includes("localhost") || whatsappUrl.includes("127.0.0.1") || !process.env.OPENWA_SESSION_ID;
+      const endpoint = isCustomServer ? `${whatsappUrl}/send` : `${whatsappUrl}/api/${process.env.OPENWA_SESSION_ID || "my-bot"}/send-text`;
+      console.log(`[WhatsAppService] Resolved dispatch endpoint: ${endpoint}`);
+      const headers = {
+        "Content-Type": "application/json"
+      };
+      const openwaKey = process.env.OPENWA_API_KEY;
+      if (openwaKey) {
+        headers["X-API-Key"] = openwaKey;
+        headers["Authorization"] = `Bearer ${openwaKey}`;
+      }
+      const body = isCustomServer ? { number: formattedPhone, message: textMessage } : { to: `${formattedPhone}@c.us`, msg: textMessage, content: textMessage };
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(3e3)
+        // timeout after 3s so cloud backend doesn't hang
+      });
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "");
+        throw new Error(`WhatsApp server returned status ${response.status}: ${errorText || "Unknown error"}`);
+      }
+      const data = await response.json();
+      console.log(`[WhatsAppService] Dispatch succeeded! Response:`, data);
+      return {
+        success: true,
+        provider: isCustomServer ? "whatsapp-web.js" : "openwa",
+        message: `Verification code sent to +${formattedPhone} via WhatsApp.`,
+        dev_otp_hint: otp
+      };
+    } catch (err) {
+      console.warn(`[WhatsAppService] Dispatch error:`, err.message || err);
+      if (whatsappUrl.includes("localhost") || whatsappUrl.includes("127.0.0.1")) {
+        console.log(`[WhatsAppService] Backend cannot reach local server ${whatsappUrl}. Queueing WhatsApp message for polling delivery and client fallback.`);
+        const messageId = Math.random().toString(36).substring(2, 15);
+        _WhatsAppService.pendingQueue.push({
+          id: messageId,
+          phone: formattedPhone,
+          message: textMessage,
+          timestamp: Date.now()
         });
-        if (!response.ok) {
-          console.warn(`[WhatsAppService] Session-based endpoint [${endpoint}] returned HTTP error ${response.status}. Attempting legacy sendText fallback...`);
-          const legacyEndpoint = normalizedUrl.endsWith("/api") ? `${normalizedUrl}/sendText` : `${normalizedUrl}/api/sendText`;
-          const legacyBody = {
-            to: `${formattedPhone}@c.us`,
-            msg: textMessage,
-            text: textMessage
-          };
-          const legacyResponse = await fetch2(legacyEndpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": openwaKey ? `Bearer ${openwaKey}` : ""
-            },
-            body: JSON.stringify(legacyBody)
-          });
-          if (!legacyResponse.ok) {
-            const errText = await legacyResponse.text();
-            throw new Error(
-              `OpenWA dispatch failed. Session endpoint returned status ${response.status}. Legacy endpoint [${legacyEndpoint}] returned status ${legacyResponse.status}: ${errText}`
-            );
-          }
-          response = legacyResponse;
-        }
-        console.log(`[WhatsAppService] OpenWA WhatsApp dispatch targeting +${formattedPhone} succeeded!`);
         return {
           success: true,
-          provider: "openwa",
-          message: "Verification code sent to your WhatsApp successfully.",
-          dev_otp_hint: otp
+          provider: "polling-queue",
+          message: `Verification code queued for WhatsApp delivery.`,
+          dev_otp_hint: otp,
+          client_dispatch_required: !isCloudEnv,
+          textMessage,
+          formattedPhone
         };
-      } catch (err) {
-        console.error(`[WhatsAppService] OpenWA dispatch failure:`, err.message || err);
-        console.error(
-          `[WhatsAppService] Delivery Troubleshooter Checklist:
-1. Ensure OpenWA server is running at: ${openwaUrl}
-2. Ensure session ID is valid & authenticated (current: "${process.env.OPENWA_SESSION_ID || "my-bot"}").
-3. Verify that your API Key/Token matches the configured OPENWA_API_KEY.
-4. Make sure the WhatsApp gateway device is connected to the internet and linked properly via QR code scan.`
-        );
       }
+      throw new Error(
+        `Failed to send WhatsApp verification code. Please make sure your WhatsApp server is active and authenticated at ${whatsappUrl}. (Error: ${err.message || err})`
+      );
     }
-    console.log("\n" + "=".repeat(60));
-    console.log("\u{1F370} [OPENWA WHATSAPP SIMULATOR ENGINE] \u{1F370}");
-    console.log(`Recipient: +${formattedPhone}`);
-    console.log(`OTP Code : [ ${otp} ]`);
-    console.log(`Expires  : 5 Minutes (Single-Use Only)`);
-    console.log("-".repeat(60));
-    console.log(textMessage);
-    console.log("=".repeat(60) + "\n");
-    return {
-      success: true,
-      provider: "simulator",
-      message: `[OpenWA Simulator] Dispatched WhatsApp OTP message to +${formattedPhone}.`,
-      dev_otp_hint: otp
-    };
   }
 };
 
 // server/routes/auth.routes.ts
 import crypto from "crypto";
+function normalizePhone(phone) {
+  const clean = phone.replace(/\D/g, "");
+  if (clean.length === 11 && clean.startsWith("0")) {
+    return clean.slice(1);
+  }
+  if (clean.length === 12 && clean.startsWith("91")) {
+    return clean.slice(2);
+  }
+  return clean;
+}
 var router3 = express.Router();
 var ipRateLimits = /* @__PURE__ */ new Map();
 var mobileOtps = /* @__PURE__ */ new Map();
@@ -1640,7 +1623,7 @@ function hashOtp(otp) {
   return crypto.createHash("sha256").update(otp).digest("hex");
 }
 async function saveWhatsAppOtp(phone, otp) {
-  const cleanPhone = phone.replace(/\D/g, "");
+  const cleanPhone = normalizePhone(phone);
   const hashedOtp = hashOtp(otp);
   const expiresAt = new Date(Date.now() + 5 * 60 * 1e3).toISOString();
   const createdAt = (/* @__PURE__ */ new Date()).toISOString();
@@ -1669,7 +1652,7 @@ async function saveWhatsAppOtp(phone, otp) {
   });
 }
 async function getWhatsAppOtp(phone) {
-  const cleanPhone = phone.replace(/\D/g, "");
+  const cleanPhone = normalizePhone(phone);
   try {
     const { data, error } = await supabase.from("whatsapp_otps").select("*").eq("phone_number", cleanPhone).maybeSingle();
     if (!error && data) {
@@ -1688,7 +1671,7 @@ async function getWhatsAppOtp(phone) {
   return whatsappOtpsMemory.get(cleanPhone) || null;
 }
 async function incrementWhatsAppAttempts(phone, currentAttempts) {
-  const cleanPhone = phone.replace(/\D/g, "");
+  const cleanPhone = normalizePhone(phone);
   const newAttempts = currentAttempts + 1;
   try {
     await supabase.from("whatsapp_otps").update({ attempts: newAttempts }).eq("phone_number", cleanPhone);
@@ -1702,7 +1685,7 @@ async function incrementWhatsAppAttempts(phone, currentAttempts) {
   }
 }
 async function deleteWhatsAppOtp(phone) {
-  const cleanPhone = phone.replace(/\D/g, "");
+  const cleanPhone = normalizePhone(phone);
   try {
     await supabase.from("whatsapp_otps").delete().eq("phone_number", cleanPhone);
   } catch (err) {
@@ -1710,21 +1693,13 @@ async function deleteWhatsAppOtp(phone) {
   }
   whatsappOtpsMemory.delete(cleanPhone);
 }
-router3.get("/simulator/latest", (req, res) => {
-  const msg = WhatsAppService.getLatestSimulatedMessage();
-  return res.json({ message: msg });
-});
-router3.post("/simulator/clear", (req, res) => {
-  WhatsAppService.clearLatestSimulatedMessage();
-  return res.json({ success: true });
-});
 router3.post("/send-otp", async (req, res) => {
   const { phone, isSignup, email, name, password } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Mobile phone number is required." });
   }
   try {
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone = normalizePhone(phone);
     if (cleanPhone.length < 10) {
       return res.status(400).json({ error: "Please enter a valid 10-digit mobile number." });
     }
@@ -1804,7 +1779,10 @@ router3.post("/send-otp", async (req, res) => {
     return res.json({
       success: true,
       message: waResult.message,
-      dev_otp_hint: waResult.dev_otp_hint
+      dev_otp_hint: waResult.dev_otp_hint,
+      client_dispatch_required: waResult.client_dispatch_required,
+      textMessage: waResult.textMessage,
+      formattedPhone: waResult.formattedPhone
     });
   } catch (err) {
     return res.status(500).json({ error: err.message || "An unexpected error occurred while dispatching WhatsApp OTP." });
@@ -1816,7 +1794,7 @@ router3.post("/verify-otp", async (req, res) => {
     return res.status(400).json({ error: "Phone number and verification OTP are required." });
   }
   try {
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone = normalizePhone(phone);
     const cleanOtp = otp.trim();
     const otpRecord = await getWhatsAppOtp(cleanPhone);
     if (!otpRecord) {
@@ -1912,7 +1890,7 @@ router3.post("/resend-otp", async (req, res) => {
     return res.status(400).json({ error: "Phone number is required." });
   }
   try {
-    const cleanPhone = phone.replace(/\D/g, "");
+    const cleanPhone = normalizePhone(phone);
     await deleteWhatsAppOtp(cleanPhone);
     mobileOtps.delete(cleanPhone);
     const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
@@ -1930,11 +1908,32 @@ router3.post("/resend-otp", async (req, res) => {
     return res.json({
       success: true,
       message: "A fresh WhatsApp verification code has been dispatched!",
-      dev_otp_hint: waResult.dev_otp_hint
+      dev_otp_hint: waResult.dev_otp_hint,
+      client_dispatch_required: waResult.client_dispatch_required,
+      textMessage: waResult.textMessage,
+      formattedPhone: waResult.formattedPhone
     });
   } catch (err) {
     return res.status(500).json({ error: err.message || "Failed to resend WhatsApp verification code." });
   }
+});
+router3.get("/whatsapp-poll", (req, res) => {
+  const now = Date.now();
+  const maxAge = 12e4;
+  const validMessages = WhatsAppService.pendingQueue.filter((m) => now - m.timestamp < maxAge);
+  WhatsAppService.pendingQueue = validMessages;
+  res.json({ messages: WhatsAppService.pendingQueue });
+});
+router3.post("/whatsapp-ack", (req, res) => {
+  const { id } = req.body;
+  if (!id) {
+    return res.status(400).json({ error: "Message ID is required for acknowledgement." });
+  }
+  const index = WhatsAppService.pendingQueue.findIndex((m) => m.id === id);
+  if (index !== -1) {
+    WhatsAppService.pendingQueue.splice(index, 1);
+  }
+  res.json({ success: true });
 });
 router3.post("/send-mobile-otp", async (req, res) => {
   console.log("[AuthRoutes] Legacy send-mobile-otp route redirecting to /send-otp");
