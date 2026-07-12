@@ -52,7 +52,7 @@ export class WhatsAppService {
         provider: 'polling-queue',
         message: `Verification code queued for WhatsApp delivery.`,
         dev_otp_hint: otp,
-        client_dispatch_required: !isCloudEnv,
+        client_dispatch_required: true,
         textMessage,
         formattedPhone
       };
@@ -127,7 +127,7 @@ export class WhatsAppService {
           provider: 'polling-queue',
           message: `Verification code queued for WhatsApp delivery.`,
           dev_otp_hint: otp,
-          client_dispatch_required: !isCloudEnv,
+          client_dispatch_required: true,
           textMessage,
           formattedPhone
         };

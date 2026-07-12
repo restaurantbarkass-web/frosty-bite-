@@ -30,19 +30,25 @@ client.on("ready", () => {
     console.log("✅ WhatsApp Connected!");
 
     // Runs on port 3001 to avoid EADDRINUSE conflicts on port 3000
-    const server = app.listen(process.env.PORT || 3001, () => {
-        console.log("🚀 Server running on port 3001");
-        startAppletPolling();
-    });
+    const httpModule = require("http");
+    const server = httpModule.createServer(app);
 
     server.on("error", (err) => {
         if (err.code === "EADDRINUSE") {
-            console.warn("\n⚠️  [Resilient Warning] Port 3001 is already in use by another instance!");
-            console.warn("⚠️  No problem! We are still running the background polling loop to dispatch queued OTP messages successfully.");
+            console.warn(`\n⚠️  [Resilient Warning] Port 3001 is already in use!`);
+            console.warn("⚠️  This means another instance of this WhatsApp server is already running on your computer.");
+            console.warn("⚠️  That's perfectly fine! The existing instance is already handling message delivery.");
+            console.warn("⚠️  We will still start the background polling queue to ensure all OTP dispatches succeed.");
             startAppletPolling();
         } else {
             console.error("❌ Express server error:", err);
         }
+    });
+
+    const port = process.env.PORT || 3001;
+    server.listen(port, () => {
+        console.log(`🚀 Server successfully running on port ${port}`);
+        startAppletPolling();
     });
 });
 
@@ -100,16 +106,18 @@ function customFetchJson(url, options = {}) {
     });
 }
 
+// Dynamic applet polling URL that can be updated in real-time by the client
+let activeAppUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+
 // Background polling loop to pull pending WhatsApp messages from the cloud/local backend
 async function startAppletPolling() {
-    const rawAppUrl = process.env.APP_URL || "http://localhost:3000";
-    const appUrl = rawAppUrl.replace(/\/+$/, "");
-    console.log(`📡 Background WhatsApp Dispatch queue polling started for: ${appUrl}`);
+    console.log(`📡 Background WhatsApp Dispatch queue polling started for: ${activeAppUrl}`);
 
     setInterval(async () => {
         try {
+            const currentUrl = activeAppUrl;
             // Poll for pending messages
-            const data = await customFetchJson(`${appUrl}/api/auth/whatsapp-poll`, {
+            const data = await customFetchJson(`${currentUrl}/api/auth/whatsapp-poll`, {
                 method: "GET"
             }).catch(() => null);
 
@@ -135,7 +143,7 @@ async function startAppletPolling() {
                     console.log(`✅ Message successfully delivered to +${cleanNum}!`);
 
                     // Acknowledge receipt to clear it from the server outbox queue
-                    await customFetchJson(`${appUrl}/api/auth/whatsapp-ack`, {
+                    await customFetchJson(`${currentUrl}/api/auth/whatsapp-ack`, {
                         method: "POST",
                         body: { id: item.id }
                     }).catch(e => console.warn("⚠️ Failed to send ack to app server:", e.message));
@@ -150,9 +158,31 @@ async function startAppletPolling() {
     }, 1500); // Poll every 1.5 seconds
 }
 
+// Endpoint to dynamically register the active frontend/backend URL
+app.post("/register", (req, res) => {
+    const { appUrl } = req.body;
+    if (appUrl && appUrl.startsWith("http")) {
+        const cleanUrl = appUrl.replace(/\/+$/, "");
+        if (cleanUrl !== activeAppUrl) {
+            console.log(`📡 Dynamically updated applet polling URL via /register: ${cleanUrl}`);
+            activeAppUrl = cleanUrl;
+        }
+    }
+    res.json({ success: true, activeAppUrl });
+});
+
 app.post("/send", async (req, res) => {
     try {
-        let { number, message } = req.body;
+        let { number, message, appUrl, app_url } = req.body;
+
+        const incomingAppUrl = appUrl || app_url;
+        if (incomingAppUrl && incomingAppUrl.startsWith("http")) {
+            const cleanUrl = incomingAppUrl.replace(/\/+$/, "");
+            if (cleanUrl !== activeAppUrl) {
+                console.log(`📡 Dynamically updated applet polling URL via /send body: ${cleanUrl}`);
+                activeAppUrl = cleanUrl;
+            }
+        }
 
         if (!number || !message) {
             return res.status(400).json({
