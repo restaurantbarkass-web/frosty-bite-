@@ -60,6 +60,16 @@ client.on("ready", () => {
     startAppletPolling();
 });
 
+client.on("auth_failure", (msg) => {
+    console.error("❌ WhatsApp Authentication Failure:", msg);
+});
+
+client.on("disconnected", (reason) => {
+    console.warn("⚠️ WhatsApp Client disconnected:", reason);
+    // Gracefully handle disconnect and trigger single recovery run
+    triggerWhatsAppClientRecovery().catch(() => {});
+});
+
 const httpModule = require("http");
 const http = httpModule;
 const https = require("https");

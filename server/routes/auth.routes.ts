@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { UserService } from '../services/user.service';
 import { EmailService } from '../services/email.service';
 import { WhatsAppService } from '../services/whatsapp.service';
+import { OtpQueueService } from '../services/otpQueue';
 import crypto from 'crypto';
 
 // Indian Phone Normalizer: Strip all non-digits, then if 11 digits starts with '0', strip it. If 12 digits starts with '91', strip it.
@@ -332,7 +333,7 @@ function hashOtp(otp: string): string {
 async function saveWhatsAppOtp(phone: string, otp: string) {
   const cleanPhone = normalizePhone(phone);
   const hashedOtp = hashOtp(otp);
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString();
   const createdAt = new Date().toISOString();
   const id = crypto.randomUUID();
 
@@ -433,7 +434,7 @@ async function deleteWhatsAppOtp(phone: string) {
 
 // POST /send-otp - Generates and sends a WhatsApp-based OTP via the WhatsApp Service
 router.post('/send-otp', async (req, res) => {
-  const { phone, isSignup, email, name, password } = req.body;
+  const { phone, isSignup, email, name, password, idempotencyKey } = req.body;
   if (!phone) {
     return res.status(400).json({ error: 'Mobile phone number is required.' });
   }
@@ -536,7 +537,7 @@ router.post('/send-otp', async (req, res) => {
     // Store secure registration details in the metadata store so we don't lose signup passwords/emails
     const otpPayload: any = {
       otp,
-      expires_at: Date.now() + 5 * 60 * 1000,
+      expires_at: Date.now() + 3 * 60 * 1000, // 3 minutes expiration
       email: (isRegistrationFlow && email) ? email.trim().toLowerCase() : (dbUser ? dbUser.email : `${cleanPhone}@frostybite.temp`),
     };
 
@@ -553,8 +554,16 @@ router.post('/send-otp', async (req, res) => {
     // Save hashed OTP to secure DB/memory storage
     await saveWhatsAppOtp(cleanPhone, otp);
 
-    // Dispatch WhatsApp verification message
-    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
+    // Dispatch WhatsApp verification message securely through queue with concurrency, backoff, and deduplication
+    const queueService = OtpQueueService.getInstance();
+    const waResult = await queueService.enqueue(
+      cleanPhone,
+      'whatsapp',
+      otp,
+      clientIp,
+      idempotencyKey,
+      otpPayload
+    );
 
     return res.json({
       success: true,
@@ -710,7 +719,7 @@ router.post('/verify-otp', async (req, res) => {
 
 // POST /resend-otp - Generates a fresh OTP, invalidates previous OTP, and dispatches via the WhatsApp Service
 router.post('/resend-otp', async (req, res) => {
-  const { phone } = req.body;
+  const { phone, idempotencyKey } = req.body;
   if (!phone) {
     return res.status(400).json({ error: 'Phone number is required.' });
   }
@@ -742,15 +751,28 @@ router.post('/resend-otp', async (req, res) => {
     const otpPayload = {
       ...existingMetadata,
       otp,
-      expires_at: Date.now() + 5 * 60 * 1000
+      expires_at: Date.now() + 3 * 60 * 1000 // 3 minutes expiration
     };
     mobileOtps.set(cleanPhone, otpPayload);
 
     // Save hashed OTP to secure DB/memory storage
     await saveWhatsAppOtp(cleanPhone, otp);
 
-    // Dispatch fresh WhatsApp
-    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
+    // Extract IP
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
+    const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
+      .replace(/[^a-zA-Z0-9.-:_]/g, '_');
+
+    // Dispatch fresh WhatsApp verification securely through queue with concurrency, backoff, and deduplication
+    const queueService = OtpQueueService.getInstance();
+    const waResult = await queueService.enqueue(
+      cleanPhone,
+      'whatsapp',
+      otp,
+      clientIp,
+      idempotencyKey,
+      otpPayload
+    );
 
     return res.json({
       success: true,
@@ -805,7 +827,7 @@ router.post('/verify-mobile-otp', async (req, res) => {
 
 // POST /send-email-otp - Triggers a standard Supabase OTP but with strict server-side rate limiting (max 3/day)
 router.post('/send-email-otp', async (req, res) => {
-  const { email } = req.body;
+  const { email, idempotencyKey } = req.body;
   if (!email) {
     return res.status(400).json({ error: 'Email is required.' });
   }
@@ -822,19 +844,36 @@ router.post('/send-email-otp', async (req, res) => {
       });
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-    });
+    // Extract IP
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
+    const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
+      .replace(/[^a-zA-Z0-9.-:_]/g, '_');
 
-    if (error) {
-      console.warn('[send-email-otp] Supabase error:', error.message);
-      return res.status(400).json({ error: error.message });
-    }
+    // Route standard Supabase email OTP through the queue for concurrency, backoff, and deduplication
+    const queueService = OtpQueueService.getInstance();
+    await queueService.enqueue(
+      normalizedEmail,
+      'email',
+      '', // Supabase generates its own OTP internally for email
+      clientIp,
+      idempotencyKey,
+      {}
+    );
 
     return res.json({ success: true, message: 'OTP verification code sent successfully to your email.' });
   } catch (err: any) {
     console.error('[send-email-otp] Exception:', err.message || err);
     return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching email OTP.' });
+  }
+});
+
+// GET /otp-diagnostics - Diagnostic endpoint for real-time monitoring and abnormal traffic patterns
+router.get('/otp-diagnostics', (req, res) => {
+  try {
+    const diagnostics = OtpQueueService.getInstance().getDiagnostics();
+    return res.json({ success: true, diagnostics });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
