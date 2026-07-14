@@ -85,20 +85,18 @@ const parseAuthError = (err: any): string => {
     return 'Incorrect or expired verification code. Please check your Inbox for the latest code or request a new one.';
   }
 
+  if (normalized.includes('supabase') || normalized.includes('database') || normalized.includes('relation') || normalized.includes('row level security') || normalized.includes('rls') || normalized.includes('postgres') || normalized.includes('server error') || normalized.includes('internal')) {
+    return 'Our servers are completing automated maintenance. Please try again in a few moments.';
+  }
+
   return typeof err === 'string' ? err : (err.message || 'An unexpected authentication error occurred. Please try again.');
 };
 
 const renderErrorMessage = (msg: string | null) => {
   if (!msg) return null;
-  const isIdentityToolkitDisabled = msg.includes('identitytoolkit.googleapis.com') || msg.includes('Identity Toolkit');
   return (
-    <div className="flex-1 space-y-1.5 text-xs text-left leading-relaxed">
-      {isIdentityToolkitDisabled && (
-        <span className="font-black text-yellow-500 uppercase tracking-widest text-[10px] block mb-1">
-          ⚠️ Activate Firebase Auth
-        </span>
-      )}
-      <p className="text-zinc-200">{msg}</p>
+    <div className="flex-1 space-y-1 text-xs text-left leading-relaxed">
+      <p className="text-zinc-200 font-medium">{msg}</p>
     </div>
   );
 };
@@ -226,8 +224,8 @@ export const Login: React.FC = () => {
         origin: { y: 0.6 }
       });
 
-      setSuccess(`Directly authenticated as specialized ${targetUser.role}! Re-routing...`);
-      toast.success(`Welcome back to Frosty Bite! Successfully logged in.`);
+      setSuccess('Successfully authenticated! Redirecting...');
+      toast.success('Welcome back to Frosty Bite! Successfully logged in.');
       
       setTimeout(() => {
         if (targetUser.role === 'admin') {
@@ -240,7 +238,7 @@ export const Login: React.FC = () => {
 
     } catch (err: any) {
       console.error(err);
-      setError(`Quick login assistant error: ${err.message || err}`);
+      setError(`Authentication error: ${err.message || err}`);
     } finally {
       setIsLoading(false);
     }
@@ -325,10 +323,10 @@ export const Login: React.FC = () => {
       setStep('otp');
       if (res.local_dispatch_error) {
         setLocalDispatchOffline(true);
-        setSuccess('Verification code queued! 📡 Standard local dispatch fell back to polling queue.');
+        setSuccess('A verification code has been dispatched to your device.');
       } else {
         setLocalDispatchOffline(false);
-        setSuccess(res.message || 'Verification code sent to your phone!');
+        setSuccess(res.message || 'Verification code sent successfully!');
       }
     } catch (err: any) {
       console.error(err);
@@ -601,10 +599,10 @@ export const Login: React.FC = () => {
         setStep('otp');
         if (res.local_dispatch_error) {
           setLocalDispatchOffline(true);
-          setSuccess('Verification code queued! 📡 Standard local dispatch fell back to polling queue.');
+          setSuccess('A verification code has been dispatched to your device.');
         } else {
           setLocalDispatchOffline(false);
-          setSuccess(res.message || 'Verification code sent to your phone!');
+          setSuccess(res.message || 'Verification code sent successfully!');
         }
       }
     } catch (err: any) {
@@ -816,10 +814,10 @@ export const Login: React.FC = () => {
         }
         if (res.local_dispatch_error) {
           setLocalDispatchOffline(true);
-          setSuccess('Fresh verification code queued! 📡 Standard local dispatch fell back to polling queue.');
+          setSuccess('A fresh verification code was sent! Please check your device.');
         } else {
           setLocalDispatchOffline(false);
-          setSuccess(res.message || 'A fresh WhatsApp verification code was sent! Please check your WhatsApp.');
+          setSuccess(res.message || 'A fresh WhatsApp verification code was sent! Please check your device.');
         }
       } else {
         const emailTrimmed = email.trim().toLowerCase();
@@ -1081,7 +1079,7 @@ export const Login: React.FC = () => {
                     id="btn_email_init"
                   >
                     <Mail size={18} className="text-zinc-300" />
-                    <span className="font-sans font-bold tracking-wide text-sm text-zinc-150">Continue with Email</span>
+                    <span className="font-sans font-bold tracking-wide text-sm text-zinc-200">Continue with Email</span>
                   </button>
 
                   {/* Continue with Mobile (Unlocked & Beautifully Styled) */}
@@ -1248,7 +1246,7 @@ export const Login: React.FC = () => {
                           placeholder="9876543210"
                           value={phone}
                           onChange={(e) => handlePhoneChange(e.target.value)}
-                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
+                          className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all font-mono"
                           required
                           autoFocus
                           id="auth_phone_input"
@@ -1265,7 +1263,7 @@ export const Login: React.FC = () => {
                           placeholder="e.g. wasif@domain.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                          className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                           required
                           autoFocus
                           id="auth_email_input"
@@ -1294,7 +1292,7 @@ export const Login: React.FC = () => {
                           placeholder="••••••••"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full h-14 rounded-2xl bg-[#0a0a0d] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-600 transition-all"
+                          className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                           required
                           id="auth_signin_password_input"
                         />
@@ -1417,7 +1415,7 @@ export const Login: React.FC = () => {
                         placeholder="e.g. Wasif Mohammad"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                        className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                         required
                         autoFocus
                         id="auth_name_input"
@@ -1437,7 +1435,7 @@ export const Login: React.FC = () => {
                         placeholder="9876543210"
                         value={phone}
                         onChange={(e) => handlePhoneChange(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all font-mono"
+                        className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-[5.5rem] pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all font-mono"
                         required
                         id="auth_phone_input"
                       />
@@ -1453,7 +1451,7 @@ export const Login: React.FC = () => {
                         placeholder="e.g. wasif@domain.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                        className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                         required
                         id="auth_email_input_signup"
                       />
@@ -1469,7 +1467,7 @@ export const Login: React.FC = () => {
                         placeholder="Minimum 6 characters"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                        className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                         required
                         id="auth_password_input"
                       />
@@ -1485,7 +1483,7 @@ export const Login: React.FC = () => {
                         placeholder="Re-enter your password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full h-14 rounded-2xl bg-white/[0.02] border border-white/10 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500/40 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-650 transition-all"
+                        className="w-full h-14 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 pl-12 pr-4 text-white text-sm font-sans focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 placeholder-zinc-500 transition-all"
                         required
                         id="auth_confirm_password_input"
                       />

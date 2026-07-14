@@ -131,17 +131,19 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Send OTP directly using Supabase client
+  // Send OTP directly using Supabase client with backend rate limiting
   async sendOTP(email: string) {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
+    const res = await fetch('/api/auth/send-email-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email })
     });
-
-    if (error) {
-      console.log(error.message);
-      throw new Error(error.message);
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || 'Failed to dispatch email verification code.');
     }
-
     console.log("OTP sent");
   },
 

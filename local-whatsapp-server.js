@@ -172,13 +172,40 @@ async function triggerWhatsAppClientRecovery() {
     console.error("==========================================================================\n");
 
     try {
+        const browser = client.pupBrowser;
+        const browserProcess = browser ? browser.process() : null;
+        const pid = browserProcess ? browserProcess.pid : null;
+
+        if (browser) {
+            console.log("🧹 Closing active pages to release locks...");
+            try {
+                const pages = await browser.pages().catch(() => []);
+                for (const p of pages) {
+                    await p.close().catch(() => {});
+                }
+                console.log("🧹 Calling browser.close()...");
+                await browser.close().catch(() => {});
+            } catch (closeErr) {
+                console.warn("⚠️ Manual browser close warning:", closeErr.message);
+            }
+        }
+
         console.log("🔄 Destroying WhatsApp client...");
         await client.destroy().catch((destroyErr) => {
             console.warn("⚠️ Warning during client destroy:", destroyErr.message);
         });
+
+        if (pid) {
+            try {
+                console.log(`🧹 Forcefully terminating Chrome process ${pid} to free profile locks...`);
+                process.kill(pid, "SIGKILL");
+            } catch (killErr) {
+                // Ignore if already dead
+            }
+        }
         
-        console.log("⏳ Waiting 3 seconds before rebooting browser...");
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log("⏳ Waiting 5 seconds before rebooting browser to let OS release profile locks...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
         
         console.log("🔄 Re-initializing WhatsApp Web client...");
         await client.initialize();
@@ -202,6 +229,10 @@ async function startAppletPolling() {
     console.log(`📡 Background WhatsApp Dispatch queue polling started for: ${activeAppUrl}`);
 
     setInterval(async () => {
+        if (isRecovering) {
+            return; // Skip polling entirely while client is recovering
+        }
+
         try {
             const currentUrl = activeAppUrl;
             // Poll for pending messages
@@ -216,6 +247,11 @@ async function startAppletPolling() {
             const messages = data.messages || [];
 
             for (const item of messages) {
+                if (isRecovering) {
+                    console.warn(`⏳ [DELAYED] Message ${item.id} delivery postponed (recovery started mid-loop).`);
+                    break;
+                }
+
                 let shouldAck = true;
                 try {
                     const cleanNum = item.phone.replace(/\D/g, "");
@@ -271,6 +307,13 @@ app.post("/register", (req, res) => {
 
 app.post("/send", async (req, res) => {
     try {
+        if (isRecovering) {
+            return res.status(503).json({
+                success: false,
+                error: "WhatsApp Web client is currently recovering from a fatal connection issue. Please try again in 5 seconds."
+            });
+        }
+
         let { number, message, appUrl, app_url } = req.body;
 
         const incomingAppUrl = appUrl || app_url;

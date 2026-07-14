@@ -23,6 +23,107 @@ const router = express.Router();
 const ipRateLimits = new Map<string, { attempts: number; first_attempt_time: number; blocked: boolean; blocked_until: number }>();
 const mobileOtps = new Map<string, { otp: string; expires_at: number; email: string; isSignup?: boolean; name?: string; password?: string; userId?: string }>();
 
+// Memory fallback for daily OTP limits (max 3 per user per day)
+const otpDailyLimitsMemory = new Map<string, { count: number; dateStr: string }>();
+
+// Helper to get Indian Standard Time (IST) Date String ('YYYY-MM-DD')
+function getIndianDateString(): string {
+  // IST is UTC + 5:30
+  const d = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return d.toISOString().split('T')[0];
+}
+
+// Check and increment daily OTP send limit (max 3 per day per user)
+async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed: boolean; count: number }> {
+  const cleanId = identifier.trim().toLowerCase();
+  const currentDateStr = getIndianDateString();
+  const now = Date.now();
+
+  // 1. Check Memory limit first
+  const memLimit = otpDailyLimitsMemory.get(cleanId);
+  if (memLimit) {
+    if (memLimit.dateStr === currentDateStr) {
+      if (memLimit.count >= 3) {
+        return { allowed: false, count: memLimit.count };
+      }
+    } else {
+      // Different day, reset memory
+      otpDailyLimitsMemory.set(cleanId, { count: 0, dateStr: currentDateStr });
+    }
+  }
+
+  // 2. Query Database limit from public.otps
+  let dbCount = 0;
+  let hasDbRecord = false;
+
+  try {
+    const { data, error } = await supabase
+      .from('otps')
+      .select('*')
+      .eq('email', cleanId)
+      .maybeSingle();
+
+    if (!error && data) {
+      hasDbRecord = true;
+      // Convert last_request_at (BIGINT millisecond timestamp) to IST date string
+      const lastRequestDate = data.last_request_at 
+        ? new Date(Number(data.last_request_at) + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]
+        : '';
+      
+      if (lastRequestDate === currentDateStr) {
+        dbCount = data.request_count || 0;
+      } else {
+        dbCount = 0; // Reset count for a different day
+      }
+    }
+  } catch (err: any) {
+    console.warn('[checkAndIncrementOtpLimit] DB read failed, relying on memory fallback:', err.message);
+  }
+
+  // Combine memory and DB count (choose the maximum of both to prevent bypasses)
+  const currentCount = Math.max(dbCount, (memLimit?.dateStr === currentDateStr ? memLimit.count : 0));
+
+  if (currentCount >= 3) {
+    // Sync memory if missing
+    otpDailyLimitsMemory.set(cleanId, { count: currentCount, dateStr: currentDateStr });
+    return { allowed: false, count: currentCount };
+  }
+
+  const newCount = currentCount + 1;
+
+  // 3. Update Memory
+  otpDailyLimitsMemory.set(cleanId, { count: newCount, dateStr: currentDateStr });
+
+  // 4. Update Database
+  try {
+    if (hasDbRecord) {
+      await supabase
+        .from('otps')
+        .update({
+          request_count: newCount,
+          last_request_at: now,
+          otp: 'rate-limit-dummy',
+          expires_at: now + 5 * 60 * 1000
+        })
+        .eq('email', cleanId);
+    } else {
+      await supabase
+        .from('otps')
+        .insert({
+          email: cleanId,
+          otp: 'rate-limit-dummy',
+          expires_at: now + 5 * 60 * 1000,
+          request_count: newCount,
+          last_request_at: now
+        });
+    }
+  } catch (err: any) {
+    console.warn('[checkAndIncrementOtpLimit] DB write failed:', err.message);
+  }
+
+  return { allowed: true, count: newCount };
+}
+
 // Synchronize user with backend
 router.post('/sync', async (req, res) => {
   const { idToken, markVerified, userProfile } = req.body;
@@ -344,6 +445,15 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
     }
 
+    // Check 3 OTP per day limit
+    const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+      });
+    }
+
     // IP Rate Limiting (Security Hold)
     const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
     const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
@@ -609,6 +719,15 @@ router.post('/resend-otp', async (req, res) => {
   try {
     const cleanPhone = normalizePhone(phone);
     
+    // Check 3 OTP per day limit
+    const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+      });
+    }
+
     // Invalidate previous OTP
     await deleteWhatsAppOtp(cleanPhone);
     mobileOtps.delete(cleanPhone);
@@ -683,6 +802,41 @@ router.post('/send-mobile-otp', async (req, res) => {
 router.post('/verify-mobile-otp', async (req, res) => {
   console.log('[AuthRoutes] Legacy verify-mobile-otp route redirecting to /verify-otp');
   return req.app._router.handle(req, res); // Redirects internally
+});
+
+// POST /send-email-otp - Triggers a standard Supabase OTP but with strict server-side rate limiting (max 3/day)
+router.post('/send-email-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check 3 OTP per day limit
+    const limitCheck = await checkAndIncrementOtpLimit(normalizedEmail);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+      });
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+    });
+
+    if (error) {
+      console.warn('[send-email-otp] Supabase error:', error.message);
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json({ success: true, message: 'OTP verification code sent successfully to your email.' });
+  } catch (err: any) {
+    console.error('[send-email-otp] Exception:', err.message || err);
+    return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching email OTP.' });
+  }
 });
 
 export default router;
