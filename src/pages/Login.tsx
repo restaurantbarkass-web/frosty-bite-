@@ -27,6 +27,7 @@ import { authService } from '../services/authService';
 import { supabase } from '../supabase';
 import confetti from 'canvas-confetti';
 import { FeatureComingSoon } from '../components/FeatureComingSoon';
+import { OtpSuccessAnimation } from '../components/OtpSuccessAnimation';
 
 const normalizePhone = (phone: string): string => {
   const clean = phone.replace(/\D/g, '');
@@ -611,6 +612,68 @@ export const Login: React.FC = () => {
       setError(parseAuthError(err));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const verifyOtpCode = async (otpCode: string) => {
+    let emailTrimmed = email.trim().toLowerCase();
+    
+    if (signInMethod === 'mobile_otp') {
+      const cleanPhone = normalizePhone(phone);
+      const result = await authService.verifyMobileOTP(cleanPhone, otpCode);
+      return result;
+    } else {
+      const result = await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
+      return result;
+    }
+  };
+
+  const handleSuccessRedirect = async (result: any) => {
+    let emailTrimmed = email.trim().toLowerCase();
+    if (result && result.email) {
+      emailTrimmed = result.email;
+    }
+    
+    // Store active session email
+    localStorage.setItem('frostybite_active_session_email', emailTrimmed);
+
+    if (isNewUser && signInMethod !== 'mobile_otp') {
+      try {
+        await supabase
+          .from('users')
+          .update({ 
+            name: name.trim(), 
+            full_name: name.trim(),
+            phone: normalizePhone(phone),
+            password: password.trim()
+          })
+          .eq('email', emailTrimmed);
+        console.log('[Onboarding] Synced user name, mobile number, and password successfully.');
+      } catch (dbErr) {
+        console.warn('[Onboarding] Error syncing profile metadata:', dbErr);
+      }
+    }
+
+    try {
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', emailTrimmed)
+        .maybeSingle();
+
+      const targetIsAdmin = dbUser?.role === 'admin' || ADMIN_EMAILS.includes(emailTrimmed);
+      const hasLocation = localStorage.getItem('geofence_passed') === 'true' || localStorage.getItem('frostybite_selected_city_id') !== null;
+
+      if (targetIsAdmin) {
+        navigate('/admin');
+      } else if (hasLocation) {
+        navigate('/');
+      } else {
+        setStep('location');
+      }
+    } catch (dbErr) {
+      console.warn('[VerifyOtp] Failed evaluating redirect target, falling back to location state:', dbErr);
+      setStep('location');
     }
   };
 
@@ -1438,278 +1501,23 @@ export const Login: React.FC = () => {
 
             {/* STEP 4: VERIFY ACCOUNT / OTP CONFIRMATION SCREEN */}
             {step === 'otp' && (
-              <motion.div
-                key="otp"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, x: -30 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-6"
-              >
-                {isVerifiedSuccess ? (
-                  /* Premium Full-Container Success Transition card */
-                  <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full scale-150 animate-pulse" />
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: [0, 1.2, 1] }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                        className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 relative z-10"
-                      >
-                        <Check size={40} className="stroke-[3]" />
-                      </motion.div>
-                    </div>
-                    <h3 className="text-2xl font-black tracking-tight text-white mt-4">Verification Successful!</h3>
-                    <p className="text-zinc-400 text-xs max-w-[280px] mx-auto leading-relaxed font-sans">
-                      Welcome to Frosty Bite Patisserie. Setting up your premium confectionery experience...
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Header back button and description */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStep(isNewUser ? 'name' : 'email');
-                        }}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 hover:border-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center"
-                        title="Back to previous screen"
-                      >
-                        <ArrowLeft size={16} />
-                      </button>
-                      
-                      <div className="space-y-1 text-center">
-                        <h2 className="text-2xl font-bold tracking-tight text-white font-sans">Verify Account</h2>
-                        <p className="text-zinc-400 text-xs max-w-[260px] mx-auto leading-normal">
-                          {signInMethod === 'mobile_otp' ? (
-                            <>We've sent a 6-digit WhatsApp verification code to</>
-                          ) : (
-                            <>We've sent an 8-digit verification code to</>
-                          )}
-                        </p>
-                        <p className="text-orange-400 text-xs font-black truncate max-w-[280px] mx-auto font-sans">
-                          {signInMethod === 'mobile_otp' ? `+${phone.replace(/\D/g, '')}` : email}
-                        </p>
-                      </div>
-                    </div>
-
-
-
-                    <form onSubmit={handleVerifyOtp} className="space-y-6">
-                      
-                      {/* Premium Isolated Digital Code Box Grid */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 text-center block">
-                          Enter {signInMethod === 'mobile_otp' ? '6-Digit' : '8-Digit'} Code
-                        </label>
-                        <div className={`flex justify-center gap-1.5 sm:gap-2 max-w-[340px] mx-auto py-2 ${isErrorShaking ? 'animate-shake' : ''}`}>
-                          {otpArray.map((digit, idx) => (
-                            <div key={idx} className="relative flex-1 aspect-square max-w-[42px] min-w-[32px]">
-                              <input
-                                ref={(el) => { otpRefs.current[idx] = el; }}
-                                type="text"
-                                maxLength={1}
-                                value={digit}
-                                onChange={(e) => {
-                                  // Clear errors on edit
-                                  setError(null);
-                                  
-                                  const val = e.target.value.replace(/[^0-9]/g, '');
-                                  const nextArr = [...otpArray];
-                                  nextArr[idx] = val;
-                                  setOtpArray(nextArr);
-
-                                  // Auto focus next box
-                                  if (val !== '' && idx < otpArray.length - 1) {
-                                    otpRefs.current[idx + 1]?.focus();
-                                  }
-
-                                  // Auto submit if complete
-                                  if (nextArr.every(cell => cell !== '')) {
-                                    setTimeout(() => {
-                                      otpRefs.current[idx]?.blur();
-                                      
-                                      // Trigger verification directly
-                                      const fullOtp = nextArr.join('');
-                                      if (signInMethod === 'mobile_otp') {
-                                        const cleanPhone = normalizePhone(phone);
-                                        authService.verifyMobileOTP(cleanPhone, fullOtp)
-                                          .then(result => {
-                                            localStorage.setItem('frostybite_active_session_email', result.email || email.trim().toLowerCase());
-                                            setIsVerifiedSuccess(true);
-                                            confetti({
-                                              particleCount: 120,
-                                              spread: 80,
-                                              origin: { y: 0.6 },
-                                              colors: ['#ff6b00', '#ffa500', '#ffffff']
-                                            });
-                                            setSuccess('Account verified successfully!');
-                                            setTimeout(() => {
-                                              navigate('/');
-                                            }, 1200);
-                                          })
-                                          .catch(err => {
-                                            console.error(err);
-                                            setError(parseAuthError(err));
-                                            setIsErrorShaking(true);
-                                            setTimeout(() => setIsErrorShaking(false), 500);
-                                          });
-                                      } else {
-                                        handleVerifyOtp();
-                                      }
-                                    }, 200);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Backspace') {
-                                    if (otpArray[idx] === '' && idx > 0) {
-                                      const nextArr = [...otpArray];
-                                      nextArr[idx - 1] = '';
-                                      setOtpArray(nextArr);
-                                      otpRefs.current[idx - 1]?.focus();
-                                    } else {
-                                      const nextArr = [...otpArray];
-                                      nextArr[idx] = '';
-                                      setOtpArray(nextArr);
-                                    }
-                                  }
-                                }}
-                                onPaste={(e) => {
-                                  e.preventDefault();
-                                  const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpArray.length);
-                                  if (!pastedData) return;
-                                  
-                                  const nextArr = [...otpArray];
-                                  for (let i = 0; i < otpArray.length; i++) {
-                                    if (i < pastedData.length) {
-                                      nextArr[i] = pastedData[i];
-                                    }
-                                  }
-                                  setOtpArray(nextArr);
-
-                                  // Focus last filled box
-                                  const focusIndex = Math.min(pastedData.length, otpArray.length - 1);
-                                  otpRefs.current[focusIndex]?.focus();
-
-                                  // Auto submit if complete
-                                  if (nextArr.every(cell => cell !== '')) {
-                                    setTimeout(() => {
-                                      handleVerifyOtp();
-                                    }, 200);
-                                  }
-                                }}
-                                className="absolute inset-0 w-full h-full text-center bg-white/[0.02] border border-white/10 hover:border-white/15 focus:border-orange-500/50 rounded-xl text-lg font-black font-mono text-white focus:outline-none focus:ring-4 focus:ring-orange-500/10 transition-all select-all focus:scale-105"
-                                autoComplete="one-time-code"
-                                pattern="\d*"
-                                inputMode="numeric"
-                                id={`otp_box_${idx}`}
-                              />
-                              {/* Dynamic glow spotlight on focus */}
-                              {digit !== '' && (
-                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-orange-500 rounded-full blur-[1px]" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {devOtpHint && (
-                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 text-center space-y-1.5 max-w-[340px] mx-auto animate-fade-in shadow-[0_5px_15px_rgba(249,115,22,0.05)]">
-                          <p className="text-[10px] uppercase font-black tracking-widest text-[#FFD6A5] flex items-center justify-center gap-1.5">
-                            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
-                            <span>⚡ Development OTP Hint</span>
-                          </p>
-                          <p className="text-2xl font-black font-mono tracking-widest text-orange-400 select-all">{devOtpHint}</p>
-                          <p className="text-[10px] text-zinc-400 leading-normal font-sans">
-                            Since you are running in test/sandbox mode, you can copy-paste this code directly to sign in instantly!
-                          </p>
-                        </div>
-                      )}
-
-                      {localDispatchOffline && (
-                        <div className="bg-zinc-850/60 border border-zinc-700/40 rounded-2xl p-4 text-left space-y-2 max-w-[340px] mx-auto text-[11px] text-zinc-400 font-sans leading-relaxed">
-                          <p className="font-bold text-zinc-300 flex items-center gap-1.5">
-                            <span className="text-amber-500 text-xs">ℹ️</span> Local Helper Queue Active
-                          </p>
-                          <p className="text-[10.5px]">
-                            We've placed your message in the queue. To route actual WhatsApp messages using your local machine, start your server with this command:
-                          </p>
-                          <div className="bg-zinc-950 p-2.5 rounded-xl border border-white/5 font-mono text-[9.5px] text-orange-300 overflow-x-auto break-all select-all">
-                            APP_URL={typeof window !== 'undefined' ? window.location.origin : ''} node local-whatsapp-server.js
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-4 pt-2">
-                        <button
-                          type="submit"
-                          disabled={isLoading || otpArray.some(d => d === '')}
-                          className="w-full h-14 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-bold hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-[0_10px_30px_rgba(249,115,22,0.15)] disabled:opacity-40 disabled:pointer-events-none"
-                          id="auth_otp_submit"
-                        >
-                          {isLoading ? (
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <span className="font-sans font-black tracking-wide text-sm flex items-center gap-2">
-                              <ShieldCheck size={18} />
-                              Verify Account
-                            </span>
-                          )}
-                        </button>
-
-                        {/* Cooldown clock timer & Resend Option */}
-                        <div className="flex flex-col items-center justify-center space-y-1.5 py-1 text-xs">
-                          {signInMethod === 'mobile_otp' ? (
-                            <>
-                              {timerSeconds > 0 ? (
-                                <div className="flex items-center gap-1.5 text-zinc-500 font-sans">
-                                  <span className="w-1.5 h-1.5 bg-orange-500/75 rounded-full animate-ping" />
-                                  <span>WhatsApp code expires in </span>
-                                  <span className="text-orange-400 font-mono font-black">
-                                    {Math.floor(timerSeconds / 60).toString().padStart(2, '0')}:
-                                    {(timerSeconds % 60).toString().padStart(2, '0')}
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className="text-zinc-500">
-                                  Didn't receive the WhatsApp text?{' '}
-                                  <button
-                                    type="button"
-                                    onClick={handleResendOtp}
-                                    className="text-orange-500 hover:text-orange-400 font-bold focus:outline-none underline cursor-pointer"
-                                  >
-                                    Send Again via WhatsApp
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="text-zinc-500">
-                              Didn’t receive the email code?{' '}
-                              {resendTimer > 0 ? (
-                                <span className="text-zinc-400 font-mono font-medium">
-                                  Resend in {resendTimer}s
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={handleResendOtp}
-                                  className="text-orange-500 hover:text-orange-400 font-bold focus:outline-none underline cursor-pointer"
-                                >
-                                  Send Again
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                    </form>
-                  </>
-                )}
-              </motion.div>
+              <OtpSuccessAnimation
+                otpArray={otpArray}
+                setOtpArray={setOtpArray}
+                signInMethod={signInMethod}
+                email={email}
+                phone={phone}
+                error={error}
+                setError={setError}
+                onVerify={verifyOtpCode}
+                onSuccessRedirect={handleSuccessRedirect}
+                onBack={() => {
+                  setStep(isNewUser ? 'name' : 'email');
+                }}
+                timerSeconds={timerSeconds}
+                resendTimer={resendTimer}
+                handleResendOtp={handleResendOtp}
+              />
             )}
 
             {/* STEP 5: LOCATION PERMISSION SCREEN */}
