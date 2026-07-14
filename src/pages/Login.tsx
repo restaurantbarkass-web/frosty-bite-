@@ -1637,7 +1637,7 @@ export const Login: React.FC = () => {
                             We've placed your message in the queue. To route actual WhatsApp messages using your local machine, start your server with this command:
                           </p>
                           <div className="bg-zinc-950 p-2.5 rounded-xl border border-white/5 font-mono text-[9.5px] text-orange-300 overflow-x-auto break-all select-all">
-                            APP_URL={window.location.origin} node local-whatsapp-server.js
+                            APP_URL={typeof window !== 'undefined' ? window.location.origin : ''} node local-whatsapp-server.js
                           </div>
                         </div>
                       )}

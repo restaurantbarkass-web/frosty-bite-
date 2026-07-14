@@ -62,7 +62,22 @@
               }
             } catch (e) {
               console.warn("Silenced benign WebSocket preview error:", e);
-              instance = {};
+              instance = {
+                url: url,
+                readyState: 3, // CLOSED
+                bufferedAmount: 0,
+                extensions: "",
+                protocol: "",
+                binaryType: "blob",
+                onopen: null,
+                onmessage: null,
+                onerror: null,
+                onclose: null,
+                addEventListener: function(type, listener) {},
+                removeEventListener: function(type, listener) {},
+                close: function() {},
+                send: function(data) {}
+              };
             }
             
             // Safe listener attach to prevent error propagation 
@@ -227,7 +242,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" crossorigin src="/src/main.tsx"></script>
   </body>
 </html>
 

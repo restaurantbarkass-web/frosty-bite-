@@ -4,6 +4,35 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+// Process-level handlers to intercept locked session database (EBUSY) or connection issues gracefully
+process.on("uncaughtException", (err) => {
+    const isEBusy = err.message.includes("EBUSY") || err.stack?.includes("EBUSY");
+    const isLocked = err.message.includes("resource busy or locked") || err.stack?.includes("resource busy or locked");
+    
+    if (isEBusy || isLocked) {
+        console.error("\n==========================================================================");
+        console.error("⚠️  [LOCK ERROR] WhatsApp Web Session Database is Locked!");
+        console.error("==========================================================================");
+        console.error("This happens because another Chrome/Chromium browser or WhatsApp session");
+        console.error("process is already running on your computer and holding a file lock.");
+        console.error("\n👉 HOW TO FIX THIS IN 3 SIMPLE STEPS:");
+        console.error("1. Close any Chrome window that was opened by this automation server.");
+        console.error("2. Open Task Manager (Ctrl + Shift + Esc) and terminate any hanging");
+        console.error("   'Node.js' or 'Google Chrome' processes.");
+        console.error("3. If the issue persists, delete the '.wwebjs_auth' folder in your directory");
+        console.error("   to clear the session lock, then restart this server.");
+        console.error("==========================================================================\n");
+        process.exit(0);
+    } else {
+        console.error("❌ Uncaught Exception:", err);
+        process.exit(1);
+    }
+});
+
+process.on("unhandledRejection", (reason) => {
+    console.error("❌ Unhandled Promise Rejection:", reason);
+});
+
 const app = express();
 
 app.use(cors());
@@ -28,33 +57,40 @@ client.on("qr", (qr) => {
 
 client.on("ready", () => {
     console.log("✅ WhatsApp Connected!");
-
-    // Runs on port 3001 to avoid EADDRINUSE conflicts on port 3000
-    const httpModule = require("http");
-    const server = httpModule.createServer(app);
-
-    server.on("error", (err) => {
-        if (err.code === "EADDRINUSE") {
-            console.warn(`\n⚠️  [Resilient Warning] Port 3001 is already in use!`);
-            console.warn("⚠️  This means another instance of this WhatsApp server is already running on your computer.");
-            console.warn("⚠️  That's perfectly fine! The existing instance is already handling message delivery.");
-            console.warn("⚠️  We will still start the background polling queue to ensure all OTP dispatches succeed.");
-            startAppletPolling();
-        } else {
-            console.error("❌ Express server error:", err);
-        }
-    });
-
-    const port = process.env.PORT || 3001;
-    server.listen(port, () => {
-        console.log(`🚀 Server successfully running on port ${port}`);
-        startAppletPolling();
-    });
+    startAppletPolling();
 });
 
-const http = require("http");
+const httpModule = require("http");
+const http = httpModule;
 const https = require("https");
 const { URL } = require("url");
+
+const server = httpModule.createServer(app);
+const port = process.env.PORT || 3001;
+
+server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+        console.warn("\n==========================================================================");
+        console.warn(`⚠️  [INFO] Port ${port} is already in use!`);
+        console.warn("⚠️  This means another instance of this WhatsApp server is already running");
+        console.warn("⚠️  on your computer and is fully active, listening, and delivering messages.");
+        console.warn("⚠️  To prevent Chromium session lock conflicts (EBUSY), this process will");
+        console.warn("⚠️  exit cleanly. No action is required from your side!");
+        console.warn("==========================================================================\n");
+        process.exit(0);
+    } else {
+        console.error("❌ Express server error:", err);
+        process.exit(1);
+    }
+});
+
+server.listen(port, () => {
+    console.log(`🚀 Server successfully running on port ${port}`);
+    console.log("⏳ Initializing WhatsApp Web Client, please wait for connection...");
+    client.initialize().catch((initErr) => {
+        console.error("❌ WhatsApp initialization error:", initErr.message);
+    });
+});
 
 // Zero-dependency HTTP/HTTPS json helper supporting all Node.js versions (including old Node.js < 18)
 function customFetchJson(url, options = {}) {
@@ -225,4 +261,5 @@ app.post("/send", async (req, res) => {
     }
 });
 
-client.initialize();
+// Initialized inside server.listen block above
+// client.initialize();

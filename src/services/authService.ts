@@ -187,13 +187,15 @@ export const authService = {
       let lastError: any = null;
       let successfulUrl = '';
 
+      const currentAppOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
       for (const url of urlsToTry) {
         try {
           // Pre-register our active URL so local server background polling syncs automatically
           fetch(`${url}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appUrl: window.location.origin })
+            body: JSON.stringify({ appUrl: currentAppOrigin })
           }).catch(() => {});
 
           console.log(`[authService] Attempting dispatch to local WhatsApp server at ${url}...`);
@@ -205,7 +207,7 @@ export const authService = {
             body: JSON.stringify({
               number: data.formattedPhone,
               message: data.textMessage,
-              appUrl: window.location.origin
+              appUrl: currentAppOrigin
             })
           });
 
