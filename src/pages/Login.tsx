@@ -28,6 +28,7 @@ import { supabase } from '../supabase';
 import confetti from 'canvas-confetti';
 import { FeatureComingSoon } from '../components/FeatureComingSoon';
 import { OtpSuccessAnimation } from '../components/OtpSuccessAnimation';
+import gsap from 'gsap';
 
 const normalizePhone = (phone: string): string => {
   const clean = phone.replace(/\D/g, '');
@@ -97,6 +98,78 @@ const renderErrorMessage = (msg: string | null) => {
   return (
     <div className="flex-1 space-y-1 text-xs text-left leading-relaxed">
       <p className="text-zinc-200 font-medium">{msg}</p>
+    </div>
+  );
+};
+
+const BACKGROUND_VIDEOS = [
+  'https://www.image2url.com/r2/default/videos/1783006515287-85eb06bd-ee88-4f16-8d89-816927831339.mp4',
+  'https://www.image2url.com/r2/default/videos/1783006569462-7f438374-1c3c-4558-86e5-7b63f1781617.mp4',
+  'https://www.image2url.com/r2/default/videos/1783006619307-96155b49-e541-4054-93cb-23f5bd35f7b7.mp4'
+];
+
+interface VideoBackgroundProps {
+  urls: string[];
+}
+
+const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+
+  useEffect(() => {
+    urls.forEach((_, idx) => {
+      const el = videoRefs.current[idx];
+      if (!el) return;
+
+      if (idx === activeIndex) {
+        el.play().catch((err) => {
+          console.warn(`[VideoBackground] Playback blocked for index ${idx}:`, err);
+        });
+        gsap.to(el, {
+          opacity: 0.85,
+          duration: 1.5,
+          ease: 'power2.inOut'
+        });
+      } else {
+        gsap.to(el, {
+          opacity: 0,
+          duration: 1.5,
+          ease: 'power2.inOut',
+          onComplete: () => {
+            el.pause();
+            el.currentTime = 0;
+          }
+        });
+      }
+    });
+  }, [activeIndex, urls]);
+
+  const handleEnded = (endedIdx: number) => {
+    if (endedIdx === activeIndex) {
+      setActiveIndex((prev) => (prev + 1) % urls.length);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-[#040405]">
+      {urls.map((url, idx) => (
+        <video
+          key={url}
+          ref={(el) => {
+            videoRefs.current[idx] = el;
+          }}
+          src={url}
+          muted
+          playsInline
+          autoPlay={idx === 0}
+          onEnded={() => handleEnded(idx)}
+          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transition-opacity duration-300"
+          style={{ opacity: idx === 0 ? 0.85 : 0 }}
+        />
+      ))}
+      {/* Premium dark gradient and soft overlay to ensure extreme readability and high-end feel */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-[#050505]/70 via-black/40 to-[#120904]/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/15 pointer-events-none" />
     </div>
   );
 };
@@ -921,15 +994,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#040405] text-white select-none">
       {/* Visual background ambience */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=1600" 
-          alt="Luxury Bakery Backdrop" 
-          className="absolute inset-0 w-full h-full object-cover opacity-20 scale-105 filter blur-sm"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#050505] via-black/85 to-[#1c0e07]/50" />
-      </div>
+      <VideoBackground urls={BACKGROUND_VIDEOS} />
 
       {/* Animated glowing plasma blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#ef4444]/10 rounded-full blur-[140px] animate-pulse" />

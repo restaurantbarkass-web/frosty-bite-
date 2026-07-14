@@ -26,17 +26,16 @@ const mobileOtps = new Map<string, { otp: string; expires_at: number; email: str
 // Memory fallback for daily OTP limits (max 3 per user per day)
 const otpDailyLimitsMemory = new Map<string, { count: number; dateStr: string }>();
 
-// Helper to get Indian Standard Time (IST) Date String ('YYYY-MM-DD')
-function getIndianDateString(): string {
-  // IST is UTC + 5:30
-  const d = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+// Helper to get UTC Date String ('YYYY-MM-DD')
+function getUtcDateString(): string {
+  const d = new Date();
   return d.toISOString().split('T')[0];
 }
 
 // Check and increment daily OTP send limit (max 3 per day per user)
 async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed: boolean; count: number }> {
   const cleanId = identifier.trim().toLowerCase();
-  const currentDateStr = getIndianDateString();
+  const currentDateStr = getUtcDateString();
   const now = Date.now();
 
   // 1. Check Memory limit first
@@ -65,9 +64,9 @@ async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed:
 
     if (!error && data) {
       hasDbRecord = true;
-      // Convert last_request_at (BIGINT millisecond timestamp) to IST date string
+      // Convert last_request_at (BIGINT millisecond timestamp) to UTC date string
       const lastRequestDate = data.last_request_at 
-        ? new Date(Number(data.last_request_at) + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0]
+        ? new Date(Number(data.last_request_at)).toISOString().split('T')[0]
         : '';
       
       if (lastRequestDate === currentDateStr) {
