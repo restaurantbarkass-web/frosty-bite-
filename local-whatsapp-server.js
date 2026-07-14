@@ -145,8 +145,60 @@ function customFetchJson(url, options = {}) {
 // Dynamic applet polling URL that can be updated in real-time by the client
 let activeAppUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 
+// Check if an error message represents a Puppeteer fatal/connection state that can be resolved by client reboot
+function isPuppeteerFatalError(errMessage) {
+    if (!errMessage) return false;
+    const msg = errMessage.toLowerCase();
+    return msg.includes("detached frame") || 
+           msg.includes("protocol error") || 
+           msg.includes("target closed") || 
+           msg.includes("execution context was destroyed") || 
+           msg.includes("browser has disconnected") || 
+           msg.includes("page crashed") || 
+           msg.includes("session closed") ||
+           msg.includes("evaluation failed");
+}
+
+let isRecovering = false;
+
+// Gracefully destroy and rebuild the WhatsApp client browser on fatal Puppeteer errors
+async function triggerWhatsAppClientRecovery() {
+    if (isRecovering) return;
+    isRecovering = true;
+    
+    console.error("\n==========================================================================");
+    console.error("⚠️  [RECOVERY] Critical Puppeteer/WhatsApp Web error detected!");
+    console.error("🔄  Destroying and re-initializing the WhatsApp Web client...");
+    console.error("==========================================================================\n");
+
+    try {
+        console.log("🔄 Destroying WhatsApp client...");
+        await client.destroy().catch((destroyErr) => {
+            console.warn("⚠️ Warning during client destroy:", destroyErr.message);
+        });
+        
+        console.log("⏳ Waiting 3 seconds before rebooting browser...");
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        console.log("🔄 Re-initializing WhatsApp Web client...");
+        await client.initialize();
+        console.log("✅ WhatsApp Web Client successfully re-initialized!");
+    } catch (err) {
+        console.error("❌ [RECOVERY ERROR] WhatsApp Web Client recovery failed:", err.message);
+    } finally {
+        isRecovering = false;
+    }
+}
+
+let isPollingStarted = false;
+
 // Background polling loop to pull pending WhatsApp messages from the cloud/local backend
 async function startAppletPolling() {
+    if (isPollingStarted) {
+        console.log("📡 Background WhatsApp Dispatch queue polling is already active.");
+        return;
+    }
+    isPollingStarted = true;
     console.log(`📡 Background WhatsApp Dispatch queue polling started for: ${activeAppUrl}`);
 
     setInterval(async () => {
@@ -164,6 +216,7 @@ async function startAppletPolling() {
             const messages = data.messages || [];
 
             for (const item of messages) {
+                let shouldAck = true;
                 try {
                     const cleanNum = item.phone.replace(/\D/g, "");
                     const chatId = `${cleanNum}@c.us`;
@@ -178,14 +231,23 @@ async function startAppletPolling() {
                     await client.sendMessage(chatId, item.message);
                     console.log(`✅ Message successfully delivered to +${cleanNum}!`);
 
-                    // Acknowledge receipt to clear it from the server outbox queue
-                    await customFetchJson(`${currentUrl}/api/auth/whatsapp-ack`, {
-                        method: "POST",
-                        body: { id: item.id }
-                    }).catch(e => console.warn("⚠️ Failed to send ack to app server:", e.message));
-
                 } catch (sendErr) {
                     console.error(`❌ Failed to deliver message for item ${item.id}:`, sendErr.message);
+                    if (isPuppeteerFatalError(sendErr.message)) {
+                        shouldAck = false;
+                        triggerWhatsAppClientRecovery().catch(() => {});
+                    }
+                } finally {
+                    if (shouldAck) {
+                        // Always acknowledge receipt to clear it from the server outbox queue,
+                        // preventing infinite retry loops and terminal spam.
+                        await customFetchJson(`${currentUrl}/api/auth/whatsapp-ack`, {
+                            method: "POST",
+                            body: { id: item.id }
+                        }).catch(e => console.warn("⚠️ Failed to send ack to app server:", e.message));
+                    } else {
+                        console.warn(`⏳ [DELAYED] Message ${item.id} delivery postponed until client recovery finishes.`);
+                    }
                 }
             }
         } catch (pollErr) {

@@ -632,6 +632,8 @@ export const Login: React.FC = () => {
     let emailTrimmed = email.trim().toLowerCase();
     if (result && result.email) {
       emailTrimmed = result.email;
+    } else if (result && result.user && result.user.email) {
+      emailTrimmed = result.user.email;
     }
     
     // Store active session indicators
@@ -708,7 +710,7 @@ export const Login: React.FC = () => {
       if (signInMethod === 'mobile_otp') {
         const cleanPhone = normalizePhone(phone);
         const result = await authService.verifyMobileOTP(cleanPhone, otpCode);
-        emailTrimmed = result.email || emailTrimmed;
+        emailTrimmed = result.email || result.user?.email || emailTrimmed;
       } else {
         await authService.verifyOTP(emailTrimmed, otpCode, isNewUser);
       }
