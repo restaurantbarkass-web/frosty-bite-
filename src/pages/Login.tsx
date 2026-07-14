@@ -105,7 +105,7 @@ const renderErrorMessage = (msg: string | null) => {
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, refreshProfile } = useAuth();
   const { selectManualCity, allowedZonesList } = useGeofence();
 
   // Unified State Machine Steps: 'welcome' | 'email' | 'name' | 'otp' | 'location'
@@ -634,8 +634,9 @@ export const Login: React.FC = () => {
       emailTrimmed = result.email;
     }
     
-    // Store active session email
+    // Store active session indicators
     localStorage.setItem('frostybite_active_session_email', emailTrimmed);
+    localStorage.setItem('frostybite_has_active_session', 'true');
 
     if (isNewUser && signInMethod !== 'mobile_otp') {
       try {
@@ -653,6 +654,11 @@ export const Login: React.FC = () => {
         console.warn('[Onboarding] Error syncing profile metadata:', dbErr);
       }
     }
+
+    // Immediately trigger AuthContext to resolve the newly authenticated session
+    await refreshProfile().catch((syncErr) => {
+      console.warn('[handleSuccessRedirect] Auth sync triggered warning:', syncErr);
+    });
 
     try {
       const { data: dbUser } = await supabase
@@ -709,6 +715,7 @@ export const Login: React.FC = () => {
 
       // Store authenticating session email immediately to guarantee robust immediate login flow
       localStorage.setItem('frostybite_active_session_email', emailTrimmed);
+      localStorage.setItem('frostybite_has_active_session', 'true');
 
       if (isNewUser && signInMethod !== 'mobile_otp') {
         try {
@@ -727,6 +734,9 @@ export const Login: React.FC = () => {
           console.warn('[Onboarding] Error syncing profile metadata:', dbErr);
         }
       }
+
+      // Sync/Refresh Auth State immediately
+      await refreshProfile().catch(() => {});
 
       // Premium Success State Transition
       setIsVerifiedSuccess(true);
