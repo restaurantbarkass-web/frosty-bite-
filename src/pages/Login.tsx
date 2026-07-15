@@ -174,6 +174,66 @@ const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
   );
 };
 
+const isOtpSessionActive = (recipient: string): boolean => {
+  if (!recipient) return false;
+  const cleanRecipient = recipient.trim().toLowerCase();
+  try {
+    const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
+    if (!rawSessions) return false;
+    const sessions = JSON.parse(rawSessions);
+    const expiresAt = sessions[cleanRecipient];
+    if (expiresAt && Date.now() < expiresAt) {
+      return true;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return false;
+};
+
+const getRemainingTime = (recipient: string, defaultSeconds: number): number => {
+  if (!recipient) return defaultSeconds;
+  const cleanRecipient = recipient.trim().toLowerCase();
+  try {
+    const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
+    if (rawSessions) {
+      const sessions = JSON.parse(rawSessions);
+      const expiresAt = sessions[cleanRecipient];
+      if (expiresAt) {
+        const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+        return remaining;
+      }
+    }
+  } catch (e) {}
+  return defaultSeconds;
+};
+
+const saveActiveOtpSession = (recipient: string, durationMs: number) => {
+  if (!recipient) return;
+  const cleanRecipient = recipient.trim().toLowerCase();
+  try {
+    const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
+    const sessions = rawSessions ? JSON.parse(rawSessions) : {};
+    sessions[cleanRecipient] = Date.now() + durationMs;
+    localStorage.setItem('frostybite_active_otp_sessions', JSON.stringify(sessions));
+  } catch (e) {
+    // ignore
+  }
+};
+
+const removeActiveOtpSession = (recipient: string) => {
+  if (!recipient) return;
+  const cleanRecipient = recipient.trim().toLowerCase();
+  try {
+    const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
+    if (rawSessions) {
+      const sessions = JSON.parse(rawSessions);
+      delete sessions[cleanRecipient];
+      localStorage.setItem('frostybite_active_otp_sessions', JSON.stringify(sessions));
+    }
+  } catch (e) {}
+};
+
 export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAdmin, refreshProfile } = useAuth();
@@ -211,7 +271,7 @@ export const Login: React.FC = () => {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Premium WhatsApp OTP additional states
-  const [timerSeconds, setTimerSeconds] = useState(300);
+  const [timerSeconds, setTimerSeconds] = useState(180);
   const [isErrorShaking, setIsErrorShaking] = useState(false);
   const [isVerifiedSuccess, setIsVerifiedSuccess] = useState(false);
 
@@ -379,14 +439,31 @@ export const Login: React.FC = () => {
 
     setError(null);
     setSuccess(null);
+
+    // Prevent trigger if active, unexpired session exists
+    if (isOtpSessionActive(cleanPhone)) {
+      const remaining = getRemainingTime(cleanPhone, 180);
+      setTimerSeconds(remaining);
+      setSignInMethod('mobile_otp');
+      setIsNewUser(false);
+      setOtpArray(['', '', '', '', '', '']);
+      setStep('otp');
+      setSuccess('You have an active verification session. Resumed current session.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       setIsNewUser(false); // Mobile OTP is for login
       setSignInMethod('mobile_otp');
       const res = await authService.sendMobileOTP(cleanPhone);
+      
+      // Save active session
+      saveActiveOtpSession(cleanPhone, 180 * 1000);
+      
       setResendTimer(60);
-      setTimerSeconds(300);
+      setTimerSeconds(180);
       setOtpArray(['', '', '', '', '', '']);
       if (res.dev_otp_hint) {
         setDevOtpHint(res.dev_otp_hint);
@@ -442,10 +519,26 @@ export const Login: React.FC = () => {
           // Pre-existing user found! Immediately dispatch OTP and step directly to OTP screen
           setIsNewUser(false);
           setSignInMethod('otp');
+
+          if (isOtpSessionActive(emailTrimmed)) {
+            const remaining = getRemainingTime(emailTrimmed, 60);
+            setResendTimer(remaining);
+            setTimerSeconds(180);
+            setOtpArray(['', '', '', '', '', '', '', '']);
+            setStep('otp');
+            setSuccess('You have an active verification session. Resumed current session.');
+            setIsLoading(false);
+            return;
+          }
+
           await authService.sendOTP(emailTrimmed);
+          
+          // Save active session
+          saveActiveOtpSession(emailTrimmed, 60 * 1000);
+
           setResendTimer(60); 
           setSuccess('Verification code sent! Please check your inbox.');
-          setTimerSeconds(300);
+          setTimerSeconds(180);
           setOtpArray(['', '', '', '', '', '', '', '']);
           setStep('otp');
         } else {
@@ -630,13 +723,26 @@ export const Login: React.FC = () => {
           return;
         }
 
-        // Send Email OTP
         setIsNewUser(true);
         setSignInMethod('otp');
+
+        if (isOtpSessionActive(emailTrimmed)) {
+          const remaining = getRemainingTime(emailTrimmed, 60);
+          setResendTimer(remaining);
+          setSuccess(`You have an active verification session. Resumed current session.`);
+          setTimerSeconds(180);
+          setOtpArray(['', '', '', '', '', '', '', '']);
+          setStep('otp');
+          setIsLoading(false);
+          return;
+        }
+
+        // Send Email OTP
         await authService.sendOTP(emailTrimmed);
+        saveActiveOtpSession(emailTrimmed, 60 * 1000);
         setResendTimer(60);
         setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
-        setTimerSeconds(300);
+        setTimerSeconds(180);
         setOtpArray(['', '', '', '', '', '', '', '']);
         setStep('otp');
       } else {
@@ -657,12 +763,24 @@ export const Login: React.FC = () => {
           return;
         }
 
-        // Send Mobile OTP
         setIsNewUser(true);
         setSignInMethod('mobile_otp');
+
+        if (isOtpSessionActive(cleanPhone)) {
+          const remaining = getRemainingTime(cleanPhone, 180);
+          setTimerSeconds(remaining);
+          setOtpArray(['', '', '', '', '', '']);
+          setStep('otp');
+          setSuccess('You have an active verification session. Resumed current session.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Send Mobile OTP
         const res = await authService.sendMobileOTP(cleanPhone, true, emailTrimmed, name.trim(), password.trim());
+        saveActiveOtpSession(cleanPhone, 180 * 1000);
         setResendTimer(60);
-        setTimerSeconds(300);
+        setTimerSeconds(180);
         setOtpArray(['', '', '', '', '', '']);
         if (res.dev_otp_hint) {
           setDevOtpHint(res.dev_otp_hint);
@@ -707,6 +825,13 @@ export const Login: React.FC = () => {
       emailTrimmed = result.user.email;
     }
     
+    // Clear active verification sessions
+    removeActiveOtpSession(emailTrimmed);
+    const cleanPhone = normalizePhone(phone);
+    if (cleanPhone) {
+      removeActiveOtpSession(cleanPhone);
+    }
+
     // Store active session indicators
     localStorage.setItem('frostybite_active_session_email', emailTrimmed);
     localStorage.setItem('frostybite_has_active_session', 'true');
@@ -877,8 +1002,11 @@ export const Login: React.FC = () => {
         const cleanPhone = normalizePhone(phone);
         const res = await authService.resendMobileOTP(cleanPhone);
         
+        // Save active session
+        saveActiveOtpSession(cleanPhone, 180 * 1000);
+        
         // WhatsApp reset timers and clear inputs
-        setTimerSeconds(300); // 5 minutes reset
+        setTimerSeconds(180); // 3 minutes reset
         setOtpArray(['', '', '', '', '', '']);
         if (res.dev_otp_hint) {
           setDevOtpHint(res.dev_otp_hint);
@@ -895,6 +1023,10 @@ export const Login: React.FC = () => {
       } else {
         const emailTrimmed = email.trim().toLowerCase();
         await authService.sendOTP(emailTrimmed);
+        
+        // Save active session
+        saveActiveOtpSession(emailTrimmed, 60 * 1000);
+        
         setResendTimer(60);
         setOtpArray(['', '', '', '', '', '', '', '']);
         setSuccess('A fresh code was sent! Check your inbox.');

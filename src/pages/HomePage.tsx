@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
+import { FoodCardSkeleton } from '../components/FoodCardSkeleton';
 import { BannerCarousel } from '../components/BannerCarousel';
 import { ButlerSelection } from '../components/ButlerSelection';
 import { getFoodRecommendations } from '../services/geminiService';
@@ -673,12 +674,18 @@ export const Home: React.FC = () => {
 
         {/* Food Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {filteredItems.map((item) => (
-            <FoodCard key={item.id} item={item} />
-          ))}
+          {isMenuLoading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <FoodCardSkeleton key={`skeleton-${index}`} />
+            ))
+          ) : (
+            filteredItems.map((item) => (
+              <FoodCard key={item.id} item={item} />
+            ))
+          )}
         </div>
 
-        {filteredItems.length === 0 && (
+        {!isMenuLoading && filteredItems.length === 0 && (
           <div className="text-center py-20">
             <p className="text-muted text-lg">No items found matching your search.</p>
           </div>
