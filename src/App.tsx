@@ -51,12 +51,21 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
           const isProd = import.meta.env.PROD;
           if (isProd) {
             const now = Date.now();
-            const lastReload = sessionStorage.getItem('last_asset_reload');
+            let lastReload: string | null = null;
+            try {
+              lastReload = sessionStorage.getItem('last_asset_reload');
+            } catch (e) {
+              console.warn('[LazyLoader] failed to read from sessionStorage:', e);
+            }
             const parsedLastReload = lastReload ? parseInt(lastReload, 10) : 0;
             
             // Limit reload to at most once every 20 seconds to prevent aggressive reload loops
             if (now - parsedLastReload > 20000) {
-              sessionStorage.setItem('last_asset_reload', String(now));
+              try {
+                sessionStorage.setItem('last_asset_reload', String(now));
+              } catch (e) {
+                console.warn('[LazyLoader] failed to write to sessionStorage:', e);
+              }
               console.warn('[LazyLoader] Potential stale production asset hash. Forcing app reload to fetch latest bundle...');
               window.location.reload();
             } else {
@@ -154,7 +163,11 @@ function AppContent() {
   });
 
   const handleSplashComplete = useCallback(() => {
-    sessionStorage.setItem('splash_seen', 'true');
+    try {
+      sessionStorage.setItem('splash_seen', 'true');
+    } catch (e) {
+      console.warn('Failed to write splash_seen to sessionStorage:', e);
+    }
     setShowSplash(false);
   }, []);
 

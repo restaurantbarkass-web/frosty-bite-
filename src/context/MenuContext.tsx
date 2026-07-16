@@ -93,12 +93,21 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         const newCacheStr = JSON.stringify(mapped);
-        const oldCacheStr = localStorage.getItem('menu_cache');
+        let oldCacheStr: string | null = null;
+        try {
+          oldCacheStr = localStorage.getItem('menu_cache');
+        } catch (e) {
+          console.warn('Failed to read menu_cache from localStorage:', e);
+        }
         
         // Prevent layout shift/unwanted thread load by avoiding state updates when data matches
         if (newCacheStr !== oldCacheStr) {
           setItems(mapped);
-          localStorage.setItem('menu_cache', newCacheStr);
+          try {
+            localStorage.setItem('menu_cache', newCacheStr);
+          } catch (e) {
+            console.warn('Failed to write menu_cache to localStorage:', e);
+          }
         }
       } else {
         if (items.length === 0) {
@@ -107,7 +116,12 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Fetch Menu Error:', err);
-      const cached = localStorage.getItem('menu_cache');
+      let cached: string | null = null;
+      try {
+        cached = localStorage.getItem('menu_cache');
+      } catch (e) {
+        console.warn('Failed to read menu_cache from localStorage on error fallback:', e);
+      }
       if (cached) {
         setItems(JSON.parse(cached));
       } else if (items.length === 0) {

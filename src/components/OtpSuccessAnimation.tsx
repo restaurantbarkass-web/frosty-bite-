@@ -167,9 +167,11 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
       });
 
       // Try device haptic feedback
-      if (navigator.vibrate) {
-        navigator.vibrate([50, 30, 50]);
-      }
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate([50, 30, 50]);
+        }
+      } catch (e) {}
     } catch (err: any) {
       console.error('[OTP Verification Error]', err);
       setIsShaking(true);
@@ -223,9 +225,11 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
   };
 
   const handleContinue = () => {
-    if (navigator.vibrate) {
-      navigator.vibrate([40, 20, 40]);
-    }
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate([40, 20, 40]);
+      }
+    } catch (e) {}
     setAnimStatus('exiting');
     setTimeout(() => {
       onSuccessRedirect(verificationResult);

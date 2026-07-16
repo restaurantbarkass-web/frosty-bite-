@@ -24,7 +24,12 @@ export const PWAInstallPrompt: React.FC = () => {
     if (!isStandalone) {
       const timer = setTimeout(() => {
         // Only show if the user hasn't closed it in this session
-        const closed = sessionStorage.getItem('pwa_prompt_closed');
+        let closed: string | null = null;
+        try {
+          closed = sessionStorage.getItem('pwa_prompt_closed');
+        } catch (e) {
+          console.warn('Failed to read pwa_prompt_closed from sessionStorage:', e);
+        }
         if (!closed) {
           setIsVisible(true);
         }
@@ -34,7 +39,11 @@ export const PWAInstallPrompt: React.FC = () => {
   }, [isStandalone]);
 
   const handleInstallClick = async () => {
-    if (navigator.vibrate) navigator.vibrate(20);
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(20);
+      }
+    } catch (e) {}
 
     const result = await install();
     if (result === 'native') {
@@ -50,7 +59,11 @@ export const PWAInstallPrompt: React.FC = () => {
 
   const handleClose = () => {
     setIsVisible(false);
-    sessionStorage.setItem('pwa_prompt_closed', 'true');
+    try {
+      sessionStorage.setItem('pwa_prompt_closed', 'true');
+    } catch (e) {
+      console.warn('Failed to write pwa_prompt_closed to sessionStorage:', e);
+    }
   };
 
   // Listen for native app installed notifications

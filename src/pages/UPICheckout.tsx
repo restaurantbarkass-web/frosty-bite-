@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
 import toast from 'react-hot-toast';
-import { cn } from '../lib/utils';
+import { cn, haptic } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useNotifications } from '../context/NotificationContext';
@@ -179,6 +179,7 @@ export const UPICheckout: React.FC = () => {
 
       setConfirmedOrder(orderSummary);
       setShowConfirmation(true);
+      haptic.checkout();
       
       if (user) {
         addNotification({

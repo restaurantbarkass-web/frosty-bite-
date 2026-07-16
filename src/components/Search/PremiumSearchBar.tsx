@@ -56,14 +56,16 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
 
   // Load recent searches on mount
   useEffect(() => {
-    const saved = localStorage.getItem('recent_searches');
-    if (saved) {
-      try {
-        setRecentSearches(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+    try {
+      const saved = localStorage.getItem('recent_searches');
+      if (saved) {
+        try {
+          setRecentSearches(JSON.parse(saved));
+        } catch (e) {
+          console.error(e);
+        }
       }
-    }
+    } catch (e) {}
   }, []);
 
   // Sync initial query
@@ -131,7 +133,9 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
     // Save to recent
     const updated = [trimmed, ...recentSearches.filter(s => s !== trimmed)].slice(0, 5);
     setRecentSearches(updated);
-    localStorage.setItem('recent_searches', JSON.stringify(updated));
+    try {
+      localStorage.setItem('recent_searches', JSON.stringify(updated));
+    } catch (e) {}
 
     onSearch(trimmed);
     inputRef.current?.blur();
@@ -373,7 +377,9 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
                         <button 
                           onMouseDown={() => {
                             setRecentSearches([]);
-                            localStorage.removeItem('recent_searches');
+                            try {
+                              localStorage.removeItem('recent_searches');
+                            } catch (e) {}
                           }}
                           className="text-[10px] text-primary hover:underline uppercase font-bold"
                         >

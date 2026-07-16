@@ -106,7 +106,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+      let fallbackEmail: string | null = null;
+      try {
+        fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+      } catch (e) {
+        console.warn('[UnifiedAuth] Failed to read fallbackEmail from localStorage:', e);
+      }
       const possessesSession = (sbUser !== null && sbUser !== undefined) || (fbUser !== null && fbUser !== undefined) || !!fallbackEmail;
 
       // If we don't have any logged-in user yet, and at least one of the auth systems is still initializing (is undefined),
@@ -273,7 +278,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             }
             if (token) {
-              localStorage.setItem('latest_admin_auth_token', token);
+              try {
+                localStorage.setItem('latest_admin_auth_token', token);
+              } catch (e) {
+                console.warn('[UnifiedAuth] Failed to write latest_admin_auth_token to localStorage:', e);
+              }
             }
             return token;
           }

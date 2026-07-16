@@ -36,15 +36,20 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
       }
 
       // Update Local Cache
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const localData = JSON.parse(cached);
-          const filtered = Array.isArray(localData) ? localData.filter((i: any) => i.id !== item.id) : [];
-          localStorage.setItem(cacheKey, JSON.stringify(filtered));
-        } catch (e) {}
-      }
-      localStorage.removeItem(`wishlist_doc_${userId}_${item.id}`);
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const localData = JSON.parse(cached);
+            const filtered = Array.isArray(localData) ? localData.filter((i: any) => i.id !== item.id) : [];
+            localStorage.setItem(cacheKey, JSON.stringify(filtered));
+          } catch (e) {}
+        }
+      } catch (e) {}
+
+      try {
+        localStorage.removeItem(`wishlist_doc_${userId}_${item.id}`);
+      } catch (e) {}
 
       return false; // Removed successfully
     } else {
@@ -67,15 +72,19 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
       }
 
       // Update Local Cache
-      const cached = localStorage.getItem(cacheKey);
       let localData = [];
       try {
+        const cached = localStorage.getItem(cacheKey);
         localData = cached ? JSON.parse(cached) : [];
       } catch (e) {}
       
       const updated = Array.isArray(localData) ? [...localData, item] : [item];
-      localStorage.setItem(cacheKey, JSON.stringify(updated));
-      localStorage.setItem(`wishlist_doc_${userId}_${item.id}`, JSON.stringify({ user_id: userId, product_id: item.id }));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      } catch (e) {}
+      try {
+        localStorage.setItem(`wishlist_doc_${userId}_${item.id}`, JSON.stringify({ user_id: userId, product_id: item.id }));
+      } catch (e) {}
 
       return true; // Added successfully
     }
@@ -120,7 +129,9 @@ export const getUserWishlist = async (userId: string) => {
     if (data) {
       console.log(`Found ${data.length} wishlist items in Supabase`);
       const items = data.map(d => d.item_details).filter(Boolean);
-      localStorage.setItem(cacheKey, JSON.stringify(items));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(items));
+      } catch (e) {}
       return items;
     }
     

@@ -17,6 +17,94 @@
     <meta name="description" content="Artisan bakery and frosty treats">
     <script>
       (function() {
+        // Safe Storage Polyfill for sandboxed iframes
+        function createStoragePolyfill() {
+          var storage = {};
+          return {
+            getItem: function(key) {
+              return storage.hasOwnProperty(key) ? storage[key] : null;
+            },
+            setItem: function(key, value) {
+              storage[key] = String(value);
+            },
+            removeItem: function(key) {
+              delete storage[key];
+            },
+            clear: function() {
+              storage = {};
+            },
+            key: function(i) {
+              var keys = Object.keys(storage);
+              return keys[i] || null;
+            },
+            get length() {
+              return Object.keys(storage).length;
+            }
+          };
+        }
+
+        try {
+          var testLocal = window.localStorage;
+          // Accessing a property on localStorage to trigger the security error if blocked
+          if (testLocal) {
+            testLocal.getItem('__test_sandbox_storage__');
+          } else {
+            throw new Error("localStorage is null");
+          }
+        } catch (e) {
+          console.warn("localStorage is blocked or disabled, installing Window.prototype polyfill:", e);
+          try {
+            var localPolyfill = createStoragePolyfill();
+            Object.defineProperty(Window.prototype, 'localStorage', {
+              get: function() { return localPolyfill; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (err) {
+            console.warn("Failed to define localStorage polyfill on Window.prototype:", err);
+            try {
+              Object.defineProperty(window, 'localStorage', {
+                value: createStoragePolyfill(),
+                writable: true,
+                configurable: true
+              });
+            } catch (err2) {
+              console.warn("Failed to define localStorage polyfill on window:", err2);
+            }
+          }
+        }
+
+        try {
+          var testSession = window.sessionStorage;
+          // Accessing a property on sessionStorage to trigger the security error if blocked
+          if (testSession) {
+            testSession.getItem('__test_sandbox_storage__');
+          } else {
+            throw new Error("sessionStorage is null");
+          }
+        } catch (e) {
+          console.warn("sessionStorage is blocked or disabled, installing Window.prototype polyfill:", e);
+          try {
+            var sessionPolyfill = createStoragePolyfill();
+            Object.defineProperty(Window.prototype, 'sessionStorage', {
+              get: function() { return sessionPolyfill; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (err) {
+            console.warn("Failed to define sessionStorage polyfill on Window.prototype:", err);
+            try {
+              Object.defineProperty(window, 'sessionStorage', {
+                value: createStoragePolyfill(),
+                writable: true,
+                configurable: true
+              });
+            } catch (err2) {
+              console.warn("Failed to define sessionStorage polyfill on window:", err2);
+            }
+          }
+        }
+
         // Initialize global diagnostics
         window.__frostybite_diagnostics = {
           errors: [],
@@ -28,6 +116,9 @@
         // Helper to push diagnostic logs safely
         function logDiagnostic(type, data) {
           try {
+            if (data && data.message && String(data.message).toLowerCase().indexOf('script error') !== -1) {
+              return; // suppress cross-origin script error diagnostics
+            }
             data.timestamp = new Date().toISOString();
             data.url = window.location.href;
             window.__frostybite_diagnostics[type].push(data);
@@ -110,6 +201,7 @@
                   m.indexOf('closeevent') !== -1 || 
                   m.indexOf('vite') !== -1 || 
                   m.indexOf('hmr') !== -1 ||
+                  m.indexOf('script error') !== -1 ||
                   m.indexOf('pending promise was never set') !== -1);
         }
 
@@ -147,22 +239,11 @@
         window.onerror = function(msg, url, line, col, error) {
           var strMsg = String(msg || '');
           
-          if (isBenignNoise(strMsg)) {
-            return true; // prevent browser console spam for HMR
+          if (isBenignNoise(strMsg) || strMsg.toLowerCase().indexOf('script error') !== -1) {
+            return true; // prevent browser console spam and diagnostic reports for HMR/sandboxing Script error
           }
 
           var stack = error ? (error.stack || '') : '';
-          
-          if (strMsg.toLowerCase().indexOf('script error') !== -1) {
-            logDiagnostic('errors', {
-              message: "Script Error: Modern browser security restricts error details for cross-origin scripts. Load the script with crossorigin='anonymous' and ensure CORS is enabled on the server.",
-              source: url || 'Unknown',
-              line: line || 0,
-              col: col || 0,
-              stack: stack || 'No stack trace available (cross-origin script restriction)'
-            });
-            return false; // let standard handlers and react errorboundary capture the error
-          }
 
           logDiagnostic('errors', {
             message: strMsg,
@@ -196,7 +277,7 @@
           } else {
             // General error event (uncaught exception)
             var msg = e.message || (e.error ? (e.error.message || String(e.error)) : 'Unknown error event');
-            if (isBenignNoise(msg)) {
+            if (isBenignNoise(msg) || String(msg).toLowerCase().indexOf('script error') !== -1) {
               try {
                 e.preventDefault();
                 e.stopImmediatePropagation();

@@ -31,7 +31,7 @@ import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
 import { emailService } from '../services/emailService';
 import toast from 'react-hot-toast';
-import { cn } from '../lib/utils';
+import { cn, haptic } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { RESTAURANT_LOCATION } from '../constants';
 import { calculateDistance } from '../utils/distance';
@@ -489,11 +489,13 @@ export const Checkout: React.FC = () => {
 
   useEffect(() => {
     // This local logic for 'claimed_coupon' might be redundant if handles globally
-    const claimed = localStorage.getItem('claimed_coupon');
-    if (claimed && !appliedCoupon) {
-      handleApplyCoupon(claimed);
-      localStorage.removeItem('claimed_coupon');
-    }
+    try {
+      const claimed = localStorage.getItem('claimed_coupon');
+      if (claimed && !appliedCoupon) {
+        handleApplyCoupon(claimed);
+        localStorage.removeItem('claimed_coupon');
+      }
+    } catch (e) {}
   }, [appliedCoupon]);
 
   if (cart.length === 0 && !showConfirmation) {
@@ -625,6 +627,7 @@ export const Checkout: React.FC = () => {
       // Save to Supabase
       try {
         await supabaseService.insertData('orders', orderData);
+        haptic.checkout();
       } catch (supabaseError: any) {
         console.error('Supabase order creation failed:', supabaseError);
         // Extract specific message if possible

@@ -174,13 +174,19 @@ export const Home: React.FC = () => {
     const timer = setTimeout(() => {
         const fetchRecs = async () => {
           // Check cache first
-          const cachedRecs = localStorage.getItem('ai_recs');
-          const cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
+          let cachedRecs = null;
+          let cacheTimestamp = null;
+          try {
+            cachedRecs = localStorage.getItem('ai_recs');
+            cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
+          } catch (e) {}
           const now = Date.now();
           
           if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
-            setAiRecs(JSON.parse(cachedRecs));
-            return;
+            try {
+              setAiRecs(JSON.parse(cachedRecs));
+              return;
+            } catch (e) {}
           }
 
           setIsLoadingRecs(true);

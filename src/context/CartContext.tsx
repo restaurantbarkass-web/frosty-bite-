@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CartItem, FoodItem } from '../types';
+import { haptic } from '../lib/utils';
 
 interface CartStateContextType {
   cart: CartItem[];
@@ -37,10 +38,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Load claimed coupon from localStorage if it exists
-    const claimedCode = localStorage.getItem('claimed_coupon_code');
-    if (claimedCode) {
-        // We might need to fetch the coupon data from supabase here to validate it
-        // But for now, let's just keep the setAppliedCoupon action available
+    try {
+      const claimedCode = localStorage.getItem('claimed_coupon_code');
+      if (claimedCode) {
+          // We might need to fetch the coupon data from supabase here to validate it
+          // But for now, let's just keep the setAppliedCoupon action available
+      }
+    } catch (e) {
+      console.warn('Failed to read claimed_coupon_code from localStorage:', e);
     }
   }, []);
 
@@ -49,24 +54,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         if (item.stock_quantity !== undefined && existing.quantity >= item.stock_quantity) {
+          haptic.error();
           return prev;
         }
+        haptic.success();
         return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
+      haptic.success();
       return [...prev, { ...item, quantity: 1 }];
     });
     setIsCartOpen(true);
   }, []);
 
   const removeFromCart = React.useCallback((id: string) => {
+    haptic.medium();
     setCart(prev => prev.filter(i => i.id !== id));
   }, []);
 
   const updateQuantity = React.useCallback((id: string, delta: number) => {
+    haptic.light();
     setCart(prev => prev.map(i => {
       if (i.id === id) {
         const newQty = i.quantity + delta;
         if (delta > 0 && i.stock_quantity !== undefined && newQty > i.stock_quantity) {
+          haptic.error();
           return i;
         }
         return { ...i, quantity: Math.max(0, newQty) };
@@ -76,6 +87,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const clearCart = React.useCallback(() => {
+    haptic.medium();
     setCart([]);
   }, []);
 

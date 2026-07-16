@@ -299,9 +299,15 @@ export const Profile: React.FC = () => {
     const ordersCacheKey = `recent_orders_cache_${authUser.uid}`;
     const wishlistCacheKey = `wishlist_cache_${authUser.uid}`;
 
-    const cachedProfile = localStorage.getItem(profileCacheKey);
-    const cachedOrders = localStorage.getItem(ordersCacheKey);
-    const cachedWishlist = localStorage.getItem(wishlistCacheKey);
+    let cachedProfile = null;
+    let cachedOrders = null;
+    let cachedWishlist = null;
+
+    try {
+      cachedProfile = localStorage.getItem(profileCacheKey);
+      cachedOrders = localStorage.getItem(ordersCacheKey);
+      cachedWishlist = localStorage.getItem(wishlistCacheKey);
+    } catch (e) {}
 
     if (cachedProfile) {
       try {

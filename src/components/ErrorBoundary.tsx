@@ -187,7 +187,13 @@ export class ErrorBoundary extends Component<Props, State> {
         url: window.location.href,
         userAgent: navigator.userAgent,
         timestamp: new Date().toISOString(),
-        localStorageKeys: Object.keys(localStorage)
+        localStorageKeys: (() => {
+          try {
+            return Object.keys(localStorage);
+          } catch (_) {
+            return ['Access Blocked (sandboxed iframe)'];
+          }
+        })()
       },
       capturedGlobalErrors: globalDiag.errors || [],
       capturedRejections: globalDiag.unhandledRejections || [],

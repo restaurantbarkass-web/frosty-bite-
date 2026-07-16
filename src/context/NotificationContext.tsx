@@ -47,7 +47,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
-    const cached = localStorage.getItem(cacheKey);
+    let cached: string | null = null;
+    try {
+      cached = localStorage.getItem(cacheKey);
+    } catch (e) {
+      console.warn('Failed to read notifications from localStorage:', e);
+    }
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -67,7 +72,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         user_id: currentUser.id || currentUser.uid
       };
       setNotifications([welcomeNotif]);
-      localStorage.setItem(cacheKey, JSON.stringify([welcomeNotif]));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify([welcomeNotif]));
+      } catch (e) {
+        console.warn('Failed to write notifications to localStorage:', e);
+      }
     }
 
     // Admin new order monitor using Supabase Realtime
@@ -120,7 +129,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
             setNotifications(prev => {
               const updated = [newNotif, ...prev];
-              localStorage.setItem(cacheKey, JSON.stringify(updated));
+              try {
+                localStorage.setItem(cacheKey, JSON.stringify(updated));
+              } catch (e) {
+                console.warn('Failed to write notifications to localStorage:', e);
+              }
               return updated;
             });
           }
@@ -163,7 +176,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
       const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
-      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to write notifications to localStorage:', e);
+      }
       return updated;
     });
   }, []);
@@ -175,7 +192,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications(prev => {
       const updated = prev.map(n => ({ ...n, read: true }));
       const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
-      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to write notifications to localStorage:', e);
+      }
       return updated;
     });
     toast.success('All notifications marked as read');
@@ -197,7 +218,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications(prev => {
       const updated = [newNotif, ...prev];
       const cacheKey = `user_notifications_${targetUserId}`;
-      localStorage.setItem(cacheKey, JSON.stringify(updated));
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to write notifications to localStorage:', e);
+      }
       return updated;
     });
 

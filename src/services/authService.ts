@@ -55,7 +55,9 @@ export const authService = {
     }
 
     console.log('[handleEmailLogin] Supabase login succeeded!', data.user.id);
-    localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+    try {
+      localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+    } catch (e) {}
     
     // Perform background sync of user details
     try {
@@ -92,7 +94,9 @@ export const authService = {
     }
 
     console.log('[handleSignup] Supabase signup succeeded!', data.user.id);
-    localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+    try {
+      localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+    } catch (e) {}
 
     try {
       await supabase.from('users').insert({
@@ -163,7 +167,10 @@ export const authService = {
 
     // Client-side local WhatsApp server dispatch fallback
     if (data.client_dispatch_required) {
-      let configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      let configuredUrl = 'http://localhost:3001';
+      try {
+        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
         configuredUrl = 'http://127.0.0.1:3001';
         try {
@@ -267,8 +274,10 @@ export const authService = {
 
     // Direct local state authentication sync
     if (data.user) {
-      localStorage.setItem('frostybite_active_session_email', data.user.email);
-      localStorage.setItem('frostybite_has_active_session', 'true');
+      try {
+        localStorage.setItem('frostybite_active_session_email', data.user.email);
+        localStorage.setItem('frostybite_has_active_session', 'true');
+      } catch (e) {}
     }
     return data;
   },
@@ -289,7 +298,10 @@ export const authService = {
 
     // Client-side local WhatsApp server dispatch fallback
     if (data.client_dispatch_required) {
-      let configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      let configuredUrl = 'http://localhost:3001';
+      try {
+        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+      } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
         configuredUrl = 'http://127.0.0.1:3001';
         try {
@@ -450,8 +462,10 @@ export const authService = {
       throw new Error('Supabase login completed but no authenticated token was provided.');
     }
 
-    localStorage.setItem('frostybite_active_session_email', normalizedEmail);
-    localStorage.setItem('frostybite_has_active_session', 'true');
+    try {
+      localStorage.setItem('frostybite_active_session_email', normalizedEmail);
+      localStorage.setItem('frostybite_has_active_session', 'true');
+    } catch (e) {}
 
     // Sync profile
     try {

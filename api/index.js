@@ -1381,7 +1381,7 @@ Do not share this code with anyone.`;
         provider: "polling-queue",
         message: `Verification code queued for WhatsApp delivery.`,
         dev_otp_hint: otp,
-        client_dispatch_required: !isCloudEnv,
+        client_dispatch_required: true,
         textMessage,
         formattedPhone
       };
@@ -1435,7 +1435,7 @@ Do not share this code with anyone.`;
           provider: "polling-queue",
           message: `Verification code queued for WhatsApp delivery.`,
           dev_otp_hint: otp,
-          client_dispatch_required: !isCloudEnv,
+          client_dispatch_required: true,
           textMessage,
           formattedPhone
         };
@@ -1447,8 +1447,297 @@ Do not share this code with anyone.`;
   }
 };
 
-// server/routes/auth.routes.ts
+// server/services/otpQueue.ts
 import crypto from "crypto";
+init_supabase();
+var OtpQueueService = class _OtpQueueService {
+  // In-memory metrics for abnormal pattern detection
+  constructor() {
+    this.queue = [];
+    this.activeJobsCount = 0;
+    this.maxConcurrency = 1;
+    // Controlled concurrency to prevent spam / messaging provider block
+    // Deduplication & rate limit mappings
+    this.idempotencyStore = /* @__PURE__ */ new Map();
+    this.lastRequestTimes = /* @__PURE__ */ new Map();
+    // Recipient cooldown (prevent accidental message bursts)
+    this.ipRequestTimes = /* @__PURE__ */ new Map();
+    // IP monitoring (for abnormal traffic alerting)
+    this.systemMetrics = [];
+    setInterval(() => this.cleanupIdempotencyKeys(), 6e4);
+  }
+  static getInstance() {
+    if (!_OtpQueueService.instance) {
+      _OtpQueueService.instance = new _OtpQueueService();
+    }
+    return _OtpQueueService.instance;
+  }
+  /**
+   * Validates a phone number for format, digits, and reasonable length.
+   */
+  validatePhone(phone) {
+    const clean = phone.replace(/\D/g, "");
+    return clean.length >= 10 && clean.length <= 15;
+  }
+  /**
+   * Helper to mask recipient identifier for privacy (never log clean OTPs or raw phone numbers fully)
+   */
+  maskRecipient(recipient) {
+    if (recipient.includes("@")) {
+      const [local, domain] = recipient.split("@");
+      if (local.length <= 2) return `${local[0]}***@${domain}`;
+      return `${local.slice(0, 2)}***${local.slice(-1)}@${domain}`;
+    }
+    const clean = recipient.replace(/\D/g, "");
+    if (clean.length < 6) return "******";
+    return `+${clean.slice(0, 3)}*****${clean.slice(-3)}`;
+  }
+  /**
+   * Cleans up expired idempotency keys
+   */
+  cleanupIdempotencyKeys() {
+    const now = Date.now();
+    for (const [key, val] of this.idempotencyStore.entries()) {
+      if (now > val.expiresAt) {
+        this.idempotencyStore.delete(key);
+      }
+    }
+  }
+  /**
+   * Tracks an event metric and analyzes for abnormal traffic spikes.
+   */
+  logMetric(recipient, ip, event, error) {
+    const now = Date.now();
+    const metric = { timestamp: now, recipient, ip, event, error };
+    this.systemMetrics.push(metric);
+    if (this.systemMetrics.length > 1e3) {
+      this.systemMetrics.shift();
+    }
+    const maskedRecipient = this.maskRecipient(recipient);
+    if (error) {
+      console.warn(`[OTP System] Event: ${event.toUpperCase()} | Recipient: ${maskedRecipient} | IP: ${ip} | Error: ${error}`);
+    } else {
+      console.log(`[OTP System] Event: ${event.toUpperCase()} | Recipient: ${maskedRecipient} | IP: ${ip}`);
+    }
+    this.detectAbnormalPatterns(ip, recipient);
+  }
+  /**
+   * Detects unusual request patterns and emits high-visibility warning logs
+   */
+  detectAbnormalPatterns(ip, recipient) {
+    const now = Date.now();
+    const oneMinuteAgo = now - 6e4;
+    const fiveMinutesAgo = now - 5 * 6e4;
+    const systemRecent = this.systemMetrics.filter((m) => m.timestamp > oneMinuteAgo && m.event === "requested");
+    if (systemRecent.length > 15) {
+      console.error(`
+\u{1F6A8} ALERT: Abnormal System-Wide OTP Request Surge! Detected ${systemRecent.length} requests in the last 60 seconds.`);
+    }
+    const failuresRecent = this.systemMetrics.filter((m) => m.timestamp > fiveMinutesAgo && m.event === "failed");
+    if (failuresRecent.length > 5) {
+      console.error(`
+\u{1F6A8} ALERT: High OTP Delivery Failure Rate! ${failuresRecent.length} dispatch failures in the last 5 minutes. Check WhatsApp server status!`);
+    }
+    const ipRecent = this.systemMetrics.filter((m) => m.ip === ip && m.timestamp > fiveMinutesAgo && m.event === "requested");
+    if (ipRecent.length > 5) {
+      console.warn(`
+\u26A0\uFE0F WARNING: Suspected Bot Behavior! IP ${ip} requested OTP ${ipRecent.length} times in the last 5 minutes.`);
+    }
+  }
+  /**
+   * Registers a client request IP time-stamp to prevent rapid retries.
+   */
+  trackIpRateLimit(ip) {
+    const now = Date.now();
+    const windowMs = 5 * 60 * 1e3;
+    const maxRequests = 5;
+    let timestamps = this.ipRequestTimes.get(ip) || [];
+    timestamps = timestamps.filter((t) => now - t < windowMs);
+    timestamps.push(now);
+    this.ipRequestTimes.set(ip, timestamps);
+    return timestamps.length <= maxRequests;
+  }
+  /**
+   * Enqueues an OTP request and processes it within controlled concurrency.
+   */
+  async enqueue(recipient, type, otp, ip, idempotencyKey, payload = {}) {
+    const now = Date.now();
+    const masked = this.maskRecipient(recipient);
+    if (type === "whatsapp" && !this.validatePhone(recipient)) {
+      this.logMetric(recipient, ip, "rate_limited", "Invalid phone number format");
+      throw new Error("Please enter a valid mobile number (10 to 15 digits).");
+    }
+    const lastRequest = this.lastRequestTimes.get(recipient);
+    if (lastRequest && now - lastRequest < 6e4) {
+      const remaining = Math.ceil((6e4 - (now - lastRequest)) / 1e3);
+      this.logMetric(recipient, ip, "rate_limited", `Accidental burst blocked (cooldown active: ${remaining}s remaining)`);
+      throw new Error(`Accidental burst prevention: Please wait ${remaining} seconds before requesting another verification code.`);
+    }
+    if (!this.trackIpRateLimit(ip)) {
+      this.logMetric(recipient, ip, "rate_limited", "IP limit exceeded");
+      throw new Error("Security alert: Too many requests from this IP address. Please try again in 5 minutes.");
+    }
+    if (idempotencyKey) {
+      const existing = this.idempotencyStore.get(idempotencyKey);
+      if (existing) {
+        if (existing.status === "completed" || existing.status === "pending") {
+          console.log(`[OTP System] Deduplicated request for key: ${idempotencyKey}. Returning cached response.`);
+          return existing.response;
+        }
+      }
+      this.idempotencyStore.set(idempotencyKey, {
+        status: "pending",
+        response: null,
+        expiresAt: now + 5 * 60 * 1e3
+        // Cache key for 5 minutes
+      });
+    }
+    this.lastRequestTimes.set(recipient, now);
+    this.cancelPendingJobsForRecipient(recipient);
+    this.logMetric(recipient, ip, "requested");
+    return new Promise((resolve, reject) => {
+      const job = {
+        id: crypto.randomUUID(),
+        recipient,
+        type,
+        otp,
+        idempotencyKey,
+        ip,
+        payload,
+        retries: 0,
+        status: "pending",
+        createdAt: now,
+        resolve,
+        reject
+      };
+      this.queue.push(job);
+      this.processNext();
+    });
+  }
+  /**
+   * Cancels any pending or processing jobs for a specific recipient to avoid multiple delivery runs
+   */
+  cancelPendingJobsForRecipient(recipient) {
+    let cancelledCount = 0;
+    this.queue = this.queue.map((job) => {
+      if (job.recipient === recipient && (job.status === "pending" || job.status === "processing")) {
+        job.status = "cancelled";
+        cancelledCount++;
+        if (job.reject) {
+          job.reject(new Error("Job cancelled because a newer OTP request was initiated."));
+        }
+        this.logMetric(recipient, job.ip, "cancelled", "Cancelled by newer OTP request");
+      }
+      return job;
+    });
+    if (cancelledCount > 0) {
+      console.log(`[OTP System] Cancelled ${cancelledCount} older pending OTP jobs for recipient: ${this.maskRecipient(recipient)}`);
+    }
+  }
+  /**
+   * Processes the next pending job in the queue respecting concurrency rules
+   */
+  async processNext() {
+    if (this.activeJobsCount >= this.maxConcurrency) {
+      return;
+    }
+    const jobIndex = this.queue.findIndex((j) => j.status === "pending");
+    if (jobIndex === -1) {
+      return;
+    }
+    const job = this.queue[jobIndex];
+    job.status = "processing";
+    this.activeJobsCount++;
+    try {
+      const result = await this.executeJobWithBackoff(job);
+      job.status = "completed";
+      if (job.idempotencyKey) {
+        this.idempotencyStore.set(job.idempotencyKey, {
+          status: "completed",
+          response: result,
+          expiresAt: Date.now() + 5 * 60 * 1e3
+        });
+      }
+      this.logMetric(job.recipient, job.ip, "sent");
+      if (job.resolve) job.resolve(result);
+    } catch (err) {
+      job.status = "failed";
+      job.error = err.message;
+      if (job.idempotencyKey) {
+        this.idempotencyStore.set(job.idempotencyKey, {
+          status: "failed",
+          response: { success: false, error: err.message },
+          expiresAt: Date.now() + 5 * 60 * 1e3
+        });
+      }
+      this.logMetric(job.recipient, job.ip, "failed", err.message);
+      if (job.reject) job.reject(err);
+    } finally {
+      this.activeJobsCount--;
+      const idx = this.queue.indexOf(job);
+      if (idx !== -1) {
+        this.queue.splice(idx, 1);
+      }
+      this.processNext();
+    }
+  }
+  /**
+   * Executes the dispatch logic with custom exponential backoff retries for transient failures.
+   */
+  async executeJobWithBackoff(job) {
+    const maxRetries = 3;
+    while (job.retries < maxRetries) {
+      try {
+        if (job.status === "cancelled") {
+          throw new Error("Job cancelled");
+        }
+        if (job.type === "whatsapp") {
+          const result = await WhatsAppService.sendOtpWhatsApp(job.recipient, job.otp);
+          return result;
+        } else {
+          const { error } = await supabase.auth.signInWithOtp({
+            email: job.recipient
+          });
+          if (error) {
+            throw error;
+          }
+          return { success: true, message: "Email OTP dispatched" };
+        }
+      } catch (err) {
+        job.retries++;
+        if (job.retries >= maxRetries || job.status === "cancelled") {
+          throw err;
+        }
+        const backoffDelay = Math.pow(2, job.retries) * 1e3;
+        console.warn(`[OTP Queue] Dispatch failed for ${this.maskRecipient(job.recipient)} (Attempt ${job.retries}/${maxRetries}). Retrying in ${backoffDelay}ms... Error: ${err.message}`);
+        await new Promise((res) => setTimeout(res, backoffDelay));
+      }
+    }
+  }
+  /**
+   * Exposes monitoring diagnostic metrics for alerting and dashboards.
+   */
+  getDiagnostics() {
+    const now = Date.now();
+    const systemRecent = this.systemMetrics.filter((m) => now - m.timestamp < 30 * 60 * 1e3);
+    return {
+      activeJobs: this.activeJobsCount,
+      queueLength: this.queue.filter((j) => j.status === "pending").length,
+      metricsCount: this.systemMetrics.length,
+      recentMetrics: systemRecent.map((m) => ({
+        timestamp: new Date(m.timestamp).toISOString(),
+        recipient: this.maskRecipient(m.recipient),
+        ip: m.ip,
+        event: m.event,
+        error: m.error
+      })),
+      idempotencyKeysCount: this.idempotencyStore.size
+    };
+  }
+};
+
+// server/routes/auth.routes.ts
+import crypto2 from "crypto";
 function normalizePhone(phone) {
   const clean = phone.replace(/\D/g, "");
   if (clean.length === 11 && clean.startsWith("0")) {
@@ -1462,6 +1751,70 @@ function normalizePhone(phone) {
 var router3 = express.Router();
 var ipRateLimits = /* @__PURE__ */ new Map();
 var mobileOtps = /* @__PURE__ */ new Map();
+var otpDailyLimitsMemory = /* @__PURE__ */ new Map();
+function getUtcDateString() {
+  const d = /* @__PURE__ */ new Date();
+  return d.toISOString().split("T")[0];
+}
+async function checkAndIncrementOtpLimit(identifier) {
+  const cleanId = identifier.trim().toLowerCase();
+  const currentDateStr = getUtcDateString();
+  const now = Date.now();
+  const memLimit = otpDailyLimitsMemory.get(cleanId);
+  if (memLimit) {
+    if (memLimit.dateStr === currentDateStr) {
+      if (memLimit.count >= 3) {
+        return { allowed: false, count: memLimit.count };
+      }
+    } else {
+      otpDailyLimitsMemory.set(cleanId, { count: 0, dateStr: currentDateStr });
+    }
+  }
+  let dbCount = 0;
+  let hasDbRecord = false;
+  try {
+    const { data, error } = await supabase.from("otps").select("*").eq("email", cleanId).maybeSingle();
+    if (!error && data) {
+      hasDbRecord = true;
+      const lastRequestDate = data.last_request_at ? new Date(Number(data.last_request_at)).toISOString().split("T")[0] : "";
+      if (lastRequestDate === currentDateStr) {
+        dbCount = data.request_count || 0;
+      } else {
+        dbCount = 0;
+      }
+    }
+  } catch (err) {
+    console.warn("[checkAndIncrementOtpLimit] DB read failed, relying on memory fallback:", err.message);
+  }
+  const currentCount = Math.max(dbCount, memLimit?.dateStr === currentDateStr ? memLimit.count : 0);
+  if (currentCount >= 3) {
+    otpDailyLimitsMemory.set(cleanId, { count: currentCount, dateStr: currentDateStr });
+    return { allowed: false, count: currentCount };
+  }
+  const newCount = currentCount + 1;
+  otpDailyLimitsMemory.set(cleanId, { count: newCount, dateStr: currentDateStr });
+  try {
+    if (hasDbRecord) {
+      await supabase.from("otps").update({
+        request_count: newCount,
+        last_request_at: now,
+        otp: "rate-limit-dummy",
+        expires_at: now + 5 * 60 * 1e3
+      }).eq("email", cleanId);
+    } else {
+      await supabase.from("otps").insert({
+        email: cleanId,
+        otp: "rate-limit-dummy",
+        expires_at: now + 5 * 60 * 1e3,
+        request_count: newCount,
+        last_request_at: now
+      });
+    }
+  } catch (err) {
+    console.warn("[checkAndIncrementOtpLimit] DB write failed:", err.message);
+  }
+  return { allowed: true, count: newCount };
+}
 router3.post("/sync", async (req, res) => {
   const { idToken, markVerified, userProfile } = req.body;
   if (!idToken && !userProfile) return res.status(400).json({ error: "Auth token or user profile required" });
@@ -1620,14 +1973,14 @@ router3.post("/reset-password", async (req, res) => {
 });
 var whatsappOtpsMemory = /* @__PURE__ */ new Map();
 function hashOtp(otp) {
-  return crypto.createHash("sha256").update(otp).digest("hex");
+  return crypto2.createHash("sha256").update(otp).digest("hex");
 }
 async function saveWhatsAppOtp(phone, otp) {
   const cleanPhone = normalizePhone(phone);
   const hashedOtp = hashOtp(otp);
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1e3).toISOString();
+  const expiresAt = new Date(Date.now() + 3 * 60 * 1e3).toISOString();
   const createdAt = (/* @__PURE__ */ new Date()).toISOString();
-  const id = crypto.randomUUID();
+  const id = crypto2.randomUUID();
   try {
     await supabase.from("whatsapp_otps").delete().eq("phone_number", cleanPhone);
     await supabase.from("whatsapp_otps").insert({
@@ -1694,7 +2047,7 @@ async function deleteWhatsAppOtp(phone) {
   whatsappOtpsMemory.delete(cleanPhone);
 }
 router3.post("/send-otp", async (req, res) => {
-  const { phone, isSignup, email, name, password } = req.body;
+  const { phone, isSignup, email, name, password, idempotencyKey } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Mobile phone number is required." });
   }
@@ -1702,6 +2055,13 @@ router3.post("/send-otp", async (req, res) => {
     const cleanPhone = normalizePhone(phone);
     if (cleanPhone.length < 10) {
       return res.status(400).json({ error: "Please enter a valid 10-digit mobile number." });
+    }
+    const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: "Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow."
+      });
     }
     const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "127.0.0.1";
     const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === "string" ? rawIp.split(",")[0].trim() : String(rawIp)).replace(/[^a-zA-Z0-9.-:_]/g, "_");
@@ -1763,7 +2123,8 @@ router3.post("/send-otp", async (req, res) => {
     const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
     const otpPayload = {
       otp,
-      expires_at: Date.now() + 5 * 60 * 1e3,
+      expires_at: Date.now() + 3 * 60 * 1e3,
+      // 3 minutes expiration
       email: isRegistrationFlow && email ? email.trim().toLowerCase() : dbUser ? dbUser.email : `${cleanPhone}@frostybite.temp`
     };
     if (isRegistrationFlow) {
@@ -1775,7 +2136,15 @@ router3.post("/send-otp", async (req, res) => {
     }
     mobileOtps.set(cleanPhone, otpPayload);
     await saveWhatsAppOtp(cleanPhone, otp);
-    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
+    const queueService = OtpQueueService.getInstance();
+    const waResult = await queueService.enqueue(
+      cleanPhone,
+      "whatsapp",
+      otp,
+      clientIp,
+      idempotencyKey,
+      otpPayload
+    );
     return res.json({
       success: true,
       message: waResult.message,
@@ -1885,12 +2254,19 @@ router3.post("/verify-otp", async (req, res) => {
   }
 });
 router3.post("/resend-otp", async (req, res) => {
-  const { phone } = req.body;
+  const { phone, idempotencyKey } = req.body;
   if (!phone) {
     return res.status(400).json({ error: "Phone number is required." });
   }
   try {
     const cleanPhone = normalizePhone(phone);
+    const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: "Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow."
+      });
+    }
     await deleteWhatsAppOtp(cleanPhone);
     mobileOtps.delete(cleanPhone);
     const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
@@ -1900,11 +2276,22 @@ router3.post("/resend-otp", async (req, res) => {
     const otpPayload = {
       ...existingMetadata,
       otp,
-      expires_at: Date.now() + 5 * 60 * 1e3
+      expires_at: Date.now() + 3 * 60 * 1e3
+      // 3 minutes expiration
     };
     mobileOtps.set(cleanPhone, otpPayload);
     await saveWhatsAppOtp(cleanPhone, otp);
-    const waResult = await WhatsAppService.sendOtpWhatsApp(cleanPhone, otp);
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "127.0.0.1";
+    const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === "string" ? rawIp.split(",")[0].trim() : String(rawIp)).replace(/[^a-zA-Z0-9.-:_]/g, "_");
+    const queueService = OtpQueueService.getInstance();
+    const waResult = await queueService.enqueue(
+      cleanPhone,
+      "whatsapp",
+      otp,
+      clientIp,
+      idempotencyKey,
+      otpPayload
+    );
     return res.json({
       success: true,
       message: "A fresh WhatsApp verification code has been dispatched!",
@@ -1942,6 +2329,46 @@ router3.post("/send-mobile-otp", async (req, res) => {
 router3.post("/verify-mobile-otp", async (req, res) => {
   console.log("[AuthRoutes] Legacy verify-mobile-otp route redirecting to /verify-otp");
   return req.app._router.handle(req, res);
+});
+router3.post("/send-email-otp", async (req, res) => {
+  const { email, idempotencyKey } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Email is required." });
+  }
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const limitCheck = await checkAndIncrementOtpLimit(normalizedEmail);
+    if (!limitCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: "Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow."
+      });
+    }
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || "127.0.0.1";
+    const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === "string" ? rawIp.split(",")[0].trim() : String(rawIp)).replace(/[^a-zA-Z0-9.-:_]/g, "_");
+    const queueService = OtpQueueService.getInstance();
+    await queueService.enqueue(
+      normalizedEmail,
+      "email",
+      "",
+      // Supabase generates its own OTP internally for email
+      clientIp,
+      idempotencyKey,
+      {}
+    );
+    return res.json({ success: true, message: "OTP verification code sent successfully to your email." });
+  } catch (err) {
+    console.error("[send-email-otp] Exception:", err.message || err);
+    return res.status(500).json({ error: err.message || "An unexpected error occurred while dispatching email OTP." });
+  }
+});
+router3.get("/otp-diagnostics", (req, res) => {
+  try {
+    const diagnostics = OtpQueueService.getInstance().getDiagnostics();
+    return res.json({ success: true, diagnostics });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 var auth_routes_default = router3;
 
@@ -2437,7 +2864,7 @@ var notification_routes_default = router5;
 import express4 from "express";
 import fs2 from "fs";
 import path2 from "path";
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 init_supabase();
 var router6 = express4.Router();
 var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -2450,8 +2877,8 @@ var LEGACY_ZONE_MAPPINGS = {
   "zone_puri": "Puri"
 };
 function generateUUID() {
-  if (typeof crypto2.randomUUID === "function") {
-    return crypto2.randomUUID();
+  if (typeof crypto3.randomUUID === "function") {
+    return crypto3.randomUUID();
   }
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;

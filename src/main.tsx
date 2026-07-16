@@ -18,17 +18,26 @@ function Loader() {
 
 /* ---------------- PREVENT REFRESH LOOPS ---------------- */
 
-const lastReload = sessionStorage.getItem('lastReload');
+let lastReload: string | null = null;
+try {
+  lastReload = sessionStorage.getItem('lastReload');
+} catch (e) {
+  console.warn('sessionStorage is blocked or disabled:', e);
+}
 
 function safeReload() {
   const now = Date.now();
 
-  if (!lastReload || now - Number(lastReload) > 10000) {
-    sessionStorage.setItem('lastReload', now.toString());
-
+  try {
+    if (!lastReload || now - Number(lastReload) > 10000) {
+      sessionStorage.setItem('lastReload', now.toString());
+      window.location.reload();
+    } else {
+      console.warn('Refresh loop prevented');
+    }
+  } catch (e) {
+    console.warn('safeReload was unable to write to sessionStorage:', e);
     window.location.reload();
-  } else {
-    console.warn('Refresh loop prevented');
   }
 }
 
