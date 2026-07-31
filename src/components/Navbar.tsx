@@ -19,6 +19,15 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   const { config } = useAppConfig();
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [bounceKey, setBounceKey] = useState(0);
+
+  useEffect(() => {
+    const handleCartBounce = () => {
+      setBounceKey(prev => prev + 1);
+    };
+    window.addEventListener('cart-bounce', handleCartBounce);
+    return () => window.removeEventListener('cart-bounce', handleCartBounce);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -247,8 +256,8 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   className="relative p-2 text-muted hover:text-primary transition-colors focus:outline-none"
                 >
                   <motion.div
-                    key={totalItems}
-                    animate={{ scale: [1, 1.25, 0.95, 1.05, 1], rotate: [0, -8, 8, -4, 0] }}
+                    key={`${totalItems}-${bounceKey}`}
+                    animate={{ scale: [1, 1.35, 0.9, 1.1, 1], rotate: [0, -12, 12, -6, 0] }}
                     transition={{ duration: 0.5, ease: "easeInOut" }}
                     className="flex items-center justify-center"
                   >

@@ -123,11 +123,16 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       return;
     }
 
-    // Fire the flying cart event with mouse coordinates
+    // Fire the flying cart event with precise coordinates
+    const targetEl = e.currentTarget as HTMLElement;
+    const rect = targetEl ? targetEl.getBoundingClientRect() : null;
+    const startX = e.clientX && e.clientX > 0 ? e.clientX : (rect ? rect.left + rect.width / 2 : window.innerWidth / 2);
+    const startY = e.clientY && e.clientY > 0 ? e.clientY : (rect ? rect.top + rect.height / 2 : window.innerHeight / 2);
+
     window.dispatchEvent(new CustomEvent('add-to-cart-fly', {
       detail: {
-        startX: e.clientX,
-        startY: e.clientY,
+        startX,
+        startY,
         image: item.image
       }
     }));
@@ -192,19 +197,23 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
 
   return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 12 }}
+        animate={isFlying ? {
+          scale: [1, 0.96, 1.03, 1],
+          rotate: [0, -1.2, 1.2, 0],
+          borderColor: ["rgba(255,255,255,0.05)", "rgba(249,115,22,0.8)", "rgba(255,255,255,0.05)"]
+        } : { opacity: 1, y: 0, scale: 1 }}
         whileHover={!isTouchDevice ? { 
-          y: -10, 
-          scale: 1.03,
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.6)",
-          borderColor: "rgba(249,115,22,0.4)"
+          y: -8, 
+          scale: 1.025,
+          boxShadow: "0 25px 50px -12px rgba(249,115,22,0.25)",
+          borderColor: "rgba(249,115,22,0.35)"
         } : undefined}
-        transition={!isTouchDevice ? { 
+        transition={{ 
           type: "spring", 
-          stiffness: 300, 
-          damping: 18 
-        } : { duration: 0.2, ease: "easeOut" }}
+          stiffness: 350, 
+          damping: 22 
+        }}
         className={cn(
           "group relative bg-white/5 overflow-hidden border border-white/5 transition-all shadow-xl cursor-pointer",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"

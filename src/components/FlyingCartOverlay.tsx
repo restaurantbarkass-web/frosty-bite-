@@ -48,6 +48,7 @@ export const FlyingCartOverlay: React.FC = () => {
 
   const handleAnimationComplete = (id: string) => {
     setParticles(prev => prev.filter(p => p.id !== id));
+    window.dispatchEvent(new CustomEvent('cart-bounce'));
   };
 
   return (

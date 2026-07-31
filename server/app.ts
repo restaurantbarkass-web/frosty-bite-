@@ -206,6 +206,83 @@ app.use("/delivery-areas", deliveryareasRoutes);
 app.use("/reviews", reviewsRoutes);
 app.use("/search", searchRoutes);
 
+// Real-time order status endpoints
+app.get("/orders/:orderId/status", async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId parameter" });
+  }
+
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[App] Error fetching status for order ${orderId}:`, error);
+      return res.status(500).json({ error: "Supabase database error", details: error.message });
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    return res.json({
+      orderId: order.id,
+      status: order.status || "pending",
+      payment_status: order.payment_status || "pending",
+      estimated_delivery_time: order.estimated_delivery_time || null,
+      estimated_arrival: order.estimated_arrival || null,
+      updated_at: order.updated_at,
+      order: order
+    });
+  } catch (err: any) {
+    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
+
+app.get("/order-status/:orderId", async (req: Request, res: Response) => {
+  const { orderId } = req.params;
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId parameter" });
+  }
+
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[App] Error fetching status for order ${orderId}:`, error);
+      return res.status(500).json({ error: "Supabase database error", details: error.message });
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    return res.json({
+      orderId: order.id,
+      status: order.status || "pending",
+      payment_status: order.payment_status || "pending",
+      estimated_delivery_time: order.estimated_delivery_time || null,
+      estimated_arrival: order.estimated_arrival || null,
+      updated_at: order.updated_at,
+      order: order
+    });
+  } catch (err: any) {
+    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
+
 // Safe mask for keys
 const maskKey = (key: any) => {
   if (!key || typeof key !== "string") return "not-set";

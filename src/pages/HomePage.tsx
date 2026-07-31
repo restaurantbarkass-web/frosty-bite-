@@ -534,18 +534,31 @@ export const Home: React.FC = () => {
 
         {/* Categories */}
         <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4">
-          {menuCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                "whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-all text-xs sm:text-sm",
-                selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "glass-dark text-muted hover:text-white"
-              )}
-            >
-              {cat === 'All' ? 'All Items' : cat}
-            </button>
-          ))}
+          {menuCategories.map((cat) => {
+            const isSelected = selectedCategory === cat;
+            return (
+              <motion.button
+                key={cat}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "relative whitespace-nowrap px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-bold transition-colors text-xs sm:text-sm z-10",
+                  isSelected ? "text-white" : "glass-dark text-muted hover:text-white"
+                )}
+              >
+                {isSelected && (
+                  <motion.div
+                    layoutId="category-active-bg"
+                    className="absolute inset-0 bg-primary rounded-xl sm:rounded-2xl shadow-lg shadow-primary/25 -z-10"
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  />
+                )}
+                <span>{cat === 'All' ? 'All Items' : cat}</span>
+              </motion.button>
+            );
+          })}
         </div>
 
         {/* Previous Favorites */}
@@ -615,44 +628,51 @@ export const Home: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4">
               {/* Dietary Filters */}
               <div className="bg-white/5 border border-white/5 rounded-2xl p-1.5 flex items-center space-x-1">
-                <button
-                  type="button"
-                  onClick={() => setDietaryFilter('All')}
-                  className={cn(
-                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all",
-                    dietaryFilter === 'All'
-                      ? "bg-primary text-white shadow-md shadow-primary/20"
-                      : "text-zinc-400 hover:text-white"
-                  )}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDietaryFilter('Vegetarian')}
-                  className={cn(
-                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all",
-                    dietaryFilter === 'Vegetarian'
-                      ? "bg-green-600 text-white shadow-md shadow-green-600/20"
-                      : "text-zinc-400 hover:text-green-400"
-                  )}
-                >
-                  <Leaf size={12} className={dietaryFilter === 'Vegetarian' ? 'animate-pulse' : ''} />
-                  Vegetarian
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDietaryFilter('Spicy')}
-                  className={cn(
-                    "px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center gap-1.5 transition-all",
-                    dietaryFilter === 'Spicy'
-                      ? "bg-red-600 text-white shadow-md shadow-red-600/20"
-                      : "text-zinc-400 hover:text-red-500"
-                  )}
-                >
-                  <Flame size={12} className={dietaryFilter === 'Spicy' ? 'animate-bounce' : ''} />
-                  Spicy
-                </button>
+                {[
+                  { id: 'All', label: 'All', icon: null },
+                  { id: 'Vegetarian', label: 'Vegetarian', icon: Leaf },
+                  { id: 'Spicy', label: 'Spicy', icon: Flame },
+                ].map((filter) => {
+                  const isSelected = dietaryFilter === filter.id;
+                  const Icon = filter.icon;
+                  return (
+                    <motion.button
+                      key={filter.id}
+                      type="button"
+                      whileHover={{ scale: 1.05, y: -1 }}
+                      whileTap={{ scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      onClick={() => setDietaryFilter(filter.id as any)}
+                      className={cn(
+                        "relative px-3.5 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors flex items-center gap-1.5 z-10",
+                        isSelected
+                          ? "text-white"
+                          : filter.id === 'Vegetarian'
+                            ? "text-zinc-400 hover:text-green-400"
+                            : filter.id === 'Spicy'
+                              ? "text-zinc-400 hover:text-red-500"
+                              : "text-zinc-400 hover:text-white"
+                      )}
+                    >
+                      {isSelected && (
+                        <motion.div
+                          layoutId="dietary-active-bg"
+                          className={cn(
+                            "absolute inset-0 rounded-xl shadow-md -z-10",
+                            filter.id === 'Vegetarian'
+                              ? "bg-green-600 shadow-green-600/20"
+                              : filter.id === 'Spicy'
+                                ? "bg-red-600 shadow-red-600/20"
+                                : "bg-primary shadow-primary/20"
+                          )}
+                          transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        />
+                      )}
+                      {Icon && <Icon size={12} className={isSelected && filter.id === 'Vegetarian' ? 'animate-pulse' : isSelected && filter.id === 'Spicy' ? 'animate-bounce' : ''} />}
+                      <span>{filter.label}</span>
+                    </motion.button>
+                  );
+                })}
               </div>
 
               {/* Sort Dropdown */}

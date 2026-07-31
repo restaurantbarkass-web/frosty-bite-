@@ -111,7 +111,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('New Order Received!', {
                 body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
-                icon: '/logo.png'
+                icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
               });
             }
 

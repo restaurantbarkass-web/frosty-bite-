@@ -28,6 +28,7 @@ import { supabase } from '../supabase';
 import confetti from 'canvas-confetti';
 import { FeatureComingSoon } from '../components/FeatureComingSoon';
 import { OtpSuccessAnimation } from '../components/OtpSuccessAnimation';
+import { LoadingScreen } from '../components/LoadingScreen';
 import gsap from 'gsap';
 
 const normalizePhone = (phone: string): string => {
@@ -1122,6 +1123,10 @@ export const Login: React.FC = () => {
       }
     }
   };
+
+  if (user && step !== 'location') {
+    return <LoadingScreen message="Welcome back! Redirecting..." />;
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#040405] text-white select-none">

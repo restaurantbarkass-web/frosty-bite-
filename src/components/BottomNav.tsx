@@ -19,6 +19,14 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
+    const handleCartBounce = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+    window.addEventListener('cart-bounce', handleCartBounce);
+    return () => window.removeEventListener('cart-bounce', handleCartBounce);
+  }, []);
+
+  useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         setRefreshKey((prev) => prev + 1);

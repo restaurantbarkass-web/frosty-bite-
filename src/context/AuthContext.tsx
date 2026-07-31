@@ -312,7 +312,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!hasPotentialSession) {
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+          if (key && (key.startsWith('sb-') || key.includes('firebase')) && key.endsWith('-auth-token')) {
             hasPotentialSession = true;
             break;
           }
@@ -320,7 +320,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (e) {}
 
-    const delay = 4000;
+    // Immediately resolve initial auth state on mount
+    resolveAndSyncUser();
+
+    // If there's no potential session stored, end loading state fast
+    if (!hasPotentialSession) {
+      if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
+      if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
+      setLoading(false);
+    }
+
+    const delay = hasPotentialSession ? 1200 : 400;
 
     const timeoutId = setTimeout(() => {
       console.log(`[UnifiedAuth] Safety timeout reached (${delay}ms), forcing loading false`);

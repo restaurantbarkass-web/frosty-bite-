@@ -194,7 +194,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
         if (Notification.permission === 'granted') {
           new Notification('New Order Received!', {
             body: `${order.customer_name} placed an order for ₹${order.total}`,
-            icon: '/logo.png' 
+            icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg' 
           });
         }
       });

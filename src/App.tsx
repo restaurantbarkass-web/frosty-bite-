@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { GeofenceProvider, useGeofence } from './context/GeofenceContext';
@@ -121,6 +121,15 @@ const PageLoader = () => (
     </div>
   </div>
 );
+
+const CartPageRoute: React.FC = () => {
+  const { setIsCartOpen } = useCart();
+  useEffect(() => {
+    setIsCartOpen(true);
+  }, [setIsCartOpen]);
+
+  return <Home />;
+};
 
 function AppContent() {
   const { user, isVerified, isAdmin, loading } = useAuth();
@@ -427,13 +436,13 @@ function AppContent() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 0, y: 8 } : { opacity: 0, filter: "blur(4px)" }}
-              animate={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 1, y: 0 } : { opacity: 1, filter: "blur(0px)" }}
-              exit={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { opacity: 0, y: -8 } : { opacity: 0, filter: "blur(4px)" }}
-              transition={typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) ? { duration: 0.2, ease: "easeOut" } : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               className="flex-1 flex flex-col w-full h-full"
             >
-              <Routes>
+              <Routes location={location}>
                 {!user ? (
                   <>
                     <Route path="/forgot-password" element={<LocalErrorBoundary fallbackName="Forgot Password Page"><ForgotPassword /></LocalErrorBoundary>} />
@@ -444,10 +453,15 @@ function AppContent() {
                   <>
                     <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
                     <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                    <Route path="/cart" element={
+                      <LocalErrorBoundary fallbackName="Cart Page">
+                        <CartPageRoute />
+                      </LocalErrorBoundary>
+                    } />
                     {/* Logged-in users are forwarded instantly without page flashing or redirections */}
-                    <Route path="/login" element={isAdmin ? <AdminLayout /> : <Home />} />
-                    <Route path="/signup" element={isAdmin ? <AdminLayout /> : <Home />} />
-                    <Route path="/forgot-password" element={<LocalErrorBoundary fallbackName="Forgot Password Page"><ForgotPassword /></LocalErrorBoundary>} />
+                    <Route path="/login" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
+                    <Route path="/signup" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
+                    <Route path="/forgot-password" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
                     <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
                     <Route path="/checkout" element={
                       <ProtectedRoute>
