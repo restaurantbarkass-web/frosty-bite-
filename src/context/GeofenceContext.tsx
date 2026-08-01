@@ -86,17 +86,17 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Reverse geocoding states and manual pincode unlock override state
   const [unlockedPincode, setUnlockedPincode] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('frostybite_unlocked_pincode');
+      return localStorage.getItem('frostybite_unlocked_pincode') || '753001';
     } catch {
-      return null;
+      return '753001';
     }
   });
 
   const [detectedCity, setDetectedCity] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('frostybite_detected_city');
+      return localStorage.getItem('frostybite_detected_city') || 'Cuttack';
     } catch {
-      return null;
+      return 'Cuttack';
     }
   });
 
@@ -308,15 +308,28 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     const options: PositionOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
+      enableHighAccuracy: false,
+      timeout: 2500,
+      maximumAge: 300000,
     };
 
     return new Promise<void>((resolve) => {
+      let resolved = false;
+      const safeResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          setIsCheckingPosition(false);
+          resolve();
+        }
+      };
+
+      // Safety timer so loading screen never hangs
+      const safetyTimer = setTimeout(safeResolve, 1500);
+
       try {
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            clearTimeout(safetyTimer);
             setPermissionState('granted');
             const { latitude, longitude, accuracy } = position.coords;
             setUserCoords({ latitude, longitude });
@@ -324,7 +337,9 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
             const isSuspicious = accuracy <= 0.01;
             setIsMockLocationDetected(isSuspicious);
 
-            // Reverse geocoding and accessibility checks using OpenStreetMap and delivery_pincodes
+            safeResolve();
+
+            // Reverse geocoding in background
             fetchReverseGeocode(latitude, longitude).then(async (geo) => {
               if (geo) {
                 setDetectedCity(geo.city || null);
@@ -355,13 +370,12 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
                   }
                 }
               }
-              resolve();
             }).catch((err) => {
               console.error('[Geofence] Reverse geocode error inside geolocation callback:', err);
-              resolve();
             });
           },
           (error) => {
+            clearTimeout(safetyTimer);
             console.warn('[GeofenceProvider] Geolocation query failed:', error);
             if (error.code === error.PERMISSION_DENIED) {
               setPermissionState('denied');
@@ -373,15 +387,16 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
             } else {
               setErrorMessage('An unexpected error occurred while verifying location coordinates.');
             }
-            resolve();
+            safeResolve();
           },
           options
         );
       } catch (err: any) {
+        clearTimeout(safetyTimer);
         console.warn('[GeofenceProvider] Synchronous error calling getCurrentPosition (possibly blocked by iframe feature policy):', err);
         setPermissionState('unsupported');
         setErrorMessage('Geolocation access is restricted or unsupported in this view.');
-        resolve();
+        safeResolve();
       }
     });
   }, [fetchReverseGeocode, checkPincodeAvailability]);

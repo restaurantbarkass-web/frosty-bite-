@@ -57,7 +57,7 @@ async function lookupLiveOrder(searchTerm: string): Promise<any | null> {
 }
 
 /**
- * Main chat handler utilizing gemini-3.5-flash with JSON system instructions
+ * Main chat handler utilizing gemini-3.1-flash-lite with JSON system instructions for low latency
  */
 export async function getButlerChatResponse(
   userInput: string,
@@ -193,9 +193,9 @@ You MUST return ONLY a valid raw JSON object. Do not enclose it in any markdown 
       parts: [{ text: userInput }]
     });
 
-    // Invoke Gemini 3.5 Flash
+    // Invoke Gemini 3.1 Flash Lite for ultra low-latency AI responses
     const aiResponse = await genAI.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: geminiContents,
       config: {
         systemInstruction,

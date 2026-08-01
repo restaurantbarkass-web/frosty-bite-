@@ -30,8 +30,8 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, loading: authLoading, refreshProfile } = useAuth();
   const { isLoading: configLoading, config } = useConfig();
   
-  const [bootState, setBootState] = useState<BootState>(BootState.BOOTING);
-  const [progress, setProgress] = useState(0);
+  const [bootState, setBootState] = useState<BootState>(BootState.READY);
+  const [progress, setProgress] = useState(100);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const [cachedProducts, setCachedProducts] = useState<FoodItem[]>([]);
@@ -68,77 +68,52 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
           img.src = src;
         });
 
-        // --- STEP 2: CHECKING AUTH & SESSION RESTORATION ---
-        if (!active) return;
-        setBootState(BootState.CHECKING_AUTH);
-        setProgress(35);
-
-        // We wait for authLoading to resolve (which is already parallelized in AuthProvider)
-        // If it takes too long, we fall back gracefully or wait
-        while (authLoading) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Fast race for auth and config initialization (max 200ms wait)
+        let authWait = 0;
+        while (authLoading && authWait < 200) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+          authWait += 20;
         }
-
-        // --- STEP 3: CHECKING PROFILE & ROLES ---
-        if (!active) return;
-        setBootState(BootState.CHECKING_PROFILE);
-        setProgress(55);
 
         if (user) {
-          console.log('[BootManager] Authenticated user detected. Syncing profile, rewards, and favorites...');
-          // Refresh / Sync profile just to make sure we have the latest roles/privileges
-          await refreshProfile().catch(err => {
+          // Fire profile refresh in background without blocking boot
+          refreshProfile().catch(err => {
             console.warn('[BootManager] Silent profile refresh warning:', err);
           });
-        } else {
-          console.log('[BootManager] No active user session. Initializing guest sandbox.');
         }
 
-        // --- STEP 4: CHECKING SETTINGS & CONFIGS ---
-        if (!active) return;
-        setBootState(BootState.CHECKING_SETTINGS);
-        setProgress(75);
-
-        // Ensure remote settings are loaded
-        while (configLoading || !config) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        let configWait = 0;
+        while ((configLoading || !config) && configWait < 200) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+          configWait += 20;
         }
 
-        // --- STEP 5: WARMING UP LOCAL CACHE & API RESPONSES ---
-        if (!active) return;
-        setBootState(BootState.CHECKING_CACHE);
-        setProgress(90);
-
-        // Concurrently prefetch Products, Active Offers, and Banner Images from Supabase
-        try {
-          const [productsRes, offersRes, bannersRes] = await Promise.all([
-            supabase.from('products').select('*').limit(100),
-            supabase.from('offers').select('*').eq('active', true).limit(10).maybeSingle(), // Use maybeSingle or let it fail gracefully
-            supabase.from('banners').select('*').limit(10)
-          ]);
-
+        // Fire product/offer/banner prefetch in background without blocking READY
+        Promise.all([
+          supabase.from('products').select('*').limit(100),
+          supabase.from('offers').select('*').eq('active', true).limit(10).maybeSingle(),
+          supabase.from('banners').select('*').limit(10)
+        ]).then(([productsRes, offersRes, bannersRes]) => {
+          if (!active) return;
           if (productsRes.data) {
-            // Write to localStorage cache for instant next mount
             localStorage.setItem('menu_cache', JSON.stringify(productsRes.data));
             setCachedProducts(productsRes.data);
           }
-
           if (offersRes.data) {
             setCachedOffers(Array.isArray(offersRes.data) ? offersRes.data : [offersRes.data]);
           }
-
           if (bannersRes.data) {
             setCachedBanners(bannersRes.data);
           }
-        } catch (cacheErr) {
+        }).catch(cacheErr => {
           console.warn('[BootManager] Non-blocking cache prefetch warning:', cacheErr);
-        }
+        });
 
-        // --- STEP 6: READY ---
+        // Step READY immediately!
         if (!active) return;
         setProgress(100);
         setBootState(BootState.READY);
-        console.log('[BootManager] Startup complete. All modules operational and responsive.');
+        console.log('[BootManager] Instant startup complete. Modules ready.');
 
       } catch (err: any) {
         console.error('[BootManager] Fatality in startup pipeline:', err);

@@ -22,6 +22,7 @@ if (process.env.NODE_ENV !== "production" && fs.existsSync(".env.example")) {
 }
 
 import baseApp from "./server/app";
+import { createPreloadMiddleware } from "./server/preloadConfig";
 import path from "path";
 
 const PORT = 3000;
@@ -53,6 +54,9 @@ async function startServer() {
   // Mounting baseApp which contains all /api routes
   // It's important to mount this BEFORE Vite or static middlewares
   app.use("/api", baseApp);
+
+  // Mount preload middleware for critical assets (fonts, main CSS, core JS chunks)
+  app.use(createPreloadMiddleware(distPath));
 
   let viteInstance: any = null;
 

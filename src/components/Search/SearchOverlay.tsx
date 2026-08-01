@@ -16,8 +16,30 @@ import {
   QrCode,
   Loader2,
   Camera,
-  Trash2
+  Trash2,
+  Flame,
+  Check,
+  ShoppingBag
 } from 'lucide-react';
+
+const HighlightText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
+  if (!highlight.trim()) return <span>{text}</span>;
+  const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark key={i} className="bg-primary/30 text-primary font-extrabold px-0.5 rounded-sm">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+};
 import { cn } from '../../lib/utils';
 import { FoodItem } from '../../types';
 import { useSearch } from '../../hooks/useSearch';
@@ -73,7 +95,58 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [addedItemId, setAddedItemId] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  // Compute real-time live suggestions as user types
+  const liveSuggestions = React.useMemo(() => {
+    const norm = query.toLowerCase().trim();
+    if (!norm) return { keywords: [], mostOrdered: [], directMatches: [] };
+
+    const keywordsSet = new Set<string>();
+
+    allItems.forEach(item => {
+      const name = item.name;
+      if (name.toLowerCase().includes(norm)) {
+        keywordsSet.add(name);
+      }
+      if (item.category.toLowerCase().includes(norm)) {
+        keywordsSet.add(item.category);
+      }
+      if (Array.isArray(item.tags)) {
+        item.tags.forEach(tag => {
+          if (tag.toLowerCase().includes(norm)) {
+            keywordsSet.add(tag);
+          }
+        });
+      }
+    });
+
+    const keywords = Array.from(keywordsSet).slice(0, 6);
+
+    const matchedItems = allItems.filter(item => {
+      if (item.available === false) return false;
+      const name = item.name.toLowerCase();
+      const cat = item.category.toLowerCase();
+      const desc = (item.description || '').toLowerCase();
+      const tags = (item.tags || []).map(t => t.toLowerCase());
+      return name.includes(norm) || cat.includes(norm) || desc.includes(norm) || tags.some(t => t.includes(norm));
+    });
+
+    // Most-ordered & trending items matching search term
+    const mostOrdered = matchedItems
+      .filter(item => item.is_recommended || item.is_ai_boosted || item.rating >= 4.7)
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 3);
+
+    const directMatches = matchedItems.slice(0, 5);
+
+    return {
+      keywords,
+      mostOrdered,
+      directMatches
+    };
+  }, [query, allItems]);
 
   // Scroll to top when query or results change
   useEffect(() => {
@@ -517,6 +590,187 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
               {query && (
                 <div className="space-y-8">
+                  {/* Real-time Instant Suggestions Bar (Appears as user types) */}
+                  {liveSuggestions && (liveSuggestions.keywords.length > 0 || liveSuggestions.mostOrdered.length > 0 || liveSuggestions.directMatches.length > 0) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-5 sm:p-6 bg-zinc-950/90 border border-primary/30 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden group"
+                    >
+                      {/* Background Ambient Glow */}
+                      <div className="absolute -top-10 -right-10 w-48 h-48 bg-primary/10 blur-[80px] pointer-events-none" />
+
+                      {/* Header */}
+                      <div className="flex items-center justify-between pb-3 border-b border-white/10 relative z-10">
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={16} className="text-primary animate-pulse" />
+                          <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono">
+                            Real-Time Suggestions
+                          </h3>
+                          <span className="px-2 py-0.5 bg-primary/20 border border-primary/30 text-primary text-[9px] font-black rounded-full font-mono uppercase tracking-wider">
+                            Instant
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                          Matches updated live as you type
+                        </span>
+                      </div>
+
+                      {/* 1. Keyword Auto-Complete Suggestions */}
+                      {liveSuggestions.keywords.length > 0 && (
+                        <div className="space-y-2.5 relative z-10">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5 font-mono">
+                            <Search size={12} className="text-primary" />
+                            Suggested Searches
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {liveSuggestions.keywords.map((kw, i) => (
+                              <motion.button
+                                key={i}
+                                whileHover={{ scale: 1.04 }}
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => {
+                                  setQuery(kw);
+                                  performSearch(kw);
+                                }}
+                                className="px-3.5 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 rounded-xl text-xs font-medium text-gray-200 hover:text-white transition-all flex items-center gap-2 group shadow-sm"
+                              >
+                                <HighlightText text={kw} highlight={query} />
+                                <ArrowRight size={12} className="text-gray-500 group-hover:text-primary transition-colors" />
+                              </motion.button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 2. Most Ordered / Trending Hits matching search query */}
+                      {liveSuggestions.mostOrdered.length > 0 && (
+                        <div className="space-y-3 pt-2 relative z-10 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 font-mono">
+                              <Flame size={14} className="text-amber-500 fill-amber-500/20 animate-bounce" />
+                              Most Ordered & Trending Matches
+                            </div>
+                            <span className="text-[9px] text-amber-500/80 font-mono uppercase tracking-wider">Top Customer Picks</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {liveSuggestions.mostOrdered.map((item) => (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  navigate(`/product/${item.id}`);
+                                  onClose();
+                                }}
+                                className="p-3 bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/10 hover:border-amber-500/40 rounded-2xl transition-all cursor-pointer flex items-center gap-3 group relative overflow-hidden shadow-lg"
+                              >
+                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-black flex-shrink-0 relative">
+                                  <OptimizedImage
+                                    src={item.image}
+                                    alt={item.name}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 mb-0.5">
+                                    <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-400 text-[8px] font-black rounded uppercase font-mono">
+                                      ★ {item.rating.toFixed(1)}
+                                    </span>
+                                    {item.is_recommended && (
+                                      <span className="px-1.5 py-0.2 bg-primary/20 text-primary text-[8px] font-black rounded uppercase font-mono">
+                                        Best Seller
+                                      </span>
+                                    )}
+                                  </div>
+                                  <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                    <HighlightText text={item.name} highlight={query} />
+                                  </h4>
+                                  <div className="flex items-center justify-between mt-1.5">
+                                    <span className="text-xs font-black text-primary font-mono">₹{item.price}</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        addToCart(item);
+                                        setAddedItemId(String(item.id));
+                                        setTimeout(() => setAddedItemId(null), 1500);
+                                      }}
+                                      className="px-2 py-1 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                                    >
+                                      {addedItemId === String(item.id) ? (
+                                        <>
+                                          <Check size={10} /> Added
+                                        </>
+                                      ) : (
+                                        <>+ Quick Add</>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Quick Direct Item Suggestions */}
+                      {liveSuggestions.directMatches.length > 0 && (
+                        <div className="space-y-2 pt-2 relative z-10 border-t border-white/5">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5 font-mono">
+                            <ChevronRight size={12} className="text-primary" />
+                            Direct Matches ({liveSuggestions.directMatches.length})
+                          </div>
+                          <div className="divide-y divide-white/5 rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
+                            {liveSuggestions.directMatches.map((item) => (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  navigate(`/product/${item.id}`);
+                                  onClose();
+                                }}
+                                className="p-3 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-900 flex-shrink-0">
+                                    <OptimizedImage
+                                      src={item.image}
+                                      alt={item.name}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
+                                      <HighlightText text={item.name} highlight={query} />
+                                    </div>
+                                    <div className="text-[10px] text-gray-500 truncate flex items-center gap-2">
+                                      <span className="capitalize">{item.category}</span>
+                                      <span>•</span>
+                                      <span className="text-amber-400">★ {item.rating}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <span className="text-xs font-bold text-primary font-mono">₹{item.price}</span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      addToCart(item);
+                                      setAddedItemId(String(item.id));
+                                      setTimeout(() => setAddedItemId(null), 1500);
+                                    }}
+                                    className="px-2.5 py-1 bg-white/5 hover:bg-primary/20 text-gray-300 hover:text-primary border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                  >
+                                    {addedItemId === String(item.id) ? '✓ Added' : '+ Add'}
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
                   {/* AI Processing / Best Match Section */}
                   <AnimatePresence>
                     {(isProcessingRec || smartRec) && (

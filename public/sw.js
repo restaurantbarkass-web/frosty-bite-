@@ -72,6 +72,30 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Stale-While-Revalidate strategy for API data, menu queries, and media
+  const isApiOrMenuReq = event.request.url.includes('/rest/v1/products') ||
+                         event.request.url.includes('/api/') ||
+                         event.request.destination === 'image';
+
+  if (isApiOrMenuReq) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(event.request);
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {

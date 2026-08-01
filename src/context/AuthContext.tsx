@@ -49,9 +49,30 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UnifiedUser | null>(null);
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UnifiedUser | null>(() => {
+    try {
+      const cached = localStorage.getItem('frostybite_cached_user');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return null;
+  });
+  const [role, setRole] = useState<UserRole | null>(() => {
+    try {
+      const cached = localStorage.getItem('frostybite_cached_user');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return parsed.role || 'customer';
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('frostybite_cached_user');
+    } catch (e) {
+      return true;
+    }
+  });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
@@ -134,6 +155,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentVersion !== syncVersionRef.current) return;
         setUser(null);
         setRole('customer');
+        try {
+          localStorage.removeItem('frostybite_cached_user');
+          localStorage.removeItem('frostybite_has_active_session');
+        } catch (e) {}
         return;
       }
 
@@ -293,6 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(unifiedUser.role);
         try {
           localStorage.setItem('frostybite_has_active_session', 'true');
+          localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
         } catch (e) {}
       }
     } catch (error) {
@@ -330,7 +356,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
 
-    const delay = hasPotentialSession ? 1200 : 400;
+    const delay = hasPotentialSession ? 500 : 200;
 
     const timeoutId = setTimeout(() => {
       console.log(`[UnifiedAuth] Safety timeout reached (${delay}ms), forcing loading false`);
@@ -423,6 +449,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         localStorage.removeItem('frostybite_active_session_email');
         localStorage.removeItem('frostybite_has_active_session');
+        localStorage.removeItem('frostybite_cached_user');
         const keysToRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -500,7 +527,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? <LoadingScreen /> : children}
+      {children}
       <AnimatePresence>
         {showLogoutModal && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">

@@ -218,9 +218,9 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
 
     let aiResponse: any;
     try {
-      console.log(`[RecommendationService] Calling Gemini (gemini-3.5-flash) for: "${query.substring(0, 50)}..."`);
+      console.log(`[RecommendationService] Calling Gemini (gemini-3.1-flash-lite) for: "${query.substring(0, 50)}..."`);
       aiResponse = await genAI.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
         config: {
           systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -245,7 +245,7 @@ export async function getSmartRecommendation(query: string, items: any[]): Promi
         (error && typeof error === 'object' && (error.status === 429 || error.statusCode === 429));
 
       if (isTransientOrQuota) {
-        console.log(`[RecommendationService] Cooldown triggered. Primary model (gemini-3.5-flash) quota limit reached. Using local match fallback.`);
+        console.log(`[RecommendationService] Cooldown triggered. Primary model (gemini-3.1-flash-lite) quota limit reached. Using local match fallback.`);
         quotaExhaustedUntil = Date.now() + 15 * 60 * 1000; // 15 minutes of quiet cooldown
       } else {
         console.log(`[RecommendationService] Fallback activated: parsing query locally.`);
@@ -312,7 +312,7 @@ export async function getSearchSuggestions(searchTerm: string, items: any[]): Pr
     let response: any;
     try {
       response = await genAI.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
         config: { 
           systemInstruction: "You are the Frosty Bite Butler suggestions engine.",

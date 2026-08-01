@@ -131,6 +131,14 @@ const CartPageRoute: React.FC = () => {
   return <Home />;
 };
 
+const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAdmin } = useAuth();
+  if (user) {
+    return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
+  }
+  return <>{children}</>;
+};
+
 function AppContent() {
   const { user, isVerified, isAdmin, loading } = useAuth();
   const { isCheckingPosition, isAllowed } = useGeofence();
@@ -370,20 +378,8 @@ function AppContent() {
 
   const { bootState } = useBoot();
 
-  // 1. Central Boot Manager Initialization Guard
-  if (bootState !== BootState.READY) {
-    return <IntroSplash onComplete={handleSplashComplete} />;
-  }
-
-  // 1.5. Show Onboarding Tour if the guest user hasn't seen it yet and is not on an auth page
-  if (!user && showOnboarding && !isAuthPage && !bypassLocks) {
-    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
-  }
-
-  // 2. If we are actively checking location, show full screen loading loader
-  if (isCheckingPosition && !isAdmin && !isAuthPage && !bypassLocks) {
-    return <LoadingScreen message="Sensing your delivery coordinates..." />;
-  }
+  // 1. Instant App Render (No blocking splash video)
+  // Non-blocking background sync handles boot, profile, and geofence updates.
 
   // 3. If there is no confirmed/manual active zone, show user city selector lock screen
   if (!isAllowed && !isAdmin && !isAuthPage && !bypassLocks) {
@@ -460,74 +456,75 @@ function AppContent() {
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes location={location}>
-                {!user ? (
-                  <>
-                    <Route path="/forgot-password" element={<LocalErrorBoundary fallbackName="Forgot Password Page"><ForgotPassword /></LocalErrorBoundary>} />
-                    <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
-                    <Route path="*" element={<LocalErrorBoundary fallbackName="Login Page"><Login /></LocalErrorBoundary>} />
-                  </>
-                ) : (
-                  <>
-                    <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
-                    <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
-                    <Route path="/cart" element={
-                      <LocalErrorBoundary fallbackName="Cart Page">
-                        <CartPageRoute />
-                      </LocalErrorBoundary>
-                    } />
-                    {/* Logged-in users are forwarded instantly without page flashing or redirections */}
-                    <Route path="/login" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
-                    <Route path="/signup" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
-                    <Route path="/forgot-password" element={<Navigate to={isAdmin ? "/admin" : "/"} replace />} />
-                    <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
-                    <Route path="/checkout" element={
-                      <ProtectedRoute>
-                        <LocalErrorBoundary fallbackName="Checkout Page">
-                          <Checkout />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/upi-checkout/:orderId" element={
-                      <ProtectedRoute>
-                        <LocalErrorBoundary fallbackName="UPI Checkout Page">
-                          <UPICheckout />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
-                    <Route path="/admin/*" element={
-                      <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
-                        <LocalErrorBoundary fallbackName="Admin Control Panel">
-                          <AdminLayout />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/profile" element={
-                      <ProtectedRoute>
-                        <LocalErrorBoundary fallbackName="User Profile Page">
-                          <Profile />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/orders" element={
-                      <ProtectedRoute>
-                        <LocalErrorBoundary fallbackName="Your Orders Page">
-                          <Orders />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/notifications" element={
-                      <ProtectedRoute>
-                        <LocalErrorBoundary fallbackName="Notifications Page">
-                          <Notifications />
-                        </LocalErrorBoundary>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/offers" element={<LocalErrorBoundary fallbackName="Offers Page"><Offers /></LocalErrorBoundary>} />
-                    <Route path="/product/:id" element={<LocalErrorBoundary fallbackName="Product Detail Page"><ProductDetail /></LocalErrorBoundary>} />
-                    <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
-                  </>
-                )}
+                <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                <Route path="/cart" element={
+                  <LocalErrorBoundary fallbackName="Cart Page">
+                    <CartPageRoute />
+                  </LocalErrorBoundary>
+                } />
+                <Route path="/login" element={
+                  <PublicOnlyRoute>
+                    <LocalErrorBoundary fallbackName="Login Page"><Login /></LocalErrorBoundary>
+                  </PublicOnlyRoute>
+                } />
+                <Route path="/signup" element={
+                  <PublicOnlyRoute>
+                    <LocalErrorBoundary fallbackName="Login Page"><Login /></LocalErrorBoundary>
+                  </PublicOnlyRoute>
+                } />
+                <Route path="/forgot-password" element={
+                  <PublicOnlyRoute>
+                    <LocalErrorBoundary fallbackName="Forgot Password Page"><ForgotPassword /></LocalErrorBoundary>
+                  </PublicOnlyRoute>
+                } />
+                <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
+                <Route path="/checkout" element={
+                  <ProtectedRoute>
+                    <LocalErrorBoundary fallbackName="Checkout Page">
+                      <Checkout />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/upi-checkout/:orderId" element={
+                  <ProtectedRoute>
+                    <LocalErrorBoundary fallbackName="UPI Checkout Page">
+                      <UPICheckout />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
+                <Route path="/admin/*" element={
+                  <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
+                    <LocalErrorBoundary fallbackName="Admin Control Panel">
+                      <AdminLayout />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <LocalErrorBoundary fallbackName="User Profile Page">
+                      <Profile />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/orders" element={
+                  <ProtectedRoute>
+                    <LocalErrorBoundary fallbackName="Your Orders Page">
+                      <Orders />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/notifications" element={
+                  <ProtectedRoute>
+                    <LocalErrorBoundary fallbackName="Notifications Page">
+                      <Notifications />
+                    </LocalErrorBoundary>
+                  </ProtectedRoute>
+                } />
+                <Route path="/offers" element={<LocalErrorBoundary fallbackName="Offers Page"><Offers /></LocalErrorBoundary>} />
+                <Route path="/product/:id" element={<LocalErrorBoundary fallbackName="Product Detail Page"><ProductDetail /></LocalErrorBoundary>} />
+                <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
               </Routes>
             </motion.div>
           </AnimatePresence>

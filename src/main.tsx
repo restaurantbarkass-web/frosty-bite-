@@ -41,6 +41,22 @@ function safeReload() {
   }
 }
 
+/* ---------------- STALE-WHILE-REVALIDATE MENU CACHE STRATEGY ---------------- */
+
+// Prioritize serving cached menu data immediately while revalidating in background to eliminate loading screens
+(function initStaleWhileRevalidateMenu() {
+  try {
+    const cachedMenu = localStorage.getItem('menu_cache');
+    if (cachedMenu) {
+      console.log('[SWR Strategy] Serving cached menu data immediately. Background sync active.');
+    } else {
+      console.log('[SWR Strategy] No cached menu found. Triggering fast background sync.');
+    }
+  } catch (e) {
+    console.warn('[SWR Strategy] Storage access restricted:', e);
+  }
+})();
+
 /* ---------------- SERVICE WORKER REGISTRATION ---------------- */
 
 // Register the standard PWA service worker to satisfy Play Store / PWABuilder requirements

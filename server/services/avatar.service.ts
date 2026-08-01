@@ -43,9 +43,9 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
             errorStr.includes('Quota exceeded');
 
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] Vision analysis primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+            console.warn(`[AvatarService] Vision analysis primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.5-flash",
+              model: "gemini-3.1-flash-lite",
               contents: {
                 parts: [
                   { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.\n\nDescribe this person's facial features and style to help generate a ${prompt || 'cute bakery-themed chibi avatar'}. Output ONLY the refined generation prompt based on their face and the requested vibe: ${vibe || 'kawaii'}. No prefixes, no conversational filler, just the prompt string.` },
@@ -131,9 +131,9 @@ export async function generateAvatarImage(data: { prompt: string; vibe?: string;
             errorStr.includes('Quota exceeded');
 
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] SVG generation primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+            console.warn(`[AvatarService] SVG generation primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.5-flash",
+              model: "gemini-3.1-flash-lite",
               contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
             });
           } else {

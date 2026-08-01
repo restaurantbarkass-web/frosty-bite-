@@ -24,7 +24,7 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
     if (bootState === BootState.READY) {
       const autoTimer = setTimeout(() => {
         onComplete();
-      }, 1000);
+      }, 100);
       return () => clearTimeout(autoTimer);
     }
   }, [bootState, onComplete]);
@@ -54,8 +54,9 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
     <motion.div
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05, filter: 'blur(8px)' }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden"
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      onClick={onComplete}
+      className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
     >
       {/* Background Fallback Frame and Video */}
       <div className="absolute inset-0">
