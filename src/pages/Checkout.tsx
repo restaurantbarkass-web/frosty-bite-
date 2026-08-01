@@ -74,6 +74,14 @@ export const Checkout: React.FC = () => {
   const nameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
   const addressRef = useRef<HTMLTextAreaElement>(null);
+  const houseNumberRef = useRef<HTMLInputElement>(null);
+  const landmarkRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLInputElement>(null);
+  const pincodeRef = useRef<HTMLInputElement>(null);
+  const scheduledDateRef = useRef<HTMLInputElement>(null);
+
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
+  const [shakeKey, setShakeKey] = useState<number>(0);
 
   const [formData, setFormData] = useState({
     name: user?.displayName || user?.email?.split('@')[0] || '',
@@ -539,26 +547,57 @@ export const Checkout: React.FC = () => {
       return;
     }
     
-    if (!formData.name) {
-      toast.error('Please enter your full name');
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      nameRef.current?.focus();
-      setIsOrdering(false);
-      return;
-    }
-    
-    if (!formData.phone || formData.phone.length < 10) {
-      toast.error('Please enter a valid 10-digit phone number');
-      phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      phoneRef.current?.focus();
-      setIsOrdering(false);
-      return;
-    }
-    
-    if (!formData.address) {
-      toast.error('Please enter your delivery address');
-      addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      addressRef.current?.focus();
+    // Validate required form fields and trigger shake animation on missing or invalid ones
+    const errors: Record<string, boolean> = {};
+
+    if (!formData.name || !formData.name.trim()) errors.name = true;
+    if (!formData.phone || formData.phone.replace(/[^0-9]/g, '').length < 10) errors.phone = true;
+    if (!addrFields.houseNumber || !addrFields.houseNumber.trim()) errors.houseNumber = true;
+    if (!addrFields.streetName || !addrFields.streetName.trim()) errors.streetName = true;
+    if (!addrFields.landmark || !addrFields.landmark.trim()) errors.landmark = true;
+    if (!addrFields.city || !addrFields.city.trim()) errors.city = true;
+    if (!addrFields.pincode || addrFields.pincode.replace(/[^0-9]/g, '').length < 6) errors.pincode = true;
+    if (deliveryMode === 'scheduled' && !scheduledDate) errors.scheduledDate = true;
+
+    if (Object.keys(errors).length > 0) {
+      setInvalidFields(errors);
+      setShakeKey(prev => prev + 1);
+
+      const missingLabels: string[] = [];
+      if (errors.name) missingLabels.push('Full Name');
+      if (errors.phone) missingLabels.push('10-Digit Phone');
+      if (errors.houseNumber) missingLabels.push('House / Flat / Plot');
+      if (errors.streetName) missingLabels.push('Street / Area');
+      if (errors.landmark) missingLabels.push('Landmark');
+      if (errors.city) missingLabels.push('City');
+      if (errors.pincode) missingLabels.push('6-Digit Pincode');
+      if (errors.scheduledDate) missingLabels.push('Scheduled Date');
+
+      toast.error(`Please fill in required fields: ${missingLabels.slice(0, 3).join(', ')}${missingLabels.length > 3 ? '...' : ''}`);
+
+      if (errors.name) {
+        nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameRef.current?.focus();
+      } else if (errors.phone) {
+        phoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneRef.current?.focus();
+      } else if (errors.houseNumber && houseNumberRef.current) {
+        houseNumberRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        houseNumberRef.current.focus();
+      } else if (errors.landmark && landmarkRef.current) {
+        landmarkRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        landmarkRef.current.focus();
+      } else if (errors.city && cityRef.current) {
+        cityRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cityRef.current.focus();
+      } else if (errors.pincode && pincodeRef.current) {
+        pincodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pincodeRef.current.focus();
+      } else if (errors.scheduledDate && scheduledDateRef.current) {
+        scheduledDateRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        scheduledDateRef.current.focus();
+      }
+
       setIsOrdering(false);
       return;
     }
@@ -969,12 +1008,23 @@ export const Checkout: React.FC = () => {
                   </label>
                   <input
                     ref={nameRef}
+                    key={`name-${shakeKey}`}
                     type="text"
                     required
                     placeholder="Enter your full name"
-                    className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white"
+                    className={cn(
+                      "w-full bg-white/5 border p-4 rounded-2xl transition-all font-medium text-white",
+                      invalidFields.name 
+                        ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                        : "border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5"
+                    )}
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (invalidFields.name && e.target.value.trim()) {
+                        setInvalidFields(prev => ({ ...prev, name: false }));
+                      }
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -988,10 +1038,16 @@ export const Checkout: React.FC = () => {
                     </div>
                     <input
                       ref={phoneRef}
+                      key={`phone-${shakeKey}`}
                       type="tel"
                       required
                       placeholder="9876543210"
-                      className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 pl-[5.5rem] pr-4 h-14 rounded-2xl transition-all font-mono text-white text-sm"
+                      className={cn(
+                        "w-full bg-white/5 border pl-[5.5rem] pr-4 h-14 rounded-2xl transition-all font-mono text-white text-sm",
+                        invalidFields.phone 
+                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                          : "border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5"
+                      )}
                       value={formData.phone}
                       onChange={(e) => {
                         let clean = e.target.value.replace(/[^0-9]/g, '');
@@ -1000,7 +1056,11 @@ export const Checkout: React.FC = () => {
                         } else if (clean.startsWith('0') && clean.length > 10) {
                           clean = clean.slice(1);
                         }
-                        setFormData({ ...formData, phone: clean.slice(0, 10) });
+                        const val = clean.slice(0, 10);
+                        setFormData({ ...formData, phone: val });
+                        if (invalidFields.phone && val.length >= 10) {
+                          setInvalidFields(prev => ({ ...prev, phone: false }));
+                        }
                       }}
                     />
                   </div>
@@ -1067,19 +1127,38 @@ export const Checkout: React.FC = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">House / Flat / Plot *</label>
                     <input
+                      ref={houseNumberRef}
+                      key={`houseNumber-${shakeKey}`}
                       type="text"
                       required
                       placeholder="e.g. House 12 / Plot 3A"
-                      className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                      className={cn(
+                        "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                        invalidFields.houseNumber 
+                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                          : "border-white/10 focus:border-primary/50"
+                      )}
                       value={addrFields.houseNumber}
-                      onChange={(e) => setAddrFields({ ...addrFields, houseNumber: e.target.value })}
+                      onChange={(e) => {
+                        setAddrFields({ ...addrFields, houseNumber: e.target.value });
+                        if (invalidFields.houseNumber && e.target.value.trim()) {
+                          setInvalidFields(prev => ({ ...prev, houseNumber: false }));
+                        }
+                      }}
                     />
                   </div>
 
                   <div className="space-y-1">
                     <GooglePlacesAutocomplete
                       currentAddressValue={addrFields.streetName}
-                      onManualStreetChange={(val) => setAddrFields({ ...addrFields, streetName: val })}
+                      isInvalid={invalidFields.streetName}
+                      shakeKey={shakeKey}
+                      onManualStreetChange={(val) => {
+                        setAddrFields({ ...addrFields, streetName: val });
+                        if (invalidFields.streetName && val.trim()) {
+                          setInvalidFields(prev => ({ ...prev, streetName: false }));
+                        }
+                      }}
                       onAddressSelect={(data) => {
                         setAddrFields({
                           houseNumber: data.houseNumber || addrFields.houseNumber,
@@ -1088,6 +1167,14 @@ export const Checkout: React.FC = () => {
                           city: data.city || 'Cuttack',
                           pincode: data.pincode || addrFields.pincode
                         });
+                        setInvalidFields(prev => ({
+                          ...prev,
+                          streetName: false,
+                          houseNumber: data.houseNumber ? false : prev.houseNumber,
+                          landmark: data.landmark ? false : prev.landmark,
+                          city: false,
+                          pincode: data.pincode ? false : prev.pincode
+                        }));
                         if (data.lat && data.lng) {
                           setFormData(prev => ({
                             ...prev,
@@ -1102,12 +1189,24 @@ export const Checkout: React.FC = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Landmark *</label>
                     <input
+                      ref={landmarkRef}
+                      key={`landmark-${shakeKey}`}
                       type="text"
                       required
                       placeholder="e.g. Near Link Road"
-                      className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                      className={cn(
+                        "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                        invalidFields.landmark 
+                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                          : "border-white/10 focus:border-primary/50"
+                      )}
                       value={addrFields.landmark}
-                      onChange={(e) => setAddrFields({ ...addrFields, landmark: e.target.value })}
+                      onChange={(e) => {
+                        setAddrFields({ ...addrFields, landmark: e.target.value });
+                        if (invalidFields.landmark && e.target.value.trim()) {
+                          setInvalidFields(prev => ({ ...prev, landmark: false }));
+                        }
+                      }}
                     />
                   </div>
 
@@ -1115,24 +1214,49 @@ export const Checkout: React.FC = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">City *</label>
                       <input
+                        ref={cityRef}
+                        key={`city-${shakeKey}`}
                         type="text"
                         required
                         placeholder="e.g. Cuttack"
-                        className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                        className={cn(
+                          "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                          invalidFields.city 
+                            ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                            : "border-white/10 focus:border-primary/50"
+                        )}
                         value={addrFields.city}
-                        onChange={(e) => setAddrFields({ ...addrFields, city: e.target.value })}
+                        onChange={(e) => {
+                          setAddrFields({ ...addrFields, city: e.target.value });
+                          if (invalidFields.city && e.target.value.trim()) {
+                            setInvalidFields(prev => ({ ...prev, city: false }));
+                          }
+                        }}
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pincode *</label>
                       <input
+                        ref={pincodeRef}
+                        key={`pincode-${shakeKey}`}
                         type="text"
                         required
                         placeholder="e.g. 753010"
-                        className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold font-mono"
+                        className={cn(
+                          "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold font-mono",
+                          invalidFields.pincode 
+                            ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                            : "border-white/10 focus:border-primary/50"
+                        )}
                         value={addrFields.pincode}
-                        onChange={(e) => setAddrFields({ ...addrFields, pincode: e.target.value.replace(/[^0-9]/g, '').slice(0, 6) })}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                          setAddrFields({ ...addrFields, pincode: val });
+                          if (invalidFields.pincode && val.length >= 6) {
+                            setInvalidFields(prev => ({ ...prev, pincode: false }));
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -1246,11 +1370,23 @@ export const Checkout: React.FC = () => {
                           Select Delivery Date
                         </label>
                         <input
+                          ref={scheduledDateRef}
+                          key={`scheduledDate-${shakeKey}`}
                           type="date"
                           min={new Date().toISOString().split('T')[0]}
                           value={scheduledDate}
-                          onChange={(e) => handleDateChange(e.target.value)}
-                          className="w-full h-12 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:outline-none focus:border-orange-500/50 transition-all font-semibold uppercase"
+                          onChange={(e) => {
+                            handleDateChange(e.target.value);
+                            if (invalidFields.scheduledDate && e.target.value) {
+                              setInvalidFields(prev => ({ ...prev, scheduledDate: false }));
+                            }
+                          }}
+                          className={cn(
+                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white text-xs focus:outline-none transition-all font-semibold uppercase",
+                            invalidFields.scheduledDate
+                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake"
+                              : "border-white/10 focus:border-orange-500/50"
+                          )}
                         />
                       </div>
 

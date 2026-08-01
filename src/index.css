@@ -114,6 +114,10 @@ html.lenis {
   @apply bg-black/40 backdrop-blur-xl border border-white/5;
 }
 
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
 .scrollbar-hide::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

@@ -15,6 +15,8 @@ interface GooglePlacesAutocompleteProps {
   }) => void;
   currentAddressValue?: string;
   onManualStreetChange?: (value: string) => void;
+  isInvalid?: boolean;
+  shakeKey?: number;
 }
 
 // Pre-seeded Cuttack local areas fallback
@@ -33,6 +35,8 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
   onAddressSelect,
   currentAddressValue,
   onManualStreetChange,
+  isInvalid,
+  shakeKey = 0,
 }) => {
   const [query, setQuery] = useState(currentAddressValue || '');
   const [osmPredictions, setOsmPredictions] = useState<any[]>([]);
@@ -210,10 +214,15 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
         </label>
         <div className="relative">
           <input
+            key={`street-${shakeKey}`}
             type="text"
             required
             placeholder="Type local area name (e.g. Madhupatna, Badambadi...)"
-            className="w-full h-12 pl-11 pr-11 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+            className={`w-full h-12 pl-11 pr-11 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold ${
+              isInvalid
+                ? 'border-red-500 ring-2 ring-red-500/30 animate-shake'
+                : 'border-white/10'
+            }`}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
