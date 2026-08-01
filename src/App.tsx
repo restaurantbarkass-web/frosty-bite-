@@ -143,6 +143,23 @@ function AppContent() {
   const [showVerificationBanner, setShowVerificationBanner] = useState(true);
 
   useEffect(() => {
+    // Eager background preloading of major pages for instant navigation
+    const preloadRoutes = () => {
+      import('./pages/HomePage');
+      import('./pages/Checkout');
+      import('./pages/ProductDetail');
+      import('./pages/Orders');
+      import('./pages/Profile');
+      import('./components/CartSidebar');
+    };
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(preloadRoutes);
+    } else {
+      setTimeout(preloadRoutes, 150);
+    }
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleOnline = () => {
       setIsOffline(false);

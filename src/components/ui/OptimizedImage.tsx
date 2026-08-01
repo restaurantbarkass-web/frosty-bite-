@@ -62,7 +62,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
         }
       },
       {
-        rootMargin: '250px', // Load images 250px before they enter viewport
+        rootMargin: '600px', // Load images 600px before they enter viewport
         threshold: 0.01,
       }
     );
@@ -156,7 +156,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
             setError(true);
           }}
           className={cn(
-            "w-full h-full object-cover transition-all duration-700 ease-out",
+            "w-full h-full object-cover transition-all duration-200 ease-out",
             isLoaded ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-105 blur-sm",
             className
           )}

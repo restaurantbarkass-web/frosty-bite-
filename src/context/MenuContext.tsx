@@ -16,20 +16,17 @@ export const MenuProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [items, setItems] = useState<FoodItem[]>(() => {
     try {
       const cached = localStorage.getItem('menu_cache');
-      return cached ? JSON.parse(cached) : [];
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.length > 0) return parsed;
+      }
+      return MENU_ITEMS;
     } catch {
-      return [];
+      return MENU_ITEMS;
     }
   });
   
-  const [loading, setLoading] = useState(() => {
-    try {
-      const cached = localStorage.getItem('menu_cache');
-      return !cached || JSON.parse(cached).length === 0;
-    } catch {
-      return true;
-    }
-  });
+  const [loading, setLoading] = useState(false);
 
   const fetchMenu = useCallback(async () => {
     // Only manifest a visible loading screen if we have absolutely nothing to render
