@@ -62,9 +62,10 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        initial={{ opacity: 0, scale: 0.85, y: 50 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 50 }}
+        exit={{ opacity: 0, scale: 0.85, y: 50 }}
+        transition={{ type: "spring", damping: 20, stiffness: 320 }}
         className="fixed bottom-8 right-4 sm:right-8 z-[100] w-full max-w-[400px]"
       >
         <div className="mx-4 sm:mx-0 bg-[#111] border border-orange-500/30 rounded-[2.5rem] shadow-2xl shadow-orange-500/20 overflow-hidden">

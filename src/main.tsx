@@ -5,6 +5,10 @@ import App from './App';
 import './index.css';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { initGlobalSoundListeners } from './utils/soundEffects';
+
+// Initialize global UI button sound effects
+initGlobalSoundListeners();
 
 /* ---------------- LOADER ---------------- */
 

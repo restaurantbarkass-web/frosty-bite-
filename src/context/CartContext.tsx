@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CartItem, FoodItem } from '../types';
 import { haptic } from '../lib/utils';
+import { playPopSound, playClickSound, playErrorShakeSound } from '../utils/soundEffects';
 
 interface CartStateContextType {
   cart: CartItem[];
@@ -50,11 +51,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const addToCart = React.useCallback((item: FoodItem) => {
+    playPopSound();
     setCart(prev => {
       const existing = prev.find(i => i.id === item.id);
       if (existing) {
         if (item.stock_quantity !== undefined && existing.quantity >= item.stock_quantity) {
           haptic.error();
+          playErrorShakeSound();
           return prev;
         }
         haptic.success();
@@ -68,16 +71,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const removeFromCart = React.useCallback((id: string) => {
     haptic.medium();
+    playClickSound(450);
     setCart(prev => prev.filter(i => i.id !== id));
   }, []);
 
   const updateQuantity = React.useCallback((id: string, delta: number) => {
     haptic.light();
+    if (delta > 0) playPopSound();
+    else playClickSound(500);
     setCart(prev => prev.map(i => {
       if (i.id === id) {
         const newQty = i.quantity + delta;
         if (delta > 0 && i.stock_quantity !== undefined && newQty > i.stock_quantity) {
           haptic.error();
+          playErrorShakeSound();
           return i;
         }
         return { ...i, quantity: Math.max(0, newQty) };
@@ -88,6 +95,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = React.useCallback(() => {
     haptic.medium();
+    playClickSound(400);
     setCart([]);
   }, []);
 

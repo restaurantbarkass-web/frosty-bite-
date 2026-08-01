@@ -40,8 +40,9 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { appConfigService } from '../services/appConfigService';
 import { useNotifications } from '../context/NotificationContext';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
+import { playErrorShakeSound, playSuccessChime } from '../utils/soundEffects';
 
-const MapSelector = React.lazy(() => import('../components/MapSelector').then(m => ({ default: m.MapSelector })));
+import { MapSelector } from '../components/MapSelector';
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
 
 export const Checkout: React.FC = () => {
@@ -562,6 +563,7 @@ export const Checkout: React.FC = () => {
     if (Object.keys(errors).length > 0) {
       setInvalidFields(errors);
       setShakeKey(prev => prev + 1);
+      playErrorShakeSound();
 
       const missingLabels: string[] = [];
       if (errors.name) missingLabels.push('Full Name');
@@ -758,6 +760,7 @@ export const Checkout: React.FC = () => {
         
         setConfirmedOrder(orderSummary);
         setShowConfirmation(true);
+        playSuccessChime();
         openWhatsAppOrder(orderSummary);
         
         // Send Email Confirmation (Non-blocking)

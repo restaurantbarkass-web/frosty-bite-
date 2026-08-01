@@ -54,42 +54,46 @@ const BAKERY_PROPS: any = {
 const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: string; name: string; svg?: string; config?: any; onEdit?: () => void, avatarUrl?: string }) => {
   const currentProp = config?.options?.bakeryTheme?.[0] || 'none';
   const isAI = !!avatarUrl;
-  
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl, src]);
+
+  const initials = name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'FB';
+  const finalImage = isAI ? avatarUrl : src;
+
   return (
     <div className="relative group perspective-1000">
-      <div className="absolute -inset-1.5 bg-gradient-to-r from-bakery-pink via-bakery-chocolate/20 to-bakery-beige rounded-full blur opacity-75 group-hover:opacity-100 transition duration-1000" />
+      {/* Animated Glowing Ring Backdrop */}
+      <div className="absolute -inset-2 bg-gradient-to-r from-orange-500 via-pink-500 to-amber-500 rounded-full blur-md opacity-75 group-hover:opacity-100 transition-all duration-700 animate-pulse" />
+      <div className="absolute -inset-1 bg-gradient-to-tr from-orange-400 via-amber-300 to-pink-500 rounded-full opacity-60 group-hover:scale-105 transition-transform duration-500" />
+
       <motion.div 
-        animate={{ 
-          y: [0, -8, 0]
-        }}
-        transition={{
-          duration: 5,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-        whileHover={{ scale: 1.05 }}
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.96 }}
         onClick={onEdit}
-        className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-white overflow-hidden cursor-pointer shadow-2xl border-4 border-white"
+        className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-gradient-to-br from-white via-amber-100 to-orange-200 overflow-hidden cursor-pointer shadow-2xl border-4 border-white/90 backdrop-blur-md"
       >
-        {isAI ? (
-           <img 
-            src={avatarUrl} 
+        {!imgError && finalImage ? (
+          <img 
+            src={finalImage} 
             alt={name} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded-full transition-transform duration-500 group-hover:scale-110"
             referrerPolicy="no-referrer"
+            onError={() => setImgError(true)}
           />
         ) : svg ? (
           <div 
-            className="w-full h-full scale-125 translate-y-3"
+            className="w-full h-full scale-125 translate-y-3 rounded-full overflow-hidden"
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
-          <img 
-            src={src} 
-            alt={name} 
-            className="w-full h-full object-cover rounded-full"
-            referrerPolicy="no-referrer"
-          />
+          <div className="w-full h-full rounded-full bg-gradient-to-tr from-orange-600 via-amber-500 to-pink-600 flex items-center justify-center text-white font-black text-3xl md:text-4xl shadow-inner tracking-wider">
+            {initials}
+          </div>
         )}
         
         {!isAI && currentProp !== 'none' && (
@@ -100,8 +104,9 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: str
           </div>
         )}
 
-        <div className="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Camera size={20} className="text-white drop-shadow-md" />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full">
+          <Camera size={22} className="text-white drop-shadow-lg mb-1 animate-bounce" />
+          <span className="text-[9px] font-black uppercase text-white tracking-widest bg-orange-500/80 px-2 py-0.5 rounded-full border border-white/30">Edit Avatar</span>
         </div>
       </motion.div>
     </div>

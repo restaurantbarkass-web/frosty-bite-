@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
@@ -9,7 +9,8 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ConfigProvider, useConfig } from './context/ConfigContext';
 import { BootProvider, useBoot, BootState } from './context/BootContext';
-import { Toaster, toast } from 'react-hot-toast';
+import { CustomToaster } from './components/CustomToaster';
+import { toast } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { SearchOverlay } from './components/Search/SearchOverlay';
@@ -33,76 +34,21 @@ import { useCart } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
 
-// Resilient wrapper to retry dynamic lazy imports with progressive backoff and infinite reload protection
-function lazyWithRetry<T extends React.ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>
-): React.LazyExoticComponent<T> {
-  return lazy(() => {
-    const maxRetries = 3;
-    const retryDelays = [1000, 2500, 5000];
-
-    const executeImport = (attempt: number): Promise<{ default: T }> => {
-      return importFunc().catch((error) => {
-        if (attempt >= maxRetries) {
-          console.error(`[LazyLoader] Dynamic import failed after ${maxRetries} attempts:`, error);
-          
-          // Only trigger a page reload in production (where chunk load errors can occur due to asset hash invalidations)
-          // and safeguard against infinite reload cycles using sessionStorage.
-          const isProd = import.meta.env.PROD;
-          if (isProd) {
-            const now = Date.now();
-            let lastReload: string | null = null;
-            try {
-              lastReload = sessionStorage.getItem('last_asset_reload');
-            } catch (e) {
-              console.warn('[LazyLoader] failed to read from sessionStorage:', e);
-            }
-            const parsedLastReload = lastReload ? parseInt(lastReload, 10) : 0;
-            
-            // Limit reload to at most once every 20 seconds to prevent aggressive reload loops
-            if (now - parsedLastReload > 20000) {
-              try {
-                sessionStorage.setItem('last_asset_reload', String(now));
-              } catch (e) {
-                console.warn('[LazyLoader] failed to write to sessionStorage:', e);
-              }
-              console.warn('[LazyLoader] Potential stale production asset hash. Forcing app reload to fetch latest bundle...');
-              window.location.reload();
-            } else {
-              console.error('[LazyLoader] Asset load failed. Safe reload cooldown active, skipping reload to prevent infinite loops.');
-            }
-          }
-          throw error;
-        }
-
-        const delay = retryDelays[attempt - 1] || 2000;
-        console.warn(`[LazyLoader] Dynamic import failed (Attempt ${attempt}/${maxRetries}). Retrying in ${delay}ms...`, error);
-
-        return new Promise<{ default: T }>((resolve) => setTimeout(resolve, delay))
-          .then(() => executeImport(attempt + 1));
-      });
-    };
-
-    return executeImport(1);
-  });
-}
-
-// Lazy load pages for performance with automatic reload retry fallback
-const Home = lazyWithRetry(() => import('./pages/HomePage'));
-const Offers = lazyWithRetry(() => import('./pages/Offers'));
-const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
-const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
-const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
-const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
-const Profile = lazyWithRetry(() => import('./pages/Profile'));
-const Login = lazyWithRetry(() => import('./pages/Login'));
-const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
-const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
-const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
-const Orders = lazyWithRetry(() => import('./pages/Orders'));
-const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
-const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
-const CartSidebar = lazyWithRetry(() => import('./components/CartSidebar').then(module => ({ default: module.CartSidebar })));
+import Home from './pages/HomePage';
+import Offers from './pages/Offers';
+import Checkout from './pages/Checkout';
+import UPICheckout from './pages/UPICheckout';
+import OrderTracking from './pages/OrderTracking';
+import AdminLayout from './pages/AdminLayout';
+import Profile from './pages/Profile';
+import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import FinishSignIn from './pages/FinishSignIn';
+import ProductDetail from './pages/ProductDetail';
+import Orders from './pages/Orders';
+import Notifications from './pages/Notifications';
+import NotFound from './pages/NotFound';
+import { CartSidebar } from './components/CartSidebar';
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -388,7 +334,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
-      <Toaster position="top-right" />
+      <CustomToaster />
       
       {isOffline && (
         <div className="bg-amber-600 text-white font-sans px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 relative z-[100] shadow-md transition-all">
