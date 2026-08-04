@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle, Bike } from 'lucide-react';
 import { supabase } from '../supabase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order } from '../types';
@@ -12,12 +12,13 @@ import { ReviewForm } from '../components/ReviewForm';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { RESTAURANT_WHATSAPP } from '../constants';
 
-const STATUS_ANIMATIONS: Record<string, string> = {
+const STATUS_ANIMATIONS: Record<string, any> = {
   pending: LOTTIE_ANIMATIONS.PROCESSING,
-  confirmed: LOTTIE_ANIMATIONS.PROCESSING,
-  preparing: LOTTIE_ANIMATIONS.COOKING,
+  confirmed: LOTTIE_ANIMATIONS.ORDER_CONFIRMED,
+  preparing: LOTTIE_ANIMATIONS.CHEF_COOKING,
+  out_for_delivery: LOTTIE_ANIMATIONS.DELIVERY_SCOOTER,
   delivered: LOTTIE_ANIMATIONS.SUCCESS_CHECK,
-  cancelled: "https://assets10.lottiefiles.com/packages/lf20_mye7bg9j.json",
+  cancelled: LOTTIE_ANIMATIONS.CANCELLED,
 };
 
 const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
@@ -45,6 +46,14 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
       <ChefHat className="text-primary" size={64} strokeWidth={1.5} />
     </motion.div>
   ),
+  out_for_delivery: (
+    <motion.div
+      animate={{ x: [-5, 5, -5], scale: [1, 1.05, 1] }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <Bike className="text-amber-500" size={64} strokeWidth={1.5} />
+    </motion.div>
+  ),
   delivered: (
     <motion.div
       initial={{ scale: 0, rotate: -20 }}
@@ -70,10 +79,11 @@ const STATUS_FALLBACKS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_STEPS = [
-  { id: 'pending', label: 'Pending', icon: Package, description: 'Waiting for payment confirmation' },
-  { id: 'confirmed', label: 'Confirmed', icon: CheckCircle, description: 'Payment confirmed, preparing order' },
-  { id: 'preparing', label: 'Preparing', icon: Package, description: 'Chef is working their magic' },
-  { id: 'delivered', label: 'Delivered', icon: CheckCircle, description: 'Enjoy your meal!' },
+  { id: 'pending', label: 'Pending', icon: Clock, description: 'Waiting for payment confirmation' },
+  { id: 'confirmed', label: 'Confirmed', icon: CheckCircle, description: 'Payment confirmed & order queued' },
+  { id: 'preparing', label: 'Preparing', icon: ChefHat, description: 'Chef is baking & decorating your treat' },
+  { id: 'out_for_delivery', label: 'Out for Delivery', icon: Bike, description: 'Rider is on the way with your order' },
+  { id: 'delivered', label: 'Delivered', icon: CheckCircle, description: 'Enjoy your delicious meal!' },
 ];
 
 export const OrderTracking: React.FC = () => {

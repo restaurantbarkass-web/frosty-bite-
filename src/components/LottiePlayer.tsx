@@ -4,7 +4,8 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { BrandAnimation } from './BrandAnimation';
 
 interface LottiePlayerProps {
-  url: string;
+  url?: string | any;
+  animationData?: any;
   loop?: boolean;
   autoplay?: boolean;
   className?: string;
@@ -17,20 +18,35 @@ interface LottiePlayerProps {
  */
 export const FrostyAnimation: React.FC<LottiePlayerProps> = ({ 
   url, 
+  animationData: directAnimationData,
   loop = true, 
   autoplay = true, 
   className,
   style,
   fallback
 }) => {
-  const [animationData, setAnimationData] = useState<any>(null);
+  const [animationData, setAnimationData] = useState<any>(directAnimationData || (typeof url === 'object' ? url : null));
   const [error, setError] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!directAnimationData && typeof url === 'string');
 
   useEffect(() => {
-    if (!url) {
+    const rawData = directAnimationData || url;
+    if (!rawData) {
       setLoading(false);
       setError(true);
+      return;
+    }
+
+    if (typeof rawData === 'object') {
+      setAnimationData(rawData);
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
+    if (typeof rawData !== 'string') {
+      setError(true);
+      setLoading(false);
       return;
     }
 
@@ -40,7 +56,7 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
 
     const fetchAnimation = async () => {
       try {
-        const response = await fetch(url, {
+        const response = await fetch(rawData, {
           referrerPolicy: 'no-referrer',
           headers: {
             'Accept': 'application/json'
@@ -79,7 +95,7 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [url]);
+  }, [url, directAnimationData]);
 
   if (loading) {
     return (
