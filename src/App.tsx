@@ -318,9 +318,9 @@ function AppContent() {
   const isCurrentPathProtected = PROTECTED_PATHS.some(path => location.pathname.startsWith(path));
   const bypassLocks = !user && isCurrentPathProtected;
   
-  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage && !!user;
-  const showNavbar = !isAdminPage && !isAuthPage && !isProductPage && !isUPICheckoutPage && !!user;
-  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage || !user;
+  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
+  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
   const { bootState } = useBoot();
 
@@ -392,13 +392,13 @@ function AppContent() {
         {/* IntroSplash is rendered full-screen on initial page mount */}
 
         <Suspense fallback={<PageLoader />}>
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               className="flex-1 flex flex-col w-full h-full"
             >
               <Routes location={location}>
