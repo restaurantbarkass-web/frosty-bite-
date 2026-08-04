@@ -61,14 +61,14 @@
       "short_name": "Order",
       "description": "Browse and buy delicious desserts instantly",
       "url": "/",
-      "icons": [{ "src": "logo_192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/logo_192.png", "sizes": "192x192" }]
     },
     {
       "name": "View Offers",
       "short_name": "Offers",
       "description": "Unlock active deals & promo codes",
-      "url": "offers",
-      "icons": [{ "src": "logo_192.png", "sizes": "192x192" }]
+      "url": "/offers",
+      "icons": [{ "src": "/logo_192.png", "sizes": "192x192" }]
     }
   ],
   "categories": [
@@ -92,9 +92,7 @@
   },
   "iarc_rating_id": "e95267bf-48d6-4e59-b1d6-8eeab78ddef9",
   "scope_extensions": [
-    { "host": "*.frostybite.com" },
-    { "host": "*.vercel.app" },
-    { "host": "frosty-bite.vercel.app" }
+    { "origin": "https://frosty-bite.vercel.app" }
   ],
   "widgets": [
     {

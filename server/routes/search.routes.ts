@@ -12,6 +12,31 @@ const defaultTrending = [
   'Fresh Fruit Cake'
 ];
 
+router.get('/trending', async (req, res) => {
+  const limitCount = parseInt(req.query.limit as string, 10) || 6;
+  try {
+    const { data, error } = await supabase
+      .from('search_analytics')
+      .select('query')
+      .order('count', { ascending: false })
+      .limit(limitCount);
+
+    if (error || !data || data.length === 0) {
+      return res.json(defaultTrending.slice(0, limitCount));
+    }
+
+    const queries = data.map((d: any) => d.query).filter(Boolean);
+    if (queries.length < limitCount) {
+      const combined = Array.from(new Set([...queries, ...defaultTrending]));
+      return res.json(combined.slice(0, limitCount));
+    }
+
+    return res.json(queries.slice(0, limitCount));
+  } catch (err) {
+    return res.json(defaultTrending.slice(0, limitCount));
+  }
+});
+
 router.post('/log', async (req, res) => {
   const { searchTerm, userId = 'anonymous' } = req.body;
 

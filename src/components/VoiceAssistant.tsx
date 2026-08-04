@@ -574,17 +574,22 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
         };
 
         backgroundRec.onerror = (e: any) => {
-          console.log('[VoiceAssistant] Background listener error:', e.error);
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            active = false;
+          }
+          if (e.error !== 'aborted' && e.error !== 'no-speech') {
+            console.debug('[VoiceAssistant] Background listener state:', e.error);
+          }
         };
 
         backgroundRec.onend = () => {
           if (active && !isOpen) {
-            // Auto restart background listener to keep listening
+            // Auto restart background listener with gentle delay to avoid rapid loops
             setTimeout(() => {
               if (active && !isOpen) {
                 startBackgroundLinstening();
               }
-            }, 1000);
+            }, 3000);
           }
         };
 
