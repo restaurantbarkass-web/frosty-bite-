@@ -55,6 +55,38 @@ const Orders: React.FC = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  // Initial state setup: Load cached orders immediately if available for zero-delay offline experience
+  useEffect(() => {
+    if (!user) return;
+    const cacheKey = `orders_cache_${user.uid}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        const data = parsed.data || parsed;
+        if (Array.isArray(data) && data.length > 0) {
+          setOrders(data);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.warn('Error reading cached orders:', e);
+      }
+    }
+  }, [user]);
+
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
@@ -234,6 +266,12 @@ const Orders: React.FC = () => {
       <div className="space-y-2">
         <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">Order History</h1>
         <p className="text-zinc-500 font-medium">Revisit your favorite bakes and tracking details.</p>
+        {isOffline && (
+          <div className="mt-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2.5 backdrop-blur-md shadow-lg">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span>Offline Mode — Displaying cached order history securely.</span>
+          </div>
+        )}
       </div>
 
       {orders.length === 0 ? (

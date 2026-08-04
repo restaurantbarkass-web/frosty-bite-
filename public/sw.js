@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frosty-bite-cache-v4';
+const CACHE_NAME = 'frosty-bite-cache-v5';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -72,8 +72,8 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Stale-While-Revalidate strategy for API data, menu queries, and media
-  const isApiOrMenuReq = event.request.url.includes('/rest/v1/products') ||
+  // Stale-While-Revalidate strategy for API data, menu queries, orders, and media
+  const isApiOrMenuReq = event.request.url.includes('/rest/v1/') ||
                          event.request.url.includes('/api/') ||
                          event.request.destination === 'image';
 
