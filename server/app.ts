@@ -194,17 +194,17 @@ app.get("/migration-script", (req, res) => {
   }
 });
 
-app.use("/butler", butlerRoutes);
-app.use("/avatar", avatarRoutes);
-app.use("/auth", authRoutes);
-app.use("/config", configRoutes);
-app.use("/notifications", notificationRoutes);
-app.use("/service-zones", servicezonesRoutes);
-app.use("/service-pincodes", servicepincodesRoutes);
-app.use("/validate-address", validateaddressRoutes);
-app.use("/delivery-areas", deliveryareasRoutes);
-app.use("/reviews", reviewsRoutes);
-app.use("/search", searchRoutes);
+app.use(["/butler", "/api/butler"], butlerRoutes);
+app.use(["/avatar", "/api/avatar"], avatarRoutes);
+app.use(["/auth", "/api/auth"], authRoutes);
+app.use(["/config", "/api/config"], configRoutes);
+app.use(["/notifications", "/api/notifications"], notificationRoutes);
+app.use(["/service-zones", "/api/service-zones"], servicezonesRoutes);
+app.use(["/service-pincodes", "/api/service-pincodes"], servicepincodesRoutes);
+app.use(["/validate-address", "/api/validate-address"], validateaddressRoutes);
+app.use(["/delivery-areas", "/api/delivery-areas"], deliveryareasRoutes);
+app.use(["/reviews", "/api/reviews"], reviewsRoutes);
+app.use(["/search", "/api/search"], searchRoutes);
 
 // Real-time order status endpoints
 app.get("/orders/:orderId/status", async (req: Request, res: Response) => {

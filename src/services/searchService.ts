@@ -184,14 +184,14 @@ export const searchService = {
 
   // Get trending searches
   async getTrendingSearches(limitCount: number = 6): Promise<string[]> {
+    const fallback = ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts', 'Cupcakes', 'Fresh Fruit Cake'];
     try {
       const res = await diagnosticFetch(`/api/search/trending?limit=${limitCount}`);
-      if (!res.ok) throw new Error('Search trending API returned non-ok status');
+      if (!res.ok) return fallback.slice(0, limitCount);
       const data = await res.json();
-      return Array.isArray(data) && data.length > 0 ? data : ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];
-    } catch (error) {
-      console.error('Fetching Trending Error:', error);
-      return ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts'];
+      return Array.isArray(data) && data.length > 0 ? data : fallback.slice(0, limitCount);
+    } catch {
+      return fallback.slice(0, limitCount);
     }
   },
 

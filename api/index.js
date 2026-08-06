@@ -328,9 +328,9 @@ async function getSmartRecommendation(query, items) {
     `;
     let aiResponse;
     try {
-      console.log(`[RecommendationService] Calling Gemini (gemini-3.5-flash) for: "${query.substring(0, 50)}..."`);
+      console.log(`[RecommendationService] Calling Gemini (gemini-3.1-flash-lite) for: "${query.substring(0, 50)}..."`);
       aiResponse = await genAI2.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
         config: {
           systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -342,7 +342,7 @@ async function getSmartRecommendation(query, items) {
       const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
       const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded") || String(error).includes("429") || error && typeof error === "object" && (error.status === 429 || error.statusCode === 429);
       if (isTransientOrQuota) {
-        console.log(`[RecommendationService] Cooldown triggered. Primary model (gemini-3.5-flash) quota limit reached. Using local match fallback.`);
+        console.log(`[RecommendationService] Cooldown triggered. Primary model (gemini-3.1-flash-lite) quota limit reached. Using local match fallback.`);
         quotaExhaustedUntil = Date.now() + 15 * 60 * 1e3;
       } else {
         console.log(`[RecommendationService] Fallback activated: parsing query locally.`);
@@ -395,7 +395,7 @@ async function getSearchSuggestions(searchTerm, items) {
     let response;
     try {
       response = await genAI2.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.1-flash-lite",
         contents: prompt,
         config: {
           systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
@@ -558,7 +558,7 @@ You MUST return ONLY a valid raw JSON object. Do not enclose it in any markdown 
       parts: [{ text: userInput }]
     });
     const aiResponse = await genAI2.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: geminiContents,
       config: {
         systemInstruction,
@@ -681,9 +681,9 @@ Describe this person's facial features and style to help generate a ${prompt || 
           const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
           const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded");
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] Vision analysis primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+            console.warn(`[AvatarService] Vision analysis primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.5-flash",
+              model: "gemini-3.1-flash-lite",
               contents: {
                 parts: [
                   { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.
@@ -750,9 +750,9 @@ Describe this person's facial features and style to help generate a ${prompt || 
           const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
           const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded");
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] SVG generation primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.5-flash...`);
+            console.warn(`[AvatarService] SVG generation primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.5-flash",
+              model: "gemini-3.1-flash-lite",
               contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
             });
           } else {
@@ -1365,7 +1365,7 @@ Your verification code is:
 This code expires in 5 minutes.
 
 Do not share this code with anyone.`;
-    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || "http://localhost:3001").replace(/\/+$/, "");
+    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || "https://openwa-backend-production-97f8.up.railway.app").replace(/\/+$/, "");
     const isCloudEnv = !!process.env.K_SERVICE || process.env.NODE_ENV === "production";
     if (whatsappUrl.includes("localhost") || whatsappUrl.includes("127.0.0.1")) {
       console.log(`[WhatsAppService] Queueing WhatsApp message for polling delivery and client fallback.`);
@@ -5762,6 +5762,31 @@ var reviews_routes_default = router10;
 init_supabase();
 import express9 from "express";
 var router11 = express9.Router();
+var defaultTrending = [
+  "Anniversary Cakes",
+  "Chocolate Truffle",
+  "Coffee Pastries",
+  "Custom Gifts",
+  "Cupcakes",
+  "Fresh Fruit Cake"
+];
+router11.get("/trending", async (req, res) => {
+  const limitCount = parseInt(req.query.limit, 10) || 6;
+  try {
+    const { data, error } = await supabase.from("search_analytics").select("query").order("count", { ascending: false }).limit(limitCount);
+    if (error || !data || data.length === 0) {
+      return res.json(defaultTrending.slice(0, limitCount));
+    }
+    const queries = data.map((d) => d.query).filter(Boolean);
+    if (queries.length < limitCount) {
+      const combined = Array.from(/* @__PURE__ */ new Set([...queries, ...defaultTrending]));
+      return res.json(combined.slice(0, limitCount));
+    }
+    return res.json(queries.slice(0, limitCount));
+  } catch (err) {
+    return res.json(defaultTrending.slice(0, limitCount));
+  }
+});
 router11.post("/log", async (req, res) => {
   const { searchTerm, userId = "anonymous" } = req.body;
   if (!searchTerm) {
@@ -5963,17 +5988,75 @@ app.get("/migration-script", (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.use("/butler", butler_routes_default);
-app.use("/avatar", avatar_routes_default);
-app.use("/auth", auth_routes_default);
-app.use("/config", config_routes_default);
-app.use("/notifications", notification_routes_default);
-app.use("/service-zones", servicezones_routes_default);
-app.use("/service-pincodes", servicepincodes_routes_default);
-app.use("/validate-address", validateaddress_routes_default);
-app.use("/delivery-areas", deliveryareas_routes_default);
-app.use("/reviews", reviews_routes_default);
-app.use("/search", search_routes_default);
+app.use(["/butler", "/api/butler"], butler_routes_default);
+app.use(["/avatar", "/api/avatar"], avatar_routes_default);
+app.use(["/auth", "/api/auth"], auth_routes_default);
+app.use(["/config", "/api/config"], config_routes_default);
+app.use(["/notifications", "/api/notifications"], notification_routes_default);
+app.use(["/service-zones", "/api/service-zones"], servicezones_routes_default);
+app.use(["/service-pincodes", "/api/service-pincodes"], servicepincodes_routes_default);
+app.use(["/validate-address", "/api/validate-address"], validateaddress_routes_default);
+app.use(["/delivery-areas", "/api/delivery-areas"], deliveryareas_routes_default);
+app.use(["/reviews", "/api/reviews"], reviews_routes_default);
+app.use(["/search", "/api/search"], search_routes_default);
+app.get("/orders/:orderId/status", async (req, res) => {
+  const { orderId } = req.params;
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId parameter" });
+  }
+  try {
+    const { supabase: supabase2 } = await Promise.resolve().then(() => (init_supabase(), supabase_exports));
+    const { data: order, error } = await supabase2.from("orders").select("*").eq("id", orderId).maybeSingle();
+    if (error) {
+      console.error(`[App] Error fetching status for order ${orderId}:`, error);
+      return res.status(500).json({ error: "Supabase database error", details: error.message });
+    }
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    return res.json({
+      orderId: order.id,
+      status: order.status || "pending",
+      payment_status: order.payment_status || "pending",
+      estimated_delivery_time: order.estimated_delivery_time || null,
+      estimated_arrival: order.estimated_arrival || null,
+      updated_at: order.updated_at,
+      order
+    });
+  } catch (err) {
+    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
+app.get("/order-status/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+  if (!orderId) {
+    return res.status(400).json({ error: "Missing orderId parameter" });
+  }
+  try {
+    const { supabase: supabase2 } = await Promise.resolve().then(() => (init_supabase(), supabase_exports));
+    const { data: order, error } = await supabase2.from("orders").select("*").eq("id", orderId).maybeSingle();
+    if (error) {
+      console.error(`[App] Error fetching status for order ${orderId}:`, error);
+      return res.status(500).json({ error: "Supabase database error", details: error.message });
+    }
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    return res.json({
+      orderId: order.id,
+      status: order.status || "pending",
+      payment_status: order.payment_status || "pending",
+      estimated_delivery_time: order.estimated_delivery_time || null,
+      estimated_arrival: order.estimated_arrival || null,
+      updated_at: order.updated_at,
+      order
+    });
+  } catch (err) {
+    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
+    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+  }
+});
 var maskKey = (key) => {
   if (!key || typeof key !== "string") return "not-set";
   if (key.length <= 12) return "set-but-too-short";

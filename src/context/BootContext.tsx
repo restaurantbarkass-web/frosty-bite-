@@ -88,19 +88,19 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
           configWait += 20;
         }
 
-        // Fire product/offer/banner prefetch in background without blocking READY
+        // Fire product/coupon/banner prefetch in background without blocking READY
         Promise.all([
           supabase.from('products').select('*').limit(100),
-          supabase.from('offers').select('*').eq('active', true).limit(10).maybeSingle(),
+          supabase.from('coupons').select('*').eq('status', 'active').limit(10),
           supabase.from('banners').select('*').limit(10)
-        ]).then(([productsRes, offersRes, bannersRes]) => {
+        ]).then(([productsRes, couponsRes, bannersRes]) => {
           if (!active) return;
           if (productsRes.data) {
             localStorage.setItem('menu_cache', JSON.stringify(productsRes.data));
             setCachedProducts(productsRes.data);
           }
-          if (offersRes.data) {
-            setCachedOffers(Array.isArray(offersRes.data) ? offersRes.data : [offersRes.data]);
+          if (couponsRes.data) {
+            setCachedOffers(Array.isArray(couponsRes.data) ? couponsRes.data : [couponsRes.data]);
           }
           if (bannersRes.data) {
             setCachedBanners(bannersRes.data);

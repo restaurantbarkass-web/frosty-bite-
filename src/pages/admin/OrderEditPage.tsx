@@ -511,57 +511,61 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-4"
+                      className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden"
                     >
-                      <div className="flex items-center gap-4 min-w-0">
+                      {/* Left: Product Thumbnail & Name & Unit Price */}
+                      <div className="flex items-center gap-3.5 min-w-0 flex-1">
                         {item.image ? (
                           <img
                             src={item.image}
                             alt={item.name}
-                            className="w-14 h-14 rounded-xl object-cover border border-white/10 shrink-0"
+                            className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0"
                           />
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                             <ShoppingBag size={20} className="text-zinc-500" />
                           </div>
                         )}
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <h4 className="text-sm font-bold text-white truncate">{item.name || 'Treat Item'}</h4>
-                          <p className="text-xs text-zinc-400 font-mono">₹{price} each</p>
+                          <p className="text-xs text-zinc-400 font-mono mt-0.5">₹{price} each</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-6 shrink-0">
+                      {/* Right: Quantity Controls, Total & Delete Action */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
                         {/* Quantity Counter */}
-                        <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-1">
+                        <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 rounded-xl p-1">
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(idx, qty - 1)}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 flex items-center justify-center font-bold text-xs"
+                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 flex items-center justify-center font-bold text-xs transition-all"
                           >
                             -
                           </button>
-                          <span className="w-8 text-center font-mono font-bold text-xs text-white">{qty}</span>
+                          <span className="w-7 text-center font-mono font-bold text-xs text-white">{qty}</span>
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(idx, qty + 1)}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 flex items-center justify-center font-bold text-xs"
+                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 flex items-center justify-center font-bold text-xs transition-all"
                           >
                             +
                           </button>
                         </div>
 
-                        <div className="text-right min-w-[70px]">
-                          <span className="text-sm font-black text-white font-mono">₹{lineTotal}</span>
+                        {/* Total Price */}
+                        <div className="text-right min-w-[64px]">
+                          <span className="text-sm font-black text-amber-400 font-mono">₹{lineTotal}</span>
                         </div>
 
+                        {/* Remove Action */}
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(idx)}
-                          className="p-2 text-zinc-500 hover:text-rose-400 transition-colors"
+                          className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all shrink-0 flex items-center justify-center"
                           title="Remove item"
                         >
-                          <XCircle size={18} />
+                          <XCircle size={16} />
                         </button>
                       </div>
                     </div>
