@@ -90,7 +90,7 @@ export const CartSidebar: React.FC = () => {
   const { cart, totalPrice, subtotal, totalItems, appliedCoupon, isCartOpen: isOpen } = useCartState();
   const { updateQuantity, removeFromCart, setIsCartOpen } = useCartActions();
   const navigate = useNavigate();
-  const { isOrderingOpen } = useAppConfig();
+  const { isOrderingOpen, isPickupOnly } = useAppConfig();
 
   const [suggestions, setSuggestions] = React.useState<any[]>([]);
 
@@ -274,6 +274,16 @@ export const CartSidebar: React.FC = () => {
             {cart.length > 0 && (
               <div className="p-4 sm:p-6 border-t border-border bg-background/95 backdrop-blur-md space-y-4 sticky bottom-0 z-20 pb-[calc(16px+env(safe-area-inset-bottom))]">
                 <div className="space-y-2">
+                  {isPickupOnly && (
+                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-amber-400 text-xs font-bold mb-2">
+                      <span className="flex items-center gap-1.5">
+                        🛍 Order Type:
+                      </span>
+                      <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-md uppercase">
+                        In-Store Pickup
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <span>Subtotal</span>
                     <span>₹{subtotal}</span>
@@ -286,7 +296,7 @@ export const CartSidebar: React.FC = () => {
                   )}
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     <span>Delivery Fee</span>
-                    <span className="text-emerald-500">FREE</span>
+                    <span className="text-emerald-500">{isPickupOnly ? 'FREE (Pickup)' : 'FREE'}</span>
                   </div>
                   <div className="pt-2 border-t border-white/5 flex justify-between items-center">
                     <span className="text-xs font-black uppercase tracking-[0.3em] text-white">Grand Total</span>

@@ -4,7 +4,7 @@ import { OrdersChart, PopularItemsChart, RevenueChart } from '../../components/a
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { motion } from 'motion/react';
 import { useConfig } from '../../context/ConfigContext';
-import { Power, CheckCircle2, XCircle } from 'lucide-react';
+import { Power, CheckCircle2, XCircle, ShoppingBag, Store, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,11 +13,14 @@ import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { config, toggleOrderingStatus } = useConfig();
+  const { config, toggleOrderingStatus, updatePickupOnlyStatus } = useConfig();
   const [isToggling, setIsToggling] = useState(false);
+  const [isTogglingPickup, setIsTogglingPickup] = useState(false);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
+
+  const isPickupOnly = Boolean(config?.pickup_only ?? config?.isPickupOnly ?? false);
 
   useEffect(() => {
     // Load initial data from cache
@@ -94,6 +97,22 @@ export const Dashboard: React.FC = () => {
       toast.error('Failed to update status');
     } finally {
       setIsToggling(false);
+    }
+  };
+
+  const handleTogglePickupOnly = async () => {
+    if (!config) return;
+    setIsTogglingPickup(true);
+    const newStatus = !isPickupOnly;
+    try {
+      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
+      await updatePickupOnlyStatus(newStatus, token);
+      toast.success(`Pickup Only is now ${newStatus ? 'ENABLED (Bakery Pickup Only)' : 'DISABLED (Home Delivery Active)'}`);
+    } catch (error) {
+      console.error('Error toggling pickup only status:', error);
+      toast.error('Failed to update pickup status');
+    } finally {
+      setIsTogglingPickup(false);
     }
   };
 
@@ -185,6 +204,96 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Order Settings Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500">
+              <Store size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Order Settings</h2>
+              <p className="text-xs text-gray-400 font-medium">Manage ordering status and fulfillment modes in real time</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+              config?.isOrderingOpen 
+                ? (isPickupOnly ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30') 
+                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+            }`}>
+              {!config?.isOrderingOpen ? 'Store Closed' : (isPickupOnly ? 'Pickup Only Active' : 'Store Open (Delivery & Pickup)')}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Order Open / Close Toggle */}
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Power size={18} className={config?.isOrderingOpen ? 'text-emerald-400' : 'text-red-400'} />
+                <span className="font-bold text-white text-base">Order Status</span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                {config?.isOrderingOpen ? 'Store is accepting orders.' : 'Store is closed. Online orders are disabled.'}
+              </p>
+            </div>
+            {config && (
+              <button 
+                type="button"
+                onClick={handleToggleOrdering}
+                disabled={isToggling}
+                className={`relative w-14 h-8 rounded-full p-1 transition-all duration-300 outline-none shrink-0 ${
+                  config.isOrderingOpen ? 'bg-emerald-500' : 'bg-white/10'
+                }`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 transform flex items-center justify-center ${
+                  config.isOrderingOpen ? 'translate-x-6' : 'translate-x-0'
+                }`}>
+                  {isToggling ? (
+                    <div className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                  ) : null}
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* Pickup Only Toggle */}
+          <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ShoppingBag size={18} className={isPickupOnly ? 'text-amber-400' : 'text-gray-400'} />
+                <span className="font-bold text-white text-base">Pickup Only</span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
+                When enabled, customers can place orders online but must collect them from the bakery. Home delivery will be disabled.
+              </p>
+            </div>
+            <button 
+              type="button"
+              onClick={handleTogglePickupOnly}
+              disabled={isTogglingPickup}
+              className={`relative w-14 h-8 rounded-full p-1 transition-all duration-300 outline-none shrink-0 ${
+                isPickupOnly ? 'bg-amber-500' : 'bg-white/10'
+              }`}
+            >
+              <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 transform flex items-center justify-center ${
+                isPickupOnly ? 'translate-x-6' : 'translate-x-0'
+              }`}>
+                {isTogglingPickup ? (
+                  <div className="w-3 h-3 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                ) : null}
+              </div>
+            </button>
+          </div>
+        </div>
+      </motion.div>
 
       <DashboardCards />
 

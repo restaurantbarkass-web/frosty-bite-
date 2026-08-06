@@ -3,7 +3,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronDown, SlidersHorizontal, ShoppingBag } from 'lucide-react';
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { FoodCardSkeleton } from '../components/FoodCardSkeleton';
@@ -56,7 +56,7 @@ export const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState(new URLSearchParams(location.search).get('search') || '');
   
   const [banners, setBanners] = useState<any[]>([]);
-  const { isOrderingOpen } = useAppConfig();
+  const { isOrderingOpen, isPickupOnly } = useAppConfig();
   const navigate = useNavigate();
 
   useMetadata({
@@ -512,9 +512,9 @@ export const Home: React.FC = () => {
         {/* Butler Selection - NEW PREMIUM SECTION */}
         <ButlerSelection />
 
-        {/* Orders Closed Banner */}
+        {/* Orders Closed or Pickup Only Banner */}
         <AnimatePresence>
-          {!isOrderingOpen && (
+          {!isOrderingOpen ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -529,7 +529,31 @@ export const Home: React.FC = () => {
                 <p className="text-sm font-bold text-red-500/80">🚫 We are not accepting new orders at the moment. Please check back later!</p>
               </div>
             </motion.div>
-          )}
+          ) : isPickupOnly ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mb-8 p-6 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-3xl flex items-center justify-between gap-6 backdrop-blur-xl shadow-lg shadow-amber-500/5"
+            >
+              <div className="flex items-center gap-4 sm:gap-6">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400 shrink-0">
+                  <ShoppingBag size={28} className="animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-black font-black text-[10px] uppercase tracking-wider">
+                      🛍 Pickup Only
+                    </span>
+                    <h3 className="text-base sm:text-lg font-black tracking-tight text-white">In-Store Bakery Collection Active</h3>
+                  </div>
+                  <p className="text-xs sm:text-sm font-medium text-amber-200/90 leading-relaxed">
+                    Place your order online and collect it from our bakery at your preferred time. Home delivery is currently disabled.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ) : null}
         </AnimatePresence>
 
         {/* Categories */}

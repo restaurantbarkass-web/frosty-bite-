@@ -24,7 +24,7 @@ const ProductDetail: React.FC = () => {
   const navigate = useNavigate();
   const { addToCart, totalItems, setIsCartOpen } = useCart();
   const { user } = useAuth();
-  const { isOrderingOpen } = useAppConfig();
+  const { isOrderingOpen, isPickupOnly } = useAppConfig();
   
   const purchaseSectionRef = useRef<HTMLDivElement>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
@@ -529,10 +529,15 @@ const ProductDetail: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
               <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full border border-primary/20">
                 {product.category}
               </span>
+              {isPickupOnly && (
+                <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-500/30 flex items-center gap-1">
+                  🛍 Pickup Available
+                </span>
+              )}
               <div className="flex items-center gap-1.5 text-orange-500">
                 <Star size={14} fill="currentColor" />
                 <span className="text-xs font-black">{product.rating} (120+ Reviews)</span>

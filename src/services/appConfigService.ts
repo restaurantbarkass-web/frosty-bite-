@@ -3,6 +3,8 @@ export type { AppConfig };
 
 const defaultParams: AppConfig = { 
   isOrderingOpen: true,
+  pickup_only: false,
+  isPickupOnly: false,
   deliveryBaseFee: 15,
   deliveryFeePerKm: 5,
   deliveryFreeKm: 3,
@@ -251,6 +253,40 @@ export const appConfigService = {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ isOrderingOpen: newStatus })
+      });
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const freshResponse = await response.json();
+      const freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
+
+      currentConfig = freshConfig;
+      localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+      localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+      currentListeners.forEach(l => l(freshConfig));
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  updatePickupOnlyStatus: async (isPickupOnly: boolean, customToken?: string | null) => {
+    const updatedConfig = {
+      ...currentConfig,
+      pickup_only: isPickupOnly,
+      isPickupOnly: isPickupOnly,
+      updated_at: new Date().toISOString()
+    } as AppConfig;
+
+    try {
+      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+      const response = await fetchWithRetry('/api/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ pickup_only: isPickupOnly, isPickupOnly: isPickupOnly })
       });
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);

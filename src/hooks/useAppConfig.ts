@@ -7,6 +7,7 @@ export const useAppConfig = () => {
     config, 
     isLoading, 
     isOrderingOpen: config?.isOrderingOpen ?? true,
+    isPickupOnly: Boolean(config?.pickup_only ?? config?.isPickupOnly ?? false),
     deliveryBaseFee: config?.deliveryBaseFee ?? 20,
     deliveryFeePerKm: config?.deliveryFeePerKm ?? 8,
     deliveryFreeKm: config?.deliveryFreeKm ?? 5,

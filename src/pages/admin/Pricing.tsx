@@ -8,12 +8,13 @@ import { useAuth } from '../../context/AuthContext';
 
 export const Pricing: React.FC = () => {
   const { user } = useAuth();
-  const { config, updateDeliveryPricing, updateGeofencingSettings, isLoading: configLoading } = useConfig();
+  const { config, updateDeliveryPricing, updateGeofencingSettings, updatePickupOnlyStatus, isLoading: configLoading } = useConfig();
   const [baseFee, setBaseFee] = useState(20);
   const [perKm, setPerKm] = useState(8);
   const [freeKm, setFreeKm] = useState(5);
   const [defaultDeliveryTime, setDefaultDeliveryTime] = useState(25);
   const [isInstantDeliveryClosed, setIsInstantDeliveryClosed] = useState(false);
+  const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -40,6 +41,7 @@ export const Pricing: React.FC = () => {
       setFreeKm(config.deliveryFreeKm ?? 5);
       setDefaultDeliveryTime(config.defaultDeliveryTime ?? 25);
       setIsInstantDeliveryClosed(config.isInstantDeliveryClosed ?? false);
+      setIsPickupOnly(Boolean(config.pickup_only ?? config.isPickupOnly ?? false));
 
       setGeofencingEnabled(config.geofencingEnabled ?? true);
       setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
@@ -73,7 +75,8 @@ export const Pricing: React.FC = () => {
         defaultDeliveryTime,
         isInstantDeliveryClosed
       }, token);
-      toast.success('Delivery settings updated successfully!');
+      await updatePickupOnlyStatus(isPickupOnly, token);
+      toast.success('Delivery & pickup settings updated successfully!');
     } catch (error) {
       toast.error('Failed to update pricing');
     } finally {
@@ -233,6 +236,24 @@ export const Pricing: React.FC = () => {
                     className={`relative w-12 h-6 rounded-full transition-all duration-300 focus:outline-none flex-shrink-0 ${isInstantDeliveryClosed ? 'bg-orange-500' : 'bg-white/10'}`}
                   >
                     <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${isInstantDeliveryClosed ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                  <div className="flex flex-col text-left">
+                    <span className="text-sm font-bold text-amber-400 flex items-center gap-1.5">
+                      Pickup Only
+                    </span>
+                    <span className="text-[10px] text-gray-400 leading-relaxed max-w-[240px] block mt-1">
+                      When enabled, customers can place orders online but must collect them from the bakery. Home delivery will be disabled.
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsPickupOnly(!isPickupOnly)}
+                    className={`relative w-12 h-6 rounded-full transition-all duration-300 focus:outline-none flex-shrink-0 ${isPickupOnly ? 'bg-amber-500' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300 ${isPickupOnly ? 'translate-x-6' : ''}`} />
                   </button>
                 </div>
               </div>

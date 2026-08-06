@@ -285,9 +285,9 @@ export const Login: React.FC = () => {
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [whatsappServerUrl, setWhatsappServerUrl] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001';
+      return localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app';
     }
-    return 'http://localhost:3001';
+    return 'https://openwa-backend-production-97f8.up.railway.app';
   });
 
   // Autoredirect after full authentication and geofence verification

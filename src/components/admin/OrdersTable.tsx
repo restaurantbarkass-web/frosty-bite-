@@ -6,6 +6,7 @@ import { supabase } from '../../supabase';
 import { supabaseService } from '../../services/supabaseService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
 import { KOTPrint } from './KOTPrint';
+import { OrderEditPage } from '../../pages/admin/OrderEditPage';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
 import { rewardsService } from '../../services/rewardsService';
@@ -1171,99 +1172,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
       <AnimatePresence>
         {editingOrder && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEditingOrder(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#111] border border-white/10 rounded-[32px] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
-            >
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
-                  <h3 className="text-2xl font-bold text-white">Edit Order Details</h3>
-                  <button onClick={() => setEditingOrder(null)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-all">
-                    <X size={24} />
-                  </button>
-                </div>
-
-                <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-6 pb-48 md:pb-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Customer Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        value={editFormData.customer_name}
-                        onChange={(e) => setEditFormData({...editFormData, customer_name: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
-                      />
-                    </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Phone Number</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={editFormData.phone}
-                      onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Delivery Address</label>
-                    <textarea 
-                      required
-                      value={editFormData.address}
-                      onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Order Notes (Optional)</label>
-                    <textarea 
-                      value={editFormData.notes}
-                      onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none" 
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Estimated Delivery Time (e.g. 30 mins, 3 Days)</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        required
-                        value={editFormData.estimated_delivery_time}
-                        onChange={(e) => setEditFormData({...editFormData, estimated_delivery_time: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all" 
-                      />
-                      <Clock size={20} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-500" />
-                    </div>
-                  </div>
-
-                  </div>
- 
-                  <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#111]/95 backdrop-blur-xl border-t border-white/10 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-                    <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all active:scale-95">
-                      Cancel
-                    </button>
-                    <button type="submit" className="flex-1 py-4 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:bg-zinc-800 transition-all active:scale-95">
-                      Save Changes
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
+          <OrderEditPage
+            order={editingOrder}
+            onBack={() => setEditingOrder(null)}
+            onOrderUpdated={(updatedOrder) => {
+              setEditingOrder(null);
+            }}
+            onPrintKOT={(ord) => setPrintingOrder(ord)}
+          />
         )}
       </AnimatePresence>
 

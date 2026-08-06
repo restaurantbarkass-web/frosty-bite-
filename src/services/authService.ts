@@ -167,14 +167,14 @@ export const authService = {
 
     // Client-side local WhatsApp server dispatch fallback
     if (data.client_dispatch_required) {
-      let configuredUrl = 'http://localhost:3001';
+      let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
       try {
-        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').trim().replace(/\/+$/, '');
       } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
-        configuredUrl = 'http://127.0.0.1:3001';
+        configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
         try {
-          localStorage.setItem('whatsapp_server_url', 'http://127.0.0.1:3001');
+          localStorage.setItem('whatsapp_server_url', 'https://openwa-backend-production-97f8.up.railway.app');
         } catch (e) {}
       }
       
@@ -182,6 +182,7 @@ export const authService = {
       uniqueUrls.add(configuredUrl);
       
       const defaults = [
+        'https://openwa-backend-production-97f8.up.railway.app',
         'http://127.0.0.1:3001',
         'http://localhost:3001',
         'http://127.0.0.1:3002',
@@ -298,14 +299,14 @@ export const authService = {
 
     // Client-side local WhatsApp server dispatch fallback
     if (data.client_dispatch_required) {
-      let configuredUrl = 'http://localhost:3001';
+      let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
       try {
-        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'http://localhost:3001').trim().replace(/\/+$/, '');
+        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').trim().replace(/\/+$/, '');
       } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
-        configuredUrl = 'http://127.0.0.1:3001';
+        configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
         try {
-          localStorage.setItem('whatsapp_server_url', 'http://127.0.0.1:3001');
+          localStorage.setItem('whatsapp_server_url', 'https://openwa-backend-production-97f8.up.railway.app');
         } catch (e) {}
       }
       
@@ -313,6 +314,7 @@ export const authService = {
       uniqueUrls.add(configuredUrl);
       
       const defaults = [
+        'https://openwa-backend-production-97f8.up.railway.app',
         'http://127.0.0.1:3001',
         'http://localhost:3001',
         'http://127.0.0.1:3002',

@@ -9,6 +9,8 @@ export const ADMIN_EMAILS = [
 
 export const RESTAURANT_WHATSAPP = "917735800239"; 
 export const RESTAURANT_LOCATION = { lat: 20.4625, lng: 85.8828 };
+export const BAKERY_ADDRESS = "Frosty Bite Bakery, Main Road, Buxi Bazaar, Cuttack, Odisha - 753001";
+export const BAKERY_PICKUP_INSTRUCTIONS = "Place your order online and collect it from our bakery counter at your preferred time. Please present your Order ID or phone number when collecting.";
 
 export type UserRole = 'admin' | 'customer';
 

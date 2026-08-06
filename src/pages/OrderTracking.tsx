@@ -388,6 +388,13 @@ export const OrderTracking: React.FC = () => {
 
                 let label = step.label;
                 let description = step.description;
+                let StepIcon = step.icon;
+
+                if (order.order_type === 'pickup' && step.id === 'out_for_delivery') {
+                  label = 'Ready for Pickup';
+                  description = 'Your order is freshly baked & ready at the bakery counter!';
+                  StepIcon = ShoppingBag;
+                }
 
                 if (step.id === 'pending' && order.status === 'pending' && order.utr) {
                   label = 'Verifying Payment';
@@ -400,7 +407,7 @@ export const OrderTracking: React.FC = () => {
                       "relative z-10 w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-500",
                       isActive ? "bg-primary text-white" : "bg-secondary text-muted"
                     )}>
-                      <step.icon size={24} />
+                      <StepIcon size={24} />
                       {isCurrent && (
                         <motion.div
                           layoutId="pulse"
@@ -435,7 +442,7 @@ export const OrderTracking: React.FC = () => {
           </div>
 
           <div className="glass-dark p-6 rounded-3xl border border-border">
-            <h4 className="font-bold mb-4">Delivery Address</h4>
+            <h4 className="font-bold mb-4">{order.order_type === 'pickup' ? '🛍 Pickup Collection Address' : '🚚 Delivery Address'}</h4>
             <p className="text-sm text-muted">
               {order.address || 'No address provided'}
             </p>

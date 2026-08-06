@@ -5,6 +5,7 @@ interface ConfigContextType {
   config: AppConfig | null;
   isLoading: boolean;
   toggleOrderingStatus: (customToken?: string | null) => Promise<void>;
+  updatePickupOnlyStatus: (isPickupOnly: boolean, customToken?: string | null) => Promise<void>;
   updateDeliveryPricing: (pricing: any, customToken?: string | null) => Promise<void>;
   updateGeofencingSettings: (settings: any, customToken?: string | null) => Promise<void>;
 }
@@ -35,6 +36,10 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await appConfigService.toggleOrderingStatus(config.isOrderingOpen, customToken);
   };
 
+  const updatePickupOnlyStatus = async (isPickupOnly: boolean, customToken?: string | null) => {
+    await appConfigService.updatePickupOnlyStatus(isPickupOnly, customToken);
+  };
+
   const updateDeliveryPricing = async (pricing: any, customToken?: string | null) => {
     await appConfigService.updateDeliveryPricing(pricing, customToken);
   };
@@ -48,6 +53,7 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       config,
       isLoading,
       toggleOrderingStatus,
+      updatePickupOnlyStatus,
       updateDeliveryPricing,
       updateGeofencingSettings
     }}>

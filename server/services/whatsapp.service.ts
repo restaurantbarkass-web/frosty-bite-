@@ -32,7 +32,7 @@ export class WhatsAppService {
     const textMessage = `Cake *Frosty Bite Bakery*\n\nYour verification code is:\n\n*${otp}*\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.`;
 
     // 3. Resolve the configured WhatsApp server URL
-    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || 'http://localhost:3001').replace(/\/+$/, '');
+    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
 
     const isCloudEnv = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production';
 

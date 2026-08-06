@@ -37,7 +37,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   const location = useLocation();
   const [isFlying, setIsFlying] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const { isOrderingOpen } = useAppConfig();
+  const { isOrderingOpen, isPickupOnly } = useAppConfig();
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
 
@@ -282,6 +282,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
             <span className="bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-lg">
               Freshly Baked
             </span>
+            {isPickupOnly && (
+              <span className="bg-amber-500/95 backdrop-blur-md text-black text-[9px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg flex items-center gap-1">
+                🛍 Pickup Available
+              </span>
+            )}
             {isAiRecommended && (
               <motion.div
                 initial={{ opacity: 0, x: -10 }}

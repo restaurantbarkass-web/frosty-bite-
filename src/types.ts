@@ -33,6 +33,7 @@ export interface Order {
   items: any[];
   total: number;
   status: 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  order_type?: 'delivery' | 'pickup';
   delivery_location?: {
     lat: number;
     lng: number;
@@ -109,6 +110,8 @@ export interface BannerClick {
 
 export interface AppConfig {
   isOrderingOpen: boolean;
+  pickup_only?: boolean;
+  isPickupOnly?: boolean;
   [key: string]: any;
 }
 

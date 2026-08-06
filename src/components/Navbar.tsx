@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -105,20 +105,29 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className={cn(
-              "w-full py-1.5 px-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-colors",
-              config.isOrderingOpen 
-                ? "bg-emerald-500/10 text-emerald-500 border-b border-emerald-500/10" 
-                : "bg-red-500/10 text-red-500 border-b border-red-500/10"
+              "w-full py-2 px-4 flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] transition-colors text-center",
+              !config.isOrderingOpen 
+                ? "bg-red-500/10 text-red-500 border-b border-red-500/10"
+                : (Boolean(config.pickup_only ?? config.isPickupOnly) 
+                    ? "bg-amber-500/15 text-amber-400 border-b border-amber-500/20" 
+                    : "bg-emerald-500/10 text-emerald-500 border-b border-emerald-500/10")
             )}
           >
             {config.isOrderingOpen ? (
-              <>
-                <CheckCircle2 size={12} className="animate-pulse" />
-                <span>🟢 Orders Open - Fast Delivery Active</span>
-              </>
+              Boolean(config.pickup_only ?? config.isPickupOnly) ? (
+                <>
+                  <ShoppingBag size={14} className="animate-bounce shrink-0 text-amber-400" />
+                  <span className="font-bold tracking-normal">🛍 Pickup Only — Place your order online and collect it from our bakery at your preferred time</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={12} className="animate-pulse shrink-0" />
+                  <span>🟢 Orders Open - Fast Delivery Active</span>
+                </>
+              )
             ) : (
               <>
-                <AlertCircle size={12} className="animate-bounce" />
+                <AlertCircle size={12} className="animate-bounce shrink-0" />
                 <span>🔴 Orders Closed - We'll be back soon!</span>
               </>
             )}

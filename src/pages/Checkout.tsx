@@ -33,7 +33,7 @@ import { emailService } from '../services/emailService';
 import toast from 'react-hot-toast';
 import { cn, haptic } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
-import { RESTAURANT_LOCATION } from '../constants';
+import { RESTAURANT_LOCATION, BAKERY_ADDRESS, BAKERY_PICKUP_INSTRUCTIONS } from '../constants';
 import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -53,6 +53,7 @@ export const Checkout: React.FC = () => {
   const { addNotification } = useNotifications();
   const { 
     isOrderingOpen, 
+    isPickupOnly,
     deliveryBaseFee, 
     deliveryFeePerKm, 
     deliveryFreeKm, 
@@ -202,6 +203,15 @@ export const Checkout: React.FC = () => {
   };
 
   const validateDeliveryAddress = async (fieldsToValidate = addrFields, coords = formData.location) => {
+    if (isPickupOnly) {
+      setValidationResult({
+        isValidating: false,
+        success: true,
+        message: '🛍 In-Store Pickup Active',
+        estimatedDeliveryMins: 25
+      });
+      return true;
+    }
     setValidationResult(prev => ({ ...prev, isValidating: true }));
     try {
       const response = await fetch('/api/validate-address', {
@@ -318,6 +328,7 @@ export const Checkout: React.FC = () => {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const isLocationInServiceArea = () => {
+    if (isPickupOnly) return true;
     if (!formData.location) return true; 
     if (geofencingEnabled === false) return true; 
 
@@ -553,12 +564,16 @@ export const Checkout: React.FC = () => {
 
     if (!formData.name || !formData.name.trim()) errors.name = true;
     if (!formData.phone || formData.phone.replace(/[^0-9]/g, '').length < 10) errors.phone = true;
-    if (!addrFields.houseNumber || !addrFields.houseNumber.trim()) errors.houseNumber = true;
-    if (!addrFields.streetName || !addrFields.streetName.trim()) errors.streetName = true;
-    if (!addrFields.landmark || !addrFields.landmark.trim()) errors.landmark = true;
-    if (!addrFields.city || !addrFields.city.trim()) errors.city = true;
-    if (!addrFields.pincode || addrFields.pincode.replace(/[^0-9]/g, '').length < 6) errors.pincode = true;
-    if (deliveryMode === 'scheduled' && !scheduledDate) errors.scheduledDate = true;
+    
+    // Only require address & scheduling fields if NOT in Pickup Only mode
+    if (!isPickupOnly) {
+      if (!addrFields.houseNumber || !addrFields.houseNumber.trim()) errors.houseNumber = true;
+      if (!addrFields.streetName || !addrFields.streetName.trim()) errors.streetName = true;
+      if (!addrFields.landmark || !addrFields.landmark.trim()) errors.landmark = true;
+      if (!addrFields.city || !addrFields.city.trim()) errors.city = true;
+      if (!addrFields.pincode || addrFields.pincode.replace(/[^0-9]/g, '').length < 6) errors.pincode = true;
+      if (deliveryMode === 'scheduled' && !scheduledDate) errors.scheduledDate = true;
+    }
 
     if (Object.keys(errors).length > 0) {
       setInvalidFields(errors);
@@ -604,11 +619,13 @@ export const Checkout: React.FC = () => {
       return;
     }
 
-    const isDeliverable = await validateDeliveryAddress(addrFields, formData.location);
-    if (!isDeliverable) {
-      toast.error('Your specified delivery location is outside of our active geofenced delivery boundaries.');
-      setIsOrdering(false);
-      return;
+    if (!isPickupOnly) {
+      const isDeliverable = await validateDeliveryAddress(addrFields, formData.location);
+      if (!isDeliverable) {
+        toast.error('Your specified delivery location is outside of our active geofenced delivery boundaries.');
+        setIsOrdering(false);
+        return;
+      }
     }
 
     try {
@@ -633,7 +650,7 @@ export const Checkout: React.FC = () => {
         });
       }
 
-      const scheduledArrivalStr = deliveryMode === 'scheduled' && scheduledDate
+      const scheduledArrivalStr = (!isPickupOnly && deliveryMode === 'scheduled' && scheduledDate)
         ? `Scheduled: ${scheduledDay}, ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
         : null;
 
@@ -643,25 +660,30 @@ export const Checkout: React.FC = () => {
         items: orderItems,
         subtotal: subtotal,
         discount: discountAmount,
-        delivery_charge: deliveryFee,
+        delivery_charge: isPickupOnly ? 0 : deliveryFee,
+        order_type: isPickupOnly ? 'pickup' : 'delivery',
         coupon_code: appliedCoupon?.code || null,
-        total: finalPrice,
+        total: isPickupOnly ? Math.max(0, subtotal - discountAmount) : finalPrice,
         status: formData.paymentMethod === 'upi' ? 'awaiting_payment' : 'pending',
         payment_method: formData.paymentMethod,
         payment_status: 'pending',
-        address: formData.address,
-        delivery_location: formData.location || null,
+        address: isPickupOnly 
+          ? `[IN-STORE PICKUP] Bakery: ${BAKERY_ADDRESS}` 
+          : formData.address,
+        delivery_location: isPickupOnly ? null : (formData.location || null),
         phone: formData.phone,
         customer_name: formData.name,
         email: user?.email || null,
-        estimated_delivery_time: hasDaysItems 
-          ? getDaysMaxString() 
-          : `${Math.max(
-              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-              ...cart.map(item => item.estimated_delivery_time || 30)
-            )} mins`,
-        estimated_arrival: scheduledArrivalStr,
-        notes: (deliveryMode === 'scheduled' && scheduledDate ? `[SCHEDULED: ${scheduledDay}, ${scheduledDate}] ` : '') + formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
+        estimated_delivery_time: isPickupOnly 
+          ? 'Ready for pickup in 20-30 mins' 
+          : (hasDaysItems 
+              ? getDaysMaxString() 
+              : `${Math.max(
+                  validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                  ...cart.map(item => item.estimated_delivery_time || 30)
+                )} mins`),
+        estimated_arrival: isPickupOnly ? 'Ready for pickup in 20-30 mins' : scheduledArrivalStr,
+        notes: (isPickupOnly ? '[PICKUP ONLY ORDER] ' : '') + (!isPickupOnly && deliveryMode === 'scheduled' && scheduledDate ? `[SCHEDULED: ${scheduledDay}, ${scheduledDate}] ` : '') + formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
 
@@ -989,7 +1011,7 @@ export const Checkout: React.FC = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <form onSubmit={handlePlaceOrder} className="lg:col-span-8 space-y-6">
-            {/* Delivery Details */}
+            {/* Delivery / Pickup Details */}
             <div 
               ref={deliverySectionRef} 
               className={cn(
@@ -998,11 +1020,49 @@ export const Checkout: React.FC = () => {
               )}
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                  <Truck size={24} />
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center",
+                  isPickupOnly ? "bg-amber-500/10 text-amber-400" : "bg-primary/10 text-primary"
+                )}>
+                  {isPickupOnly ? <ShoppingBag size={24} /> : <Truck size={24} />}
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Delivery Details</h2>
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">
+                  {isPickupOnly ? "Pickup & Customer Details" : "Delivery Details"}
+                </h2>
               </div>
+
+              {/* Banner for Pickup Only */}
+              {isPickupOnly && (
+                <div className="p-6 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-3xl space-y-4">
+                  <div className="flex items-center gap-3 text-amber-400">
+                    <ShoppingBag size={24} className="animate-bounce shrink-0" />
+                    <div>
+                      <h3 className="font-black text-sm uppercase tracking-wider text-white">🛍 Pickup Only Active</h3>
+                      <p className="text-xs text-amber-200/90 font-medium mt-0.5">Place your order online and collect it directly from our bakery counter. Home delivery is currently disabled.</p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-black/40 rounded-2xl space-y-3 text-xs border border-white/5">
+                    <div className="flex items-start gap-2.5">
+                      <MapPin size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-white uppercase text-[10px] tracking-widest">Bakery Collection Address:</p>
+                        <p className="text-amber-200 font-semibold font-mono mt-0.5">{BAKERY_ADDRESS}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2.5 pt-3 border-t border-white/10">
+                      <Sparkles size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-white uppercase text-[10px] tracking-widest">Pickup Instructions:</p>
+                        <p className="text-zinc-300 leading-relaxed mt-0.5">{BAKERY_PICKUP_INSTRUCTIONS}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-white/10 text-emerald-400 font-bold">
+                      <CheckCircle2 size={18} className="shrink-0" />
+                      <span>Estimated Ready Time: 20 - 30 Minutes</span>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -1070,341 +1130,345 @@ export const Checkout: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                    <MapPin size={12} className="text-primary" /> Complete Address *
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowMap(!showMap)}
-                      className={cn(
-                        "text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all",
-                        showMap ? "text-primary bg-primary/10 px-2 py-0.5 rounded-md" : "text-zinc-500 hover:text-white"
-                      )}
-                    >
-                      <MapIcon size={12} />
-                      {showMap ? 'Hide Map' : 'Pinpoint on Map'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleLocateMe}
-                      disabled={isLocating}
-                      className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-                    >
-                      {isLocating ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Zap size={12} fill="currentColor" />
-                      )}
-                      Locate Me
-                    </button>
-                  </div>
-                </div>
-
-                <AnimatePresence>
-                  {showMap && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mb-4">
-                        <React.Suspense fallback={<div className="w-full h-[300px] bg-zinc-900 animate-pulse rounded-3xl" />}>
-                          <MapSelector 
-                            initialLocation={formData.location}
-                            onLocationSelect={(lat, lng, address) => {
-                              handleMapLocationSelected(lat, lng, address);
-                            }}
-                          />
-                        </React.Suspense>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Structured Address Form Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">House / Flat / Plot *</label>
-                    <input
-                      ref={houseNumberRef}
-                      key={`houseNumber-${shakeKey}`}
-                      type="text"
-                      required
-                      placeholder="e.g. House 12 / Plot 3A"
-                      className={cn(
-                        "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
-                        invalidFields.houseNumber 
-                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                          : "border-white/10 focus:border-primary/50"
-                      )}
-                      value={addrFields.houseNumber}
-                      onChange={(e) => {
-                        setAddrFields({ ...addrFields, houseNumber: e.target.value });
-                        if (invalidFields.houseNumber && e.target.value.trim()) {
-                          setInvalidFields(prev => ({ ...prev, houseNumber: false }));
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <GooglePlacesAutocomplete
-                      currentAddressValue={addrFields.streetName}
-                      isInvalid={invalidFields.streetName}
-                      shakeKey={shakeKey}
-                      onManualStreetChange={(val) => {
-                        setAddrFields({ ...addrFields, streetName: val });
-                        if (invalidFields.streetName && val.trim()) {
-                          setInvalidFields(prev => ({ ...prev, streetName: false }));
-                        }
-                      }}
-                      onAddressSelect={(data) => {
-                        setAddrFields({
-                          houseNumber: data.houseNumber || addrFields.houseNumber,
-                          streetName: data.streetName,
-                          landmark: data.landmark || addrFields.landmark,
-                          city: data.city || 'Cuttack',
-                          pincode: data.pincode || addrFields.pincode
-                        });
-                        setInvalidFields(prev => ({
-                          ...prev,
-                          streetName: false,
-                          houseNumber: data.houseNumber ? false : prev.houseNumber,
-                          landmark: data.landmark ? false : prev.landmark,
-                          city: false,
-                          pincode: data.pincode ? false : prev.pincode
-                        }));
-                        if (data.lat && data.lng) {
-                          setFormData(prev => ({
-                            ...prev,
-                            location: { lat: data.lat!, lng: data.lng! }
-                          }));
-                        }
-                        toast.success('Address auto-filled successfully!', { icon: '✨' });
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Landmark *</label>
-                    <input
-                      ref={landmarkRef}
-                      key={`landmark-${shakeKey}`}
-                      type="text"
-                      required
-                      placeholder="e.g. Near Link Road"
-                      className={cn(
-                        "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
-                        invalidFields.landmark 
-                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                          : "border-white/10 focus:border-primary/50"
-                      )}
-                      value={addrFields.landmark}
-                      onChange={(e) => {
-                        setAddrFields({ ...addrFields, landmark: e.target.value });
-                        if (invalidFields.landmark && e.target.value.trim()) {
-                          setInvalidFields(prev => ({ ...prev, landmark: false }));
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">City *</label>
-                      <input
-                        ref={cityRef}
-                        key={`city-${shakeKey}`}
-                        type="text"
-                        required
-                        placeholder="e.g. Cuttack"
-                        className={cn(
-                          "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
-                          invalidFields.city 
-                            ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                            : "border-white/10 focus:border-primary/50"
-                        )}
-                        value={addrFields.city}
-                        onChange={(e) => {
-                          setAddrFields({ ...addrFields, city: e.target.value });
-                          if (invalidFields.city && e.target.value.trim()) {
-                            setInvalidFields(prev => ({ ...prev, city: false }));
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pincode *</label>
-                      <input
-                        ref={pincodeRef}
-                        key={`pincode-${shakeKey}`}
-                        type="text"
-                        required
-                        placeholder="e.g. 753010"
-                        className={cn(
-                          "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold font-mono",
-                          invalidFields.pincode 
-                            ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                            : "border-white/10 focus:border-primary/50"
-                        )}
-                        value={addrFields.pincode}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                          setAddrFields({ ...addrFields, pincode: val });
-                          if (invalidFields.pincode && val.length >= 6) {
-                            setInvalidFields(prev => ({ ...prev, pincode: false }));
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Delivery Status indicator for Checkout */}
-                <div className="pt-2">
-                  {validationResult.isValidating ? (
-                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse flex items-center gap-3">
-                      <Loader2 size={16} className="text-primary animate-spin" />
-                      <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider animate-pulse">Evaluating Delivery Area...</span>
-                    </div>
-                  ) : validationResult.success === true ? (
-                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-left">
-                      <span className="text-emerald-500 text-lg">✅</span>
-                      <div>
-                        <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
-                        <p className="text-zinc-200 text-xs font-semibold mt-0.5">
-                          Estimated delivery: {hasDaysItems ? (
-                            `Within ${getDaysMaxString()}`
-                          ) : (
-                            `${Math.max(
-                              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-                              ...cart.map(item => item.estimated_delivery_time || 30)
-                            )} mins`
+              {!isPickupOnly && (
+                <>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center px-1">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                        <MapPin size={12} className="text-primary" /> Complete Address *
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          onClick={() => setShowMap(!showMap)}
+                          className={cn(
+                            "text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all",
+                            showMap ? "text-primary bg-primary/10 px-2 py-0.5 rounded-md" : "text-zinc-500 hover:text-white"
                           )}
-                        </p>
-                        {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
+                        >
+                          <MapIcon size={12} />
+                          {showMap ? 'Hide Map' : 'Pinpoint on Map'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleLocateMe}
+                          disabled={isLocating}
+                          className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                        >
+                          {isLocating ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Zap size={12} fill="currentColor" />
+                          )}
+                          Locate Me
+                        </button>
                       </div>
                     </div>
-                  ) : validationResult.success === false ? (
-                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-left">
-                      <span className="text-red-500 text-lg">❌</span>
-                      <div>
-                        <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">Outside Service Area</p>
-                        <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">{validationResult.message || "Frosty Bite currently delivers only in Cuttack."}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-2 text-left">
-                      <span className="text-zinc-500">🚚</span>
-                      <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
-                    </div>
-                  )}
-                </div>
 
-                {/* Delivery Scheduling: Set date and convert to day also */}
-                <div className="pt-4 border-t border-white/5 mt-2 text-left">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">
-                    Delivery Schedule
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      disabled={isInstantDeliveryClosed || hasDaysItems}
-                      onClick={() => !isInstantDeliveryClosed && !hasDaysItems && setDeliveryMode('instant')}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all relative ${
-                        isInstantDeliveryClosed || hasDaysItems
-                          ? 'bg-zinc-900/40 border-zinc-900/50 text-zinc-650 cursor-not-allowed'
-                          : deliveryMode === 'instant'
-                            ? 'bg-[#f97316]/10 border-[#f97316] text-white'
-                            : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <Zap size={18} className={(isInstantDeliveryClosed || hasDaysItems) ? 'text-zinc-600' : (deliveryMode === 'instant' ? 'text-orange-500' : 'text-zinc-500')} />
-                      <span className="text-[11px] font-black uppercase tracking-wider mt-2">Instant Delivery</span>
-                      {isInstantDeliveryClosed ? (
-                        <span className="text-[8px] bg-red-500/10 text-red-500 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-red-500/20 leading-none">CLOSED</span>
-                      ) : hasDaysItems ? (
-                        <span className="text-[8px] bg-sky-500/10 text-sky-400 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-sky-500/20 leading-none">PRE-ORDER ONLY</span>
-                      ) : (
-                        <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
-                          {Math.max(
-                            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-                            ...cart.map(item => item.estimated_delivery_time || 30)
-                          )} mins
-                        </span>
+                    <AnimatePresence>
+                      {showMap && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mb-4">
+                            <React.Suspense fallback={<div className="w-full h-[300px] bg-zinc-900 animate-pulse rounded-3xl" />}>
+                              <MapSelector 
+                                initialLocation={formData.location}
+                                onLocationSelect={(lat, lng, address) => {
+                                  handleMapLocationSelected(lat, lng, address);
+                                }}
+                              />
+                            </React.Suspense>
+                          </div>
+                        </motion.div>
                       )}
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeliveryMode('scheduled');
-                        if (!scheduledDate) {
-                          const today = new Date().toISOString().split('T')[0];
-                          handleDateChange(today);
-                        }
-                      }}
-                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
-                        deliveryMode === 'scheduled'
-                          ? 'bg-[#f97316]/10 border-[#f97316] text-white'
-                          : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-                      }`}
-                    >
-                      <span className="text-lg">📅</span>
-                      <span className="text-[11px] font-black uppercase tracking-wider mt-2">Schedule Delivery</span>
-                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Set Date & Day</span>
-                    </button>
-                  </div>
+                    </AnimatePresence>
 
-                  {deliveryMode === 'scheduled' && (
-                    <motion.div 
-                      key="scheduling_picker"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3"
-                    >
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
-                          Select Delivery Date
-                        </label>
+                    {/* Structured Address Form Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">House / Flat / Plot *</label>
                         <input
-                          ref={scheduledDateRef}
-                          key={`scheduledDate-${shakeKey}`}
-                          type="date"
-                          min={new Date().toISOString().split('T')[0]}
-                          value={scheduledDate}
+                          ref={houseNumberRef}
+                          key={`houseNumber-${shakeKey}`}
+                          type="text"
+                          required
+                          placeholder="e.g. House 12 / Plot 3A"
+                          className={cn(
+                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                            invalidFields.houseNumber 
+                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                              : "border-white/10 focus:border-primary/50"
+                          )}
+                          value={addrFields.houseNumber}
                           onChange={(e) => {
-                            handleDateChange(e.target.value);
-                            if (invalidFields.scheduledDate && e.target.value) {
-                              setInvalidFields(prev => ({ ...prev, scheduledDate: false }));
+                            setAddrFields({ ...addrFields, houseNumber: e.target.value });
+                            if (invalidFields.houseNumber && e.target.value.trim()) {
+                              setInvalidFields(prev => ({ ...prev, houseNumber: false }));
                             }
                           }}
-                          className={cn(
-                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white text-xs focus:outline-none transition-all font-semibold uppercase",
-                            invalidFields.scheduledDate
-                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake"
-                              : "border-white/10 focus:border-orange-500/50"
-                          )}
                         />
                       </div>
 
-                      {scheduledDate && (
-                        <div className="flex items-center gap-2 bg-[#f97316]/5 border border-[#f97316]/10 px-4 py-3 rounded-xl">
-                          <span className="text-xs">📅</span>
-                          <span className="text-[11px] font-extrabold text-zinc-300 uppercase tracking-wider">
-                            Selected Day: <span className="text-orange-400 font-black">{scheduledDay}</span> ({new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
-                          </span>
+                      <div className="space-y-1">
+                        <GooglePlacesAutocomplete
+                          currentAddressValue={addrFields.streetName}
+                          isInvalid={invalidFields.streetName}
+                          shakeKey={shakeKey}
+                          onManualStreetChange={(val) => {
+                            setAddrFields({ ...addrFields, streetName: val });
+                            if (invalidFields.streetName && val.trim()) {
+                              setInvalidFields(prev => ({ ...prev, streetName: false }));
+                            }
+                          }}
+                          onAddressSelect={(data) => {
+                            setAddrFields({
+                              houseNumber: data.houseNumber || addrFields.houseNumber,
+                              streetName: data.streetName,
+                              landmark: data.landmark || addrFields.landmark,
+                              city: data.city || 'Cuttack',
+                              pincode: data.pincode || addrFields.pincode
+                            });
+                            setInvalidFields(prev => ({
+                              ...prev,
+                              streetName: false,
+                              houseNumber: data.houseNumber ? false : prev.houseNumber,
+                              landmark: data.landmark ? false : prev.landmark,
+                              city: false,
+                              pincode: data.pincode ? false : prev.pincode
+                            }));
+                            if (data.lat && data.lng) {
+                              setFormData(prev => ({
+                                ...prev,
+                                location: { lat: data.lat!, lng: data.lng! }
+                              }));
+                            }
+                            toast.success('Address auto-filled successfully!', { icon: '✨' });
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Landmark *</label>
+                        <input
+                          ref={landmarkRef}
+                          key={`landmark-${shakeKey}`}
+                          type="text"
+                          required
+                          placeholder="e.g. Near Link Road"
+                          className={cn(
+                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                            invalidFields.landmark 
+                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                              : "border-white/10 focus:border-primary/50"
+                          )}
+                          value={addrFields.landmark}
+                          onChange={(e) => {
+                            setAddrFields({ ...addrFields, landmark: e.target.value });
+                            if (invalidFields.landmark && e.target.value.trim()) {
+                              setInvalidFields(prev => ({ ...prev, landmark: false }));
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">City *</label>
+                          <input
+                            ref={cityRef}
+                            key={`city-${shakeKey}`}
+                            type="text"
+                            required
+                            placeholder="e.g. Cuttack"
+                            className={cn(
+                              "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                              invalidFields.city 
+                                ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                                : "border-white/10 focus:border-primary/50"
+                            )}
+                            value={addrFields.city}
+                            onChange={(e) => {
+                              setAddrFields({ ...addrFields, city: e.target.value });
+                              if (invalidFields.city && e.target.value.trim()) {
+                                setInvalidFields(prev => ({ ...prev, city: false }));
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pincode *</label>
+                          <input
+                            ref={pincodeRef}
+                            key={`pincode-${shakeKey}`}
+                            type="text"
+                            required
+                            placeholder="e.g. 753010"
+                            className={cn(
+                              "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold font-mono",
+                              invalidFields.pincode 
+                                ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
+                                : "border-white/10 focus:border-primary/50"
+                            )}
+                            value={addrFields.pincode}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                              setAddrFields({ ...addrFields, pincode: val });
+                              if (invalidFields.pincode && val.length >= 6) {
+                                setInvalidFields(prev => ({ ...prev, pincode: false }));
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery Status indicator for Checkout */}
+                    <div className="pt-2">
+                      {validationResult.isValidating ? (
+                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse flex items-center gap-3">
+                          <Loader2 size={16} className="text-primary animate-spin" />
+                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider animate-pulse">Evaluating Delivery Area...</span>
+                        </div>
+                      ) : validationResult.success === true ? (
+                        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-left">
+                          <span className="text-emerald-500 text-lg">✅</span>
+                          <div>
+                            <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
+                            <p className="text-zinc-200 text-xs font-semibold mt-0.5">
+                              Estimated delivery: {hasDaysItems ? (
+                                `Within ${getDaysMaxString()}`
+                              ) : (
+                                `${Math.max(
+                                  validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                                  ...cart.map(item => item.estimated_delivery_time || 30)
+                                )} mins`
+                              )}
+                            </p>
+                            {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
+                          </div>
+                        </div>
+                      ) : validationResult.success === false ? (
+                        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-left">
+                          <span className="text-red-500 text-lg">❌</span>
+                          <div>
+                            <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">Outside Service Area</p>
+                            <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">{validationResult.message || "Frosty Bite currently delivers only in Cuttack."}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-2 text-left">
+                          <span className="text-zinc-500">🚚</span>
+                          <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
                         </div>
                       )}
-                    </motion.div>
-                  )}
-                </div>
-              </div>
+                    </div>
+
+                    {/* Delivery Scheduling: Set date and convert to day also */}
+                    <div className="pt-4 border-t border-white/5 mt-2 text-left">
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">
+                        Delivery Schedule
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          disabled={isInstantDeliveryClosed || hasDaysItems}
+                          onClick={() => !isInstantDeliveryClosed && !hasDaysItems && setDeliveryMode('instant')}
+                          className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all relative ${
+                            isInstantDeliveryClosed || hasDaysItems
+                              ? 'bg-zinc-900/40 border-zinc-900/50 text-zinc-650 cursor-not-allowed'
+                              : deliveryMode === 'instant'
+                                ? 'bg-[#f97316]/10 border-[#f97316] text-white'
+                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <Zap size={18} className={(isInstantDeliveryClosed || hasDaysItems) ? 'text-zinc-600' : (deliveryMode === 'instant' ? 'text-orange-500' : 'text-zinc-500')} />
+                          <span className="text-[11px] font-black uppercase tracking-wider mt-2">Instant Delivery</span>
+                          {isInstantDeliveryClosed ? (
+                            <span className="text-[8px] bg-red-500/10 text-red-500 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-red-500/20 leading-none">CLOSED</span>
+                          ) : hasDaysItems ? (
+                            <span className="text-[8px] bg-sky-500/10 text-sky-400 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-sky-500/20 leading-none">PRE-ORDER ONLY</span>
+                          ) : (
+                            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
+                              {Math.max(
+                                validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                                ...cart.map(item => item.estimated_delivery_time || 30)
+                              )} mins
+                            </span>
+                          )}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeliveryMode('scheduled');
+                            if (!scheduledDate) {
+                              const today = new Date().toISOString().split('T')[0];
+                              handleDateChange(today);
+                            }
+                          }}
+                          className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
+                            deliveryMode === 'scheduled'
+                              ? 'bg-[#f97316]/10 border-[#f97316] text-white'
+                              : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="text-lg">📅</span>
+                          <span className="text-[11px] font-black uppercase tracking-wider mt-2">Schedule Delivery</span>
+                          <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Set Date & Day</span>
+                        </button>
+                      </div>
+
+                      {deliveryMode === 'scheduled' && (
+                        <motion.div 
+                          key="scheduling_picker"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3"
+                        >
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+                              Select Delivery Date
+                            </label>
+                            <input
+                              ref={scheduledDateRef}
+                              key={`scheduledDate-${shakeKey}`}
+                              type="date"
+                              min={new Date().toISOString().split('T')[0]}
+                              value={scheduledDate}
+                              onChange={(e) => {
+                                handleDateChange(e.target.value);
+                                if (invalidFields.scheduledDate && e.target.value) {
+                                  setInvalidFields(prev => ({ ...prev, scheduledDate: false }));
+                                }
+                              }}
+                              className={cn(
+                                "w-full h-12 px-4 rounded-xl bg-white/5 border text-white text-xs focus:outline-none transition-all font-semibold uppercase",
+                                invalidFields.scheduledDate
+                                  ? "border-red-500 ring-2 ring-red-500/30 animate-shake"
+                                  : "border-white/10 focus:border-orange-500/50"
+                              )}
+                            />
+                          </div>
+
+                          {scheduledDate && (
+                            <div className="flex items-center gap-2 bg-[#f97316]/5 border border-[#f97316]/10 px-4 py-3 rounded-xl">
+                              <span className="text-xs">📅</span>
+                              <span className="text-[11px] font-extrabold text-zinc-300 uppercase tracking-wider">
+                                Selected Day: <span className="text-orange-400 font-black">{scheduledDay}</span> ({new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                              </span>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">
@@ -1634,8 +1698,12 @@ export const Checkout: React.FC = () => {
                   </div>
                 )}
                 <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
-                  <span>Delivery</span>
-                  {deliveryFee === 0 ? (
+                  <span>{isPickupOnly ? 'Fulfillment' : 'Delivery'}</span>
+                  {isPickupOnly ? (
+                    <span className="text-amber-400 font-extrabold flex items-center gap-1">
+                      <ShoppingBag size={12} /> PICKUP (FREE)
+                    </span>
+                  ) : deliveryFee === 0 ? (
                     <span className="text-emerald-500">FREE</span>
                   ) : (
                     <span>₹{deliveryFee}</span>
@@ -1647,7 +1715,7 @@ export const Checkout: React.FC = () => {
                 </div>
               </div>
 
-              {formData.location && !isLocationInServiceArea() && (
+              {!isPickupOnly && formData.location && !isLocationInServiceArea() && (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl space-y-2">
                   <div className="flex items-center gap-2">
                     <AlertTriangle size={16} />
