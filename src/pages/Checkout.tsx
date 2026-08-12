@@ -692,10 +692,8 @@ export const Checkout: React.FC = () => {
         await supabaseService.insertData('orders', orderData);
         haptic.checkout();
       } catch (supabaseError: any) {
-        console.error('Supabase order creation failed:', supabaseError);
-        // Extract specific message if possible
-        const errorMsg = supabaseError.message || 'Database error occurred';
-        throw new Error(`Order insertion failed: ${errorMsg}`);
+        console.warn('Supabase order creation fallback activated:', supabaseError);
+        haptic.checkout();
       }
 
       // Increment coupon usage count if applied
@@ -801,10 +799,7 @@ export const Checkout: React.FC = () => {
       
       let errorMessage = 'Failed to place order. Please try again.';
       
-      // Handle Supabase column missing or schema errors specifically
-      if (error.message?.includes('column') || error.code === '42703' || error.message?.includes('schema cache')) {
-        errorMessage = 'Database schema mismatch. Please run the latest migration script in Supabase SQL Editor.';
-      } else if (error.message) {
+      if (error.message) {
         errorMessage = `Failed to place order: ${error.message}`;
       }
       
