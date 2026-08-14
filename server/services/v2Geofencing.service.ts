@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import * as turf from '@turf/turf';
+import { point, booleanPointInPolygon, distance } from '@turf/turf';
 import { supabase } from '../lib/supabase';
 
 export interface V2ServiceArea {
@@ -155,13 +155,13 @@ export async function isPointCoveredByGeometryPostGIS(
 export function isPointCoveredByGeometryFallback(geometry: any, longitude: number, latitude: number): boolean {
   if (!geometry) return false;
   try {
-    const pt = turf.point([longitude, latitude]);
+    const pt = point([longitude, latitude]);
     let featureGeom = geometry;
     if (geometry.type === 'Feature' && geometry.geometry) {
       featureGeom = geometry.geometry;
     }
     if (featureGeom.type === 'Polygon' || featureGeom.type === 'MultiPolygon') {
-      return turf.booleanPointInPolygon(pt, featureGeom, { ignoreBoundary: false });
+      return booleanPointInPolygon(pt, featureGeom, { ignoreBoundary: false });
     }
   } catch (_) {}
   return false;
@@ -214,9 +214,9 @@ export function calculateSpatialDistanceMetersFallback(
   hubLngLat: [number, number] = STORE_HUB_LOCATION
 ): number {
   try {
-    const from = turf.point(hubLngLat);
-    const to = turf.point([longitude, latitude]);
-    return Math.round(turf.distance(from, to, { units: 'meters' }));
+    const from = point(hubLngLat);
+    const to = point([longitude, latitude]);
+    return Math.round(distance(from, to, { units: 'meters' }));
   } catch (_) {
     return 0;
   }

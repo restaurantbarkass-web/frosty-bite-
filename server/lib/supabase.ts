@@ -62,6 +62,7 @@ function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 8000): any 
     return new Proxy(obj, {
       get: (target: any, prop: string | symbol) => {
         if (prop === 'then') {
+          if (typeof target.then !== 'function') return undefined;
           return function (this: any, onfulfilled: any, onrejected: any) {
             const p = new Promise((resolve, reject) => {
               let completed = false;
@@ -109,6 +110,9 @@ export const supabase = new Proxy({} as SupabaseClient, {
   get: (target: any, prop: string | symbol) => {
     const client = getSupabaseClient();
     const value = (client as any)[prop];
+    if (process.env.NODE_ENV === 'production') {
+      return typeof value === 'function' ? value.bind(client) : value;
+    }
     return wrapThenableWithTimeout(value, client, 8000);
   }
 });
