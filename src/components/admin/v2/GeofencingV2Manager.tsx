@@ -329,7 +329,10 @@ export const GeofencingV2Manager: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
-        if (!res.ok) throw new Error('Failed to update city');
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error || 'Failed to update city');
+        }
         toast.success(`City ${formData.name} updated successfully!`);
       } else {
         const res = await fetch('/api/v2/cities', {
@@ -337,7 +340,10 @@ export const GeofencingV2Manager: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
-        if (!res.ok) throw new Error('Failed to create city');
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({}));
+          throw new Error(json.error || 'Failed to create city');
+        }
         toast.success(`City ${formData.name} created successfully!`);
       }
       setIsCityModalOpen(false);

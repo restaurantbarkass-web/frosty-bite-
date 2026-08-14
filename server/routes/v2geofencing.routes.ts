@@ -45,7 +45,8 @@ router.post('/cities', async (req: Request, res: Response) => {
     const created = await V2GeofencingService.createCity({ name, state, country, is_active, boundary });
     res.status(201).json(created);
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to create city', details: err.message });
+    console.error('Error creating city:', err);
+    res.status(400).json({ error: err.message || 'Failed to create city', details: err.stack });
   }
 });
 
