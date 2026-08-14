@@ -851,7 +851,7 @@ export const V2GeofencingService = {
       throw new Error('City name is required');
     }
     const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const store = loadBackupStore();
+    const store = await loadBackupStore();
 
     // Check if city already exists in backup store
     const existing = store.cities.find(c => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase());
@@ -863,7 +863,7 @@ export const V2GeofencingService = {
         existing.boundary = normalizeToMultiPolygon(cityData.boundary) || existing.boundary;
       }
       existing.updated_at = new Date().toISOString();
-      saveBackupStore(store);
+      await saveBackupStore(store);
 
       try {
         if (!supabaseSchemaMissing) {
@@ -898,7 +898,7 @@ export const V2GeofencingService = {
           console.error('[V2Service] Supabase city insert error:', error);
         } else if (data) {
           store.cities.push(data);
-          saveBackupStore(store);
+          await saveBackupStore(store);
           return data;
         }
       }
