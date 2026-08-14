@@ -937,11 +937,11 @@ export const V2GeofencingService = {
       }
     } catch (_) {}
 
-    const store = loadBackupStore();
+    const store = await loadBackupStore();
     const idx = store.cities.findIndex(c => c.id === id);
     if (idx === -1) throw new Error(`City with ID ${id} not found`);
     store.cities[idx] = { ...store.cities[idx], ...payload };
-    saveBackupStore(store);
+    await saveBackupStore(store);
     return store.cities[idx];
   },
 
