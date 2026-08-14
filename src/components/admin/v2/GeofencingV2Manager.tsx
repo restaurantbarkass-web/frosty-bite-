@@ -314,17 +314,17 @@ export const GeofencingV2Manager: React.FC = () => {
       return;
     }
 
-    if (!editingCity) {
-      const exists = cities.some(c => safeTrimLowerCase(c.name) === trimmedName.toLowerCase());
-      if (exists) {
-        toast.error('This city already exists.');
-        return;
+    let targetCity = editingCity;
+    if (!targetCity) {
+      const existingMatch = cities.find(c => safeTrimLowerCase(c.name) === trimmedName.toLowerCase());
+      if (existingMatch) {
+        targetCity = existingMatch;
       }
     }
 
     try {
-      if (editingCity) {
-        const res = await fetch(`/api/v2/cities/${editingCity.id}`, {
+      if (targetCity) {
+        const res = await fetch(`/api/v2/cities/${targetCity.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)

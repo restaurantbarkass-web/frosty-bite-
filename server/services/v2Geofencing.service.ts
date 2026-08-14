@@ -825,6 +825,27 @@ export const V2GeofencingService = {
     // Check if city already exists in backup store
     const existing = store.cities.find(c => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase());
     if (existing) {
+      existing.state = (cityData.state || existing.state || 'Odisha').trim();
+      existing.country = (cityData.country || existing.country || 'India').trim();
+      existing.is_active = cityData.is_active !== undefined ? cityData.is_active : existing.is_active;
+      if (cityData.boundary !== undefined) {
+        existing.boundary = normalizeToMultiPolygon(cityData.boundary) || existing.boundary;
+      }
+      existing.updated_at = new Date().toISOString();
+      saveBackupStore(store);
+
+      try {
+        if (!supabaseSchemaMissing) {
+          await supabase.from('cities').update({
+            state: existing.state,
+            country: existing.country,
+            is_active: existing.is_active,
+            boundary: existing.boundary,
+            updated_at: existing.updated_at
+          }).eq('id', existing.id);
+        }
+      } catch (_) {}
+
       return existing;
     }
 

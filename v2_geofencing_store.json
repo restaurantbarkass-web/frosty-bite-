@@ -165,6 +165,17 @@
       "boundary": null,
       "created_at": "2026-08-14T11:59:35.546+00:00",
       "updated_at": "2026-08-14T11:59:35.546+00:00"
+    },
+    {
+      "id": "5c26d42b-0d37-4b7a-8e6a-dd928289949e",
+      "name": "Sambalpur",
+      "slug": "sambalpur",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": null,
+      "created_at": "2026-08-14T12:03:59.441+00:00",
+      "updated_at": "2026-08-14T12:03:59.441+00:00"
     }
   ],
   "pincodes": [
