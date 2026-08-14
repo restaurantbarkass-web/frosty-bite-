@@ -193,9 +193,9 @@ You MUST return ONLY a valid raw JSON object. Do not enclose it in any markdown 
       parts: [{ text: userInput }]
     });
 
-    // Invoke Gemini 3.1 Flash Lite for ultra low-latency AI responses
+    // Invoke Gemini 2.5 Flash for low-latency AI responses
     const aiResponse = await genAI.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-2.5-flash",
       contents: geminiContents,
       config: {
         systemInstruction,

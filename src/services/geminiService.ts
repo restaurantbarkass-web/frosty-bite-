@@ -1,5 +1,6 @@
 
 export const getFoodRecommendations = async (userPreferences: string) => {
+  const fallback = ['Bento Cakes', 'Artisan Bread', 'Chocolate Truffle', 'Custom Pastries'];
   try {
     const response = await fetch('/api/butler/suggestions', {
       method: 'POST',
@@ -7,12 +8,15 @@ export const getFoodRecommendations = async (userPreferences: string) => {
       body: JSON.stringify({ searchTerm: userPreferences || 'popular products', items: [] })
     });
     
-    if (!response.ok) throw new Error('AI Recommendation API failed');
+    if (!response.ok) {
+      console.warn('AI Recommendation API returned non-OK status, utilizing client fallback');
+      return fallback;
+    }
     const data = await response.json();
-    return data.suggestions || [];
+    return (data.suggestions && data.suggestions.length > 0) ? data.suggestions : fallback;
   } catch (error) {
-    console.error("Failed to get food recommendations:", error);
-    return ['Bento Cakes', 'Artisan Bread', 'Chocolate Truffle', 'Custom Pastries']; // Fallback
+    console.warn("Failed to fetch food recommendations, using fallback:", error);
+    return fallback;
   }
 };
 
