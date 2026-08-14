@@ -837,8 +837,12 @@ export const V2GeofencingService = {
         try {
           const { data, error } = await supabase.from('cities').select('*').order('name', { ascending: true });
           if (!error && data && data.length > 0) {
+            console.log('[V2Service] getCities fetched from Supabase:', data.length);
             return data.map(city => {
-              const match = backupCities.find(b => b.slug === city.slug || b.name.toLowerCase() === city.name?.toLowerCase());
+              const match = backupCities.find(b => 
+                (city.slug && b.slug === city.slug) || 
+                (city.name && b.name && b.name.toLowerCase() === city.name.toLowerCase())
+              );
               return {
                 ...city,
                 boundary: city.boundary || match?.boundary || backupCities[0]?.boundary,
@@ -908,13 +912,17 @@ export const V2GeofencingService = {
     try {
       if (!supabaseSchemaMissing) {
         const { data, error } = await supabase.from('cities').insert([newCity]).select().single();
-        if (!error && data) {
+        if (error) {
+          console.error('[V2Service] Supabase city insert error:', error);
+        } else if (data) {
           store.cities.push(data);
           saveBackupStore(store);
           return data;
         }
       }
-    } catch (_) {}
+    } catch (err) {
+      console.error('[V2Service] Supabase city insert exception:', err);
+    }
 
     const created: V2City = {
       id: `city-${Date.now()}`,
@@ -1112,7 +1120,10 @@ export const V2GeofencingService = {
           const { data, error } = await query;
           if (!error && data && data.length > 0) {
             return data.map(loc => {
-              const match = backupLocs.find(b => b.slug === loc.slug || b.name.toLowerCase() === loc.name?.toLowerCase());
+              const match = backupLocs.find(b => 
+                (loc.slug && b.slug === loc.slug) || 
+                (loc.name && b.name && b.name.toLowerCase() === loc.name.toLowerCase())
+              );
               return {
                 ...loc,
                 boundary: loc.boundary || match?.boundary || backupLocs[0]?.boundary,

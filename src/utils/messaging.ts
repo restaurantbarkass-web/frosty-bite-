@@ -51,27 +51,9 @@ export const requestForToken = async (): Promise<string | null> => {
         const normalizedEmail = safeTrimLowerCase(email);
 
         // 1. Sync token with Supabase users table (Postgres database)
-        try {
-          const { data: dbUser } = await supabase
-            .from('users')
-            .select('id, fcm_tokens')
-            .eq('email', normalizedEmail)
-            .maybeSingle();
-
-          if (dbUser) {
-            const existingTokens = Array.isArray(dbUser.fcm_tokens) ? dbUser.fcm_tokens : [];
-            if (!existingTokens.includes(token)) {
-              const updatedTokens = [...existingTokens, token];
-              await supabase
-                .from('users')
-                .update({ fcm_tokens: updatedTokens })
-                .eq('id', dbUser.id);
-              console.log('[Push Notifications] Saved token to Supabase users profile.');
-            }
-          }
-        } catch (sbDbErr) {
-          console.warn('[Push Notifications] Failed to synchronize token with Supabase DB:', sbDbErr);
-        }
+        // NOTE: Supabase users table does not store FCM tokens in this architecture.
+        // The token is handled via Firebase Firestore directly.
+        console.log('[Push Notifications] Skipping Supabase users table sync as it is not used for FCM tokens.');
 
         // 2. Sync token with Firebase Firestore users collection (if Firebase UID exists)
         const firebaseUid = firebaseUser?.uid;
