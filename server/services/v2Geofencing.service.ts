@@ -1,7 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import { db } from '../lib/firebaseAdmin';
 import { point, booleanPointInPolygon, distance } from '@turf/turf';
 import { supabase } from '../lib/supabase';
+
+// ... (keep interfaces)
 
 export interface V2ServiceArea {
   id: string;
@@ -231,12 +232,8 @@ export function calculateSpatialDistanceMeters(
 }
 
 // Local persistence file path (adaptive for serverless read-only filesystems like Vercel)
-let BACKUP_FILE = path.join(process.cwd(), 'v2_geofencing_store.json');
-try {
-  fs.accessSync(process.cwd(), fs.constants.W_OK);
-} catch {
-  BACKUP_FILE = path.join('/tmp', 'v2_geofencing_store.json');
-}
+const FIRESTORE_COLLECTION = 'geofencing';
+const FIRESTORE_DOC = 'v2_store';
 
 interface V2StoreData {
   service_areas: V2ServiceArea[];
@@ -245,7 +242,7 @@ interface V2StoreData {
   localities: V2Locality[];
 }
 
-function loadBackupStore(): V2StoreData {
+async function loadBackupStore(): Promise<V2StoreData> {
   const defaultData: V2StoreData = {
     service_areas: [
       {
@@ -672,19 +669,9 @@ function loadBackupStore(): V2StoreData {
   };
 
   try {
-    let targetFile = BACKUP_FILE;
-    if (!fs.existsSync(targetFile)) {
-      const altFile = path.join('/tmp', 'v2_geofencing_store.json');
-      const cwdFile = path.join(process.cwd(), 'v2_geofencing_store.json');
-      if (fs.existsSync(altFile)) {
-        targetFile = altFile;
-      } else if (fs.existsSync(cwdFile)) {
-        targetFile = cwdFile;
-      }
-    }
-    if (fs.existsSync(targetFile)) {
-      const raw = fs.readFileSync(targetFile, 'utf-8');
-      const parsed = JSON.parse(raw);
+    const doc = await db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).get();
+    if (doc.exists) {
+      const parsed = doc.data() as V2StoreData;
       return {
         service_areas: (Array.isArray(parsed.service_areas) && parsed.service_areas.length > 0) ? parsed.service_areas : defaultData.service_areas,
         cities: (Array.isArray(parsed.cities) && parsed.cities.length > 0) ? parsed.cities : defaultData.cities,
@@ -693,23 +680,18 @@ function loadBackupStore(): V2StoreData {
       };
     }
   } catch (err) {
-    console.warn('[V2Service] Failed to read backup file, using default:', err);
+    console.warn('[V2Service] Failed to read backup from Firestore, using default:', err);
   }
 
-  saveBackupStore(defaultData);
+  await saveBackupStore(defaultData);
   return defaultData;
 }
 
-function saveBackupStore(data: V2StoreData) {
+async function saveBackupStore(data: V2StoreData) {
   try {
-    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    await db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).set(data);
   } catch (err) {
-    try {
-      const tmpPath = path.join('/tmp', 'v2_geofencing_store.json');
-      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err2) {
-      console.warn('[V2Service] Failed to save backup store to tmp:', err2);
-    }
+    console.warn('[V2Service] Failed to save backup store to Firestore:', err);
   }
 }
 

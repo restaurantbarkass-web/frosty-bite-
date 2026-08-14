@@ -1,6 +1,4 @@
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import admin, { getAdminDb, getAdminAuth } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 
@@ -15,38 +13,6 @@ const ADMIN_EMAILS = [
   "sayedazainab216@gmail.com",
   "sayedazainabali76@gmail.com"
 ];
-
-// Helper to write backup config file
-function writeConfigBackup(config: any) {
-  try {
-    const configString = JSON.stringify(config, null, 2);
-    fs.writeFileSync('/tmp/appConfig.json', configString);
-    fs.writeFileSync(path.join(process.cwd(), 'appConfig_backup.json'), configString);
-    console.log('[ConfigRoutes] Saved configuration backup to files');
-  } catch (err) {
-    console.warn('[ConfigRoutes] Failed to write backend backup files:', err);
-  }
-}
-
-// Helper to read backup config file
-function readConfigBackup() {
-  try {
-    const backupPath1 = '/tmp/appConfig.json';
-    const backupPath2 = path.join(process.cwd(), 'appConfig_backup.json');
-    let fileConfigStr = null;
-    if (fs.existsSync(backupPath1)) {
-      fileConfigStr = fs.readFileSync(backupPath1, 'utf8');
-    } else if (fs.existsSync(backupPath2)) {
-      fileConfigStr = fs.readFileSync(backupPath2, 'utf8');
-    }
-    if (fileConfigStr) {
-      return JSON.parse(fileConfigStr);
-    }
-  } catch (err) {
-    console.warn('[ConfigRoutes] Failed to read backup from files:', err);
-  }
-  return null;
-}
 
 function isFirebaseToken(token: string): boolean {
   try {
@@ -243,12 +209,9 @@ router.get('/', async (req, res) => {
     }
 
     // File/In-Memory fallback if still null
-    const fileConfig = readConfigBackup();
     if (!chosenConfig) {
       if (inMemoryConfig) {
         chosenConfig = inMemoryConfig;
-      } else if (fileConfig) {
-        chosenConfig = fileConfig;
       } else {
         chosenConfig = {
           isOrderingOpen: true,
@@ -282,7 +245,6 @@ router.get('/', async (req, res) => {
     }
 
     inMemoryConfig = chosenConfig;
-    writeConfigBackup(chosenConfig);
 
     return res.json({ success: true, config: chosenConfig });
   } catch (error: any) {
@@ -351,7 +313,6 @@ router.post('/', async (req, res) => {
 
     // Update backup files and memory state ONLY after successful database write!
     inMemoryConfig = updatedConfig;
-    writeConfigBackup(updatedConfig);
 
     res.json({ success: true, config: updatedConfig });
   } catch (error: any) {
