@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import * as adminNamespace from 'firebase-admin';
+const admin = (adminNamespace as any).default || adminNamespace;
 import firebaseConfig from '../../firebase-applet-config.json' assert { type: 'json' };
 
 // Initialize Firebase Admin
