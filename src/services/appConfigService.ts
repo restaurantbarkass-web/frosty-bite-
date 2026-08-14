@@ -1,4 +1,5 @@
 import { AppConfig } from '../types';
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
 export type { AppConfig };
 
 const defaultParams: AppConfig = { 
@@ -52,7 +53,7 @@ const getAuthToken = async (): Promise<string | null> => {
   // Fallback to cached token
   try {
     const cachedToken = localStorage.getItem('latest_admin_auth_token');
-    if (cachedToken && cachedToken !== 'null' && cachedToken !== 'undefined' && cachedToken.trim() !== '') {
+    if (cachedToken && cachedToken !== 'null' && cachedToken !== 'undefined' && safeTrim(cachedToken) !== '') {
       return cachedToken;
     }
   } catch (err) {}
@@ -93,7 +94,7 @@ const getAuthToken = async (): Promise<string | null> => {
             if (payload) {
               const email = payload.email || payload.user_metadata?.email || payload.user?.email;
               if (email) {
-                const normEmail = email.trim().toLowerCase();
+                const normEmail = safeTrimLowerCase(email);
                 const ADMIN_EMAILS = [
                   "restaurantbarkass@gmail.com",
                   "wasifmd924@gmail.com",

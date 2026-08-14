@@ -5,6 +5,7 @@ import { getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 import { validate } from '../middleware/validate';
 import { validateAddressSchema, notifyRequestSchema } from '../validators/validateaddress.schema';
+import { V2GeofencingService } from '../services/v2Geofencing.service';
 
 const router = express.Router();
 
@@ -177,216 +178,6 @@ async function getAppConfig(): Promise<any> {
   };
 }
 
-// Helper to fetch service zones from disk backups
-function readZonesBackup(): any[] | null {
-  try {
-    const backupPath1 = '/tmp/serviceZones.json';
-    const backupPath2 = path.join(process.cwd(), 'serviceZones_backup.json');
-    let fileDataStr = null;
-    if (fs.existsSync(backupPath1)) {
-      fileDataStr = fs.readFileSync(backupPath1, 'utf8');
-    } else if (fs.existsSync(backupPath2)) {
-      fileDataStr = fs.readFileSync(backupPath2, 'utf8');
-    }
-    if (fileDataStr) {
-      return JSON.parse(fileDataStr);
-    }
-  } catch (err) {
-    console.warn('[ValidateAddressRoutes] Failed to read backup from files:', err);
-  }
-  return null;
-}
-
-// REST helper
-async function fetchZonesFromFirestoreREST(): Promise<any[] | null> {
-  const apiKey = firebaseConfig.apiKey;
-  if (!apiKey) return null;
-
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errText = await response.text();
-      let displayMessage = errText;
-      try {
-        const parsed = JSON.parse(errText);
-        if (parsed && parsed.error) {
-          displayMessage = `Code ${parsed.error.code || response.status} - ${parsed.error.message || ''} (${parsed.error.status || ''})`;
-        }
-      } catch (parseErr) {
-        displayMessage = errText.replace(/"error":\s*{/g, '"err_info": {');
-      }
-      console.log(`[ValidateAddressRoutes] REST call non-ok status: ${response.status} ${response.statusText}. Error detail: ${displayMessage}`);
-      return null;
-    }
-
-    const data = await response.json();
-    if (data && data.documents) {
-      return data.documents.map((doc: any) => {
-        const parts = doc.name.split('/');
-        const id = parts[parts.length - 1];
-        const parsed = fromFirestoreFields(doc.fields);
-        return { id, ...parsed };
-      });
-    }
-    return [];
-  } catch (error: any) {
-    console.log('[ValidateAddressRoutes] REST call exception:', error.message);
-    return null;
-  }
-}
-
-// Function to fetch all service zones safely
-async function getServiceZones(): Promise<any[]> {
-  // 0. Try Supabase first (preferred relational database)
-  try {
-    const { data: sbData, error: sbErr } = await supabase.from('service_zones').select('*');
-    if (!sbErr && sbData && sbData.length > 0) {
-      return sbData;
-    }
-  } catch (supabaseErr: any) {
-    console.warn('[ValidateAddressRoutes] Supabase service_zones retrieve failed:', supabaseErr.message);
-  }
-
-  // 1. Try Firestore REST lookup
-  try {
-    const restZones = await fetchZonesFromFirestoreREST();
-    if (restZones && restZones.length > 0) return restZones;
-  } catch (e: any) {
-    console.log('[ValidateAddressRoutes] Firestore REST failed:', e.message);
-  }
-
-  // 2. Try Firestore Admin SDK with merge fallback
-  try {
-    const db = getAdminDb();
-    const snapshot = await db.collection('service_zones').get();
-    if (!snapshot.empty) {
-      const listSnap: any[] = [];
-      snapshot.forEach(doc => {
-        listSnap.push({ id: doc.id, ...doc.data() });
-      });
-      return listSnap;
-    }
-  } catch (e: any) {
-    if (e.message && (e.message.includes('PERMISSION_DENIED') || e.message.includes('7') || e.message.toLowerCase().includes('permission'))) {
-      console.log('[ValidateAddressRoutes] Info: Firestore Admin SDK holds no direct IAM permissions for this custom database in the current ambient workspace. Falling back gracefully to client REST or local backups.');
-    } else {
-      console.log('[ValidateAddressRoutes] Firestore Admin SDK failed:', e.message);
-    }
-  }
-
-  // 4. Fallback default presets limit
-  return defaultZones;
-}
-
-const defaultPincodes = [
-  "753001",
-  "753002",
-  "753003",
-  "753004",
-  "753005",
-  "753006",
-  "753007",
-  "753008",
-  "753009",
-  "753010",
-  "753011",
-  "753012",
-  "753013",
-  "753014",
-  "753015"
-];
-
-// Fetch pincodes via REST helper
-async function fetchPincodesFromFirestoreREST(): Promise<any[] | null> {
-  const apiKey = firebaseConfig.apiKey;
-  if (!apiKey) return null;
-
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_pincodes?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      // Demote warning to a light debug info log so that it does not pollute clean console/tests when fallback is active.
-      console.log(`[ValidateAddressRoutes] REST pincodes fetch inactive: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    if (data && data.documents) {
-      return data.documents.map((doc: any) => {
-        const parts = doc.name.split('/');
-        const id = parts[parts.length - 1];
-        const parsed = fromFirestoreFields(doc.fields);
-        return { id, ...parsed };
-      });
-    }
-    return [];
-  } catch (error: any) {
-    console.log('[ValidateAddressRoutes] REST pincodes call exception:', error.message);
-    return null;
-  }
-}
-
-// Function to fetch all service pincodes securely
-async function getServicePincodes(): Promise<any[]> {
-  let list: any[] = [];
-
-  // 0. Try Supabase first (preferred relational database)
-  try {
-    const { data: sbData, error: sbErr } = await supabase.from('service_pincodes').select('*');
-    if (!sbErr && sbData && sbData.length > 0) {
-      list = sbData;
-    }
-  } catch (supabaseErr: any) {
-    console.warn('[ValidateAddressRoutes] Supabase service_pincodes retrieve failed:', supabaseErr.message);
-  }
-
-  if (list.length === 0) {
-    // 1. Try Firestore REST lookup
-    try {
-      const restPincodes = await fetchPincodesFromFirestoreREST();
-      if (restPincodes && restPincodes.length > 0) {
-        list = restPincodes;
-      }
-    } catch (e: any) {
-      console.log('[ValidateAddressRoutes] Firestore REST pincodes failed:', e.message);
-    }
-  }
-
-  // 2. Try Firestore Admin SDK with merge fallback
-  if (list.length === 0) {
-    try {
-      const db = getAdminDb();
-      const snapshot = await db.collection('service_pincodes').get();
-      if (!snapshot.empty) {
-        const listSnap: any[] = [];
-        snapshot.forEach(doc => {
-          listSnap.push({ id: doc.id, ...doc.data() });
-        });
-        list = listSnap;
-      }
-    } catch (e: any) {
-      console.log('[ValidateAddressRoutes] Firestore Admin SDK pincodes failed:', e.message);
-    }
-  }
-
-  // 3. Fallback default presets limit
-  if (list.length === 0) {
-    list = defaultPincodes.map((pin, index) => ({
-      id: `default_${index}`,
-      pincode: pin,
-      active: true
-    }));
-  }
-
-  // Map to force all Cuttack (starts with '753') pincodes to be active
-  return list.map((item: any) => {
-    if (item && item.pincode && String(item.pincode).trim().startsWith('753')) {
-      return { ...item, active: true };
-    }
-    return item;
-  }).filter(Boolean);
-}
 
 /**
  * POST /api/validate-address
@@ -399,54 +190,71 @@ router.post('/', validate(validateAddressSchema), async (req, res) => {
     const appConfig = await getAppConfig();
     const configDeliveryTime = appConfig?.defaultDeliveryTime || 25;
 
-    const zones = await getServiceZones();
-    // Enable ultra-safe filtering that supports various database representations
-    const activeZones = zones.filter(z => z && (z.is_active === true || z.is_active === 'true' || z.is_active === 1 || String(z.is_active).toLowerCase() === 'true'));
-    const activeCityNames = activeZones.map(z => z.city_name || '').filter(Boolean);
-
-    let activeCitiesStr = activeCityNames.join(' and ');
-    if (activeCityNames.length > 1) {
-      activeCitiesStr = activeCityNames.slice(0, -1).join(', ') + ' and ' + activeCityNames[activeCityNames.length - 1];
+    // Get active cities list for friendly output messages
+    let activeCitiesStr = "Cuttack";
+    try {
+      const v2Cities = await V2GeofencingService.getCities();
+      const activeCityNames = v2Cities.filter(c => c.is_active).map(c => c.name);
+      if (activeCityNames.length > 1) {
+        activeCitiesStr = activeCityNames.slice(0, -1).join(', ') + ' and ' + activeCityNames[activeCityNames.length - 1];
+      } else if (activeCityNames.length === 1) {
+        activeCitiesStr = activeCityNames[0];
+      }
+    } catch (e) {
+      console.warn('[ValidateAddressRoutes] Failed to fetch active cities for display message:', e);
     }
-    if (activeCityNames.length === 0) {
-      activeCitiesStr = "Cuttack"; // Fallback text when nothing is config'd
-    }
 
-    // Evaluate Structured Fields (houseNumber, streetName, landmark, city, pincode)
     const normalizedCity = fields && fields.city ? String(fields.city).trim().toLowerCase() : '';
     const normalizedZip = fields && fields.pincode ? String(fields.pincode).trim() : '';
     const fullAddressText = address ? String(address).toLowerCase() : '';
 
     // LAYER A: Check PINCODE and CITY directly if pincode is specified in structured inputs
     if (normalizedZip) {
-      const activePincodes = await getServicePincodes();
-      const enabledPincodes = activePincodes
-        .filter((p: any) => p && (p.active === true || p.active === 'true' || p.active === 1 || String(p.active).toLowerCase() === 'true'))
-        .map((p: any) => String(p.pincode).trim())
-        .filter(Boolean);
+      let isPincodeAllowed = false;
+      try {
+        const v2Pincodes = await V2GeofencingService.getPincodes();
+        isPincodeAllowed = v2Pincodes.some(p => p.pincode === normalizedZip && p.is_active);
+      } catch (err: any) {
+        console.warn('[ValidateAddressRoutes] Failed to fetch V2 pincodes:', err.message);
+      }
 
-      const isCityCuttack = normalizedCity === 'cuttack' || fullAddressText.includes('cuttack') || normalizedZip.startsWith('753');
-      const isPincodeAllowed = enabledPincodes.includes(normalizedZip) || normalizedZip.startsWith('753');
+      // Check if city matches any active V2 city
+      let isCityActive = false;
+      let matchedCityName = "Cuttack";
+      try {
+        const v2Cities = await V2GeofencingService.getCities();
+        const activeCities = v2Cities.filter(c => c.is_active);
+        const cityMatch = activeCities.find(c => 
+          normalizedCity === c.name.toLowerCase() || 
+          fullAddressText.includes(c.name.toLowerCase())
+        );
+        if (cityMatch) {
+          isCityActive = true;
+          matchedCityName = cityMatch.name;
+        }
+      } catch (err: any) {
+        console.warn('[ValidateAddressRoutes] Failed to fetch V2 cities:', err.message);
+      }
 
-      if (isCityCuttack && isPincodeAllowed) {
+      if (isCityActive && isPincodeAllowed) {
         return res.json({
           success: true,
           deliverable: true,
           message: "📍 Delivery Available",
           estimatedDeliveryMins: configDeliveryTime,
-          zone: "Cuttack"
+          zone: matchedCityName
         });
-      } else if (!isCityCuttack) {
+      } else if (!isCityActive) {
         return res.status(200).json({
           success: false,
           deliverable: false,
-          message: "⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of Cuttack only."
+          message: `⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of ${activeCitiesStr} only.`
         });
       } else {
         return res.status(200).json({
           success: false,
           deliverable: false,
-          message: `⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of Cuttack only.\n(Pincode ${normalizedZip} is outside our active boundaries)`
+          message: `⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of ${activeCitiesStr} only.\n(Pincode ${normalizedZip} is outside our active boundaries)`
         });
       }
     }
@@ -467,86 +275,75 @@ router.post('/', validate(validateAddressSchema), async (req, res) => {
     ) : null;
 
     if (uLat !== null && uLng !== null) {
-      let matchedZone = null;
-      let minDistance = Infinity;
-
-      for (const zone of activeZones) {
-        if (!zone || zone.latitude === undefined || zone.longitude === undefined) continue;
-        const zoneLat = parseFloat(String(zone.latitude));
-        const zoneLng = parseFloat(String(zone.longitude));
-        const radiusMeters = parseFloat(String(zone.radius_meters)) || 12000;
-
-        if (isNaN(zoneLat) || isNaN(zoneLng)) continue;
-
-        const dist = calculateDistance(zoneLat, zoneLng, uLat, uLng);
-        const radiusKm = radiusMeters / 1000;
-        if (dist <= radiusKm) {
-          if (dist < minDistance) {
-            minDistance = dist;
-            matchedZone = zone;
-          }
+      try {
+        const checkResult = await V2GeofencingService.checkServiceability({ latitude: uLat, longitude: uLng });
+        if (checkResult.data.serviceable) {
+          return res.json({
+            success: true,
+            deliverable: true,
+            message: "📍 Delivery Available",
+            estimatedDeliveryMins: checkResult.data.estimatedDeliveryMinutes || configDeliveryTime,
+            zone: checkResult.data.city?.name || "Cuttack",
+            distanceKm: checkResult.data.distanceMeters ? Number((checkResult.data.distanceMeters / 1000).toFixed(2)) : 0
+          });
+        } else if (checkResult.data.reason === 'SERVICEABILITY_UNAVAILABLE') {
+          return res.status(503).json({
+            success: false,
+            deliverable: false,
+            serviceable: false,
+            reason: "SERVICEABILITY_UNAVAILABLE",
+            message: "⚠ Serviceability Temporarily Unavailable\n\nWe are experiencing server database connectivity issues. Please click retry to validate again."
+          });
+        } else {
+          return res.status(200).json({
+            success: false,
+            deliverable: false,
+            message: `⚠ Delivery Unavailable\n\nFrosty Bite currently delivers only in ${activeCitiesStr}. Your pinned location is outside our service area.`
+          });
         }
-      }
-
-      if (matchedZone) {
-        return res.json({
-          success: true,
-          deliverable: true,
-          message: "📍 Delivery Available",
-          estimatedDeliveryMins: configDeliveryTime,
-          zone: matchedZone.city_name,
-          distanceKm: Number(minDistance.toFixed(2))
-        });
-      } else {
-        return res.status(200).json({
+      } catch (err: any) {
+        console.warn('[ValidateAddressRoutes] V2 geofencing check failed due to exception:', err.message);
+        return res.status(503).json({
           success: false,
           deliverable: false,
-          message: `⚠ Delivery Unavailable\n\nFrosty Bite currently delivers only in ${activeCitiesStr}. Your pinned location is outside our service area.`
+          serviceable: false,
+          reason: "SERVICEABILITY_UNAVAILABLE",
+          message: "⚠ Serviceability Temporarily Unavailable\n\nWe are experiencing server database connectivity issues. Please click retry to validate again."
         });
       }
     }
 
     // LAYER C: General Text check inside City text fallback
-    let matchedCityZone = null;
-    for (const zone of activeZones) {
-      if (!zone || !zone.city_name) continue;
-      const zName = String(zone.city_name).toLowerCase();
-      if (normalizedCity === zName || fullAddressText.includes(zName)) {
-        matchedCityZone = zone;
-        break;
+    let matchedCityName = null;
+    try {
+      const v2Cities = await V2GeofencingService.getCities();
+      const activeCities = v2Cities.filter(c => c.is_active);
+      const matched = activeCities.find(c => 
+        normalizedCity === c.name.toLowerCase() || 
+        fullAddressText.includes(c.name.toLowerCase())
+      );
+      if (matched) {
+        matchedCityName = matched.name;
       }
+    } catch (e) {
+      console.warn('[ValidateAddressRoutes] V2 cities check failed in general text Layer C:', e);
     }
 
-    // If a match is found based on city text alone
-    if (matchedCityZone) {
+    if (matchedCityName) {
       return res.json({
         success: true,
         deliverable: true,
         message: "📍 Delivery Available",
         estimatedDeliveryMins: configDeliveryTime,
-        zone: matchedCityZone.city_name
+        zone: matchedCityName
       });
-    }
-
-    // Check if user entered Bhubaneswar or other inactive cities to give proper warning
-    const inactiveZones = zones.filter(z => z && !(z.is_active === true || z.is_active === 'true' || z.is_active === 1 || String(z.is_active).toLowerCase() === 'true'));
-    for (const zone of inactiveZones) {
-      if (!zone || !zone.city_name) continue;
-      const zName = String(zone.city_name).toLowerCase();
-      if (normalizedCity === zName || fullAddressText.includes(zName)) {
-        return res.status(200).json({
-          success: false,
-          deliverable: false,
-          message: `⚠ Delivery Unavailable\n\nFrosty Bite currently delivers only in ${activeCitiesStr}. ${zone.city_name} is not currently active.`
-        });
-      }
     }
 
     // General fallback when city did not match anything
     return res.status(200).json({
       success: false,
       deliverable: false,
-      message: `⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of Cuttack only.`
+      message: `⚠ Delivery Unavailable\n\nFrosty Bite currently serves selected areas of ${activeCitiesStr} only.`
     });
 
   } catch (error: any) {
@@ -566,17 +363,26 @@ router.post('/', validate(validateAddressSchema), async (req, res) => {
 router.get('/check-pincode/:pincode', async (req, res) => {
   try {
     const { pincode } = req.params;
+    if (!pincode) {
+        return res.json({ allowed: false, error: 'Pincode is required' });
+    }
     const cleanPin = pincode.trim().replace(/\s/g, '');
     if (!/^\d{6}$/.test(cleanPin)) {
       return res.json({ allowed: false, error: 'Invalid pincode format' });
     }
 
-    // 1. Force Cuttack '753' to be active as requested in prior edits
-    if (cleanPin.startsWith('753')) {
-      return res.json({ allowed: true, source: 'cuttack_override' });
+    // 2. Try to check via V2GeofencingService
+    try {
+      const v2Pincodes = await V2GeofencingService.getPincodes();
+      const foundPin = v2Pincodes.find(p => p.pincode === cleanPin && p.is_active);
+      if (foundPin) {
+        return res.json({ allowed: true, source: 'v2_geofencing' });
+      }
+    } catch (err: any) {
+      console.warn('[Server Pincode Check] V2GeofencingService getPincodes failed:', err.message);
     }
 
-    // 2. Try to check delivery_pincodes in Supabase
+    // 3. Try to check delivery_pincodes in Supabase (legacy fallback)
     try {
       const { data, error } = await supabase
         .from('delivery_pincodes')
@@ -590,7 +396,7 @@ router.get('/check-pincode/:pincode', async (req, res) => {
       console.warn('[Server Pincode Check] Supabase delivery_pincodes query error:', e.message);
     }
 
-    // 3. Try to check service_pincodes in Supabase
+    // 4. Try to check service_pincodes in Supabase (legacy fallback)
     try {
       const { data: pins, error: pinErr } = await supabase
         .from('service_pincodes')

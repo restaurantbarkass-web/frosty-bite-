@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { appConfigService, AppConfig } from '../services/appConfigService';
 
 interface ConfigContextType {
@@ -31,32 +31,34 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const toggleOrderingStatus = async (customToken?: string | null) => {
+  const toggleOrderingStatus = useCallback(async (customToken?: string | null) => {
     if (!config) return;
     await appConfigService.toggleOrderingStatus(config.isOrderingOpen, customToken);
-  };
+  }, [config]);
 
-  const updatePickupOnlyStatus = async (isPickupOnly: boolean, customToken?: string | null) => {
+  const updatePickupOnlyStatus = useCallback(async (isPickupOnly: boolean, customToken?: string | null) => {
     await appConfigService.updatePickupOnlyStatus(isPickupOnly, customToken);
-  };
+  }, []);
 
-  const updateDeliveryPricing = async (pricing: any, customToken?: string | null) => {
+  const updateDeliveryPricing = useCallback(async (pricing: any, customToken?: string | null) => {
     await appConfigService.updateDeliveryPricing(pricing, customToken);
-  };
+  }, []);
 
-  const updateGeofencingSettings = async (settings: any, customToken?: string | null) => {
+  const updateGeofencingSettings = useCallback(async (settings: any, customToken?: string | null) => {
     await appConfigService.updateGeofencingSettings(settings, customToken);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    config,
+    isLoading,
+    toggleOrderingStatus,
+    updatePickupOnlyStatus,
+    updateDeliveryPricing,
+    updateGeofencingSettings
+  }), [config, isLoading, toggleOrderingStatus, updatePickupOnlyStatus, updateDeliveryPricing, updateGeofencingSettings]);
 
   return (
-    <ConfigContext.Provider value={{
-      config,
-      isLoading,
-      toggleOrderingStatus,
-      updatePickupOnlyStatus,
-      updateDeliveryPricing,
-      updateGeofencingSettings
-    }}>
+    <ConfigContext.Provider value={value}>
       {children}
     </ConfigContext.Provider>
   );

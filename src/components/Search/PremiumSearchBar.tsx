@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+import { safeTrim, safeTrimLowerCase } from '../../utils/string';
+
 interface PremiumSearchBarProps {
   onSearch: (query: string) => void;
   initialQuery?: string;
@@ -127,7 +129,7 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
   }, []);
 
   const handleSearch = useCallback((searchTerm: string) => {
-    const trimmed = searchTerm.trim();
+    const trimmed = safeTrim(searchTerm);
     if (!trimmed) return;
 
     // Save to recent

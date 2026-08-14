@@ -20,6 +20,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabase';
 import toast from 'react-hot-toast';
+import { GeofencingV2Manager } from '../../components/admin/v2/GeofencingV2Manager';
+import { safeTrim } from '../../utils/string';
 
 interface ServerServiceZone {
   id: string;
@@ -50,7 +52,7 @@ export const ServiceZones: React.FC = () => {
   const [isActive, setIsActive] = useState(true);
 
   // Switchable Tab state
-  const [activeTab, setActiveTab] = useState<'zones' | 'pincodes' | 'areas' | 'diagnostics'>('pincodes');
+  const [activeTab, setActiveTab] = useState<'v2' | 'zones' | 'pincodes' | 'areas' | 'diagnostics'>('v2');
 
   // Pincode control states
   const [pincodes, setPincodes] = useState<ServicePincode[]>([]);
@@ -196,7 +198,7 @@ export const ServiceZones: React.FC = () => {
     }
   };
 
-  // Load zones
+  // Load zones (Legacy V1 tab fallback)
   const fetchZones = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -205,17 +207,22 @@ export const ServiceZones: React.FC = () => {
         const data = await response.json();
         setZones(data);
       } else {
-        toast.error('Failed to load service zones from backend');
+        const { data } = await supabase.from('service_zones').select('*');
+        setZones(data || []);
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Error contacting service zones API');
+      try {
+        const { data } = await supabase.from('service_zones').select('*');
+        setZones(data || []);
+      } catch (_) {
+        setZones([]);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Load pincodes
+  // Load pincodes (Legacy V1 tab fallback)
   const fetchPincodes = useCallback(async () => {
     setIsPincodesLoading(true);
     try {
@@ -224,17 +231,22 @@ export const ServiceZones: React.FC = () => {
         const data = await response.json();
         setPincodes(data);
       } else {
-        toast.error('Failed to load active pincodes');
+        const { data } = await supabase.from('service_pincodes').select('*');
+        setPincodes(data || []);
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Error contacting service pincodes API');
+      try {
+        const { data } = await supabase.from('service_pincodes').select('*');
+        setPincodes(data || []);
+      } catch (_) {
+        setPincodes([]);
+      }
     } finally {
       setIsPincodesLoading(false);
     }
   }, []);
 
-  // Load delivery areas
+  // Load delivery areas (Legacy V1 tab fallback)
   const fetchDeliveryAreas = useCallback(async () => {
     setIsAreasLoading(true);
     try {
@@ -243,11 +255,16 @@ export const ServiceZones: React.FC = () => {
         const data = await response.json();
         setDeliveryAreas(data);
       } else {
-        toast.error('Failed to load served localities');
+        const { data } = await supabase.from('delivery_areas').select('*');
+        setDeliveryAreas(data || []);
       }
     } catch (err) {
-      console.error(err);
-      toast.error('Error contacting served localities API');
+      try {
+        const { data } = await supabase.from('delivery_areas').select('*');
+        setDeliveryAreas(data || []);
+      } catch (_) {
+        setDeliveryAreas([]);
+      }
     } finally {
       setIsAreasLoading(false);
     }
@@ -257,11 +274,14 @@ export const ServiceZones: React.FC = () => {
   const handleAddArea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmittingArea) return;
-    if (!newAreaName.trim() || !newAreaPincode.trim()) {
+    const trimmedAreaName = safeTrim(newAreaName);
+    const trimmedAreaPincode = safeTrim(newAreaPincode);
+
+    if (!trimmedAreaName || !trimmedAreaPincode) {
       toast.error('Local Area Name and Pincode are required');
       return;
     }
-    if (!/^\d{6}$/.test(newAreaPincode.trim())) {
+    if (!/^\d{6}$/.test(trimmedAreaPincode)) {
       toast.error('Pincode must be exactly a 6-digit number');
       return;
     }
@@ -271,16 +291,16 @@ export const ServiceZones: React.FC = () => {
       const headers = await getAuthHeaders();
       console.log('REQUEST URL:', '/api/delivery-areas');
       console.log('REQUEST BODY:', {
-        area_name: newAreaName.trim(),
-        pincode: newAreaPincode.trim(),
+        area_name: trimmedAreaName,
+        pincode: trimmedAreaPincode,
         is_deliverable: newAreaDeliverable
       });
       const response = await fetch('/api/delivery-areas', {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          area_name: newAreaName.trim(),
-          pincode: newAreaPincode.trim(),
+          area_name: trimmedAreaName,
+          pincode: trimmedAreaPincode,
           is_deliverable: newAreaDeliverable
         })
       });
@@ -414,66 +434,14 @@ export const ServiceZones: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchZones();
-    fetchPincodes();
-    fetchDeliveryAreas();
-
-    // Supabase Realtime subscriptions for dynamic, multi-user sync
-    const channelZones = supabase
-      .channel('realtime_admin_zones')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_zones' }, () => {
-        console.log('[Realtime] service_zones updated, re-fetching...');
-        fetchZones();
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] service_zones subscription failed. Table may be missing or publication not configured.');
-        }
-      });
-
-    const channelPincodes = supabase
-      .channel('realtime_admin_pincodes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_pincodes' }, () => {
-        console.log('[Realtime] service_pincodes updated, re-fetching...');
-        fetchPincodes();
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] service_pincodes subscription offline fallback enabled.');
-        }
-      });
-
-    const channelDeliveryPincodes = supabase
-      .channel('realtime_admin_delivery_pincodes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_pincodes' }, () => {
-        console.log('[Realtime] delivery_pincodes updated, re-fetching...');
-        fetchPincodes();
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] delivery_pincodes subscription offline fallback enabled.');
-        }
-      });
-
-    const channelAreas = supabase
-      .channel('realtime_admin_areas')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_areas' }, () => {
-        console.log('[Realtime] delivery_areas updated, re-fetching...');
-        fetchDeliveryAreas();
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('[Realtime] delivery_areas subscription offline fallback enabled.');
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channelZones);
-      supabase.removeChannel(channelPincodes);
-      supabase.removeChannel(channelDeliveryPincodes);
-      supabase.removeChannel(channelAreas);
-    };
-  }, [fetchZones, fetchPincodes, fetchDeliveryAreas]);
+    if (activeTab === 'zones') {
+      fetchZones();
+    } else if (activeTab === 'pincodes') {
+      fetchPincodes();
+    } else if (activeTab === 'areas') {
+      fetchDeliveryAreas();
+    }
+  }, [activeTab, fetchZones, fetchPincodes, fetchDeliveryAreas]);
 
   // Auth Header Helper
   const getAuthHeaders = async () => {
@@ -515,7 +483,8 @@ export const ServiceZones: React.FC = () => {
   // Submit new zone
   const handleAddZone = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cityName.trim()) {
+    const trimmedCityName = safeTrim(cityName);
+    if (!trimmedCityName) {
       toast.error('Please specify a valid City Name');
       return;
     }
@@ -542,7 +511,7 @@ export const ServiceZones: React.FC = () => {
       const headers = await getAuthHeaders();
       console.log('REQUEST URL:', '/api/service-zones');
       console.log('REQUEST BODY:', {
-        city_name: cityName.trim(),
+        city_name: trimmedCityName,
         latitude: latVal,
         longitude: lngVal,
         radius_meters: radVal,
@@ -552,7 +521,7 @@ export const ServiceZones: React.FC = () => {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          city_name: cityName.trim(),
+          city_name: trimmedCityName,
           latitude: latVal,
           longitude: lngVal,
           radius_meters: radVal,
@@ -691,7 +660,7 @@ export const ServiceZones: React.FC = () => {
   // Submit new pincode
   const handleAddPincode = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = newPincode.trim();
+    const trimmed = safeTrim(newPincode);
     if (!/^\d{6}$/.test(trimmed)) {
       toast.error('Pincode must be exactly a 6-digit number!');
       return;
@@ -908,37 +877,15 @@ export const ServiceZones: React.FC = () => {
         {/* Tab switchers switcher */}
         <div className="flex flex-wrap border border-white/5 p-1 bg-[#0a0a0c] rounded-2xl gap-1 w-fit">
           <button
-            onClick={() => setActiveTab('zones')}
+            onClick={() => setActiveTab('v2')}
             className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 ${
-              activeTab === 'zones'
-                ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                : 'text-zinc-500 hover:text-zinc-350'
+              activeTab === 'v2'
+                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
+                : 'text-zinc-400 hover:text-white'
             }`}
           >
-            <Globe size={12} />
-            GPS Geofence Zones
-          </button>
-          <button
-            onClick={() => setActiveTab('pincodes')}
-            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 ${
-              activeTab === 'pincodes'
-                ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                : 'text-zinc-500 hover:text-zinc-350'
-            }`}
-          >
-            <MapPin size={12} />
-            Active Pincodes
-          </button>
-          <button
-            onClick={() => setActiveTab('areas')}
-            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 ${
-              activeTab === 'areas'
-                ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                : 'text-zinc-500 hover:text-zinc-350'
-            }`}
-          >
-            <Sparkles size={12} />
-            Served Localities
+            <ShieldCheck size={12} className="text-orange-400" />
+            Geofencing V2 Manager
           </button>
           <button
             onClick={() => setActiveTab('diagnostics')}
@@ -955,58 +902,62 @@ export const ServiceZones: React.FC = () => {
       </div>
 
       {/* Metrics Banner */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block text-left">
-              {activeTab === 'zones' ? 'Total Zones' : activeTab === 'pincodes' ? 'Total Pincodes' : 'Total Localities'}
-            </span>
-            <span className="text-3xl font-black text-white mt-1 block text-left">
-              {activeTab === 'zones' ? (isLoading ? '...' : zones.length) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : pincodes.length) : (isAreasLoading ? '...' : deliveryAreas.length)}
-            </span>
+      {activeTab !== 'v2' && activeTab !== 'diagnostics' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block text-left">
+                {activeTab === 'zones' ? 'Total Zones' : activeTab === 'pincodes' ? 'Total Pincodes' : 'Total Localities'}
+              </span>
+              <span className="text-3xl font-black text-white mt-1 block text-left">
+                {activeTab === 'zones' ? (isLoading ? '...' : zones.length) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : pincodes.length) : (isAreasLoading ? '...' : deliveryAreas.length)}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] flex items-center justify-center text-primary font-bold">
+              {activeTab === 'zones' ? <Map size={22} /> : activeTab === 'pincodes' ? <MapPin size={22} /> : <Sparkles size={22} />}
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-white/[0.04] flex items-center justify-center text-primary font-bold">
-            {activeTab === 'zones' ? <Map size={22} /> : activeTab === 'pincodes' ? <MapPin size={22} /> : <Sparkles size={22} />}
-          </div>
-        </div>
 
-        <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest block text-left">
-              Operational Active
-            </span>
-            <span className="text-3xl font-black text-white mt-1 block text-left">
-              {activeTab === 'zones' ? (isLoading ? '...' : activeZonesCount) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : activePincodesCount) : (isAreasLoading ? '...' : activeAreasCount)}
-            </span>
+          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest block text-left">
+                Operational Active
+              </span>
+              <span className="text-3xl font-black text-white mt-1 block text-left">
+                {activeTab === 'zones' ? (isLoading ? '...' : activeZonesCount) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : activePincodesCount) : (isAreasLoading ? '...' : activeAreasCount)}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <Activity size={22} className="animate-pulse" />
+            </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-            <Activity size={22} className="animate-pulse" />
-          </div>
-        </div>
 
-        <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-amber-500 uppercase tracking-widest block text-left">
-              Inactive / Excluded
-            </span>
-            <span className="text-3xl font-black text-white mt-1 block text-left">
-              {activeTab === 'zones' 
-                ? (isLoading ? '...' : (zones.length - activeZonesCount)) 
-                : activeTab === 'pincodes'
-                  ? (isPincodesLoading ? '...' : (pincodes.length - activePincodesCount))
-                  : (isAreasLoading ? '...' : (deliveryAreas.length - activeAreasCount))}
-            </span>
-          </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-            <Settings size={22} />
+          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-amber-500 uppercase tracking-widest block text-left">
+                Inactive / Excluded
+              </span>
+              <span className="text-3xl font-black text-white mt-1 block text-left">
+                {activeTab === 'zones' 
+                  ? (isLoading ? '...' : (zones.length - activeZonesCount)) 
+                  : activeTab === 'pincodes'
+                    ? (isPincodesLoading ? '...' : (pincodes.length - activePincodesCount))
+                    : (isAreasLoading ? '...' : (deliveryAreas.length - activeAreasCount))}
+              </span>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+              <Settings size={22} />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left column depending on active tab */}
         <div className="lg:col-span-8 bg-[#0a0a0c] border border-white/5 rounded-[32px] p-6 sm:p-8 space-y-6">
-          {activeTab === 'zones' ? (
+          {activeTab === 'v2' ? (
+            <GeofencingV2Manager />
+          ) : activeTab === 'zones' ? (
             <>
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-left">
@@ -1636,9 +1587,9 @@ const RlsDiagnosticsPanel: React.FC = () => {
       'reviews',
       'otps',
       'cancellation_logs',
-      'delivery_areas',
-      'service_pincodes',
-      'service_zones'
+      'cities',
+      'pincodes',
+      'localities'
     ];
 
     const results: TestResult[] = [];
@@ -1721,22 +1672,22 @@ const RlsDiagnosticsPanel: React.FC = () => {
 
   const sqlSnippets = {
     bypass: `-- FIX: Toggle Row Level Security off for active tables to permit rapid front-end tests
-ALTER TABLE public.service_zones DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.service_pincodes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_areas DISABLE ROW LEVEL SECURITY;`,
+ALTER TABLE public.cities DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pincodes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.localities DISABLE ROW LEVEL SECURITY;`,
     rules: `-- FIX: Create fully permissive Row Level Security policies for Dev/Preview testing
-ALTER TABLE public.service_zones ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.service_pincodes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pincodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.localities ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "permissive_all_service_zones" ON public.service_zones;
-CREATE POLICY "permissive_all_service_zones" ON public.service_zones FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "permissive_all_cities" ON public.cities;
+CREATE POLICY "permissive_all_cities" ON public.cities FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "permissive_all_service_pincodes" ON public.service_pincodes;
-CREATE POLICY "permissive_all_service_pincodes" ON public.service_pincodes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "permissive_all_pincodes" ON public.pincodes;
+CREATE POLICY "permissive_all_pincodes" ON public.pincodes FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "permissive_all_delivery_areas" ON public.delivery_areas;
-CREATE POLICY "permissive_all_delivery_areas" ON public.delivery_areas FOR ALL USING (true) WITH CHECK (true);`,
+DROP POLICY IF EXISTS "permissive_all_localities" ON public.localities;
+CREATE POLICY "permissive_all_localities" ON public.localities FOR ALL USING (true) WITH CHECK (true);`,
     rpc: `-- SQL views & RPC helpers to dynamically inspect PostgreSQL system policies
 CREATE OR REPLACE FUNCTION public.get_rls_policies()
 RETURNS TABLE (

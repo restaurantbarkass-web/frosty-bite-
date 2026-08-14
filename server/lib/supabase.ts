@@ -45,7 +45,7 @@ function getSupabaseClient(): SupabaseClient {
 }
 
 // Export a Proxy that intercepts all property/method access on supabase to enforce lazy loading and automatic timeouts
-function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 4000): any {
+function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 10000): any {
   if (obj === null || obj === undefined) return obj;
 
   // If the object is a function, wrap it so its return value is wrapped, and bind the function
@@ -112,6 +112,6 @@ export const supabase = new Proxy({} as SupabaseClient, {
   get: (target: any, prop: string | symbol) => {
     const client = getSupabaseClient();
     const value = (client as any)[prop];
-    return wrapThenableWithTimeout(value, client, 4000);
+    return wrapThenableWithTimeout(value, client, 10000);
   }
 });

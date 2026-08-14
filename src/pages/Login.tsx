@@ -30,6 +30,7 @@ import { FeatureComingSoon } from '../components/FeatureComingSoon';
 import { OtpSuccessAnimation } from '../components/OtpSuccessAnimation';
 import { LoadingScreen } from '../components/LoadingScreen';
 import gsap from 'gsap';
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
 
 const normalizePhone = (phone: string): string => {
   const clean = phone.replace(/\D/g, '');
@@ -177,7 +178,7 @@ const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
 
 const isOtpSessionActive = (recipient: string): boolean => {
   if (!recipient) return false;
-  const cleanRecipient = recipient.trim().toLowerCase();
+  const cleanRecipient = safeTrimLowerCase(recipient);
   try {
     const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
     if (!rawSessions) return false;
@@ -194,7 +195,7 @@ const isOtpSessionActive = (recipient: string): boolean => {
 
 const getRemainingTime = (recipient: string, defaultSeconds: number): number => {
   if (!recipient) return defaultSeconds;
-  const cleanRecipient = recipient.trim().toLowerCase();
+  const cleanRecipient = safeTrimLowerCase(recipient);
   try {
     const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
     if (rawSessions) {
@@ -211,7 +212,7 @@ const getRemainingTime = (recipient: string, defaultSeconds: number): number => 
 
 const saveActiveOtpSession = (recipient: string, durationMs: number) => {
   if (!recipient) return;
-  const cleanRecipient = recipient.trim().toLowerCase();
+  const cleanRecipient = safeTrimLowerCase(recipient);
   try {
     const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
     const sessions = rawSessions ? JSON.parse(rawSessions) : {};
@@ -224,7 +225,7 @@ const saveActiveOtpSession = (recipient: string, durationMs: number) => {
 
 const removeActiveOtpSession = (recipient: string) => {
   if (!recipient) return;
-  const cleanRecipient = recipient.trim().toLowerCase();
+  const cleanRecipient = safeTrimLowerCase(recipient);
   try {
     const rawSessions = localStorage.getItem('frostybite_active_otp_sessions');
     if (rawSessions) {
@@ -237,7 +238,7 @@ const removeActiveOtpSession = (recipient: string) => {
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, refreshProfile } = useAuth();
+  const { user, isAdmin, refreshProfile, resolveAndSyncUser } = useAuth();
   const { selectManualCity, allowedZonesList } = useGeofence();
 
   // Unified State Machine Steps: 'welcome' | 'email' | 'name' | 'otp' | 'location'
@@ -308,6 +309,11 @@ export const Login: React.FC = () => {
 
   // Countdown timer for resend
   const execute1ClickLogin = async (targetEmail: string) => {
+    if (!targetEmail || typeof targetEmail !== 'string') {
+      setError('A valid email address is required for 1-click login.');
+      return;
+    }
+    const cleanEmail = safeTrimLowerCase(targetEmail);
     setIsLoading(true);
     setError(null);
     setSuccess(null);
@@ -316,22 +322,22 @@ export const Login: React.FC = () => {
       const { data: dbUser, error: dbErr } = await supabase
         .from('users')
         .select('*')
-        .eq('email', targetEmail.trim().toLowerCase())
+        .eq('email', cleanEmail)
         .maybeSingle();
 
       let targetUser = dbUser;
       
       // If user does not exist in Supabase DB, auto-populate it
       if (!targetUser) {
-        const is_admin = ADMIN_EMAILS.includes(targetEmail.trim().toLowerCase());
+        const is_admin = ADMIN_EMAILS.includes(cleanEmail);
         const role = is_admin ? 'admin' : 'customer';
-        const defaultName = targetEmail.split('@')[0];
+        const defaultName = cleanEmail.split('@')[0];
         
         // Create user with default fields
         const { data: insertedUser, error: insertError } = await supabase
           .from('users')
           .insert({
-            email: targetEmail.trim().toLowerCase(),
+            email: cleanEmail,
             name: defaultName,
             full_name: defaultName,
             role: role,
@@ -492,7 +498,7 @@ export const Login: React.FC = () => {
     e.preventDefault();
     if (isLoading) return;
     
-    const emailTrimmed = email.trim().toLowerCase();
+    const emailTrimmed = safeTrimLowerCase(email);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailTrimmed)) {
       setError('Invalid email. Please enter a valid email address (e.g., baker@frostybite.com).');
@@ -567,14 +573,14 @@ export const Login: React.FC = () => {
   const handlePasswordLogin = async () => {
     if (isLoading) return;
 
-    const emailTrimmed = email.trim().toLowerCase();
+    const emailTrimmed = safeTrimLowerCase(email);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailTrimmed)) {
       setError('Invalid email. Please enter a valid email address (e.g., baker@frostybite.com).');
       return;
     }
 
-    if (!password.trim()) {
+    if (!safeTrim(password)) {
       setError('Please enter your password.');
       return;
     }
@@ -602,13 +608,13 @@ export const Login: React.FC = () => {
       }
 
       const storedPassword = dbUser.password || '';
-      if (!storedPassword || storedPassword.trim() === '') {
+      if (!storedPassword || safeTrim(storedPassword) === '') {
         setError('This account does not have a password set up yet. Please select the "OTP Code" option to log in.');
         setIsLoading(false);
         return;
       }
 
-      if (storedPassword.trim() !== password.trim()) {
+      if (safeTrim(storedPassword) !== safeTrim(password)) {
         setError('Incorrect password. Please verify your spelling or click "Forgot?" to reset it.');
         setIsLoading(false);
         return;
@@ -666,12 +672,12 @@ export const Login: React.FC = () => {
     e.preventDefault();
     if (isLoading) return;
 
-    if (!name.trim()) {
+    if (!safeTrim(name)) {
       setError('Please enter your full name to personalize your bakery orders.');
       return;
     }
 
-    const emailTrimmed = email.trim().toLowerCase();
+    const emailTrimmed = safeTrimLowerCase(email);
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailTrimmed)) {
       setError('Invalid email format. Please enter a valid email address (e.g., baker@frostybite.com) without spaces.');
@@ -679,7 +685,7 @@ export const Login: React.FC = () => {
     }
 
     const cleanPhone = normalizePhone(phone);
-    if (!phone.trim()) {
+    if (!safeTrim(phone)) {
       setError('Please enter your mobile phone number so we can coordinate your bakery delivery.');
       return;
     }
@@ -688,7 +694,7 @@ export const Login: React.FC = () => {
       return;
     }
 
-    if (!password.trim()) {
+    if (!safeTrim(password)) {
       setError('Please enter a password to safeguard your account.');
       return;
     }
@@ -778,7 +784,7 @@ export const Login: React.FC = () => {
         }
 
         // Send Mobile OTP
-        const res = await authService.sendMobileOTP(cleanPhone, true, emailTrimmed, name.trim(), password.trim());
+        const res = await authService.sendMobileOTP(cleanPhone, true, emailTrimmed, safeTrim(name), safeTrim(password));
         saveActiveOtpSession(cleanPhone, 180 * 1000);
         setResendTimer(60);
         setTimerSeconds(180);
@@ -806,7 +812,7 @@ export const Login: React.FC = () => {
   };
 
   const verifyOtpCode = async (otpCode: string) => {
-    let emailTrimmed = email.trim().toLowerCase();
+    let emailTrimmed = safeTrimLowerCase(email);
     
     if (signInMethod === 'mobile_otp') {
       const cleanPhone = normalizePhone(phone);
@@ -819,11 +825,11 @@ export const Login: React.FC = () => {
   };
 
   const handleSuccessRedirect = async (result: any) => {
-    let emailTrimmed = email.trim().toLowerCase();
+    let emailTrimmed = safeTrimLowerCase(email);
     if (result && result.email) {
-      emailTrimmed = result.email;
+      emailTrimmed = safeTrimLowerCase(result.email);
     } else if (result && result.user && result.user.email) {
-      emailTrimmed = result.user.email;
+      emailTrimmed = safeTrimLowerCase(result.user.email);
     }
     
     // Clear active verification sessions
@@ -842,10 +848,10 @@ export const Login: React.FC = () => {
         await supabase
           .from('users')
           .update({ 
-            name: name.trim(), 
-            full_name: name.trim(),
+            name: safeTrim(name), 
+            full_name: safeTrim(name),
             phone: normalizePhone(phone),
-            password: password.trim()
+            password: safeTrim(password)
           })
           .eq('email', emailTrimmed);
         console.log('[Onboarding] Synced user name, mobile number, and password successfully.');
@@ -855,9 +861,7 @@ export const Login: React.FC = () => {
     }
 
     // Immediately trigger AuthContext to resolve the newly authenticated session
-    await refreshProfile().catch((syncErr) => {
-      console.warn('[handleSuccessRedirect] Auth sync triggered warning:', syncErr);
-    });
+    await resolveAndSyncUser();
 
     try {
       const { data: dbUser } = await supabase
@@ -902,7 +906,7 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      let emailTrimmed = email.trim().toLowerCase();
+      let emailTrimmed = safeTrimLowerCase(email);
       
       if (signInMethod === 'mobile_otp') {
         const cleanPhone = normalizePhone(phone);
@@ -922,10 +926,10 @@ export const Login: React.FC = () => {
           await supabase
             .from('users')
             .update({ 
-              name: name.trim(), 
-              full_name: name.trim(),
+              name: safeTrim(name), 
+              full_name: safeTrim(name),
               phone: normalizePhone(phone),
-              password: password.trim()
+              password: safeTrim(password)
             })
             .eq('email', emailTrimmed);
           console.log('[Onboarding] Synced user name, mobile number, and password successfully.');
@@ -935,7 +939,7 @@ export const Login: React.FC = () => {
       }
 
       // Sync/Refresh Auth State immediately
-      await refreshProfile().catch(() => {});
+      await resolveAndSyncUser();
 
       // Premium Success State Transition
       setIsVerifiedSuccess(true);
@@ -1022,7 +1026,7 @@ export const Login: React.FC = () => {
           setSuccess(res.message || 'A fresh WhatsApp verification code was sent! Please check your device.');
         }
       } else {
-        const emailTrimmed = email.trim().toLowerCase();
+        const emailTrimmed = safeTrimLowerCase(email);
         await authService.sendOTP(emailTrimmed);
         
         // Save active session

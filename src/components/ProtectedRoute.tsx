@@ -22,8 +22,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   const navigate = useNavigate();
 
+  const userId = user?.uid || user?.id;
+  const allowedRolesKey = allowedRoles ? allowedRoles.join(',') : '';
+
   React.useEffect(() => {
-    if (!loading && user) {
+    if (!loading && userId) {
       if (allowedRoles) {
         const hasAccess = allowedRoles.some(r => {
           if (r === 'admin') return isAdmin;
@@ -39,7 +42,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
          // Optionally force logout or just show block
       }
     }
-  }, [user, loading, allowedRoles, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate]);
+  }, [userId, loading, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout]);
 
   if (loading) {
     // ... same loading UI ...

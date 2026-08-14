@@ -1,0 +1,285 @@
+{
+  "service_areas": [
+    {
+      "id": "sa-00000000-0000-0000-0000-000000000001",
+      "name": "Global Service Boundary",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.7,
+                20.2
+              ],
+              [
+                85.99,
+                20.2
+              ],
+              [
+                85.99,
+                20.6
+              ],
+              [
+                85.7,
+                20.6
+              ],
+              [
+                85.7,
+                20.2
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T13:40:35.065Z"
+    }
+  ],
+  "cities": [
+    {
+      "id": "city-cuttack-001",
+      "name": "Cuttack",
+      "slug": "cuttack",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.4
+              ],
+              [
+                85.95,
+                20.4
+              ],
+              [
+                85.95,
+                20.52
+              ],
+              [
+                85.8,
+                20.52
+              ],
+              [
+                85.8,
+                20.4
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T09:24:44.907Z"
+    }
+  ],
+  "pincodes": [
+    {
+      "id": "pin-753001",
+      "city_id": "city-cuttack-001",
+      "pincode": "753001",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.85,
+                20.44
+              ],
+              [
+                85.92,
+                20.44
+              ],
+              [
+                85.92,
+                20.5
+              ],
+              [
+                85.85,
+                20.5
+              ],
+              [
+                85.85,
+                20.44
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T10:02:26.074Z"
+    },
+    {
+      "id": "pin-753012",
+      "city_id": "city-cuttack-001",
+      "pincode": "753012",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.41
+              ],
+              [
+                85.85,
+                20.41
+              ],
+              [
+                85.85,
+                20.44
+              ],
+              [
+                85.8,
+                20.44
+              ],
+              [
+                85.8,
+                20.41
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T09:24:44.907Z"
+    }
+  ],
+  "localities": [
+    {
+      "id": "loc-jobra-001",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753001",
+      "name": "Jobra",
+      "slug": "jobra",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.87,
+                20.45
+              ],
+              [
+                85.9,
+                20.45
+              ],
+              [
+                85.9,
+                20.48
+              ],
+              [
+                85.87,
+                20.48
+              ],
+              [
+                85.87,
+                20.45
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T09:24:44.907Z"
+    },
+    {
+      "id": "loc-buxi-002",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753001",
+      "name": "Buxi Bazaar",
+      "slug": "buxi-bazaar",
+      "is_active": true,
+      "delivery_fee": 50,
+      "minimum_order": 199,
+      "estimated_delivery_minutes": 35,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.85,
+                20.44
+              ],
+              [
+                85.87,
+                20.44
+              ],
+              [
+                85.87,
+                20.47
+              ],
+              [
+                85.85,
+                20.47
+              ],
+              [
+                85.85,
+                20.44
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T09:24:44.907Z"
+    },
+    {
+      "id": "loc-badambadi-003",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753012",
+      "name": "Badambadi",
+      "slug": "badambadi",
+      "is_active": false,
+      "delivery_fee": 0,
+      "minimum_order": 0,
+      "estimated_delivery_minutes": 40,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.82,
+                20.41
+              ],
+              [
+                85.85,
+                20.41
+              ],
+              [
+                85.85,
+                20.44
+              ],
+              [
+                85.82,
+                20.44
+              ],
+              [
+                85.82,
+                20.41
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-12T09:24:44.907Z"
+    }
+  ]
+}

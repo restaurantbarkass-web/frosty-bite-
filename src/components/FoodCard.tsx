@@ -53,7 +53,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       }
     };
     fetchWishlistStatus();
-  }, [user, item.id]);
+  }, [user?.uid, item.id]);
 
   const handleToggleWishlist = async (e: React.MouseEvent) => {
     e.stopPropagation();

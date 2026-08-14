@@ -42,11 +42,17 @@ export const logout = async () => {
   await supabase.auth.signOut();
 };
 
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
+
 export const authService = {
   // Email/Password Login
   async handleEmailLogin(email: string, pass: string) {
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required.');
+    }
+    const cleanEmail = safeTrimLowerCase(email);
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       password: pass,
     });
 
@@ -56,7 +62,7 @@ export const authService = {
 
     console.log('[handleEmailLogin] Supabase login succeeded!', data.user.id);
     try {
-      localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+      localStorage.setItem('frostybite_active_session_email', cleanEmail);
     } catch (e) {}
     
     // Perform background sync of user details
@@ -70,7 +76,7 @@ export const authService = {
       user: {
         uid: data.user.id,
         email: data.user.email,
-        displayName: data.user.user_metadata?.name || data.user.user_metadata?.full_name || email.trim().split('@')[0],
+        displayName: data.user.user_metadata?.name || data.user.user_metadata?.full_name || (cleanEmail ? cleanEmail.split('@')[0] : 'User'),
         emailVerified: true,
       }
     } as any;
@@ -78,8 +84,12 @@ export const authService = {
 
   // Signup
   async handleSignup(email: string, pass: string, name?: string) {
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required.');
+    }
+    const cleanEmail = safeTrimLowerCase(email);
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       password: pass,
       options: {
         data: {
@@ -95,14 +105,14 @@ export const authService = {
 
     console.log('[handleSignup] Supabase signup succeeded!', data.user.id);
     try {
-      localStorage.setItem('frostybite_active_session_email', email.trim().toLowerCase());
+      localStorage.setItem('frostybite_active_session_email', cleanEmail);
     } catch (e) {}
 
     try {
       await supabase.from('users').insert({
-        email: email.trim().toLowerCase(),
-        name: name || email.trim().split('@')[0],
-        full_name: name || email.trim().split('@')[0],
+        email: cleanEmail,
+        name: name || cleanEmail.split('@')[0],
+        full_name: name || cleanEmail.split('@')[0],
         auth_methods: ['password'],
       });
     } catch (dbErr) {
@@ -113,7 +123,7 @@ export const authService = {
       user: {
         uid: data.user.id,
         email: data.user.email,
-        displayName: name || email.trim().split('@')[0],
+        displayName: name || cleanEmail.split('@')[0],
         emailVerified: true,
       }
     } as any;
@@ -126,8 +136,11 @@ export const authService = {
 
   // Magic Link Login
   async sendSignInLink(email: string) {
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required.');
+    }
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
+      email: safeTrimLowerCase(email),
       options: {
         emailRedirectTo: window.location.origin
       }
@@ -137,6 +150,9 @@ export const authService = {
 
   // Send OTP directly using Supabase client with backend rate limiting
   async sendOTP(email: string) {
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required.');
+    }
     const res = await fetch('/api/auth/send-email-otp', {
       method: 'POST',
       headers: {
@@ -169,7 +185,7 @@ export const authService = {
     if (data.client_dispatch_required) {
       let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
       try {
-        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').trim().replace(/\/+$/, '');
+        configuredUrl = safeTrim(localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
       } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
         configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
@@ -301,7 +317,7 @@ export const authService = {
     if (data.client_dispatch_required) {
       let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
       try {
-        configuredUrl = (localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').trim().replace(/\/+$/, '');
+        configuredUrl = safeTrim(localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
       } catch (e) {}
       if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
         configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
@@ -383,8 +399,11 @@ export const authService = {
 
   // Verify OTP directly using Supabase client
   async verifyOTP(email: string, otp: string, isSignupHint?: boolean) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const cleanOtp = otp.trim();
+    if (!email || typeof email !== 'string') {
+      throw new Error('Valid email address is required.');
+    }
+    const normalizedEmail = safeTrimLowerCase(email);
+    const cleanOtp = safeTrim(otp);
 
     let isNewUser = true;
 
@@ -501,7 +520,7 @@ export const authService = {
 
   // Password Reset
   async forgotPassword(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    const { error } = await supabase.auth.resetPasswordForEmail(safeTrimLowerCase(email), {
       redirectTo: `${window.location.origin}/reset-password`
     });
     if (error) throw error;
@@ -527,7 +546,7 @@ export const authService = {
   // Sync user profile directly in Supabase Postgres
   async syncUserWithDatabase(user: any, name?: string) {
     try {
-      const userEmail = (user.email || '').trim().toLowerCase();
+      const userEmail = safeTrimLowerCase(user.email);
       const sbUid = user.id || user.uid;
 
       let { data: existingDbUser } = await supabase

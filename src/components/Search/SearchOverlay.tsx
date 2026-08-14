@@ -22,14 +22,17 @@ import {
   ShoppingBag
 } from 'lucide-react';
 
+import { safeTrim, safeTrimLowerCase } from '../../utils/string';
+
 const HighlightText: React.FC<{ text: string; highlight: string }> = ({ text, highlight }) => {
-  if (!highlight.trim()) return <span>{text}</span>;
-  const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const highlightTrimmed = safeTrim(highlight);
+  if (!highlightTrimmed) return <span>{text}</span>;
+  const escaped = highlightTrimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
   return (
     <span>
       {parts.map((part, i) =>
-        part.toLowerCase() === highlight.toLowerCase() ? (
+        safeTrimLowerCase(part) === safeTrimLowerCase(highlightTrimmed) ? (
           <mark key={i} className="bg-primary/30 text-primary font-extrabold px-0.5 rounded-sm">
             {part}
           </mark>
@@ -40,6 +43,7 @@ const HighlightText: React.FC<{ text: string; highlight: string }> = ({ text, hi
     </span>
   );
 };
+
 import { cn } from '../../lib/utils';
 import { FoodItem } from '../../types';
 import { useSearch } from '../../hooks/useSearch';
@@ -100,7 +104,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
   // Compute real-time live suggestions as user types
   const liveSuggestions = React.useMemo(() => {
-    const norm = query.toLowerCase().trim();
+    const norm = safeTrimLowerCase(query);
     if (!norm) return { keywords: [], mostOrdered: [], directMatches: [] };
 
     const keywordsSet = new Set<string>();

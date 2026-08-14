@@ -3,6 +3,8 @@ import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
 import { diagnosticFetch } from '../utils/apiDiagnostics';
 
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
+
 // AI is now handled server-side to keep API keys secure
 // const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -33,7 +35,8 @@ export interface AiRecommendationResponse {
 }
 
 export function getLocalClientRecommendation(query: string, items: FoodItem[]): AiRecommendationResponse | null {
-  const norm = query.toLowerCase().trim();
+  const norm = safeTrimLowerCase(query);
+  if (!norm) return null;
   const activeItems = (items && items.length > 0) ? items : MENU_ITEMS;
   if (!activeItems || activeItems.length === 0) return null;
 
@@ -104,7 +107,8 @@ export const searchService = {
 
   // Deep AI Recommendation Engine v2
   async getSmartRecommendation(query: string, items: FoodItem[]): Promise<AiRecommendationResponse | null> {
-    if (!query || query.trim().length < 2) return null;
+    const trimmed = safeTrim(query);
+    if (!trimmed || trimmed.length < 2) return null;
     const activeItems = (items && items.length > 0) ? items : MENU_ITEMS;
 
     try {
@@ -169,7 +173,7 @@ export const searchService = {
 
   // Record a search for analytics
   async logSearch(searchTerm: string, userId: string = 'anonymous') {
-    const trimmed = searchTerm.trim().toLowerCase();
+    const trimmed = safeTrimLowerCase(searchTerm);
     if (!trimmed) return;
     try {
       await diagnosticFetch('/api/search/log', {
@@ -197,7 +201,7 @@ export const searchService = {
 
   // Basic ranking for non-AI fallback
   filterAndRankItems(items: FoodItem[], searchTerm: string): FoodItem[] {
-    const rawQuery = searchTerm.toLowerCase().trim();
+    const rawQuery = safeTrimLowerCase(searchTerm);
     if (!rawQuery) return [];
 
     // Basic singularization (removing trailing 's') for better plural/singular match

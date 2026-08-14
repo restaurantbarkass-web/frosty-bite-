@@ -27,6 +27,28 @@ const getUnsplashUrl = (url: string, params: { w?: number; q?: number; fm?: stri
   }
 };
 
+// Utility to generate optimized Cloudinary URLs with f_auto,q_auto,w_xxx
+const getCloudinaryUrl = (url: string, params: { w?: number; q?: string; f?: string }) => {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  try {
+    const uploadIndex = url.indexOf('/upload/');
+    if (uploadIndex === -1) return url;
+    const prefix = url.substring(0, uploadIndex + 8);
+    const suffix = url.substring(uploadIndex + 8);
+    // Build transform string
+    const transforms = ['f_auto', 'q_auto'];
+    if (params.w) transforms.push(`w_${params.w},c_limit`);
+    const transformStr = transforms.join(',') + '/';
+    // If suffix already has transforms, replace or prepend safely
+    if (suffix.startsWith('f_auto') || suffix.startsWith('q_auto') || suffix.startsWith('w_')) {
+      return url;
+    }
+    return `${prefix}${transformStr}${suffix}`;
+  } catch {
+    return url;
+  }
+};
+
 export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   src,
   alt,
@@ -91,18 +113,25 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
   }
 
   const isUnsplash = src.includes('images.unsplash.com');
-  
-  // High-performance image formats and dimensions
-  const placeholderSrc = isUnsplash ? getUnsplashUrl(src, { w: 80, q: 20, blur: 10 }) : src;
-  const webpSrc = isUnsplash ? getUnsplashUrl(src, { fm: 'webp' }) : src;
+  const isCloudinary = src.includes('res.cloudinary.com');
 
-  // Generate responsive SrcSet for Unsplash images
-  const srcSetString = isUnsplash
-    ? `${getUnsplashUrl(src, { w: 400, q: 75 })} 400w, ${getUnsplashUrl(src, { w: 800, q: 80 })} 800w, ${getUnsplashUrl(src, { w: 1200, q: 80 })} 1200w`
-    : undefined;
+  // High-performance image formats and dimensions
+  let placeholderSrc = src;
+  let webpSrc = src;
+  let srcSetString: string | undefined = undefined;
+
+  if (isUnsplash) {
+    placeholderSrc = getUnsplashUrl(src, { w: 80, q: 20, blur: 10 });
+    webpSrc = getUnsplashUrl(src, { fm: 'webp' });
+    srcSetString = `${getUnsplashUrl(src, { w: 400, q: 75 })} 400w, ${getUnsplashUrl(src, { w: 800, q: 80 })} 800w, ${getUnsplashUrl(src, { w: 1200, q: 80 })} 1200w`;
+  } else if (isCloudinary) {
+    placeholderSrc = getCloudinaryUrl(src, { w: 80, q: 'auto:low' });
+    webpSrc = getCloudinaryUrl(src, { w: 800 });
+    srcSetString = `${getCloudinaryUrl(src, { w: 400 })} 400w, ${getCloudinaryUrl(src, { w: 800 })} 800w, ${getCloudinaryUrl(src, { w: 1200 })} 1200w`;
+  }
 
   // Standard responsive image sizes
-  const defaultSizes = isUnsplash
+  const defaultSizes = isUnsplash || isCloudinary
     ? sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
     : undefined;
 

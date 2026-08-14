@@ -3,6 +3,8 @@ import { getMessagingInstance, auth } from '../firebase';
 import { supabase } from '../supabase';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+import { safeTrim, safeTrimLowerCase } from './string';
+
 export const requestForToken = async (): Promise<string | null> => {
   if (typeof window === 'undefined' || !('Notification' in window) || typeof window.Notification?.requestPermission !== 'function') {
     console.info('[Push Notifications] Device notifications or permissions are not supported.');
@@ -46,7 +48,7 @@ export const requestForToken = async (): Promise<string | null> => {
       const email = activeEmail || fallbackEmail;
 
       if (email) {
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = safeTrimLowerCase(email);
 
         // 1. Sync token with Supabase users table (Postgres database)
         try {

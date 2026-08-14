@@ -22,6 +22,8 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
+
 interface VoiceAssistantProps {
   onSearchQueryChange?: (q: string) => void;
   onDietFilterChange?: (filter: 'All' | 'Vegetarian' | 'Spicy') => void;
@@ -139,19 +141,20 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       three: 3, four: 4, five: 5,
       six: 6, seven: 7, eight: 8, nine: 9, ten: 10
     };
-    const cleaned = word.trim().toLowerCase();
+    const cleaned = safeTrimLowerCase(word);
     if (!isNaN(Number(cleaned))) return Number(cleaned);
     return numMap[cleaned] || 1;
   };
 
   // Process voice or text input via unified Gemini AI Butler endpoint
   const sendMsgToAI = async (messageText: string) => {
-    if (!messageText.trim()) return;
+    const trimmedInput = safeTrim(messageText);
+    if (!trimmedInput) return;
     setIsLoading(true);
-    setTranscript(`"${messageText}"`);
+    setTranscript(`"${trimmedInput}"`);
     setFeedbackMsg("Thinking...");
 
-    const userMsg = { role: 'user' as const, content: messageText };
+    const userMsg = { role: 'user' as const, content: trimmedInput };
     const updatedHistory = [...chatHistory, userMsg];
     setChatHistory(updatedHistory);
 
@@ -255,7 +258,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
   // Local fallback command matching
   const runLocalCommandFallback = (command: string) => {
-    const text = command.toLowerCase().trim();
+    const text = safeTrimLowerCase(command);
     setTranscript(`"${command}"`);
 
     // 1. HELP / PROTOCOL Command
@@ -363,7 +366,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       searchCandidate = text.replace(/^(?:search for|find|show me|where is|look up|filter for)\s+/i, '');
     }
 
-    const cleanQuery = searchCandidate.replace(/(?:item|pieces|piece|qty|quantity)/gi, '').trim();
+    const cleanQuery = safeTrim(searchCandidate.replace(/(?:item|pieces|piece|qty|quantity)/gi, ''));
 
     if (isOrdering && cleanQuery.length > 2) {
       const matchedItem = items.find(item => 
@@ -396,7 +399,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     }
 
     // 5. SEARCH LOGIC AS FALLBACK
-    const searchQuery = text.replace(/^(?:search for|find|show me|where is|look up|filter for)\s+/gi, '').trim();
+    const searchQuery = safeTrim(text.replace(/^(?:search for|find|show me|where is|look up|filter for)\s+/gi, ''));
     if (searchQuery.length > 1) {
       if (onSearchQueryChange) {
         playSynthBeep('success');
@@ -669,8 +672,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (textInput.trim() && !isLoading) {
-                    sendMsgToAI(textInput);
+                  const trimmed = safeTrim(textInput);
+                  if (trimmed && !isLoading) {
+                    sendMsgToAI(trimmed);
                     setTextInput('');
                   }
                 }}
@@ -686,7 +690,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
                 />
                 <button
                   type="submit"
-                  disabled={isLoading || !textInput.trim()}
+                  disabled={isLoading || !safeTrim(textInput)}
                   className="px-4 py-2 bg-primary hover:bg-accent text-white text-xs font-bold rounded-lg transition-colors hover:scale-102 flex items-center gap-1.5 disabled:opacity-40 disabled:hover:scale-100"
                 >
                   {isLoading ? 'Checking...' : 'Send'} <ArrowRight size={12} />

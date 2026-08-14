@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES } from '../../constants';
@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 import { uploadImage } from '../../utils/upload';
 import toast from 'react-hot-toast';
 import { supabase } from '../../supabase';
+import { safeTrim, safeTrimLowerCase } from '../../utils/string';
 
 interface MenuItem {
   id: string;
@@ -75,7 +76,7 @@ export const MenuManager: React.FC = () => {
     }
   };
 
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     if (!navigator.onLine) {
       toast.error('No internet connection. Please check your network.');
       setLoading(false);
@@ -146,7 +147,7 @@ export const MenuManager: React.FC = () => {
       console.error('Menu fetch failed:', error);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMenu();
@@ -400,8 +401,8 @@ export const MenuManager: React.FC = () => {
   }
 
   const filteredMenu = menuItems.filter(item => 
-    (item.name || '').toLowerCase().includes(search.toLowerCase()) || 
-    (item.category || '').toLowerCase().includes(search.toLowerCase())
+    safeTrimLowerCase(item.name).includes(safeTrimLowerCase(search)) || 
+    safeTrimLowerCase(item.category).includes(safeTrimLowerCase(search))
   );
 
   if (loading) {

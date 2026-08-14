@@ -86,6 +86,8 @@ const STATUS_STEPS = [
   { id: 'delivered', label: 'Delivered', icon: CheckCircle, description: 'Enjoy your delicious meal!' },
 ];
 
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
+
 export const OrderTracking: React.FC = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -168,7 +170,7 @@ export const OrderTracking: React.FC = () => {
   const getRemainingTime = React.useCallback(() => {
     if (!order || !order.created_at || !order.estimated_delivery_time) return null;
     
-    const estStr = String(order.estimated_delivery_time).trim();
+    const estStr = safeTrim(order.estimated_delivery_time);
     const isMinutesOnly = /^\d+\s*(mins?|minutes?)?$/i.test(estStr);
     if (!isMinutesOnly || estStr.toLowerCase().includes('day')) {
       return null;

@@ -44,9 +44,9 @@ export const RlsDiagnostics: React.FC = () => {
       'reviews',
       'otps',
       'cancellation_logs',
-      'delivery_areas',
-      'service_pincodes',
-      'service_zones'
+      'cities',
+      'pincodes',
+      'localities'
     ];
 
     const results: TestResult[] = [];
@@ -143,30 +143,30 @@ export const RlsDiagnostics: React.FC = () => {
 
   const sqlSnippets = {
     bypass: `-- FIX: Toggle Row Level Security off for active tables to permit rapid front-end tests
-ALTER TABLE public.service_zones DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.service_pincodes DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_areas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cities DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pincodes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.localities DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wishlist DISABLE ROW LEVEL SECURITY;`,
     rules: `-- FIX: Create fully permissive Row Level Security policies for Dev/Preview testing
-ALTER TABLE public.service_zones ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.service_pincodes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pincodes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.localities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "permissive_all_service_zones" ON public.service_zones;
-CREATE POLICY "permissive_all_service_zones" ON public.service_zones FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "permissive_all_cities" ON public.cities;
+CREATE POLICY "permissive_all_cities" ON public.cities FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "permissive_all_service_pincodes" ON public.service_pincodes;
-CREATE POLICY "permissive_all_service_pincodes" ON public.service_pincodes FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "permissive_all_pincodes" ON public.pincodes;
+CREATE POLICY "permissive_all_pincodes" ON public.pincodes FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "permissive_all_delivery_areas" ON public.delivery_areas;
-CREATE POLICY "permissive_all_delivery_areas" ON public.delivery_areas FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "permissive_all_localities" ON public.localities;
+CREATE POLICY "permissive_all_localities" ON public.localities FOR ALL USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "permissive_all_coupons" ON public.coupons;
 CREATE POLICY "permissive_all_coupons" ON public.coupons FOR ALL USING (true) WITH CHECK (true);

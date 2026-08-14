@@ -33,11 +33,12 @@ export const useSearch = (allItems: FoodItem[]) => {
 
   // Handle Search Result Updates
   useEffect(() => {
-    if (query.trim().length > 0) {
-      const filtered = searchService.filterAndRankItems(allItems, query);
+    const norm = (query || '').trim();
+    if (norm.length > 0) {
+      const filtered = searchService.filterAndRankItems(allItems, norm);
       setResults(filtered);
     } else {
-      setResults([]);
+      setResults(prev => prev.length > 0 ? [] : prev);
     }
   }, [query, allItems]);
 
@@ -45,8 +46,15 @@ export const useSearch = (allItems: FoodItem[]) => {
   useEffect(() => {
     let active = true;
 
+    if (query.length <= 2) {
+      setAiSuggestions(prev => prev.length > 0 ? [] : prev);
+      setSmartRec(prev => prev !== null ? null : prev);
+      setIsProcessingRec(prev => prev ? false : prev);
+      return;
+    }
+
     const timer = setTimeout(async () => {
-      if (query.length > 2 && allItems.length > 0) {
+      if (allItems.length > 0) {
         // Get Suggestions
         searchService.getAiSuggestions(query, allItems).then(s => {
           if (active) setAiSuggestions(s);
@@ -71,10 +79,6 @@ export const useSearch = (allItems: FoodItem[]) => {
           setIsProcessingRec(false);
           clearTimeout(processingTimeout);
         });
-      } else {
-        setAiSuggestions([]);
-        setSmartRec(null);
-        setIsProcessingRec(false);
       }
     }, 800);
 
@@ -85,7 +89,7 @@ export const useSearch = (allItems: FoodItem[]) => {
   }, [query, allItems]);
 
   const performSearch = useCallback(async (searchTerm: string) => {
-    const trimmed = searchTerm.trim();
+    const trimmed = (searchTerm || '').trim();
     if (!trimmed) return;
 
     setQuery(trimmed);

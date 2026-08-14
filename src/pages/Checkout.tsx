@@ -38,18 +38,22 @@ import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { appConfigService } from '../services/appConfigService';
+import { useGeofence } from '../context/GeofenceContext';
 import { useNotifications } from '../context/NotificationContext';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { playErrorShakeSound, playSuccessChime } from '../utils/soundEffects';
 
 import { MapSelector } from '../components/MapSelector';
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
+import { safeTrim, safeTrimLowerCase } from '../utils/string';
+import { geocode } from '../lib/geocoder';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { cart, subtotal: cartSubtotal, clearCart, appliedCoupon, setAppliedCoupon } = useCart();
   const { user } = useAuth();
+  const { userCoords, v2Serviceability } = useGeofence();
   const { addNotification } = useNotifications();
   const { 
     isOrderingOpen, 
@@ -111,6 +115,7 @@ export const Checkout: React.FC = () => {
     success: boolean | null;
     message: string;
     estimatedDeliveryMins: number;
+    reason?: string;
   }>({
     isValidating: false,
     success: null,
@@ -213,6 +218,78 @@ export const Checkout: React.FC = () => {
       return true;
     }
     setValidationResult(prev => ({ ...prev, isValidating: true }));
+
+    // Authoritative PostGIS V2 check if coordinates are provided or available
+    const checkLat = coords?.lat || userCoords?.latitude;
+    const checkLng = coords?.lng || userCoords?.longitude;
+
+    if (checkLat && checkLng) {
+      try {
+        const v2Res = await fetch('/api/v2/geofencing/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ latitude: checkLat, longitude: checkLng })
+        });
+
+        if (v2Res.ok) {
+          const contentType = v2Res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+             throw new Error("Received non-JSON response from server (likely a proxy fallback page)");
+          }
+          const v2Data = await v2Res.json();
+          if (v2Data.serviceable) {
+            if (v2Data.deliveryFee !== undefined) {
+              setDeliveryFee(v2Data.deliveryFee);
+            }
+            setValidationResult({
+              isValidating: false,
+              success: true,
+              message: `📍 Delivery Active (${v2Data.locality?.name || v2Data.city?.name || 'Service Zone'})`,
+              estimatedDeliveryMins: v2Data.estimatedDeliveryMinutes || 25
+            });
+            return true;
+          } else if (v2Data.reason === 'SERVICEABILITY_UNAVAILABLE') {
+            setValidationResult({
+              isValidating: false,
+              success: false,
+              reason: 'SERVICEABILITY_UNAVAILABLE',
+              message: `⚠ Serviceability Temporarily Offline\n\nWe cannot verify serviceability right now because the database is offline. Please click retry below.`,
+              estimatedDeliveryMins: 25
+            });
+            return false;
+          } else {
+            setValidationResult({
+              isValidating: false,
+              success: false,
+              message: `🚫 Delivery Unavailable: ${v2Data.reason || 'OUTSIDE_SERVICE_AREA'}`,
+              estimatedDeliveryMins: 25
+            });
+            return false;
+          }
+        } else {
+          const v2Data = await v2Res.json().catch(() => ({}));
+          setValidationResult({
+            isValidating: false,
+            success: false,
+            reason: 'SERVICEABILITY_UNAVAILABLE',
+            message: v2Data.message || `⚠ Serviceability Temporarily Offline\n\nDatabase is currently unreachable. Please click retry below.`,
+            estimatedDeliveryMins: 25
+          });
+          return false;
+        }
+      } catch (err) {
+        console.warn('[Checkout] PostGIS V2 validation request failed:', err);
+        setValidationResult({
+          isValidating: false,
+          success: false,
+          reason: 'SERVICEABILITY_UNAVAILABLE',
+          message: `⚠ Serviceability Temporarily Offline\n\nDatabase is currently unreachable. Please check your internet connection and try again.`,
+          estimatedDeliveryMins: 25
+        });
+        return false;
+      }
+    }
+
     try {
       const response = await fetch('/api/validate-address', {
         method: 'POST',
@@ -236,8 +313,6 @@ export const Checkout: React.FC = () => {
         });
         return data.deliverable;
       } else {
-        // Fallback: If restaurant backend could not validate the address (e.g. returned non-ok state),
-        // we run local check so we don't hard-block valid Cuttack customers!
         const isLocalValid = (fieldsToValidate.city && String(fieldsToValidate.city).trim().toLowerCase() === 'cuttack') || 
                              (fieldsToValidate.pincode && String(fieldsToValidate.pincode).trim().startsWith('753')) ||
                              isLocationInServiceArea();
@@ -245,15 +320,14 @@ export const Checkout: React.FC = () => {
         setValidationResult({
           isValidating: false,
           success: isLocalValid,
-          message: isLocalValid ? "📍 Delivery Active (Local Validation Active)" : 'Failed to validate address with restaurant backend.',
+          message: isLocalValid ? "📍 Delivery Active (Local Validation Active)" : 'Failed to validate address with backend.',
           estimatedDeliveryMins: 25
         });
         return isLocalValid;
       }
     } catch (err) {
-      // Fallback for offline/networks errors of Capacitor or device native
-      const isLocalValid = (fieldsToValidate.city && String(fieldsToValidate.city).trim().toLowerCase() === 'cuttack') || 
-                           (fieldsToValidate.pincode && String(fieldsToValidate.pincode).trim().startsWith('753')) ||
+      const isLocalValid = (fieldsToValidate.city && safeTrimLowerCase(fieldsToValidate.city) === 'cuttack') || 
+                           (fieldsToValidate.pincode && safeTrim(fieldsToValidate.pincode).startsWith('753')) ||
                            isLocationInServiceArea();
 
       setValidationResult({
@@ -329,35 +403,11 @@ export const Checkout: React.FC = () => {
 
   const isLocationInServiceArea = () => {
     if (isPickupOnly) return true;
-    if (!formData.location) return true; 
-    if (geofencingEnabled === false) return true; 
+    if (!formData.location) return true;
+    if (geofencingEnabled === false) return true;
 
-    const uLat = formData.location.lat;
-    const uLng = formData.location.lng;
-
-    const primaryLat = geofencingLatitude ?? 20.4625;
-    const primaryLng = geofencingLongitude ?? 85.8828;
-    const primaryRad = geofencingRadius ?? 12;
-
-    const centralDist = calculateDistance(primaryLat, primaryLng, uLat, uLng);
-    if (centralDist <= primaryRad) {
-      return true;
-    }
-
-    try {
-      const parsedZones = geofencingZones ? JSON.parse(geofencingZones) : [];
-      for (const zone of parsedZones) {
-        if (!zone.enabled) continue;
-        const dist = calculateDistance(zone.latitude, zone.longitude, uLat, uLng);
-        if (dist <= zone.radius) {
-          return true;
-        }
-      }
-    } catch (e) {
-      console.warn('[Checkout] Secondary zone check failed:', e);
-    }
-
-    return false;
+    // Use V2 Serviceability as the authoritative engine
+    return v2Serviceability.status === 'serviceable';
   };
 
   useEffect(() => {
@@ -402,7 +452,7 @@ export const Checkout: React.FC = () => {
   const finalPrice = Math.max(0, subtotal - discountAmount + deliveryFee);
 
   const handleApplyCoupon = async (codeOverride?: string) => {
-    const trimmedCode = (codeOverride || couponCode).trim();
+    const trimmedCode = safeTrim(codeOverride || couponCode);
     if (!trimmedCode) {
       toast.error('Please enter a coupon code');
       return;
@@ -562,15 +612,15 @@ export const Checkout: React.FC = () => {
     // Validate required form fields and trigger shake animation on missing or invalid ones
     const errors: Record<string, boolean> = {};
 
-    if (!formData.name || !formData.name.trim()) errors.name = true;
+    if (!safeTrim(formData.name)) errors.name = true;
     if (!formData.phone || formData.phone.replace(/[^0-9]/g, '').length < 10) errors.phone = true;
     
     // Only require address & scheduling fields if NOT in Pickup Only mode
     if (!isPickupOnly) {
-      if (!addrFields.houseNumber || !addrFields.houseNumber.trim()) errors.houseNumber = true;
-      if (!addrFields.streetName || !addrFields.streetName.trim()) errors.streetName = true;
-      if (!addrFields.landmark || !addrFields.landmark.trim()) errors.landmark = true;
-      if (!addrFields.city || !addrFields.city.trim()) errors.city = true;
+      if (!safeTrim(addrFields.houseNumber)) errors.houseNumber = true;
+      if (!safeTrim(addrFields.streetName)) errors.streetName = true;
+      if (!safeTrim(addrFields.landmark)) errors.landmark = true;
+      if (!safeTrim(addrFields.city)) errors.city = true;
       if (!addrFields.pincode || addrFields.pincode.replace(/[^0-9]/g, '').length < 6) errors.pincode = true;
       if (deliveryMode === 'scheduled' && !scheduledDate) errors.scheduledDate = true;
     }
@@ -820,12 +870,9 @@ export const Checkout: React.FC = () => {
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-          );
-          const data = await response.json();
+          const data = await geocode('', 'reverse', { lat: latitude, lon: longitude });
           
-          if (data.display_name) {
+          if (data && data.display_name) {
             const addr = data.address || {};
             const postcode = addr.postcode ? addr.postcode.replace(/[^0-9]/g, '').slice(0, 6) : '';
             const city = addr.city || addr.town || addr.village || addr.suburb || addr.city_district || 'Cuttack';
@@ -1348,12 +1395,29 @@ export const Checkout: React.FC = () => {
                           </div>
                         </div>
                       ) : validationResult.success === false ? (
-                        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-left">
-                          <span className="text-red-500 text-lg">❌</span>
-                          <div>
-                            <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">Outside Service Area</p>
-                            <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">{validationResult.message || "Frosty Bite currently delivers only in Cuttack."}</p>
+                        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex flex-col gap-3 text-left">
+                          <div className="flex items-start gap-3">
+                            <span className="text-red-500 text-lg">
+                              {validationResult.reason === 'SERVICEABILITY_UNAVAILABLE' ? '⚠️' : '❌'}
+                            </span>
+                            <div>
+                              <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">
+                                {validationResult.reason === 'SERVICEABILITY_UNAVAILABLE' ? 'Serviceability Offline' : 'Outside Service Area'}
+                              </p>
+                              <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">
+                                {validationResult.message || "Frosty Bite currently delivers only in Cuttack."}
+                              </p>
+                            </div>
                           </div>
+                          {validationResult.reason === 'SERVICEABILITY_UNAVAILABLE' && (
+                            <button
+                              type="button"
+                              onClick={() => validateDeliveryAddress()}
+                              className="px-4 py-2 bg-red-500/25 hover:bg-red-500/40 border border-red-500/30 text-white rounded-xl text-xs font-bold transition-all text-center self-start flex items-center gap-2"
+                            >
+                              <span>🔄</span> Retry Connection Check
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-2 text-left">

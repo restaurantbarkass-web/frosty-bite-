@@ -31,12 +31,10 @@ import avatarRoutes from "./routes/avatar.routes";
 import authRoutes from "./routes/auth.routes";
 import configRoutes from "./routes/config.routes";
 import notificationRoutes from "./routes/notification.routes";
-import servicezonesRoutes from "./routes/servicezones.routes";
-import servicepincodesRoutes from "./routes/servicepincodes.routes";
 import validateaddressRoutes from "./routes/validateaddress.routes";
-import deliveryareasRoutes from "./routes/deliveryareas.routes";
 import reviewsRoutes from "./routes/reviews.routes";
 import searchRoutes from "./routes/search.routes";
+import v2geofencingRoutes from "./routes/v2geofencing.routes";
 
 const app = express();
 
@@ -199,12 +197,10 @@ app.use(["/avatar", "/api/avatar"], avatarRoutes);
 app.use(["/auth", "/api/auth"], authRoutes);
 app.use(["/config", "/api/config"], configRoutes);
 app.use(["/notifications", "/api/notifications"], notificationRoutes);
-app.use(["/service-zones", "/api/service-zones"], servicezonesRoutes);
-app.use(["/service-pincodes", "/api/service-pincodes"], servicepincodesRoutes);
 app.use(["/validate-address", "/api/validate-address"], validateaddressRoutes);
-app.use(["/delivery-areas", "/api/delivery-areas"], deliveryareasRoutes);
 app.use(["/reviews", "/api/reviews"], reviewsRoutes);
 app.use(["/search", "/api/search"], searchRoutes);
+app.use(["/v2", "/api/v2"], v2geofencingRoutes);
 
 // Real-time order status endpoints
 app.get("/orders/:orderId/status", async (req: Request, res: Response) => {
@@ -315,7 +311,7 @@ app.get("/debug-address", async (req, res) => {
 
   try {
     const { supabase } = await import("./lib/supabase");
-    const { data, error } = await supabase.from("service_zones").select("*").limit(2);
+    const { data, error } = await supabase.from("cities").select("*").limit(2);
     if (error) {
       report.supabaseReachability.status = "failed";
       report.supabaseReachability.error = error;

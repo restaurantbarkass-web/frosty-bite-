@@ -1,10 +1,14 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
 import { auth as fbAuth, logout as fbLogout } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogOut } from 'lucide-react';
+import { safeTrimLowerCase } from '../utils/string';
+import { CacheManager } from '../core/cache/CacheManager';
+import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
+import { AuthManager } from '../core/auth/AuthManager';
 
 type UserRole = 'customer' | 'admin';
 
@@ -44,6 +48,7 @@ interface AuthContextType {
   isVerified: boolean;
   logout: (bypassConfirmation?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resolveAndSyncUser: (sbUserParam?: any, fbUserParam?: any) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,9 +81,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
-  const lastSupabaseUserRef = React.useRef<any>(undefined);
-  const lastFirebaseUserRef = React.useRef<any>(undefined);
-  const syncVersionRef = React.useRef<number>(0);
+  const lastSupabaseUserRef = useRef<any>(undefined);
+  const lastFirebaseUserRef = useRef<any>(undefined);
+  const syncVersionRef = useRef<number>(0);
 
   const isVerified = useMemo(() => {
     if (!user) return false;
@@ -86,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   // Handle resolving user identity from database by email
-  const resolveAndSyncUser = async (sbUserParam?: any, fbUserParam?: any) => {
+  const resolveAndSyncUser = useCallback(async (sbUserParam?: any, fbUserParam?: any) => {
     const currentVersion = ++syncVersionRef.current;
     
     if (sbUserParam !== undefined) {
@@ -133,19 +138,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (e) {
         console.warn('[UnifiedAuth] Failed to read fallbackEmail from localStorage:', e);
       }
-      const possessesSession = (sbUser !== null && sbUser !== undefined) || (fbUser !== null && fbUser !== undefined) || !!fallbackEmail;
-
-      // If we don't have any logged-in user yet, and at least one of the auth systems is still initializing (is undefined),
-      // we must postpone finalizing the signed-out state to prevent login page flickering on startup.
+      
       const hasResolvedUser = !!sbUser || !!fbUser;
       if (!hasResolvedUser) {
         const isSupabaseInitializing = lastSupabaseUserRef.current === undefined;
         const isFirebaseInitializing = lastFirebaseUserRef.current === undefined;
         if (isSupabaseInitializing || isFirebaseInitializing) {
-          console.log('[UnifiedAuth] Postponing sync: one of the auth systems is still initializing.', {
-            supabaseInit: isSupabaseInitializing,
-            firebaseInit: isFirebaseInitializing
-          });
           return;
         }
       }
@@ -162,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail = safeTrimLowerCase(email);
       console.log(`[UnifiedAuth] Resolving identity for: ${normalizedEmail}`);
 
       const defaultName = normalizedEmail.split('@')[0];
@@ -227,39 +225,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Keep properties synchronized or merge them
         const updates: any = {};
-        const methods = dbUser.auth_methods || [];
+        const methods = Array.isArray(dbUser.auth_methods) ? dbUser.auth_methods : [];
         let updatedMethods = [...methods];
 
-        if (dbUser.email !== normalizedEmail) {
+        if (normalizedEmail && dbUser.email !== normalizedEmail) {
           updates.email = normalizedEmail;
         }
 
-        if (sbUser && sbUser.id && dbUser.supabase_uid !== sbUser.id) {
+        if (sbUser?.id && dbUser.supabase_uid !== sbUser.id) {
           updates.supabase_uid = sbUser.id;
           if (!updatedMethods.includes('otp')) updatedMethods.push('otp');
         }
 
-        if (fbUser && fbUser.uid && dbUser.firebase_uid !== fbUser.uid) {
+        if (fbUser?.uid && dbUser.firebase_uid !== fbUser.uid) {
           updates.firebase_uid = fbUser.uid;
           if (!updatedMethods.includes('google')) updatedMethods.push('google');
         }
 
-        if (updatedMethods.length !== methods.length) {
+        const methodsChanged = updatedMethods.length !== methods.length || 
+                              !updatedMethods.every(m => methods.includes(m));
+        
+        if (methodsChanged) {
           updates.auth_methods = updatedMethods;
         }
 
         if (Object.keys(updates).length > 0) {
-          const { data: updatedUser } = await supabase
+          const { data: updatedUser, error: updateError } = await supabase
             .from('users')
             .update(updates)
             .eq('id', dbUser.id)
             .select()
             .single();
-          if (updatedUser) dbUser = updatedUser;
+          
+          if (updateError) {
+            console.error('[Auth] Failed to update user profile:', updateError);
+          } else if (updatedUser) {
+            dbUser = updatedUser;
+          }
         }
       }
 
-      // Construct UnifiedUser representation mapping to .uid and all fields
       if (dbUser) {
         const unifiedUser: UnifiedUser = {
           uid: dbUser.id,
@@ -305,9 +310,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (token) {
               try {
                 localStorage.setItem('latest_admin_auth_token', token);
-              } catch (e) {
-                console.warn('[UnifiedAuth] Failed to write latest_admin_auth_token to localStorage:', e);
-              }
+              } catch (e) {}
             }
             return token;
           }
@@ -319,6 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.setItem('frostybite_has_active_session', 'true');
           localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
+          CacheManager.set(CacheKeys.USER_PROFILE, unifiedUser, CacheNamespace.USER).catch(() => {});
         } catch (e) {}
       }
     } catch (error) {
@@ -328,7 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     let hasPotentialSession = false;
@@ -446,25 +450,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       }
 
-      try {
-        localStorage.removeItem('frostybite_active_session_email');
-        localStorage.removeItem('frostybite_has_active_session');
-        localStorage.removeItem('frostybite_cached_user');
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.startsWith('orders_cache_') || key.startsWith('profile_cache_') || key.startsWith('wishlist_cache_') || key.startsWith('user_notifications_') || key.startsWith('verified_'))) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-      } catch (e) {
-        console.warn('[UnifiedAuth] Error clearing user caches on logout:', e);
-      }
-
-      try {
-        await fbLogout();
-      } catch (_) {}
+      await AuthManager.secureLogout();
       
       setUser(null);
       setRole('customer');
@@ -475,31 +461,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     },
     refreshProfile: async () => {
       await resolveAndSyncUser();
-    }
-  }), [user, role, loading, isVerified]);
+    },
+    resolveAndSyncUser
+  }), [user, role, loading, isVerified, resolveAndSyncUser]);
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal(false);
     if (pendingLogout) {
       try {
-        try {
-          localStorage.removeItem('frostybite_active_session_email');
-          localStorage.removeItem('frostybite_has_active_session');
-          const keysToRemove = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.startsWith('orders_cache_') || key.startsWith('profile_cache_') || key.startsWith('wishlist_cache_') || key.startsWith('user_notifications_') || key.startsWith('verified_'))) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-        } catch (e) {
-          console.warn('[UnifiedAuth] Error clearing caches:', e);
-        }
-
-        try {
-          await fbLogout();
-        } catch (_) {}
+        await AuthManager.secureLogout();
         
         setUser(null);
         setRole('customer');

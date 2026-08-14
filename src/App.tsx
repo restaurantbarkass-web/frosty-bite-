@@ -315,8 +315,6 @@ function AppContent() {
   const isCheckoutPage = location.pathname === '/checkout';
   
   const PROTECTED_PATHS = ['/checkout', '/upi-checkout', '/admin', '/profile', '/orders', '/notifications'];
-  const isCurrentPathProtected = PROTECTED_PATHS.some(path => location.pathname.startsWith(path));
-  const bypassLocks = !user && isCurrentPathProtected;
   
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
   const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
@@ -327,8 +325,8 @@ function AppContent() {
   // 1. Instant App Render (No blocking splash video)
   // Non-blocking background sync handles boot, profile, and geofence updates.
 
-  // 3. If there is no confirmed/manual active zone, show user city selector lock screen
-  if (!isAllowed && !isAdmin && !isAuthPage && !bypassLocks) {
+  // 3. STRICT Geofence Location Lock: If location is not strictly allowed/serviceable, lock the screen
+  if (!isAllowed && !isAdmin && !isAuthPage) {
     return <LockedGeofenceScreen />;
   }
 

@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { CartItem, FoodItem } from '../types';
 import { haptic } from '../lib/utils';
 import { playPopSound, playClickSound, playErrorShakeSound } from '../utils/soundEffects';
+import { CartService } from '../services/CartService';
 
 interface CartStateContextType {
   cart: CartItem[];
@@ -33,27 +34,39 @@ const CartStateContext = createContext<CartStateContextType | undefined>(undefin
 const CartActionsContext = createContext<CartActionsContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('fb_cache_cart:cart_items') || localStorage.getItem('frostybite_cart');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const list = Array.isArray(parsed) ? parsed : parsed.data;
+        if (Array.isArray(list)) return list;
+      }
+    } catch (_) {}
+    return [];
+  });
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<CartStateContextType['appliedCoupon']>(null);
 
+  // Restore cart from IndexedDB on startup
   useEffect(() => {
-    // Load claimed coupon from localStorage if it exists
-    try {
-      const claimedCode = localStorage.getItem('claimed_coupon_code');
-      if (claimedCode) {
-          // We might need to fetch the coupon data from supabase here to validate it
-          // But for now, let's just keep the setAppliedCoupon action available
+    CartService.getCart().then((savedItems) => {
+      if (savedItems && savedItems.length > 0) {
+        setCart(savedItems);
       }
-    } catch (e) {
-      console.warn('Failed to read claimed_coupon_code from localStorage:', e);
-    }
+    }).catch(() => {});
   }, []);
 
-  const addToCart = React.useCallback((item: FoodItem) => {
+  // Save cart to persistent cache whenever it changes
+  useEffect(() => {
+    CartService.saveCart(cart).catch(() => {});
+  }, [cart]);
+
+  const addToCart = useCallback((item: FoodItem) => {
     playPopSound();
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
+    setCart((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         if (item.stock_quantity !== undefined && existing.quantity >= item.stock_quantity) {
           haptic.error();
@@ -61,7 +74,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return prev;
         }
         haptic.success();
-        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
       }
       haptic.success();
       return [...prev, { ...item, quantity: 1 }];
@@ -69,40 +82,45 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsCartOpen(true);
   }, []);
 
-  const removeFromCart = React.useCallback((id: string) => {
+  const removeFromCart = useCallback((id: string) => {
     haptic.medium();
     playClickSound(450);
-    setCart(prev => prev.filter(i => i.id !== id));
+    setCart((prev) => prev.filter((i) => i.id !== id));
   }, []);
 
-  const updateQuantity = React.useCallback((id: string, delta: number) => {
+  const updateQuantity = useCallback((id: string, delta: number) => {
     haptic.light();
     if (delta > 0) playPopSound();
     else playClickSound(500);
-    setCart(prev => prev.map(i => {
-      if (i.id === id) {
-        const newQty = i.quantity + delta;
-        if (delta > 0 && i.stock_quantity !== undefined && newQty > i.stock_quantity) {
-          haptic.error();
-          playErrorShakeSound();
+    setCart((prev) =>
+      prev
+        .map((i) => {
+          if (i.id === id) {
+            const newQty = i.quantity + delta;
+            if (delta > 0 && i.stock_quantity !== undefined && newQty > i.stock_quantity) {
+              haptic.error();
+              playErrorShakeSound();
+              return i;
+            }
+            return { ...i, quantity: Math.max(0, newQty) };
+          }
           return i;
-        }
-        return { ...i, quantity: Math.max(0, newQty) };
-      }
-      return i;
-    }).filter(i => i.quantity > 0));
+        })
+        .filter((i) => i.quantity > 0)
+    );
   }, []);
 
-  const clearCart = React.useCallback(() => {
+  const clearCart = useCallback(() => {
     haptic.medium();
     playClickSound(400);
     setCart([]);
+    CartService.clearCart().catch(() => {});
   }, []);
 
-  const totalItems = React.useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
-  const subtotal = React.useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
-  
-  const discountAmount = React.useMemo(() => {
+  const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+  const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
+
+  const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
     if (appliedCoupon.type === 'percentage') {
       return (subtotal * appliedCoupon.value) / 100;
@@ -115,29 +133,33 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalPrice = Math.max(0, subtotal - discountAmount);
 
-  const stateValue = React.useMemo(() => ({
-    cart,
-    isCartOpen,
-    totalItems,
-    totalPrice,
-    subtotal,
-    appliedCoupon
-  }), [cart, isCartOpen, totalItems, totalPrice, subtotal, appliedCoupon]);
+  const stateValue = useMemo(
+    () => ({
+      cart,
+      isCartOpen,
+      totalItems,
+      totalPrice,
+      subtotal,
+      appliedCoupon,
+    }),
+    [cart, isCartOpen, totalItems, totalPrice, subtotal, appliedCoupon]
+  );
 
-  const actionsValue = React.useMemo(() => ({
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-    setIsCartOpen,
-    setAppliedCoupon
-  }), [addToCart, removeFromCart, updateQuantity, clearCart, setAppliedCoupon]);
+  const actionsValue = useMemo(
+    () => ({
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      setIsCartOpen,
+      setAppliedCoupon,
+    }),
+    [addToCart, removeFromCart, updateQuantity, clearCart, setAppliedCoupon]
+  );
 
   return (
     <CartStateContext.Provider value={stateValue}>
-      <CartActionsContext.Provider value={actionsValue}>
-        {children}
-      </CartActionsContext.Provider>
+      <CartActionsContext.Provider value={actionsValue}>{children}</CartActionsContext.Provider>
     </CartStateContext.Provider>
   );
 };
@@ -146,7 +168,7 @@ export const useCart = () => {
   const state = useContext(CartStateContext);
   const actions = useContext(CartActionsContext);
   if (!state || !actions) throw new Error('useCart must be used within a CartProvider');
-  return { ...state, ...actions };
+  return useMemo(() => ({ ...state, ...actions }), [state, actions]);
 };
 
 export const useCartState = () => {

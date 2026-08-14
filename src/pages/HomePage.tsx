@@ -22,6 +22,9 @@ import { VoiceAssistant } from '../components/VoiceAssistant';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
+import { BannerService } from '../services/BannerService';
+import { CacheManager } from '../core/cache/CacheManager';
+import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
 
 // Variants for staggered animations
 const containerVariants: any = {
@@ -107,30 +110,30 @@ export const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        const { data } = await supabase.from('banners').select('*').order('priority', { ascending: false });
-        if (data) setBanners(data);
-      } catch (err) {
-        console.error('Error fetching banners:', err);
+    // 1. Instant cached banner render with background revalidation
+    BannerService.getBanners((freshBanners) => {
+      if (freshBanners && freshBanners.length > 0) {
+        setBanners(freshBanners);
       }
-    };
-    fetchBanners();
+    }).then((initialBanners) => {
+      if (initialBanners && initialBanners.length > 0) {
+        setBanners(initialBanners);
+      }
+    });
 
-    const channel = supabase
-      .channel('homepage_banners_realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'banners' },
-        () => {
-          console.log('[Realtime] HomePage banners changed, re-fetching...');
-          fetchBanners();
+    // 2. Subscribe to CacheManager banner changes
+    const unsubscribe = CacheManager.subscribe(
+      CacheKeys.BANNERS,
+      CacheNamespace.STORE,
+      (updatedBanners) => {
+        if (Array.isArray(updatedBanners)) {
+          setBanners(updatedBanners);
         }
-      )
-      .subscribe();
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, []);
   
@@ -278,11 +281,11 @@ export const Home: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setSuggestions([]);
+      setSuggestions(prev => prev.length > 0 ? [] : prev);
       return;
     }
 

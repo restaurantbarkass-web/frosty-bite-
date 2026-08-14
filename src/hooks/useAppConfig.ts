@@ -1,9 +1,10 @@
 import { useConfig } from '../context/ConfigContext';
+import { useMemo } from 'react';
 
 export const useAppConfig = () => {
   const { config, isLoading } = useConfig();
 
-  return { 
+  return useMemo(() => ({ 
     config, 
     isLoading, 
     isOrderingOpen: config?.isOrderingOpen ?? true,
@@ -18,5 +19,5 @@ export const useAppConfig = () => {
     geofencingRadius: config?.geofencingRadius ?? 12,
     geofencingZones: config?.geofencingZones ?? '[]',
     isInstantDeliveryClosed: config?.isInstantDeliveryClosed ?? false
-  };
+  }), [config, isLoading]);
 };
