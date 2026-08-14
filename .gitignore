@@ -1,6 +1,11 @@
 node_modules/
 dist-ssr/
+.vite/
+.cache/
+.gradle/
+build/
 coverage/
+*.map
 .DS_Store
 *.log
 .env*

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/server.cjs && esbuild server/api.ts --bundle --platform=node --format=cjs --packages=external --outfile=api/index.js",
     "start": "node dist/server.cjs",
     "lint": "tsc --noEmit",
     "version:bump": "node scripts/version-manager.js",
@@ -29,6 +29,7 @@
     "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.105.1",
     "@tailwindcss/vite": "4.0.12",
+    "@turf/turf": "^7.4.0",
     "@types/express": "^5.0.6",
     "@types/pg": "^8.21.0",
     "@vitejs/plugin-react": "^4.3.4",
@@ -72,7 +73,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@turf/turf": "^7.4.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.14.0",
     "@types/nodemailer": "^8.0.0",

@@ -1,5 +1,9 @@
+var __create = Object.create;
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -7,13 +11,29 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // server/lib/supabase.ts
 var supabase_exports = {};
 __export(supabase_exports, {
   supabase: () => supabase
 });
-import { createClient } from "@supabase/supabase-js";
 function getSupabaseClient() {
   if (!supabaseInstance) {
     let supabaseUrl = process.env.VITE_SUPABASE_URL || "https://wilsmmashfpgrxkknmle.supabase.co";
@@ -38,14 +58,14 @@ function getSupabaseClient() {
     if (!supabaseUrl || !supabaseServiceKey) {
       console.warn("[Supabase Server] Warning: Missing Supabase environment variables during lazy initialization");
     }
-    supabaseInstance = createClient(
+    supabaseInstance = (0, import_supabase_js.createClient)(
       supabaseUrl,
       supabaseServiceKey
     );
   }
   return supabaseInstance;
 }
-function wrapThenableWithTimeout(obj, parent, ms = 4e3) {
+function wrapThenableWithTimeout(obj, parent, ms = 1e4) {
   if (obj === null || obj === void 0) return obj;
   if (typeof obj === "function") {
     const boundFn = obj.bind(parent);
@@ -100,43 +120,49 @@ function wrapThenableWithTimeout(obj, parent, ms = 4e3) {
   }
   return obj;
 }
-var supabaseInstance, supabase;
+var import_supabase_js, supabaseInstance, supabase;
 var init_supabase = __esm({
   "server/lib/supabase.ts"() {
+    import_supabase_js = require("@supabase/supabase-js");
     supabaseInstance = null;
     supabase = new Proxy({}, {
       get: (target, prop) => {
         const client = getSupabaseClient();
         const value = client[prop];
-        return wrapThenableWithTimeout(value, client, 4e3);
+        return wrapThenableWithTimeout(value, client, 1e4);
       }
     });
   }
 });
 
 // server/api.ts
-import dotenv2 from "dotenv";
-import fs7 from "fs";
-import path7 from "path";
+var api_exports = {};
+__export(api_exports, {
+  default: () => api_default
+});
+module.exports = __toCommonJS(api_exports);
+var import_dotenv2 = __toESM(require("dotenv"), 1);
+var import_fs5 = __toESM(require("fs"), 1);
+var import_path5 = __toESM(require("path"), 1);
 
 // server/app.ts
-import dotenv from "dotenv";
-import fs6 from "fs";
-import path6 from "path";
-import express10 from "express";
-import cors from "cors";
-import helmet from "helmet";
+var import_dotenv = __toESM(require("dotenv"), 1);
+var import_fs4 = __toESM(require("fs"), 1);
+var import_path4 = __toESM(require("path"), 1);
+var import_express10 = __toESM(require("express"), 1);
+var import_cors = __toESM(require("cors"), 1);
+var import_helmet = __toESM(require("helmet"), 1);
 
 // server/routes/butler.routes.ts
-import { Router } from "express";
+var import_express = require("express");
 
 // server/ai/gemini.ts
-import { GoogleGenAI } from "@google/genai";
+var import_genai = require("@google/genai");
 var genAI = null;
 function getGenAI() {
   if (!genAI) {
     const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || "AIzaSyAnIXi3-5HUErmcW4VL6Og03hF9PD4wsdo";
-    genAI = new GoogleGenAI({
+    genAI = new import_genai.GoogleGenAI({
       apiKey: key,
       httpOptions: {
         headers: {
@@ -328,9 +354,9 @@ async function getSmartRecommendation(query, items) {
     `;
     let aiResponse;
     try {
-      console.log(`[RecommendationService] Calling Gemini (gemini-3.1-flash-lite) for: "${query.substring(0, 50)}..."`);
+      console.log(`[RecommendationService] Calling Gemini (gemini-2.5-flash) for: "${query.substring(0, 50)}..."`);
       aiResponse = await genAI2.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           systemInstruction: "You are the Frosty Bite Butler. You provide luxury recommendations for premium cakes and pastries. You focus on emotions and matching the perfect treat to the user's specific life moments.",
@@ -342,7 +368,7 @@ async function getSmartRecommendation(query, items) {
       const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
       const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded") || String(error).includes("429") || error && typeof error === "object" && (error.status === 429 || error.statusCode === 429);
       if (isTransientOrQuota) {
-        console.log(`[RecommendationService] Cooldown triggered. Primary model (gemini-3.1-flash-lite) quota limit reached. Using local match fallback.`);
+        console.log(`[RecommendationService] Cooldown triggered. Primary model quota limit reached. Using local match fallback.`);
         quotaExhaustedUntil = Date.now() + 15 * 60 * 1e3;
       } else {
         console.log(`[RecommendationService] Fallback activated: parsing query locally.`);
@@ -395,7 +421,7 @@ async function getSearchSuggestions(searchTerm, items) {
     let response;
     try {
       response = await genAI2.models.generateContent({
-        model: "gemini-3.1-flash-lite",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           systemInstruction: "You are the Frosty Bite Butler suggestions engine.",
@@ -558,7 +584,7 @@ You MUST return ONLY a valid raw JSON object. Do not enclose it in any markdown 
       parts: [{ text: userInput }]
     });
     const aiResponse = await genAI2.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-2.5-flash",
       contents: geminiContents,
       config: {
         systemInstruction,
@@ -605,39 +631,41 @@ async function getRecommendation(req, res) {
   console.log(`[ButlerController] getRecommendation called with query: "${req.body.query}"`);
   const { query, items } = req.body;
   try {
-    const result = await getSmartRecommendation(query, items || []);
+    const result = await getSmartRecommendation(query || "", items || []);
     console.log(`[ButlerController] getRecommendation success`);
     res.json(result);
   } catch (error) {
-    console.error(`[ButlerController] getRecommendation error:`, error);
-    res.status(500).json({ error: "Recommendation failed", details: error.message });
+    console.error(`[ButlerController] getRecommendation error, using local fallback:`, error);
+    const fallback = await getSmartRecommendation(query || "bakery", items || []);
+    res.json(fallback);
   }
 }
 async function getSuggestions(req, res) {
   console.log(`[ButlerController] getSuggestions called with searchTerm: "${req.body.searchTerm}"`);
   const { searchTerm, items } = req.body;
   try {
-    const result = await getSearchSuggestions(searchTerm, items || []);
+    const result = await getSearchSuggestions(searchTerm || "", items || []);
     console.log(`[ButlerController] getSuggestions success`);
     res.json({ suggestions: result });
   } catch (error) {
-    console.error(`[ButlerController] getSuggestions error:`, error);
-    res.status(500).json({ error: "Suggestions failed", details: error.message });
+    console.error(`[ButlerController] getSuggestions error, using local fallback:`, error);
+    const fallback = await getSearchSuggestions(searchTerm || "", items || []);
+    res.json({ suggestions: fallback });
   }
 }
 
 // server/routes/butler.routes.ts
-var router = Router();
+var router = (0, import_express.Router)();
 router.post("/chat", handleChat);
 router.post("/recommend", getRecommendation);
 router.post("/suggestions", getSuggestions);
 var butler_routes_default = router;
 
 // server/routes/avatar.routes.ts
-import { Router as Router2 } from "express";
+var import_express2 = require("express");
 
 // server/ai/huggingface.ts
-import { HfInference } from "@huggingface/inference";
+var import_inference = require("@huggingface/inference");
 var hf = null;
 function getHF() {
   if (!hf) {
@@ -646,7 +674,7 @@ function getHF() {
       console.warn("HF_TOKEN missing, HuggingFace inference will be disabled.");
       return null;
     }
-    hf = new HfInference(token);
+    hf = new import_inference.HfInference(token);
   }
   return hf;
 }
@@ -657,7 +685,7 @@ async function generateAvatarImage(data) {
   let imageResult = null;
   try {
     const genAIClient = getGenAI();
-    let targetModel = "gemini-flash-latest";
+    let targetModel = "gemini-2.5-flash";
     if (imageUrl && imageUrl.startsWith("http")) {
       try {
         const fetchRes = await fetch(imageUrl);
@@ -667,7 +695,7 @@ async function generateAvatarImage(data) {
         let response;
         try {
           response = await genAIClient.models.generateContent({
-            model: "gemini-flash-latest",
+            model: "gemini-2.5-flash",
             contents: {
               parts: [
                 { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.
@@ -681,9 +709,9 @@ Describe this person's facial features and style to help generate a ${prompt || 
           const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
           const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded");
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] Vision analysis primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
+            console.warn(`[AvatarService] Vision analysis primary model returned transient/quota status: ${errorStr}. Retrying...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.1-flash-lite",
+              model: "gemini-2.5-flash",
               contents: {
                 parts: [
                   { text: `System: Analyze the provided image and generate a creative prompt for a high-quality image generator.
@@ -743,16 +771,16 @@ Describe this person's facial features and style to help generate a ${prompt || 
         let response;
         try {
           response = await genAIClient.models.generateContent({
-            model: "gemini-flash-latest",
+            model: "gemini-2.5-flash",
             contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
           });
         } catch (error) {
           const errorStr = error instanceof Error ? error.message : error && typeof error === "object" ? JSON.stringify(error) : String(error);
           const isTransientOrQuota = errorStr.includes("503") || errorStr.includes("UNAVAILABLE") || errorStr.includes("demand") || errorStr.includes("429") || errorStr.includes("RESOURCE_EXHAUSTED") || errorStr.includes("quota") || errorStr.includes("Quota exceeded");
           if (isTransientOrQuota) {
-            console.warn(`[AvatarService] SVG generation primary model (gemini-flash-latest) returned transient/quota status: ${errorStr}. Falling back to gemini-3.1-flash-lite...`);
+            console.warn(`[AvatarService] SVG generation model returned transient/quota status: ${errorStr}. Retrying...`);
             response = await genAIClient.models.generateContent({
-              model: "gemini-3.1-flash-lite",
+              model: "gemini-2.5-flash",
               contents: `Generate a cute SVG code for a bakery-themed chibi avatar. Vibe: ${vibe}. Prompt: ${prompt}. Only respond with code.`
             });
           } else {
@@ -848,22 +876,22 @@ var validate = (schema) => (req, res, next) => {
 };
 
 // server/validators/avatar.schema.ts
-import { z } from "zod";
-var avatarSchema = z.object({
-  prompt: z.string().optional(),
-  vibe: z.string().optional(),
-  imageUrl: z.string().optional(),
-  userId: z.string()
+var import_zod = require("zod");
+var avatarSchema = import_zod.z.object({
+  prompt: import_zod.z.string().optional(),
+  vibe: import_zod.z.string().optional(),
+  imageUrl: import_zod.z.string().optional(),
+  userId: import_zod.z.string()
 });
 
 // server/routes/avatar.routes.ts
-var router2 = Router2();
+var router2 = (0, import_express2.Router)();
 router2.post("/generate", verifyFirebaseToken, validate(avatarSchema), generateAvatar);
 var avatar_routes_default = router2;
 
 // server/routes/auth.routes.ts
+var import_express3 = __toESM(require("express"), 1);
 init_supabase();
-import express from "express";
 
 // server/services/user.service.ts
 init_supabase();
@@ -1021,7 +1049,7 @@ var UserService = class {
 };
 
 // server/services/email.service.ts
-import nodemailer from "nodemailer";
+var import_nodemailer = __toESM(require("nodemailer"), 1);
 var transporter = null;
 var lastUsedCredsKey = "";
 function getTransporter() {
@@ -1038,7 +1066,7 @@ function getTransporter() {
     return transporter;
   }
   console.log(`[EmailService] Creating SMTP transporter for ${host}:${port} with user: ${user}`);
-  transporter = nodemailer.createTransport({
+  transporter = import_nodemailer.default.createTransport({
     host,
     port,
     secure: port === 465,
@@ -1448,7 +1476,7 @@ Do not share this code with anyone.`;
 };
 
 // server/services/otpQueue.ts
-import crypto from "crypto";
+var import_crypto = __toESM(require("crypto"), 1);
 init_supabase();
 var OtpQueueService = class _OtpQueueService {
   // In-memory metrics for abnormal pattern detection
@@ -1597,7 +1625,7 @@ var OtpQueueService = class _OtpQueueService {
     this.logMetric(recipient, ip, "requested");
     return new Promise((resolve, reject) => {
       const job = {
-        id: crypto.randomUUID(),
+        id: import_crypto.default.randomUUID(),
         recipient,
         type,
         otp,
@@ -1737,7 +1765,7 @@ var OtpQueueService = class _OtpQueueService {
 };
 
 // server/routes/auth.routes.ts
-import crypto2 from "crypto";
+var import_crypto2 = __toESM(require("crypto"), 1);
 function normalizePhone(phone) {
   const clean = phone.replace(/\D/g, "");
   if (clean.length === 11 && clean.startsWith("0")) {
@@ -1748,7 +1776,7 @@ function normalizePhone(phone) {
   }
   return clean;
 }
-var router3 = express.Router();
+var router3 = import_express3.default.Router();
 var ipRateLimits = /* @__PURE__ */ new Map();
 var mobileOtps = /* @__PURE__ */ new Map();
 var otpDailyLimitsMemory = /* @__PURE__ */ new Map();
@@ -1973,14 +2001,14 @@ router3.post("/reset-password", async (req, res) => {
 });
 var whatsappOtpsMemory = /* @__PURE__ */ new Map();
 function hashOtp(otp) {
-  return crypto2.createHash("sha256").update(otp).digest("hex");
+  return import_crypto2.default.createHash("sha256").update(otp).digest("hex");
 }
 async function saveWhatsAppOtp(phone, otp) {
   const cleanPhone = normalizePhone(phone);
   const hashedOtp = hashOtp(otp);
   const expiresAt = new Date(Date.now() + 3 * 60 * 1e3).toISOString();
   const createdAt = (/* @__PURE__ */ new Date()).toISOString();
-  const id = crypto2.randomUUID();
+  const id = import_crypto2.default.randomUUID();
   try {
     await supabase.from("whatsapp_otps").delete().eq("phone_number", cleanPhone);
     await supabase.from("whatsapp_otps").insert({
@@ -2373,9 +2401,9 @@ router3.get("/otp-diagnostics", (req, res) => {
 var auth_routes_default = router3;
 
 // server/routes/config.routes.ts
-import express2 from "express";
-import fs from "fs";
-import path from "path";
+var import_express4 = __toESM(require("express"), 1);
+var import_fs = __toESM(require("fs"), 1);
+var import_path = __toESM(require("path"), 1);
 
 // server/lib/firebase-admin.ts
 var MockDocRef = class {
@@ -2477,7 +2505,7 @@ var firebase_admin_default = admin;
 
 // server/routes/config.routes.ts
 init_supabase();
-var router4 = express2.Router();
+var router4 = import_express4.default.Router();
 var inMemoryConfig = null;
 var ADMIN_EMAILS = [
   "restaurantbarkass@gmail.com",
@@ -2488,8 +2516,8 @@ var ADMIN_EMAILS = [
 function writeConfigBackup(config) {
   try {
     const configString = JSON.stringify(config, null, 2);
-    fs.writeFileSync("/tmp/appConfig.json", configString);
-    fs.writeFileSync(path.join(process.cwd(), "appConfig_backup.json"), configString);
+    import_fs.default.writeFileSync("/tmp/appConfig.json", configString);
+    import_fs.default.writeFileSync(import_path.default.join(process.cwd(), "appConfig_backup.json"), configString);
     console.log("[ConfigRoutes] Saved configuration backup to files");
   } catch (err) {
     console.warn("[ConfigRoutes] Failed to write backend backup files:", err);
@@ -2498,12 +2526,12 @@ function writeConfigBackup(config) {
 function readConfigBackup() {
   try {
     const backupPath1 = "/tmp/appConfig.json";
-    const backupPath2 = path.join(process.cwd(), "appConfig_backup.json");
+    const backupPath2 = import_path.default.join(process.cwd(), "appConfig_backup.json");
     let fileConfigStr = null;
-    if (fs.existsSync(backupPath1)) {
-      fileConfigStr = fs.readFileSync(backupPath1, "utf8");
-    } else if (fs.existsSync(backupPath2)) {
-      fileConfigStr = fs.readFileSync(backupPath2, "utf8");
+    if (import_fs.default.existsSync(backupPath1)) {
+      fileConfigStr = import_fs.default.readFileSync(backupPath1, "utf8");
+    } else if (import_fs.default.existsSync(backupPath2)) {
+      fileConfigStr = import_fs.default.readFileSync(backupPath2, "utf8");
     }
     if (fileConfigStr) {
       return JSON.parse(fileConfigStr);
@@ -2744,9 +2772,9 @@ router4.post("/", async (req, res) => {
 var config_routes_default = router4;
 
 // server/routes/notification.routes.ts
-import express3 from "express";
+var import_express5 = __toESM(require("express"), 1);
 init_supabase();
-var router5 = express3.Router();
+var router5 = import_express5.default.Router();
 router5.post("/send-push", async (req, res) => {
   const { userId, title, body, data } = req.body;
   if (!userId || !title || !body) {
@@ -2860,1761 +2888,1260 @@ router5.post("/send-push", async (req, res) => {
 });
 var notification_routes_default = router5;
 
-// server/routes/servicezones.routes.ts
-import express4 from "express";
-import fs2 from "fs";
-import path2 from "path";
-import crypto3 from "crypto";
-init_supabase();
-var router6 = express4.Router();
-var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isValidUUID(str) {
-  return UUID_REGEX.test(str);
-}
-var LEGACY_ZONE_MAPPINGS = {
-  "zone_bhubaneswar": "Bhubaneswar",
-  "zone_cuttack": "Cuttack",
-  "zone_puri": "Puri"
-};
-function generateUUID() {
-  if (typeof crypto3.randomUUID === "function") {
-    return crypto3.randomUUID();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === "x" ? r : r & 3 | 8;
-    return v.toString(16);
-  });
-}
-var firebaseConfig = {};
-try {
-  const configPath = path2.join(process.cwd(), "firebase-applet-config.json");
-  if (fs2.existsSync(configPath)) {
-    firebaseConfig = JSON.parse(fs2.readFileSync(configPath, "utf8"));
-  }
-} catch (e) {
-  console.warn("[ServiceZonesRoutes] Could not load firebase-applet-config.json:", e);
-}
-var firebaseProjectId = firebaseConfig.projectId || "frostybite07";
-var firebaseDatabaseId = firebaseConfig.firestoreDatabaseId || "ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c";
-var inMemoryZones = [];
-var inMemoryInitialized = false;
-var defaultZones = [
-  {
-    id: "d69b8279-f6ee-4e12-a7d9-9a84ccfed973",
-    city_name: "Cuttack",
-    latitude: 20.4625,
-    longitude: 85.8828,
-    radius_meters: 12e3,
-    is_active: true
-  },
-  {
-    id: "e85747dc-fb21-4ea5-8d59-3cc647716e91",
-    city_name: "Bhubaneswar",
-    latitude: 20.2961,
-    longitude: 85.8245,
-    radius_meters: 15e3,
-    is_active: true
-  },
-  {
-    id: "cca427c3-c23f-42e1-be71-cf099baae19d",
-    city_name: "Puri",
-    latitude: 19.8134,
-    longitude: 85.8312,
-    radius_meters: 1e4,
-    is_active: false
-  }
-];
-function writeZonesBackup(zones) {
-  try {
-    const dataString = JSON.stringify(zones, null, 2);
-    fs2.writeFileSync("/tmp/serviceZones.json", dataString);
-    fs2.writeFileSync(path2.join(process.cwd(), "serviceZones_backup.json"), dataString);
-    console.log("[ServiceZonesRoutes] Saved service zones backup to files");
-  } catch (err) {
-    console.warn("[ServiceZonesRoutes] Failed to write backend backup files:", err);
-  }
-}
-function readZonesBackup() {
-  try {
-    const paths = [
-      "/tmp/serviceZones.json",
-      path2.join(process.cwd(), "serviceZones_backup.json")
-    ];
-    for (const p of paths) {
-      if (fs2.existsSync(p)) {
-        const raw = fs2.readFileSync(p, "utf8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn("[ServiceZonesRoutes] Failed to read backup from files:", err);
-  }
-  return null;
-}
-function lazyLoadZones() {
-  if (inMemoryInitialized && inMemoryZones.length > 0) {
-    return inMemoryZones;
-  }
-  const fileBackup = readZonesBackup();
-  if (fileBackup && fileBackup.length > 0) {
-    inMemoryZones = fileBackup;
-    inMemoryInitialized = true;
-    return inMemoryZones;
-  }
-  inMemoryZones = [...defaultZones];
-  inMemoryInitialized = true;
-  writeZonesBackup(inMemoryZones);
-  return inMemoryZones;
-}
-function toFirestoreValue(val) {
-  if (val === null || val === void 0) return { nullValue: null };
-  if (typeof val === "boolean") return { booleanValue: val };
-  if (typeof val === "number") {
-    return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
-  }
-  if (typeof val === "string") return { stringValue: val };
-  return { stringValue: String(val) };
-}
-function fromFirestoreFields(fields) {
-  const result = {};
-  if (!fields) return result;
-  for (const [key, valObj] of Object.entries(fields)) {
-    if (!valObj || typeof valObj !== "object") continue;
-    const entries = Object.entries(valObj);
-    if (entries.length === 0) continue;
-    const [type, value] = entries[0];
-    switch (type) {
-      case "booleanValue":
-        result[key] = value;
-        break;
-      case "integerValue":
-        result[key] = parseInt(value, 10);
-        break;
-      case "doubleValue":
-        result[key] = parseFloat(value);
-        break;
-      case "stringValue": {
-        const strVal = value;
-        if (strVal === "true" || strVal === "false") {
-          result[key] = strVal === "true";
-        } else {
-          result[key] = strVal;
-        }
-        break;
-      }
-      case "nullValue":
-        result[key] = null;
-        break;
-      default:
-        result[key] = value;
-    }
-  }
-  return result;
-}
-var ADMIN_EMAILS2 = [
-  "restaurantbarkass@gmail.com",
-  "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
-];
-function isFirebaseToken2(token) {
-  try {
-    const payload = decodeJwtPayload2(token);
-    return !!payload?.iss?.startsWith("https://securetoken.google.com/");
-  } catch {
-    return false;
-  }
-}
-function decodeJwtPayload2(token) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-      base64Url.length + (4 - base64Url.length % 4) % 4,
-      "="
-    );
-    return JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
-  } catch {
-    return null;
-  }
-}
-function getEmailFromArbitraryToken2(token) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64.length % 4) {
-      base64 += "=";
-    }
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf8");
-    const payload = JSON.parse(jsonPayload);
-    if (payload) {
-      if (payload.email) {
-        return payload.email;
-      }
-      if (payload.user_metadata && payload.user_metadata.email) {
-        return payload.user_metadata.email;
-      }
-      if (payload.user && payload.user.email) {
-        return payload.user.email;
-      }
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-async function isAdmin2(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[ServiceZonesRoutes] Missing or malformed Authorization header");
-    return false;
-  }
-  const token = authHeader.split("Bearer ")[1];
-  if (!token || token === "null" || token === "undefined" || !token.trim()) {
-    console.log("[ServiceZonesRoutes] Bearer token is empty/null/undefined");
-    return false;
-  }
-  let verifiedEmail;
-  if (isFirebaseToken2(token)) {
-    try {
-      const adminAuth = getAdminAuth();
-      const decoded = await adminAuth.verifyIdToken(token);
-      verifiedEmail = decoded.email;
-      console.log("[ServiceZonesRoutes] Firebase verified email:", verifiedEmail);
-    } catch (err) {
-      console.log("[ServiceZonesRoutes] Firebase verification failed:", err.message);
-    }
-  } else {
-    console.log("[ServiceZonesRoutes] Not a Firebase token; skipping Firebase verification");
-  }
-  if (!verifiedEmail) {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (!error && user?.email) {
-        verifiedEmail = user.email;
-        console.log("[ServiceZonesRoutes] Supabase verified email:", verifiedEmail);
-      } else if (error) {
-        console.log("[ServiceZonesRoutes] Supabase verification failed:", error.message);
-      }
-    } catch (err) {
-      console.log("[ServiceZonesRoutes] Supabase exception:", err.message);
-    }
-  }
-  if (!verifiedEmail) {
-    try {
-      const parts = token.split(".");
-      const signature = parts[2] || "";
-      const isTestSignature = signature === "signature" || signature === "securesig";
-      if (isTestSignature) {
-        const decodedEmail = getEmailFromArbitraryToken2(token);
-        if (decodedEmail) {
-          console.log("[ServiceZonesRoutes] Extracted email from JWT fallback payload (Allowed test signature):", decodedEmail);
-          verifiedEmail = decodedEmail;
-        }
-      } else {
-        console.warn("[ServiceZonesRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.");
-      }
-    } catch (err) {
-      console.warn("[ServiceZonesRoutes] Fallback JWT email extraction failed:", err);
-    }
-  }
-  if (!verifiedEmail) {
-    console.log("[ServiceZonesRoutes] No verified email resolved from token");
-    return false;
-  }
-  const normEmail = verifiedEmail.trim().toLowerCase();
-  if (ADMIN_EMAILS2.includes(normEmail)) {
-    console.log(`[ServiceZonesRoutes] ${normEmail} matched static admin whitelist`);
-    return true;
-  }
-  try {
-    const { data: userRecord } = await supabase.from("users").select("role").eq("email", normEmail).maybeSingle();
-    if (userRecord?.role === "admin") {
-      console.log(`[ServiceZonesRoutes] ${normEmail} has DB role=admin`);
-      return true;
-    }
-  } catch (err) {
-    console.log("[ServiceZonesRoutes] DB role lookup error:", err.message);
-  }
-  console.log(`[ServiceZonesRoutes] ${normEmail} is not an admin`);
-  return false;
-}
-async function getAdminAccessToken() {
-  try {
-    const adminAuth = getAdminAuth();
-    const token = await firebase_admin_default.app().options.credential.getAccessToken();
-    return token?.access_token ?? null;
-  } catch (err) {
-    console.warn("[ServiceZonesRoutes] Could not obtain Admin access token:", err.message);
-    return null;
-  }
-}
-async function fetchZonesFromFirestoreREST() {
-  const apiKey = firebaseConfig.apiKey;
-  if (!apiKey) return null;
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errText = await response.text();
-      let displayMessage = errText;
-      try {
-        const parsed = JSON.parse(errText);
-        if (parsed?.error) {
-          displayMessage = `Code ${parsed.error.code ?? response.status} - ${parsed.error.message ?? ""} (${parsed.error.status ?? ""})`;
-        }
-      } catch {
-      }
-      console.log(`[ServiceZonesRoutes] REST GET non-ok ${response.status}: ${displayMessage}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data?.documents) {
-      return data.documents.map((doc) => {
-        const id = doc.name.split("/").pop();
-        return { id, ...fromFirestoreFields(doc.fields) };
-      });
-    }
-    return [];
-  } catch (err) {
-    console.log("[ServiceZonesRoutes] REST GET exception:", err.message);
-    return null;
-  }
-}
-router6.get("/", async (req, res) => {
-  try {
-    const localZones = lazyLoadZones();
-    try {
-      const { data: sbData, error: sbErr } = await supabase.from("service_zones").select("*");
-      if (!sbErr && sbData) {
-        if (sbData.length === 0) {
-          console.log("[ServiceZonesRoutes] Supabase empty; seeding defaults\u2026");
-          inMemoryZones = [...defaultZones];
-          inMemoryInitialized = true;
-          writeZonesBackup(inMemoryZones);
-          for (const item of defaultZones) {
-            await supabase.from("service_zones").upsert({
-              id: item.id,
-              city_name: item.city_name,
-              latitude: item.latitude,
-              longitude: item.longitude,
-              radius_meters: item.radius_meters,
-              is_active: item.is_active
-            }).catch(() => {
-            });
-          }
-        } else {
-          inMemoryZones = sbData;
-          inMemoryInitialized = true;
-          writeZonesBackup(sbData);
-        }
-        return res.json(inMemoryZones);
-      } else if (sbErr) {
-        console.warn("[ServiceZonesRoutes] Supabase read failed, falling back:", sbErr.message);
-      }
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase exception, falling back:", e.message);
-    }
-    try {
-      const restZones = await fetchZonesFromFirestoreREST();
-      if (restZones !== null) {
-        const mergedZones = restZones.map((firestoreZone) => {
-          const localZone = localZones.find((z3) => z3.id === firestoreZone.id);
-          if (localZone) {
-            const localTime = localZone.updated_at ? new Date(localZone.updated_at).getTime() : 0;
-            const firestoreTime = firestoreZone.updated_at ? new Date(firestoreZone.updated_at).getTime() : 0;
-            if (localTime > firestoreTime) {
-              console.log(`[ServiceZonesRoutes] SmartSync: Keeping newer local zone for ${firestoreZone.city_name} (${localZone.updated_at} > ${firestoreZone.updated_at || "none"})`);
-              return localZone;
-            }
-            if (localTime === firestoreTime && (localZone.is_active !== firestoreZone.is_active || localZone.city_name !== firestoreZone.city_name || localZone.radius_meters !== firestoreZone.radius_meters || localZone.latitude !== firestoreZone.latitude || localZone.longitude !== firestoreZone.longitude)) {
-              console.log(`[ServiceZonesRoutes] SmartSync: Preserving active local configuration change for zone ${firestoreZone.city_name}`);
-              return localZone;
-            }
-          }
-          return firestoreZone;
-        });
-        localZones.forEach((localZone) => {
-          if (!mergedZones.some((z3) => z3.id === localZone.id)) {
-            mergedZones.push(localZone);
-          }
-        });
-        inMemoryZones = mergedZones;
-        inMemoryInitialized = true;
-        writeZonesBackup(mergedZones);
-        return res.json(mergedZones);
-      }
-    } catch (e) {
-      console.log("[ServiceZonesRoutes] REST GET failed:", e.message);
-    }
-    try {
-      const db = getAdminDb();
-      const snapshot = await db.collection("service_zones").get();
-      if (!snapshot.empty) {
-        const list = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-        inMemoryZones = list;
-        inMemoryInitialized = true;
-        writeZonesBackup(list);
-        return res.json(list);
-      }
-    } catch (e) {
-      if (e.message?.includes("PERMISSION_DENIED") || e.message?.includes("7") || e.message?.toLowerCase().includes("permission")) {
-        console.log("[ServiceZonesRoutes] Firestore Admin SDK permission denied for custom DB; falling back gracefully.");
-      } else {
-        console.log("[ServiceZonesRoutes] Admin SDK GET failed:", e.message);
-      }
-    }
-    return res.json(lazyLoadZones());
-  } catch (error) {
-    console.error("[ServiceZonesRoutes] GET failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router6.post("/", async (req, res) => {
-  try {
-    if (!await isAdmin2(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const { city_name, latitude, longitude, radius_meters, is_active } = req.body;
-    if (!city_name || latitude === void 0 || longitude === void 0 || radius_meters === void 0 || is_active === void 0) {
-      return res.status(400).json({ error: "Bad Request", message: "Missing required fields" });
-    }
-    const newId = generateUUID();
-    const newZone = {
-      id: newId,
-      city_name: String(city_name).trim(),
-      latitude: Number(latitude),
-      longitude: Number(longitude),
-      radius_meters: Number(radius_meters),
-      is_active: Boolean(is_active),
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const zones = lazyLoadZones().filter((z3) => z3.id !== newId);
-    zones.push(newZone);
-    inMemoryZones = zones;
-    writeZonesBackup(zones);
-    try {
-      await supabase.from("service_zones").upsert({
-        id: newId,
-        city_name: newZone.city_name,
-        latitude: newZone.latitude,
-        longitude: newZone.longitude,
-        radius_meters: newZone.radius_meters,
-        is_active: newZone.is_active
-      });
-      console.log("[ServiceZonesRoutes] POST saved to Supabase");
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase POST exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          city_name: toFirestoreValue(newZone.city_name),
-          latitude: toFirestoreValue(newZone.latitude),
-          longitude: toFirestoreValue(newZone.longitude),
-          radius_meters: toFirestoreValue(newZone.radius_meters),
-          is_active: toFirestoreValue(newZone.is_active),
-          updated_at: toFirestoreValue(newZone.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${newId}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServiceZonesRoutes] REST POST non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] REST POST exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_zones").doc(newId).set({
-          city_name: newZone.city_name,
-          latitude: newZone.latitude,
-          longitude: newZone.longitude,
-          radius_meters: newZone.radius_meters,
-          is_active: newZone.is_active
-        });
-        firestoreSuccess = true;
-        console.log("[ServiceZonesRoutes] POST saved via Admin SDK");
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] SDK POST failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken();
-        if (adminToken) {
-          const fields = {
-            city_name: toFirestoreValue(newZone.city_name),
-            latitude: toFirestoreValue(newZone.latitude),
-            longitude: toFirestoreValue(newZone.longitude),
-            radius_meters: toFirestoreValue(newZone.radius_meters),
-            is_active: toFirestoreValue(newZone.is_active)
-          };
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${newId}`;
-          const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-          const fsRes = await fetch(`${url}?${queryParams}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ fields })
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServiceZonesRoutes] POST saved via service-account REST fallback");
-          } else {
-            console.error("[ServiceZonesRoutes] Service-account REST POST failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServiceZonesRoutes] Service-account REST POST exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServiceZonesRoutes] POST: all Firestore write paths failed \u2014 zone is in-memory only and will not persist.");
-    }
-    res.status(201).json(newZone);
-  } catch (error) {
-    console.error("[ServiceZonesRoutes] POST failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router6.patch("/:id", async (req, res) => {
-  console.log("========================");
-  console.log("PATCH ROUTE HIT");
-  console.log("ID:", req.params.id);
-  console.log("BODY:", req.body);
-  console.log("AUTH:", req.headers.authorization);
-  console.log("========================");
-  try {
-    const isUserAdmin = await isAdmin2(req);
-    console.log("ADMIN:", isUserAdmin);
-    if (!isUserAdmin) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Admin permissions required"
-      });
-    }
-    const { id } = req.params;
-    const body = req.body;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    try {
-      const { data: sbData, error: sbErr } = await supabase.from("service_zones").select("*");
-      if (!sbErr && sbData && sbData.length > 0) {
-        inMemoryZones = sbData;
-        inMemoryInitialized = true;
-        writeZonesBackup(sbData);
-      }
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase sync in PATCH failed:", e.message);
-    }
-    const zones = lazyLoadZones();
-    let index = zones.findIndex((z3) => z3.id === id);
-    if (index === -1) {
-      if (isValidUUID(id)) {
-        try {
-          const { data: sbZone, error: sbZoneErr } = await supabase.from("service_zones").select("city_name").eq("id", id).maybeSingle();
-          if (!sbZoneErr && sbZone && sbZone.city_name) {
-            console.log(`[ServiceZonesRoutes] PATCH: Dynamic UUID alignment mapping "${id}" to "${sbZone.city_name}"`);
-            index = zones.findIndex((z3) => String(z3.city_name).toLowerCase() === sbZone.city_name.toLowerCase());
-          }
-        } catch (e) {
-          console.warn("[ServiceZonesRoutes] Supabase UUID check failed in PATCH:", e.message);
-        }
-      } else if (LEGACY_ZONE_MAPPINGS[id]) {
-        const cityName = LEGACY_ZONE_MAPPINGS[id];
-        console.log(`[ServiceZonesRoutes] PATCH: Mapping legacy ID "${id}" to city_name "${cityName}"...`);
-        index = zones.findIndex((z3) => String(z3.city_name).toLowerCase() === cityName.toLowerCase());
-      }
-    }
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Service zone not found" });
-    }
-    const updatedZone = { ...zones[index] };
-    if (body.city_name !== void 0) updatedZone.city_name = String(body.city_name).trim();
-    if (body.latitude !== void 0) updatedZone.latitude = Number(body.latitude);
-    if (body.longitude !== void 0) updatedZone.longitude = Number(body.longitude);
-    if (body.radius_meters !== void 0) updatedZone.radius_meters = Number(body.radius_meters);
-    if (body.is_active !== void 0) updatedZone.is_active = Boolean(body.is_active);
-    updatedZone.updated_at = (/* @__PURE__ */ new Date()).toISOString();
-    zones[index] = updatedZone;
-    inMemoryZones = zones;
-    writeZonesBackup(zones);
-    try {
-      const sbFields = {};
-      if (body.city_name !== void 0) sbFields.city_name = updatedZone.city_name;
-      if (body.latitude !== void 0) sbFields.latitude = updatedZone.latitude;
-      if (body.longitude !== void 0) sbFields.longitude = updatedZone.longitude;
-      if (body.radius_meters !== void 0) sbFields.radius_meters = updatedZone.radius_meters;
-      if (body.is_active !== void 0) sbFields.is_active = updatedZone.is_active;
-      let sbErr = null;
-      const targetId = updatedZone.id;
-      if (isValidUUID(targetId)) {
-        const { error } = await supabase.from("service_zones").update(sbFields).eq("id", targetId);
-        sbErr = error;
-      } else {
-        console.log(`[ServiceZonesRoutes] PATCH: Legacy ID "${targetId}" detected. Checking by city_name "${updatedZone.city_name}" in Supabase...`);
-        const { data: existingSbZones, error: selectErr } = await supabase.from("service_zones").select("id").eq("city_name", updatedZone.city_name);
-        if (!selectErr && existingSbZones && existingSbZones.length > 0) {
-          const sbId = existingSbZones[0].id;
-          console.log(`[ServiceZonesRoutes] PATCH: Found matching Supabase record with UUID "${sbId}". Performing update...`);
-          const { error: updateErr } = await supabase.from("service_zones").update(sbFields).eq("id", sbId);
-          sbErr = updateErr;
-          if (!updateErr) {
-            updatedZone.id = sbId;
-            zones[index] = updatedZone;
-            inMemoryZones = zones;
-            writeZonesBackup(zones);
-            console.log(`[ServiceZonesRoutes] PATCH: Successfully healed ID in memory for "${updatedZone.city_name}" to "${sbId}"`);
-          }
-        } else {
-          console.log(`[ServiceZonesRoutes] PATCH: No record found. Inserting new record in Supabase...`);
-          const insertFields = {
-            city_name: updatedZone.city_name,
-            latitude: updatedZone.latitude,
-            longitude: updatedZone.longitude,
-            radius_meters: updatedZone.radius_meters,
-            is_active: updatedZone.is_active
-          };
-          const { data: insertedData, error: insertErr } = await supabase.from("service_zones").insert(insertFields).select("id");
-          sbErr = insertErr;
-          if (!insertErr && insertedData && insertedData[0]) {
-            const sbId = insertedData[0].id;
-            updatedZone.id = sbId;
-            zones[index] = updatedZone;
-            inMemoryZones = zones;
-            writeZonesBackup(zones);
-            console.log(`[ServiceZonesRoutes] PATCH: Inserted & healed ID in memory to "${sbId}"`);
-          }
-        }
-      }
-      if (sbErr) {
-        console.error("[ServiceZonesRoutes] Supabase PATCH error for service_zones:", sbErr.message);
-        const isRls = sbErr.code === "42501" || sbErr.message.toLowerCase().includes("row-level security") || sbErr.message.toLowerCase().includes("permission denied");
-        return res.status(isRls ? 403 : 500).json({
-          error: isRls ? "Permission Denied" : "Database Error",
-          message: sbErr.message,
-          code: sbErr.code,
-          isRlsViolation: isRls
-        });
-      } else {
-        console.log("[ServiceZonesRoutes] PATCH saved to Supabase (service_zones) successfully");
-      }
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase PATCH exception:", e.message);
-      return res.status(500).json({
-        error: "Database Exception",
-        message: e.message
-      });
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          city_name: toFirestoreValue(updatedZone.city_name),
-          latitude: toFirestoreValue(updatedZone.latitude),
-          longitude: toFirestoreValue(updatedZone.longitude),
-          radius_meters: toFirestoreValue(updatedZone.radius_meters),
-          is_active: toFirestoreValue(updatedZone.is_active),
-          updated_at: toFirestoreValue(updatedZone.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${id}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServiceZonesRoutes] REST PATCH non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] REST PATCH exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_zones").doc(id).set({
-          city_name: updatedZone.city_name,
-          latitude: updatedZone.latitude,
-          longitude: updatedZone.longitude,
-          radius_meters: updatedZone.radius_meters,
-          is_active: updatedZone.is_active
-        }, { merge: true });
-        firestoreSuccess = true;
-        console.log("[ServiceZonesRoutes] PATCH saved via Admin SDK");
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] SDK PATCH failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken();
-        if (adminToken) {
-          const fields = {
-            city_name: toFirestoreValue(updatedZone.city_name),
-            latitude: toFirestoreValue(updatedZone.latitude),
-            longitude: toFirestoreValue(updatedZone.longitude),
-            radius_meters: toFirestoreValue(updatedZone.radius_meters),
-            is_active: toFirestoreValue(updatedZone.is_active)
-          };
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${id}`;
-          const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-          const fsRes = await fetch(`${url}?${queryParams}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ fields })
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServiceZonesRoutes] PATCH saved via service-account REST fallback");
-          } else {
-            console.error("[ServiceZonesRoutes] Service-account REST PATCH failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServiceZonesRoutes] Service-account REST PATCH exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServiceZonesRoutes] PATCH: all Firestore write paths failed \u2014 change is in-memory only and will not persist.");
-    }
-    res.json(updatedZone);
-  } catch (error) {
-    console.error("[ServiceZonesRoutes] PATCH failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router6.delete("/:id", async (req, res) => {
-  try {
-    if (!await isAdmin2(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const { id } = req.params;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    try {
-      const { data: sbData, error: sbErr } = await supabase.from("service_zones").select("*");
-      if (!sbErr && sbData && sbData.length > 0) {
-        inMemoryZones = sbData;
-        inMemoryInitialized = true;
-        writeZonesBackup(sbData);
-      }
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase sync in DELETE failed:", e.message);
-    }
-    const zones = lazyLoadZones();
-    let index = zones.findIndex((z3) => z3.id === id);
-    if (index === -1) {
-      if (isValidUUID(id)) {
-        try {
-          const { data: sbZone, error: sbZoneErr } = await supabase.from("service_zones").select("city_name").eq("id", id).maybeSingle();
-          if (!sbZoneErr && sbZone && sbZone.city_name) {
-            console.log(`[ServiceZonesRoutes] DELETE: Dynamic UUID alignment mapping "${id}" to "${sbZone.city_name}"`);
-            index = zones.findIndex((z3) => String(z3.city_name).toLowerCase() === sbZone.city_name.toLowerCase());
-          }
-        } catch (e) {
-          console.warn("[ServiceZonesRoutes] Supabase UUID check failed in DELETE:", e.message);
-        }
-      } else if (LEGACY_ZONE_MAPPINGS[id]) {
-        const cityName = LEGACY_ZONE_MAPPINGS[id];
-        console.log(`[ServiceZonesRoutes] DELETE: Mapping legacy ID "${id}" to city_name "${cityName}"...`);
-        index = zones.findIndex((z3) => String(z3.city_name).toLowerCase() === cityName.toLowerCase());
-      }
-    }
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Service zone not found" });
-    }
-    const deletedZone = zones[index];
-    const targetIdToDelete = deletedZone.id;
-    const filtered = zones.filter((z3) => z3.id !== targetIdToDelete);
-    inMemoryZones = filtered;
-    writeZonesBackup(filtered);
-    try {
-      if (isValidUUID(targetIdToDelete)) {
-        await supabase.from("service_zones").delete().eq("id", targetIdToDelete);
-      } else {
-        await supabase.from("service_zones").delete().eq("city_name", deletedZone.city_name);
-      }
-      console.log("[ServiceZonesRoutes] DELETE from Supabase succeeded");
-    } catch (e) {
-      console.warn("[ServiceZonesRoutes] Supabase DELETE exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${targetIdToDelete}`;
-        const fsRes = await fetch(url, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${firebaseToken}` }
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServiceZonesRoutes] REST DELETE non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] REST DELETE exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_zones").doc(targetIdToDelete).delete();
-        firestoreSuccess = true;
-        console.log("[ServiceZonesRoutes] DELETE via Admin SDK");
-      } catch (e) {
-        console.warn("[ServiceZonesRoutes] SDK DELETE failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken();
-        if (adminToken) {
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/service_zones/${targetIdToDelete}`;
-          const fsRes = await fetch(url, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${adminToken}` }
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServiceZonesRoutes] DELETE via service-account REST fallback");
-          } else {
-            console.error("[ServiceZonesRoutes] Service-account REST DELETE failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServiceZonesRoutes] Service-account REST DELETE exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServiceZonesRoutes] DELETE: all Firestore write paths failed \u2014 change is in-memory only and will not persist.");
-    }
-    res.json({ success: true, message: "Service zone deleted" });
-  } catch (error) {
-    console.error("[ServiceZonesRoutes] DELETE failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-var servicezones_routes_default = router6;
-
-// server/routes/servicepincodes.routes.ts
-import express5 from "express";
-import fs3 from "fs";
-import path3 from "path";
-init_supabase();
-var router7 = express5.Router();
-var firebaseConfig2 = {};
-try {
-  const configPath = path3.join(process.cwd(), "firebase-applet-config.json");
-  if (fs3.existsSync(configPath)) {
-    firebaseConfig2 = JSON.parse(fs3.readFileSync(configPath, "utf8"));
-  }
-} catch (e) {
-  console.warn("[ServicePincodesRoutes] Could not load firebase-applet-config.json:", e);
-}
-var firebaseProjectId2 = firebaseConfig2.projectId || "frostybite07";
-var firebaseDatabaseId2 = firebaseConfig2.firestoreDatabaseId || "ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c";
-var inMemoryPincodes = [];
-var inMemoryInitialized2 = false;
-var defaultPincodesStr = [
-  "753001",
-  "753002",
-  "753003",
-  "753004",
-  "753005",
-  "753006",
-  "753007",
-  "753008",
-  "753009",
-  "753010",
-  "753011",
-  "753012",
-  "753013",
-  "753014",
-  "753015"
-];
-var defaultPincodes = defaultPincodesStr.map((pin, idx) => ({
-  id: `pin_${idx + 1}`,
-  pincode: pin,
-  active: true
-}));
-function writePincodesBackup(pincodes) {
-  try {
-    const dataString = JSON.stringify(pincodes, null, 2);
-    fs3.writeFileSync("/tmp/servicePincodes.json", dataString);
-    fs3.writeFileSync(path3.join(process.cwd(), "servicePincodes_backup.json"), dataString);
-    console.log("[ServicePincodesRoutes] Saved service pincodes backup to files");
-  } catch (err) {
-    console.warn("[ServicePincodesRoutes] Failed to write backend backup files:", err);
-  }
-}
-function readPincodesBackup() {
-  try {
-    const paths = [
-      "/tmp/servicePincodes.json",
-      path3.join(process.cwd(), "servicePincodes_backup.json")
-    ];
-    for (const p of paths) {
-      if (fs3.existsSync(p)) {
-        const raw = fs3.readFileSync(p, "utf8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn("[ServicePincodesRoutes] Failed to read backup from files:", err);
-  }
-  return null;
-}
-function enforceAllCuttackPincodesActive(list) {
-  return list.map((item) => {
-    if (item && item.pincode && String(item.pincode).trim().startsWith("753") && !item.active) {
-      const updated = {
-        ...item,
-        active: true,
-        updated_at: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      (async () => {
-        try {
-          const { error } = await supabase.from("service_pincodes").update({
-            active: true,
-            updated_at: updated.updated_at
-          }).eq("id", item.id);
-          if (error) {
-            console.warn(
-              "[ServicePincodesRoutes] Background Supabase active sync failed:",
-              error.message
-            );
-          }
-        } catch (err) {
-          console.warn(
-            "[ServicePincodesRoutes] Background sync exception:",
-            err
-          );
-        }
-      })();
-      return updated;
-    }
-    return item;
-  });
-}
-function lazyLoadPincodes() {
-  if (inMemoryInitialized2 && inMemoryPincodes.length > 0) {
-    return enforceAllCuttackPincodesActive(inMemoryPincodes);
-  }
-  const fileBackup = readPincodesBackup();
-  if (fileBackup && fileBackup.length > 0) {
-    inMemoryPincodes = enforceAllCuttackPincodesActive(fileBackup);
-    inMemoryInitialized2 = true;
-    return inMemoryPincodes;
-  }
-  inMemoryPincodes = [...defaultPincodes];
-  inMemoryInitialized2 = true;
-  writePincodesBackup(inMemoryPincodes);
-  return enforceAllCuttackPincodesActive(inMemoryPincodes);
-}
-function toFirestoreValue2(val) {
-  if (val === null || val === void 0) return { nullValue: null };
-  if (typeof val === "boolean") return { booleanValue: val };
-  if (typeof val === "number") {
-    return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
-  }
-  if (typeof val === "string") return { stringValue: val };
-  return { stringValue: String(val) };
-}
-function fromFirestoreFields2(fields) {
-  const result = {};
-  if (!fields) return result;
-  for (const [key, valObj] of Object.entries(fields)) {
-    if (!valObj || typeof valObj !== "object") continue;
-    const entries = Object.entries(valObj);
-    if (entries.length === 0) continue;
-    const [type, value] = entries[0];
-    switch (type) {
-      case "booleanValue":
-        result[key] = value;
-        break;
-      case "integerValue":
-        result[key] = parseInt(value, 10);
-        break;
-      case "doubleValue":
-        result[key] = parseFloat(value);
-        break;
-      case "stringValue": {
-        const strVal = value;
-        if (strVal === "true" || strVal === "false") {
-          result[key] = strVal === "true";
-        } else {
-          result[key] = strVal;
-        }
-        break;
-      }
-      case "nullValue":
-        result[key] = null;
-        break;
-      default:
-        result[key] = value;
-    }
-  }
-  return result;
-}
-var ADMIN_EMAILS3 = [
-  "restaurantbarkass@gmail.com",
-  "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
-];
-function isFirebaseToken3(token) {
-  try {
-    const payload = decodeJwtPayload3(token);
-    return !!payload?.iss?.startsWith("https://securetoken.google.com/");
-  } catch {
-    return false;
-  }
-}
-function decodeJwtPayload3(token) {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-      base64Url.length + (4 - base64Url.length % 4) % 4,
-      "="
-    );
-    return JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
-  } catch {
-    return null;
-  }
-}
-function getEmailFromArbitraryToken3(token) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64.length % 4) {
-      base64 += "=";
-    }
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf8");
-    const payload = JSON.parse(jsonPayload);
-    if (payload) {
-      if (payload.email) {
-        return payload.email;
-      }
-      if (payload.user_metadata && payload.user_metadata.email) {
-        return payload.user_metadata.email;
-      }
-      if (payload.user && payload.user.email) {
-        return payload.user.email;
-      }
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-async function isAdmin3(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[ServicePincodesRoutes] Missing or malformed Authorization header");
-    return false;
-  }
-  const token = authHeader.split("Bearer ")[1];
-  if (!token || token === "null" || token === "undefined" || !token.trim()) {
-    console.log("[ServicePincodesRoutes] Bearer token is empty/null/undefined");
-    return false;
-  }
-  let verifiedEmail;
-  if (isFirebaseToken3(token)) {
-    try {
-      const adminAuth = getAdminAuth();
-      const decoded = await adminAuth.verifyIdToken(token);
-      verifiedEmail = decoded.email;
-      console.log("[ServicePincodesRoutes] Firebase verified email:", verifiedEmail);
-    } catch (err) {
-      console.log("[ServicePincodesRoutes] Firebase verification failed:", err.message);
-    }
-  } else {
-    console.log("[ServicePincodesRoutes] Not a Firebase token; skipping Firebase verification");
-  }
-  if (!verifiedEmail) {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (!error && user?.email) {
-        verifiedEmail = user.email;
-        console.log("[ServicePincodesRoutes] Supabase verified email:", verifiedEmail);
-      } else if (error) {
-        console.log("[ServicePincodesRoutes] Supabase verification failed:", error.message);
-      }
-    } catch (err) {
-      console.log("[ServicePincodesRoutes] Supabase exception:", err.message);
-    }
-  }
-  if (!verifiedEmail) {
-    try {
-      const parts = token.split(".");
-      const signature = parts[2] || "";
-      const isTestSignature = signature === "signature" || signature === "securesig";
-      if (isTestSignature) {
-        const decodedEmail = getEmailFromArbitraryToken3(token);
-        if (decodedEmail) {
-          console.log("[ServicePincodesRoutes] Extracted email from JWT fallback payload (Allowed test signature):", decodedEmail);
-          verifiedEmail = decodedEmail;
-        }
-      } else {
-        console.warn("[ServicePincodesRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.");
-      }
-    } catch (err) {
-      console.warn("[ServicePincodesRoutes] Fallback JWT email extraction failed:", err);
-    }
-  }
-  if (!verifiedEmail) {
-    console.log("[ServicePincodesRoutes] No verified email resolved from token");
-    return false;
-  }
-  const normEmail = verifiedEmail.trim().toLowerCase();
-  if (ADMIN_EMAILS3.includes(normEmail)) {
-    console.log(`[ServicePincodesRoutes] ${normEmail} matched static admin whitelist`);
-    return true;
-  }
-  try {
-    const { data: userRecord } = await supabase.from("users").select("role").eq("email", normEmail).maybeSingle();
-    if (userRecord?.role === "admin") {
-      console.log(`[ServicePincodesRoutes] ${normEmail} has DB role=admin`);
-      return true;
-    }
-  } catch (err) {
-    console.log("[ServicePincodesRoutes] DB role lookup error:", err.message);
-  }
-  console.log(`[ServicePincodesRoutes] ${normEmail} is not an admin`);
-  return false;
-}
-async function getAdminAccessToken2() {
-  try {
-    const token = await firebase_admin_default.app().options.credential.getAccessToken();
-    return token?.access_token ?? null;
-  } catch (err) {
-    console.warn("[ServicePincodesRoutes] Could not obtain Admin access token:", err.message);
-    return null;
-  }
-}
-async function fetchPincodesFromFirestoreREST() {
-  const apiKey = firebaseConfig2.apiKey;
-  if (!apiKey) return null;
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errText = await response.text();
-      console.log(`[ServicePincodesRoutes] REST GET non-ok ${response.status}: ${errText}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data?.documents) {
-      return data.documents.map((doc) => {
-        const id = doc.name.split("/").pop();
-        return { id, ...fromFirestoreFields2(doc.fields) };
-      });
-    }
-    return [];
-  } catch (err) {
-    console.log("[ServicePincodesRoutes] REST GET exception:", err.message);
-    return null;
-  }
-}
-router7.get("/", async (req, res) => {
-  try {
-    const localPincodes = lazyLoadPincodes();
-    try {
-      const { data: sbData, error: sbErr } = await supabase.from("service_pincodes").select("*");
-      if (!sbErr && sbData) {
-        const missingDefaults = defaultPincodes.filter(
-          (def) => !sbData.some((item) => item.id === def.id || item.pincode === def.pincode)
-        );
-        if (missingDefaults.length > 0) {
-          console.log(`[ServicePincodesRoutes] Seeding ${missingDefaults.length} missing default pincodes to Supabase\u2026`);
-          const merged = [...sbData];
-          for (const item of missingDefaults) {
-            const seededItem = {
-              id: item.id,
-              pincode: item.pincode,
-              active: item.active,
-              updated_at: (/* @__PURE__ */ new Date()).toISOString()
-            };
-            merged.push(seededItem);
-            try {
-              const { error: upsertErr } = await supabase.from("service_pincodes").upsert(seededItem);
-              if (upsertErr) {
-                console.warn("[ServicePincodesRoutes] Failed to seed default pincode item:", item.id, upsertErr.message);
-              }
-            } catch (err) {
-              console.warn("[ServicePincodesRoutes] Failed to seed default pincode item:", item.id, err.message);
-            }
-          }
-          inMemoryPincodes = enforceAllCuttackPincodesActive(merged);
-        } else {
-          inMemoryPincodes = enforceAllCuttackPincodesActive(sbData);
-        }
-        inMemoryInitialized2 = true;
-        writePincodesBackup(inMemoryPincodes);
-        return res.json(inMemoryPincodes);
-      } else if (sbErr) {
-        console.warn("[ServicePincodesRoutes] Supabase read failed, falling back:", sbErr.message);
-      }
-    } catch (e) {
-      console.warn("[ServicePincodesRoutes] Supabase exception, falling back:", e.message);
-    }
-    try {
-      const restPins = await fetchPincodesFromFirestoreREST();
-      if (restPins !== null) {
-        if (restPins.length === 0) {
-          console.log("[ServicePincodesRoutes] Firestore empty; seeding defaults\u2026");
-          inMemoryPincodes = enforceAllCuttackPincodesActive([...defaultPincodes]);
-          inMemoryInitialized2 = true;
-          writePincodesBackup(inMemoryPincodes);
-          const db = getAdminDb();
-          for (const item of defaultPincodes) {
-            await db.collection("service_pincodes").doc(item.id).set({
-              pincode: item.pincode,
-              active: true
-            }).catch(() => {
-            });
-          }
-        } else {
-          const mergedPins = restPins.map((firestorePin) => {
-            const localPin = localPincodes.find((p) => p.id === firestorePin.id);
-            if (localPin) {
-              const localTime = localPin.updated_at ? new Date(localPin.updated_at).getTime() : 0;
-              const firestoreTime = firestorePin.updated_at ? new Date(firestorePin.updated_at).getTime() : 0;
-              if (localTime > firestoreTime) {
-                console.log(`[ServicePincodesRoutes] SmartSync: Keeping newer local pincode for ${firestorePin.pincode} (${localPin.updated_at} > ${firestorePin.updated_at || "none"})`);
-                return localPin;
-              }
-              if (localTime === firestoreTime && (localPin.active !== firestorePin.active || localPin.pincode !== firestorePin.pincode)) {
-                console.log(`[ServicePincodesRoutes] SmartSync: Preserving active local configuration change for pincode ${firestorePin.pincode}`);
-                return localPin;
-              }
-            }
-            return firestorePin;
-          });
-          localPincodes.forEach((localPin) => {
-            if (!mergedPins.some((p) => p.id === localPin.id)) {
-              mergedPins.push(localPin);
-            }
-          });
-          inMemoryPincodes = enforceAllCuttackPincodesActive(mergedPins);
-          inMemoryInitialized2 = true;
-          writePincodesBackup(inMemoryPincodes);
-        }
-        return res.json(inMemoryPincodes);
-      }
-    } catch (e) {
-      console.log("[ServicePincodesRoutes] REST GET failed:", e.message);
-    }
-    try {
-      const db = getAdminDb();
-      const snapshot = await db.collection("service_pincodes").get();
-      if (!snapshot.empty) {
-        const list = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-        inMemoryPincodes = enforceAllCuttackPincodesActive(list);
-        inMemoryInitialized2 = true;
-        writePincodesBackup(inMemoryPincodes);
-        return res.json(inMemoryPincodes);
-      }
-    } catch (e) {
-      if (e.message?.includes("PERMISSION_DENIED") || e.message?.includes("7") || e.message?.toLowerCase().includes("permission")) {
-        console.log("[ServicePincodesRoutes] Firestore Admin SDK permission denied for custom DB; falling back gracefully.");
-      } else {
-        console.log("[ServicePincodesRoutes] Admin SDK GET failed:", e.message);
-      }
-    }
-    return res.json(lazyLoadPincodes());
-  } catch (error) {
-    console.error("[ServicePincodesRoutes] GET failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router7.post("/", async (req, res) => {
-  try {
-    if (!await isAdmin3(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const { pincode, active } = req.body;
-    if (!pincode) {
-      return res.status(400).json({ error: "Bad Request", message: "Pincode is required" });
-    }
-    const trimmedPin = String(pincode).trim();
-    if (!/^\d{6}$/.test(trimmedPin)) {
-      return res.status(400).json({ error: "Bad Request", message: "Pincode must be exactly 6 digits" });
-    }
-    const newId = "pin_" + Math.random().toString(36).substring(2, 10);
-    const newPincodeData = {
-      id: newId,
-      pincode: trimmedPin,
-      active: active !== void 0 ? Boolean(active) : true,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const pincodes = lazyLoadPincodes();
-    pincodes.push(newPincodeData);
-    inMemoryPincodes = pincodes;
-    writePincodesBackup(pincodes);
-    try {
-      const defaultCityId = "cbd0988c-deab-4fbd-8e3b-9a84a28ae348";
-      await supabase.from("service_cities").upsert({
-        id: defaultCityId,
-        city_name: "Cuttack",
-        state_name: "Odisha",
-        is_active: true
-      });
-      await supabase.from("service_pincodes").upsert({
-        id: newId,
-        pincode: newPincodeData.pincode,
-        active: newPincodeData.active,
-        updated_at: newPincodeData.updated_at
-      });
-      const { data: existingPins } = await supabase.from("delivery_pincodes").select("*").eq("pincode", newPincodeData.pincode);
-      if (existingPins && existingPins.length > 0) {
-        await supabase.from("delivery_pincodes").update({
-          is_active: newPincodeData.active,
-          city_id: defaultCityId
-        }).eq("pincode", newPincodeData.pincode);
-      } else {
-        await supabase.from("delivery_pincodes").insert({
-          city_id: defaultCityId,
-          pincode: newPincodeData.pincode,
-          is_active: newPincodeData.active,
-          delivery_fee: 40,
-          minimum_order: 150,
-          estimated_delivery_time: "35-45 mins"
-        });
-      }
-      console.log("[ServicePincodesRoutes] POST saved to Supabase (service_pincodes + delivery_pincodes)");
-    } catch (e) {
-      console.warn("[ServicePincodesRoutes] Supabase POST exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          pincode: toFirestoreValue2(newPincodeData.pincode),
-          active: toFirestoreValue2(newPincodeData.active),
-          updated_at: toFirestoreValue2(newPincodeData.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${newId}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServicePincodesRoutes] REST POST non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] REST POST exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_pincodes").doc(newId).set({
-          pincode: newPincodeData.pincode,
-          active: newPincodeData.active
-        });
-        firestoreSuccess = true;
-        console.log("[ServicePincodesRoutes] POST saved via Admin SDK");
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] SDK POST failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken2();
-        if (adminToken) {
-          const fields = {
-            pincode: toFirestoreValue2(newPincodeData.pincode),
-            active: toFirestoreValue2(newPincodeData.active)
-          };
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${newId}`;
-          const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-          const fsRes = await fetch(`${url}?${queryParams}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ fields })
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServicePincodesRoutes] POST saved via service-account REST fallback");
-          } else {
-            console.error("[ServicePincodesRoutes] Service-account REST POST failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServicePincodesRoutes] Service-account REST POST exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServicePincodesRoutes] POST: all Firestore write paths failed \u2014 pincode is in-memory only and will not persist.");
-    }
-    res.status(201).json(newPincodeData);
-  } catch (error) {
-    console.error("[ServicePincodesRoutes] POST failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router7.patch("/:id", async (req, res) => {
-  console.log("========================");
-  console.log("PATCH ROUTE HIT");
-  console.log("ID:", req.params.id);
-  console.log("BODY:", req.body);
-  console.log("AUTH:", req.headers.authorization);
-  console.log("========================");
-  try {
-    const isUserAdmin = await isAdmin3(req);
-    console.log("ADMIN:", isUserAdmin);
-    if (!isUserAdmin) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Admin permissions required"
-      });
-    }
-    const { id } = req.params;
-    const body = req.body;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const pincodes = lazyLoadPincodes();
-    const index = pincodes.findIndex((p) => p.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Pincode document not found" });
-    }
-    const updatedPincodeData = { ...pincodes[index] };
-    if (body.pincode !== void 0) {
-      const trimmedPin = String(body.pincode).trim();
-      if (!/^\d{6}$/.test(trimmedPin)) {
-        return res.status(400).json({ error: "Bad Request", message: "Pincode must be exactly 6 digits" });
-      }
-      updatedPincodeData.pincode = trimmedPin;
-    }
-    if (body.active !== void 0) {
-      updatedPincodeData.active = Boolean(body.active);
-    }
-    updatedPincodeData.updated_at = (/* @__PURE__ */ new Date()).toISOString();
-    const oldPincode = pincodes[index].pincode;
-    pincodes[index] = updatedPincodeData;
-    inMemoryPincodes = pincodes;
-    writePincodesBackup(pincodes);
-    try {
-      const defaultCityId = "cbd0988c-deab-4fbd-8e3b-9a84a28ae348";
-      await supabase.from("service_cities").upsert({
-        id: defaultCityId,
-        city_name: "Cuttack",
-        state_name: "Odisha",
-        is_active: true
-      });
-      const sbFields = {
-        updated_at: updatedPincodeData.updated_at
-      };
-      if (body.pincode !== void 0) sbFields.pincode = updatedPincodeData.pincode;
-      if (body.active !== void 0) sbFields.active = updatedPincodeData.active;
-      const { error: sbErr1 } = await supabase.from("service_pincodes").update(sbFields).eq("id", id);
-      if (sbErr1) {
-        console.error("[ServicePincodesRoutes] Supabase service_pincodes update error:", sbErr1.message);
-        const isRls = sbErr1.code === "42501" || sbErr1.message.toLowerCase().includes("row-level security") || sbErr1.message.toLowerCase().includes("permission denied");
-        return res.status(isRls ? 403 : 500).json({
-          error: isRls ? "Permission Denied" : "Database Error",
-          message: sbErr1.message,
-          code: sbErr1.code,
-          isRlsViolation: isRls
-        });
-      } else {
-        console.log("[ServicePincodesRoutes] service_pincodes PATCH saved successfully");
-      }
-      const deliveryFields = {};
-      if (body.pincode !== void 0) deliveryFields.pincode = updatedPincodeData.pincode;
-      if (body.active !== void 0) deliveryFields.is_active = Boolean(body.active);
-      const { data: updatedPinData, error: updateErr } = await supabase.from("delivery_pincodes").update(deliveryFields).eq("pincode", oldPincode);
-      if (updateErr) {
-        console.warn("[ServicePincodesRoutes] delivery_pincodes update error by pincode:", updateErr.message);
-      } else {
-        console.log("[ServicePincodesRoutes] delivery_pincodes updated successfully");
-      }
-      const { data: existingPins, error: selectErr } = await supabase.from("delivery_pincodes").select("*").eq("pincode", updatedPincodeData.pincode);
-      if (selectErr) {
-        console.error("[ServicePincodesRoutes] delivery_pincodes select error:", selectErr.message);
-      }
-      if (!selectErr && (!existingPins || existingPins.length === 0)) {
-        const { error: insertErr } = await supabase.from("delivery_pincodes").insert({
-          city_id: defaultCityId,
-          pincode: updatedPincodeData.pincode,
-          is_active: updatedPincodeData.active,
-          delivery_fee: 40,
-          minimum_order: 150,
-          estimated_delivery_time: "35-45 mins"
-        });
-        if (insertErr) {
-          console.error("[ServicePincodesRoutes] delivery_pincodes insert error:", insertErr.message);
-        } else {
-          console.log("[ServicePincodesRoutes] delivery_pincodes record inserted successfully");
-        }
-      }
-      console.log("[ServicePincodesRoutes] PATCH saved to Supabase (service_pincodes and delivery_pincodes)");
-    } catch (e) {
-      console.warn("[ServicePincodesRoutes] Supabase PATCH exception:", e.message);
-      return res.status(500).json({
-        error: "Database Exception",
-        message: e.message
-      });
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          pincode: toFirestoreValue2(updatedPincodeData.pincode),
-          active: toFirestoreValue2(updatedPincodeData.active),
-          updated_at: toFirestoreValue2(updatedPincodeData.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${id}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServicePincodesRoutes] REST PATCH non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] REST PATCH exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_pincodes").doc(id).set({
-          pincode: updatedPincodeData.pincode,
-          active: updatedPincodeData.active
-        }, { merge: true });
-        firestoreSuccess = true;
-        console.log("[ServicePincodesRoutes] PATCH saved via Admin SDK");
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] SDK PATCH failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken2();
-        if (adminToken) {
-          const fields = {};
-          if (body.pincode !== void 0) fields.pincode = toFirestoreValue2(updatedPincodeData.pincode);
-          if (body.active !== void 0) fields.active = toFirestoreValue2(updatedPincodeData.active);
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${id}`;
-          const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-          const fsRes = await fetch(`${url}?${queryParams}`, {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ fields })
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServicePincodesRoutes] PATCH saved via service-account REST fallback");
-          } else {
-            console.error("[ServicePincodesRoutes] Service-account REST PATCH failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServicePincodesRoutes] Service-account REST PATCH exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServicePincodesRoutes] PATCH: all Firestore write paths failed \u2014 change is in-memory only and will not persist.");
-    }
-    res.json(updatedPincodeData);
-  } catch (error) {
-    console.error("[ServicePincodesRoutes] PATCH failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router7.delete("/:id", async (req, res) => {
-  try {
-    if (!await isAdmin3(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const { id } = req.params;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const pincodes = lazyLoadPincodes();
-    const index = pincodes.findIndex((p) => p.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Pincode document not found" });
-    }
-    const pincodeToDelete = pincodes[index].pincode;
-    const filtered = pincodes.filter((p) => p.id !== id);
-    inMemoryPincodes = filtered;
-    writePincodesBackup(filtered);
-    try {
-      await supabase.from("service_pincodes").delete().eq("id", id);
-      await supabase.from("delivery_pincodes").delete().eq("pincode", pincodeToDelete);
-      console.log("[ServicePincodesRoutes] DELETE from Supabase succeeded (both tables)");
-    } catch (e) {
-      console.warn("[ServicePincodesRoutes] Supabase DELETE exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${id}`;
-        const fsRes = await fetch(url, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${firebaseToken}` }
-        });
-        firestoreSuccess = fsRes.ok;
-        if (!fsRes.ok) {
-          console.warn("[ServicePincodesRoutes] REST DELETE non-ok:", fsRes.status, await fsRes.text());
-        }
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] REST DELETE exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("service_pincodes").doc(id).delete();
-        firestoreSuccess = true;
-        console.log("[ServicePincodesRoutes] DELETE via Admin SDK");
-      } catch (e) {
-        console.warn("[ServicePincodesRoutes] SDK DELETE failed:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const adminToken = await getAdminAccessToken2();
-        if (adminToken) {
-          const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId2}/databases/${firebaseDatabaseId2}/documents/service_pincodes/${id}`;
-          const fsRes = await fetch(url, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${adminToken}` }
-          });
-          if (fsRes.ok) {
-            firestoreSuccess = true;
-            console.log("[ServicePincodesRoutes] DELETE via service-account REST fallback");
-          } else {
-            console.error("[ServicePincodesRoutes] Service-account REST DELETE failed:", fsRes.status, await fsRes.text());
-          }
-        }
-      } catch (e) {
-        console.error("[ServicePincodesRoutes] Service-account REST DELETE exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      console.error("[ServicePincodesRoutes] DELETE: all Firestore write paths failed \u2014 change is in-memory only and will not persist.");
-    }
-    res.json({ success: true, message: "Service pincode removed successfully" });
-  } catch (error) {
-    console.error("[ServicePincodesRoutes] DELETE failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-var servicepincodes_routes_default = router7;
-
 // server/routes/validateaddress.routes.ts
-import express6 from "express";
-import fs4 from "fs";
-import path4 from "path";
+var import_express6 = __toESM(require("express"), 1);
+var import_fs3 = __toESM(require("fs"), 1);
+var import_path3 = __toESM(require("path"), 1);
 init_supabase();
 
 // server/validators/validateaddress.schema.ts
-import { z as z2 } from "zod";
-var validateAddressSchema = z2.object({
-  address: z2.string().optional(),
-  coordinates: z2.object({
-    lat: z2.union([z2.number(), z2.string()]).optional(),
-    lng: z2.union([z2.number(), z2.string()]).optional(),
-    latitude: z2.union([z2.number(), z2.string()]).optional(),
-    longitude: z2.union([z2.number(), z2.string()]).optional()
+var import_zod2 = require("zod");
+var validateAddressSchema = import_zod2.z.object({
+  address: import_zod2.z.string().optional(),
+  coordinates: import_zod2.z.object({
+    lat: import_zod2.z.union([import_zod2.z.number(), import_zod2.z.string()]).optional(),
+    lng: import_zod2.z.union([import_zod2.z.number(), import_zod2.z.string()]).optional(),
+    latitude: import_zod2.z.union([import_zod2.z.number(), import_zod2.z.string()]).optional(),
+    longitude: import_zod2.z.union([import_zod2.z.number(), import_zod2.z.string()]).optional()
   }).optional(),
-  fields: z2.object({
-    city: z2.string().optional(),
-    pincode: z2.string().optional()
+  fields: import_zod2.z.object({
+    city: import_zod2.z.string().optional(),
+    pincode: import_zod2.z.string().optional()
   }).optional()
 });
-var notifyRequestSchema = z2.object({
-  email: z2.string().email(),
-  phone: z2.string().optional(),
-  city: z2.string().optional(),
-  coords: z2.object({
-    lat: z2.number().optional(),
-    lng: z2.number().optional()
+var notifyRequestSchema = import_zod2.z.object({
+  email: import_zod2.z.string().email(),
+  phone: import_zod2.z.string().optional(),
+  city: import_zod2.z.string().optional(),
+  coords: import_zod2.z.object({
+    lat: import_zod2.z.number().optional(),
+    lng: import_zod2.z.number().optional()
   }).optional().nullable()
 });
 
+// server/services/v2Geofencing.service.ts
+var import_fs2 = __toESM(require("fs"), 1);
+var import_path2 = __toESM(require("path"), 1);
+var turf = __toESM(require("@turf/turf"), 1);
+init_supabase();
+var STORE_HUB_LOCATION = [85.8828, 20.4625];
+function geometryToEWKT(geometry) {
+  if (!geometry) return null;
+  if (typeof geometry === "string") {
+    if (geometry.startsWith("SRID=")) return geometry;
+    try {
+      geometry = JSON.parse(geometry);
+    } catch (_) {
+      return null;
+    }
+  }
+  let geom = geometry;
+  if (geom.type === "Feature" && geom.geometry) {
+    geom = geom.geometry;
+  }
+  if (geom.type === "Polygon" && Array.isArray(geom.coordinates)) {
+    const rings = geom.coordinates.map(
+      (ring) => "(" + ring.map((pt) => `${pt[0]} ${pt[1]}`).join(", ") + ")"
+    ).join(", ");
+    return `SRID=4326;POLYGON(${rings})`;
+  }
+  if (geom.type === "MultiPolygon" && Array.isArray(geom.coordinates)) {
+    const polys = geom.coordinates.map(
+      (poly) => "(" + poly.map(
+        (ring) => "(" + ring.map((pt) => `${pt[0]} ${pt[1]}`).join(", ") + ")"
+      ).join(", ") + ")"
+    ).join(", ");
+    return `SRID=4326;MULTIPOLYGON(${polys})`;
+  }
+  return null;
+}
+var spatialCoversCache = /* @__PURE__ */ new Map();
+var spatialDistCache = /* @__PURE__ */ new Map();
+async function isPointCoveredByGeometryPostGIS(geometry, longitude, latitude) {
+  if (!geometry) return false;
+  const ewkt = geometryToEWKT(geometry);
+  if (!ewkt) return false;
+  const cacheKey = `${ewkt}:${longitude}:${latitude}`;
+  if (spatialCoversCache.has(cacheKey)) {
+    return spatialCoversCache.get(cacheKey);
+  }
+  const pointEWKT = `SRID=4326;POINT(${longitude} ${latitude})`;
+  try {
+    const { data, error } = await supabase.rpc("_st_covers", {
+      geom1: ewkt,
+      geom2: pointEWKT
+    });
+    if (!error && typeof data === "boolean") {
+      spatialCoversCache.set(cacheKey, data);
+      return data;
+    }
+  } catch (err) {
+    console.warn("[PostGIS Engine] ST_Covers query warning:", err);
+  }
+  const fallback = isPointCoveredByGeometryFallback(geometry, longitude, latitude);
+  spatialCoversCache.set(cacheKey, fallback);
+  return fallback;
+}
+function isPointCoveredByGeometryFallback(geometry, longitude, latitude) {
+  if (!geometry) return false;
+  try {
+    const pt = turf.point([longitude, latitude]);
+    let featureGeom = geometry;
+    if (geometry.type === "Feature" && geometry.geometry) {
+      featureGeom = geometry.geometry;
+    }
+    if (featureGeom.type === "Polygon" || featureGeom.type === "MultiPolygon") {
+      return turf.booleanPointInPolygon(pt, featureGeom, { ignoreBoundary: false });
+    }
+  } catch (_) {
+  }
+  return false;
+}
+async function calculateSpatialDistanceMetersPostGIS(longitude, latitude, hubLngLat = STORE_HUB_LOCATION) {
+  const cacheKey = `${hubLngLat[0]},${hubLngLat[1]}:${longitude},${latitude}`;
+  if (spatialDistCache.has(cacheKey)) {
+    return spatialDistCache.get(cacheKey);
+  }
+  const hubEWKT = `SRID=4326;POINT(${hubLngLat[0]} ${hubLngLat[1]})`;
+  const pointEWKT = `SRID=4326;POINT(${longitude} ${latitude})`;
+  try {
+    const { data, error } = await supabase.rpc("st_distance", {
+      geog1: hubEWKT,
+      geog2: pointEWKT,
+      use_spheroid: true
+    });
+    if (!error && typeof data === "number") {
+      const rounded = Math.round(data);
+      spatialDistCache.set(cacheKey, rounded);
+      return rounded;
+    }
+  } catch (_) {
+  }
+  const fallback = calculateSpatialDistanceMetersFallback(longitude, latitude, hubLngLat);
+  spatialDistCache.set(cacheKey, fallback);
+  return fallback;
+}
+function calculateSpatialDistanceMetersFallback(longitude, latitude, hubLngLat = STORE_HUB_LOCATION) {
+  try {
+    const from = turf.point(hubLngLat);
+    const to = turf.point([longitude, latitude]);
+    return Math.round(turf.distance(from, to, { units: "meters" }));
+  } catch (_) {
+    return 0;
+  }
+}
+var BACKUP_FILE = import_path2.default.join(process.cwd(), "v2_geofencing_store.json");
+function loadBackupStore() {
+  const defaultData = {
+    service_areas: [
+      {
+        id: "sa-00000000-0000-0000-0000-000000000001",
+        name: "Frosty Bite Odisha Service Region",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.7, 20.15],
+                [86.05, 20.15],
+                [86.05, 20.65],
+                [85.7, 20.65],
+                [85.7, 20.15]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    ],
+    cities: [
+      {
+        id: "city-cuttack-001",
+        name: "Cuttack",
+        slug: "cuttack",
+        state: "Odisha",
+        country: "India",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.8, 20.4],
+                [85.96, 20.4],
+                [85.96, 20.53],
+                [85.8, 20.53],
+                [85.8, 20.4]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "city-bhubaneswar-002",
+        name: "Bhubaneswar",
+        slug: "bhubaneswar",
+        state: "Odisha",
+        country: "India",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.75, 20.22],
+                [85.92, 20.22],
+                [85.92, 20.38],
+                [85.75, 20.38],
+                [85.75, 20.22]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "city-puri-003",
+        name: "Puri",
+        slug: "puri",
+        state: "Odisha",
+        country: "India",
+        is_active: false,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.78, 19.78],
+                [85.88, 19.78],
+                [85.88, 19.86],
+                [85.78, 19.86],
+                [85.78, 19.78]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    ],
+    pincodes: [
+      {
+        id: "pin-753001",
+        city_id: "city-cuttack-001",
+        pincode: "753001",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.85, 20.44],
+                [85.92, 20.44],
+                [85.92, 20.5],
+                [85.85, 20.5],
+                [85.85, 20.44]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "pin-753012",
+        city_id: "city-cuttack-001",
+        pincode: "753012",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.8, 20.41],
+                [85.86, 20.41],
+                [85.86, 20.46],
+                [85.8, 20.46],
+                [85.8, 20.41]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "pin-753003",
+        city_id: "city-cuttack-001",
+        pincode: "753003",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.82, 20.44],
+                [85.9, 20.44],
+                [85.9, 20.52],
+                [85.82, 20.52],
+                [85.82, 20.44]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "pin-751001",
+        city_id: "city-bhubaneswar-002",
+        pincode: "751001",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.8, 20.25],
+                [85.88, 20.25],
+                [85.88, 20.33],
+                [85.8, 20.33],
+                [85.8, 20.25]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "pin-751024",
+        city_id: "city-bhubaneswar-002",
+        pincode: "751024",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.78, 20.32],
+                [85.86, 20.32],
+                [85.86, 20.38],
+                [85.78, 20.38],
+                [85.78, 20.32]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "pin-751003",
+        city_id: "city-bhubaneswar-002",
+        pincode: "751003",
+        is_active: true,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.82, 20.27],
+                [85.9, 20.27],
+                [85.9, 20.35],
+                [85.82, 20.35],
+                [85.82, 20.27]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    ],
+    localities: [
+      {
+        id: "loc-jobra-001",
+        city_id: "city-cuttack-001",
+        pincode_id: "pin-753001",
+        name: "Jobra",
+        slug: "jobra",
+        is_active: true,
+        delivery_fee: 40,
+        minimum_order: 149,
+        estimated_delivery_minutes: 30,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.86, 20.44],
+                [85.92, 20.44],
+                [85.92, 20.49],
+                [85.86, 20.49],
+                [85.86, 20.44]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-buxi-002",
+        city_id: "city-cuttack-001",
+        pincode_id: "pin-753001",
+        name: "Buxi Bazaar",
+        slug: "buxi-bazaar",
+        is_active: true,
+        delivery_fee: 50,
+        minimum_order: 199,
+        estimated_delivery_minutes: 35,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.84, 20.43],
+                [85.88, 20.43],
+                [85.88, 20.48],
+                [85.84, 20.48],
+                [85.84, 20.43]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-badambadi-003",
+        city_id: "city-cuttack-001",
+        pincode_id: "pin-753012",
+        name: "Badambadi",
+        slug: "badambadi",
+        is_active: true,
+        delivery_fee: 40,
+        minimum_order: 149,
+        estimated_delivery_minutes: 30,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.81, 20.41],
+                [85.86, 20.41],
+                [85.86, 20.45],
+                [85.81, 20.45],
+                [85.81, 20.41]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-cda-004",
+        city_id: "city-cuttack-001",
+        pincode_id: "pin-753012",
+        name: "CDA Sector 6",
+        slug: "cda-sector-6",
+        is_active: true,
+        delivery_fee: 40,
+        minimum_order: 149,
+        estimated_delivery_minutes: 30,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.8, 20.46],
+                [85.86, 20.46],
+                [85.86, 20.52],
+                [85.8, 20.52],
+                [85.8, 20.46]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-saheed-nagar-005",
+        city_id: "city-bhubaneswar-002",
+        pincode_id: "pin-751001",
+        name: "Saheed Nagar",
+        slug: "saheed-nagar",
+        is_active: true,
+        delivery_fee: 40,
+        minimum_order: 149,
+        estimated_delivery_minutes: 30,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.81, 20.27],
+                [85.87, 20.27],
+                [85.87, 20.32],
+                [85.81, 20.32],
+                [85.81, 20.27]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-patia-006",
+        city_id: "city-bhubaneswar-002",
+        pincode_id: "pin-751024",
+        name: "Patia",
+        slug: "patia",
+        is_active: true,
+        delivery_fee: 45,
+        minimum_order: 179,
+        estimated_delivery_minutes: 35,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.78, 20.32],
+                [85.85, 20.32],
+                [85.85, 20.38],
+                [85.78, 20.38],
+                [85.78, 20.32]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      {
+        id: "loc-jayadev-007",
+        city_id: "city-bhubaneswar-002",
+        pincode_id: "pin-751003",
+        name: "Jayadev Vihar",
+        slug: "jayadev-vihar",
+        is_active: true,
+        delivery_fee: 40,
+        minimum_order: 149,
+        estimated_delivery_minutes: 30,
+        boundary: {
+          type: "MultiPolygon",
+          coordinates: [
+            [
+              [
+                [85.8, 20.28],
+                [85.85, 20.28],
+                [85.85, 20.33],
+                [85.8, 20.33],
+                [85.8, 20.28]
+              ]
+            ]
+          ]
+        },
+        created_at: (/* @__PURE__ */ new Date()).toISOString(),
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    ]
+  };
+  try {
+    if (import_fs2.default.existsSync(BACKUP_FILE)) {
+      const raw = import_fs2.default.readFileSync(BACKUP_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      return {
+        service_areas: parsed.service_areas || defaultData.service_areas,
+        cities: parsed.cities || defaultData.cities,
+        pincodes: parsed.pincodes || defaultData.pincodes,
+        localities: parsed.localities || defaultData.localities
+      };
+    }
+  } catch (err) {
+    console.warn("[V2Service] Failed to read backup file, using default:", err);
+  }
+  saveBackupStore(defaultData);
+  return defaultData;
+}
+function saveBackupStore(data) {
+  try {
+    import_fs2.default.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[V2Service] Failed to save backup store:", err);
+  }
+}
+function normalizeToMultiPolygon(geometry) {
+  if (!geometry) return null;
+  let geo = geometry;
+  if (geometry.type === "Feature" && geometry.geometry) {
+    geo = geometry.geometry;
+  }
+  if (geo.type === "Polygon") {
+    if (!Array.isArray(geo.coordinates) || geo.coordinates.length === 0) return null;
+    return {
+      type: "MultiPolygon",
+      coordinates: [geo.coordinates]
+    };
+  }
+  if (geo.type === "MultiPolygon") {
+    if (!Array.isArray(geo.coordinates) || geo.coordinates.length === 0) return null;
+    return geo;
+  }
+  return null;
+}
+var supabaseSchemaMissing = false;
+var V2GeofencingService = {
+  // --------------------------------------------------------------------------
+  // SERVICE AREA
+  // --------------------------------------------------------------------------
+  async getServiceArea() {
+    const store = loadBackupStore();
+    const defaultSa = store.service_areas[0];
+    if (!supabaseSchemaMissing) {
+      try {
+        const { data, error } = await supabase.from("service_areas").select("*").limit(1).maybeSingle();
+        if (!error && data) {
+          return {
+            ...defaultSa,
+            ...data,
+            boundary: data.boundary || defaultSa.boundary,
+            is_active: typeof data.is_active === "boolean" ? data.is_active : defaultSa.is_active
+          };
+        }
+        if (error && error.code === "PGRST205") supabaseSchemaMissing = true;
+      } catch (_) {
+        supabaseSchemaMissing = true;
+      }
+    }
+    return defaultSa;
+  },
+  async updateServiceArea(updates) {
+    const payload = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+    if (typeof updates.is_active === "boolean") payload.is_active = updates.is_active;
+    if (updates.name) payload.name = updates.name;
+    if (updates.boundary !== void 0) {
+      payload.boundary = normalizeToMultiPolygon(updates.boundary);
+    }
+    if (!supabaseSchemaMissing) {
+      try {
+        const current = await this.getServiceArea();
+        const { data, error } = await supabase.from("service_areas").update(payload).eq("id", current.id).select().single();
+        if (!error && data) {
+          const store2 = loadBackupStore();
+          store2.service_areas[0] = data;
+          saveBackupStore(store2);
+          return data;
+        }
+      } catch (_) {
+      }
+    }
+    const store = loadBackupStore();
+    store.service_areas[0] = {
+      ...store.service_areas[0],
+      ...payload
+    };
+    saveBackupStore(store);
+    return store.service_areas[0];
+  },
+  // --------------------------------------------------------------------------
+  // CITIES
+  // --------------------------------------------------------------------------
+  async getCities() {
+    const backupCities = loadBackupStore().cities;
+    if (!supabaseSchemaMissing) {
+      try {
+        const { data, error } = await supabase.from("cities").select("*").order("name", { ascending: true });
+        if (!error && data && data.length > 0) {
+          return data.map((city) => {
+            const match = backupCities.find((b) => b.slug === city.slug || b.name.toLowerCase() === city.name?.toLowerCase());
+            return {
+              ...city,
+              boundary: city.boundary || match?.boundary || backupCities[0]?.boundary,
+              is_active: typeof city.is_active === "boolean" ? city.is_active : true
+            };
+          });
+        }
+        if (error && error.code === "PGRST205") supabaseSchemaMissing = true;
+      } catch (_) {
+        supabaseSchemaMissing = true;
+      }
+    }
+    return backupCities;
+  },
+  async createCity(cityData) {
+    const slug = cityData.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+    const newCity = {
+      name: cityData.name.trim(),
+      slug,
+      state: cityData.state?.trim() || "Odisha",
+      country: cityData.country?.trim() || "India",
+      is_active: cityData.is_active !== false,
+      boundary: normalizeToMultiPolygon(cityData.boundary),
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    try {
+      const { data, error } = await supabase.from("cities").insert([newCity]).select().single();
+      if (!error && data) {
+        const store2 = loadBackupStore();
+        store2.cities.push(data);
+        saveBackupStore(store2);
+        return data;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    const created = {
+      id: `city-${Date.now()}`,
+      ...newCity
+    };
+    store.cities.push(created);
+    saveBackupStore(store);
+    return created;
+  },
+  async updateCity(id, updates) {
+    const payload = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+    if (updates.name !== void 0) {
+      payload.name = updates.name.trim();
+      payload.slug = updates.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+    }
+    if (updates.state !== void 0) payload.state = updates.state;
+    if (updates.country !== void 0) payload.country = updates.country;
+    if (typeof updates.is_active === "boolean") payload.is_active = updates.is_active;
+    if (updates.boundary !== void 0) payload.boundary = normalizeToMultiPolygon(updates.boundary);
+    try {
+      const { data, error } = await supabase.from("cities").update(payload).eq("id", id).select().single();
+      if (!error && data) {
+        const store2 = loadBackupStore();
+        const idx2 = store2.cities.findIndex((c) => c.id === id);
+        if (idx2 !== -1) store2.cities[idx2] = data;
+        saveBackupStore(store2);
+        return data;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    const idx = store.cities.findIndex((c) => c.id === id);
+    if (idx === -1) throw new Error(`City with ID ${id} not found`);
+    store.cities[idx] = { ...store.cities[idx], ...payload };
+    saveBackupStore(store);
+    return store.cities[idx];
+  },
+  async deleteCity(id) {
+    try {
+      const { error } = await supabase.from("cities").delete().eq("id", id);
+      if (!error) {
+        const store2 = loadBackupStore();
+        store2.cities = store2.cities.filter((c) => c.id !== id);
+        store2.pincodes = store2.pincodes.filter((p) => p.city_id !== id);
+        store2.localities = store2.localities.filter((l) => l.city_id !== id);
+        saveBackupStore(store2);
+        return true;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    store.cities = store.cities.filter((c) => c.id !== id);
+    store.pincodes = store.pincodes.filter((p) => p.city_id !== id);
+    store.localities = store.localities.filter((l) => l.city_id !== id);
+    saveBackupStore(store);
+    return true;
+  },
+  // --------------------------------------------------------------------------
+  // PINCODES
+  // --------------------------------------------------------------------------
+  async getPincodes(cityId) {
+    const backupPins = loadBackupStore().pincodes;
+    if (!supabaseSchemaMissing) {
+      try {
+        let query = supabase.from("pincodes").select("*").order("pincode", { ascending: true });
+        if (cityId) query = query.eq("city_id", cityId);
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data.map((pin) => {
+            const match = backupPins.find((b) => b.pincode === pin.pincode);
+            return {
+              ...pin,
+              boundary: pin.boundary || match?.boundary || backupPins[0]?.boundary,
+              is_active: typeof pin.is_active === "boolean" ? pin.is_active : true
+            };
+          });
+        }
+        if (error && error.code === "PGRST205") supabaseSchemaMissing = true;
+      } catch (_) {
+        supabaseSchemaMissing = true;
+      }
+    }
+    const store = loadBackupStore();
+    if (cityId) return store.pincodes.filter((p) => p.city_id === cityId);
+    return store.pincodes;
+  },
+  async createPincode(pinData) {
+    const cleanPin = pinData.pincode.trim();
+    if (!/^[0-9]{6}$/.test(cleanPin)) {
+      throw new Error("Pincode must be exactly 6 numeric digits");
+    }
+    const newPin = {
+      city_id: pinData.city_id,
+      pincode: cleanPin,
+      is_active: pinData.is_active !== false,
+      boundary: normalizeToMultiPolygon(pinData.boundary),
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    try {
+      const { data, error } = await supabase.from("pincodes").insert([newPin]).select().single();
+      if (!error && data) {
+        const store2 = loadBackupStore();
+        store2.pincodes.push(data);
+        saveBackupStore(store2);
+        return data;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    const created = {
+      id: `pin-${cleanPin}-${Date.now()}`,
+      ...newPin
+    };
+    store.pincodes.push(created);
+    saveBackupStore(store);
+    return created;
+  },
+  async updatePincode(id, updates) {
+    const payload = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+    if (updates.pincode !== void 0) {
+      const cleanPin = updates.pincode.trim();
+      if (!/^[0-9]{6}$/.test(cleanPin)) {
+        throw new Error("Pincode must be exactly 6 numeric digits");
+      }
+      payload.pincode = cleanPin;
+    }
+    if (typeof updates.is_active === "boolean") payload.is_active = updates.is_active;
+    if (updates.boundary !== void 0) payload.boundary = normalizeToMultiPolygon(updates.boundary);
+    if (!supabaseSchemaMissing) {
+      try {
+        const { data, error } = await supabase.from("pincodes").update(payload).eq("id", id).select().single();
+        if (!error && data) {
+          const store2 = loadBackupStore();
+          const idx2 = store2.pincodes.findIndex((p) => p.id === id);
+          if (idx2 !== -1) store2.pincodes[idx2] = data;
+          saveBackupStore(store2);
+          return data;
+        }
+      } catch (_) {
+      }
+    }
+    const store = loadBackupStore();
+    const idx = store.pincodes.findIndex((p) => p.id === id);
+    if (idx === -1) throw new Error(`Pincode with ID ${id} not found`);
+    store.pincodes[idx] = { ...store.pincodes[idx], ...payload };
+    saveBackupStore(store);
+    return store.pincodes[idx];
+  },
+  async deletePincode(id) {
+    try {
+      const { error } = await supabase.from("pincodes").delete().eq("id", id);
+      if (!error) {
+        const store2 = loadBackupStore();
+        store2.pincodes = store2.pincodes.filter((p) => p.id !== id);
+        saveBackupStore(store2);
+        return true;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    store.pincodes = store.pincodes.filter((p) => p.id !== id);
+    saveBackupStore(store);
+    return true;
+  },
+  // --------------------------------------------------------------------------
+  // LOCALITIES
+  // --------------------------------------------------------------------------
+  async getLocalities(cityId, pincodeId) {
+    const backupLocs = loadBackupStore().localities;
+    if (!supabaseSchemaMissing) {
+      try {
+        let query = supabase.from("localities").select("*").order("name", { ascending: true });
+        if (cityId) query = query.eq("city_id", cityId);
+        if (pincodeId) query = query.eq("pincode_id", pincodeId);
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          return data.map((loc) => {
+            const match = backupLocs.find((b) => b.slug === loc.slug || b.name.toLowerCase() === loc.name?.toLowerCase());
+            return {
+              ...loc,
+              boundary: loc.boundary || match?.boundary || backupLocs[0]?.boundary,
+              is_active: typeof loc.is_active === "boolean" ? loc.is_active : true
+            };
+          });
+        }
+        if (error && error.code === "PGRST205") supabaseSchemaMissing = true;
+      } catch (_) {
+        supabaseSchemaMissing = true;
+      }
+    }
+    const store = loadBackupStore();
+    let res = store.localities;
+    if (cityId) res = res.filter((l) => l.city_id === cityId);
+    if (pincodeId) res = res.filter((l) => l.pincode_id === pincodeId);
+    return res;
+  },
+  async createLocality(locData) {
+    const slug = locData.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+    const newLoc = {
+      city_id: locData.city_id,
+      pincode_id: locData.pincode_id || null,
+      name: locData.name.trim(),
+      slug,
+      is_active: locData.is_active !== false,
+      delivery_fee: Math.max(0, Number(locData.delivery_fee) || 0),
+      minimum_order: Math.max(0, Number(locData.minimum_order) || 0),
+      estimated_delivery_minutes: locData.estimated_delivery_minutes ? Math.max(1, Number(locData.estimated_delivery_minutes)) : 30,
+      boundary: normalizeToMultiPolygon(locData.boundary),
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    try {
+      const { data, error } = await supabase.from("localities").insert([newLoc]).select().single();
+      if (!error && data) {
+        const store2 = loadBackupStore();
+        store2.localities.push(data);
+        saveBackupStore(store2);
+        return data;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    const created = {
+      id: `loc-${Date.now()}`,
+      ...newLoc
+    };
+    store.localities.push(created);
+    saveBackupStore(store);
+    return created;
+  },
+  async updateLocality(id, updates) {
+    const payload = { updated_at: (/* @__PURE__ */ new Date()).toISOString() };
+    if (updates.name !== void 0) {
+      payload.name = updates.name.trim();
+      payload.slug = updates.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+    }
+    if (updates.pincode_id !== void 0) payload.pincode_id = updates.pincode_id;
+    if (typeof updates.is_active === "boolean") payload.is_active = updates.is_active;
+    if (updates.delivery_fee !== void 0) payload.delivery_fee = Math.max(0, Number(updates.delivery_fee));
+    if (updates.minimum_order !== void 0) payload.minimum_order = Math.max(0, Number(updates.minimum_order));
+    if (updates.estimated_delivery_minutes !== void 0) {
+      payload.estimated_delivery_minutes = updates.estimated_delivery_minutes ? Math.max(1, Number(updates.estimated_delivery_minutes)) : null;
+    }
+    if (updates.boundary !== void 0) payload.boundary = normalizeToMultiPolygon(updates.boundary);
+    try {
+      const { data, error } = await supabase.from("localities").update(payload).eq("id", id).select().single();
+      if (!error && data) {
+        const store2 = loadBackupStore();
+        const idx2 = store2.localities.findIndex((l) => l.id === id);
+        if (idx2 !== -1) store2.localities[idx2] = data;
+        saveBackupStore(store2);
+        return data;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    const idx = store.localities.findIndex((l) => l.id === id);
+    if (idx === -1) throw new Error(`Locality with ID ${id} not found`);
+    store.localities[idx] = { ...store.localities[idx], ...payload };
+    saveBackupStore(store);
+    return store.localities[idx];
+  },
+  async deleteLocality(id) {
+    try {
+      const { error } = await supabase.from("localities").delete().eq("id", id);
+      if (!error) {
+        const store2 = loadBackupStore();
+        store2.localities = store2.localities.filter((l) => l.id !== id);
+        saveBackupStore(store2);
+        return true;
+      }
+    } catch (_) {
+    }
+    const store = loadBackupStore();
+    store.localities = store.localities.filter((l) => l.id !== id);
+    saveBackupStore(store);
+    return true;
+  },
+  // --------------------------------------------------------------------------
+  // POSTGIS SERVICEABILITY ENGINE
+  // --------------------------------------------------------------------------
+  async checkServiceability(req) {
+    const startTime = Date.now();
+    const lat = Number(req.latitude);
+    const lng = Number(req.longitude);
+    if (req.latitude === void 0 || req.latitude === null || req.longitude === void 0 || req.longitude === null || typeof lat !== "number" || typeof lng !== "number" || isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return {
+        status: 400,
+        data: {
+          serviceable: false,
+          reason: "INVALID_COORDINATES",
+          message: "Invalid or missing latitude/longitude coordinates."
+        }
+      };
+    }
+    try {
+      if (!supabaseSchemaMissing) {
+        const { error } = await supabase.from("cities").select("id").limit(1);
+        if (error) {
+          console.warn("[V2 Geofencing Service] Supabase tables unavailable, switching to high-availability local storage fallback:", error.message);
+          supabaseSchemaMissing = true;
+        }
+      }
+    } catch (dbErr) {
+      console.warn("[V2 Geofencing Service] Supabase connection error, switching to resilient fallback:", dbErr.message);
+      supabaseSchemaMissing = true;
+    }
+    const serviceArea = await this.getServiceArea();
+    const cities = await this.getCities();
+    const pincodes = await this.getPincodes();
+    const localities = await this.getLocalities();
+    if (!serviceArea || serviceArea.is_active === false) {
+      logServiceabilityDev(lng, lat, null, null, null, false, "OUTSIDE_GLOBAL_SERVICE_AREA", startTime);
+      return {
+        status: 200,
+        data: {
+          serviceable: false,
+          reason: "OUTSIDE_GLOBAL_SERVICE_AREA",
+          message: "We currently don't deliver to this area."
+        }
+      };
+    }
+    if (serviceArea.boundary) {
+      const isCoveredGlobal = await isPointCoveredByGeometryPostGIS(serviceArea.boundary, lng, lat);
+      if (!isCoveredGlobal) {
+        logServiceabilityDev(lng, lat, null, null, null, false, "OUTSIDE_GLOBAL_SERVICE_AREA", startTime);
+        return {
+          status: 200,
+          data: {
+            serviceable: false,
+            reason: "OUTSIDE_GLOBAL_SERVICE_AREA",
+            message: "We currently don't deliver to this area."
+          }
+        };
+      }
+    }
+    let matchedCity = null;
+    const activeCities = cities.filter((c) => c.is_active);
+    for (const city of activeCities) {
+      if (city.boundary) {
+        if (await isPointCoveredByGeometryPostGIS(city.boundary, lng, lat)) {
+          matchedCity = city;
+          break;
+        }
+      }
+    }
+    if (!matchedCity && activeCities.length > 0) {
+      for (const city of activeCities) {
+        const cityLocs = localities.filter((l) => l.city_id === city.id && l.is_active && l.boundary);
+        for (const loc of cityLocs) {
+          if (await isPointCoveredByGeometryPostGIS(loc.boundary, lng, lat)) {
+            matchedCity = city;
+            break;
+          }
+        }
+        if (matchedCity) break;
+        const cityPins = pincodes.filter((p) => p.city_id === city.id && p.is_active && p.boundary);
+        for (const pin of cityPins) {
+          if (await isPointCoveredByGeometryPostGIS(pin.boundary, lng, lat)) {
+            matchedCity = city;
+            break;
+          }
+        }
+        if (matchedCity) break;
+      }
+      if (!matchedCity && activeCities.length > 0) {
+        matchedCity = activeCities[0];
+      }
+    }
+    if (!matchedCity) {
+      logServiceabilityDev(lng, lat, null, null, null, false, "OUTSIDE_CITY", startTime);
+      return {
+        status: 200,
+        data: {
+          serviceable: false,
+          reason: "OUTSIDE_CITY",
+          message: "We currently don't deliver to this area."
+        }
+      };
+    }
+    const cityPincodes = pincodes.filter((p) => p.city_id === matchedCity.id);
+    let matchedPincode = null;
+    for (const pin of cityPincodes) {
+      if (pin.boundary) {
+        if (await isPointCoveredByGeometryPostGIS(pin.boundary, lng, lat)) {
+          if (!pin.is_active) {
+            logServiceabilityDev(lng, lat, matchedCity.name, pin.pincode, null, false, "PINCODE_INACTIVE", startTime);
+            return {
+              status: 200,
+              data: {
+                serviceable: false,
+                reason: "PINCODE_INACTIVE",
+                message: "We currently don't deliver to this area."
+              }
+            };
+          }
+          matchedPincode = pin;
+          break;
+        }
+      }
+    }
+    if (!matchedPincode) {
+      const activePin = cityPincodes.find((p) => p.is_active);
+      if (activePin) {
+        matchedPincode = activePin;
+      } else {
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        matchedPincode = {
+          id: `pin-${matchedCity.name.toLowerCase().includes("bhubaneswar") ? "751001" : "753001"}`,
+          city_id: matchedCity.id,
+          pincode: matchedCity.name.toLowerCase().includes("bhubaneswar") ? "751001" : "753001",
+          is_active: true,
+          created_at: now,
+          updated_at: now
+        };
+      }
+    }
+    const cityLocalities = localities.filter((l) => l.city_id === matchedCity.id);
+    let matchedLocality = null;
+    let matchingInactiveLocalityFound = false;
+    for (const loc of cityLocalities) {
+      if (loc.boundary) {
+        if (await isPointCoveredByGeometryPostGIS(loc.boundary, lng, lat)) {
+          if (!loc.is_active) {
+            matchingInactiveLocalityFound = true;
+            continue;
+          }
+          matchedLocality = loc;
+          break;
+        }
+      }
+    }
+    if (!matchedLocality) {
+      if (matchingInactiveLocalityFound) {
+        logServiceabilityDev(lng, lat, matchedCity.name, matchedPincode?.pincode || null, null, false, "LOCALITY_INACTIVE", startTime);
+        return {
+          status: 200,
+          data: {
+            serviceable: false,
+            reason: "LOCALITY_INACTIVE",
+            message: "We currently don't deliver to this area."
+          }
+        };
+      }
+      const activeLocality = cityLocalities.find((l) => l.is_active);
+      if (activeLocality) {
+        matchedLocality = activeLocality;
+      } else {
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        matchedLocality = {
+          id: `loc-${matchedCity.slug || "default"}-center`,
+          city_id: matchedCity.id,
+          name: `${matchedCity.name} Central Zone`,
+          slug: `${matchedCity.slug || "default"}-central`,
+          is_active: true,
+          delivery_fee: 40,
+          minimum_order: 149,
+          estimated_delivery_minutes: 30,
+          created_at: now,
+          updated_at: now
+        };
+      }
+    }
+    if (!matchedPincode && matchedLocality.pincode_id) {
+      const linkedPin = pincodes.find((p) => p.id === matchedLocality.pincode_id);
+      if (linkedPin) {
+        if (!linkedPin.is_active) {
+          logServiceabilityDev(lng, lat, matchedCity.name, linkedPin.pincode, matchedLocality.name, false, "PINCODE_INACTIVE", startTime);
+          return {
+            status: 200,
+            data: {
+              serviceable: false,
+              reason: "PINCODE_INACTIVE",
+              message: "We currently don't deliver to this area."
+            }
+          };
+        }
+        matchedPincode = linkedPin;
+      }
+    }
+    const distanceMeters = await calculateSpatialDistanceMetersPostGIS(lng, lat);
+    logServiceabilityDev(
+      lng,
+      lat,
+      matchedCity.name,
+      matchedPincode?.pincode || "753001",
+      matchedLocality.name,
+      true,
+      "SERVICEABLE",
+      startTime
+    );
+    return {
+      status: 200,
+      data: {
+        serviceable: true,
+        city: {
+          id: matchedCity.id,
+          name: matchedCity.name
+        },
+        pincode: {
+          id: matchedPincode?.id || "N/A",
+          pincode: matchedPincode?.pincode || "753001"
+        },
+        locality: {
+          id: matchedLocality.id,
+          name: matchedLocality.name
+        },
+        deliveryFee: matchedLocality.delivery_fee,
+        minimumOrder: matchedLocality.minimum_order,
+        estimatedDeliveryMinutes: matchedLocality.estimated_delivery_minutes || 30,
+        distanceMeters
+      }
+    };
+  }
+};
+function logServiceabilityDev(lng, lat, city, pincode, locality, serviceable, reason, startTime) {
+  if (process.env.NODE_ENV !== "production") {
+    const durationMs = Date.now() - startTime;
+    console.log("[PostGIS Serviceability Engine]", {
+      coordinates: { lat, lng },
+      matched: { city, pincode, locality },
+      result: { serviceable, reason },
+      queryDurationMs: durationMs
+    });
+  }
+}
+
 // server/routes/validateaddress.routes.ts
-var router8 = express6.Router();
-var firebaseConfig3 = {};
+var router6 = import_express6.default.Router();
+var firebaseConfig = {};
 try {
-  const configPath = path4.join(process.cwd(), "firebase-applet-config.json");
-  if (fs4.existsSync(configPath)) {
-    firebaseConfig3 = JSON.parse(fs4.readFileSync(configPath, "utf8"));
+  const configPath = import_path3.default.join(process.cwd(), "firebase-applet-config.json");
+  if (import_fs3.default.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(import_fs3.default.readFileSync(configPath, "utf8"));
   }
 } catch (e) {
   console.warn("[ValidateAddressRoutes] Could not load firebase-applet-config.json:", e);
 }
-var firebaseProjectId3 = firebaseConfig3.projectId || "frostybite07";
-var firebaseDatabaseId3 = firebaseConfig3.firestoreDatabaseId || "ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c";
-var defaultZones2 = [
-  {
-    id: "zone_cuttack",
-    city_name: "Cuttack",
-    latitude: 20.4625,
-    longitude: 85.8828,
-    radius_meters: 12e3,
-    is_active: true
-  },
-  {
-    id: "zone_bhubaneswar",
-    city_name: "Bhubaneswar",
-    latitude: 20.2961,
-    longitude: 85.8245,
-    radius_meters: 15e3,
-    is_active: true
-  },
-  {
-    id: "zone_puri",
-    city_name: "Puri",
-    latitude: 19.8134,
-    longitude: 85.8312,
-    radius_meters: 1e4,
-    is_active: false
-  }
-];
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-function fromFirestoreFields3(fields) {
+var firebaseProjectId = firebaseConfig.projectId || "frostybite07";
+var firebaseDatabaseId = firebaseConfig.firestoreDatabaseId || "ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c";
+function fromFirestoreFields(fields) {
   const result = {};
   if (!fields) return result;
   for (const [key, valObj] of Object.entries(fields)) {
@@ -4644,18 +4171,18 @@ function fromFirestoreFields3(fields) {
   return result;
 }
 async function fetchConfigFromFirestoreREST() {
-  const apiKey = firebaseConfig3.apiKey;
+  const apiKey = firebaseConfig.apiKey;
   if (!apiKey) {
     throw new Error("Web API Key not found");
   }
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId3}/databases/${firebaseDatabaseId3}/documents/settings/appConfig?key=${apiKey}`;
+  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/${firebaseDatabaseId}/documents/settings/appConfig?key=${apiKey}`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`REST API returned status ${response.status}`);
   }
   const docData = await response.json();
   if (docData && docData.fields) {
-    return fromFirestoreFields3(docData.fields);
+    return fromFirestoreFields(docData.fields);
   }
   return null;
 }
@@ -4674,9 +4201,9 @@ async function getAppConfig() {
       console.warn("[ValidateAddressRoutes] getAppConfig Supabase fetch failed:", sbErr.message);
     }
     try {
-      const backupPath2 = path4.join(process.cwd(), "appConfig_backup.json");
-      if (fs4.existsSync(backupPath2)) {
-        return JSON.parse(fs4.readFileSync(backupPath2, "utf8"));
+      const backupPath2 = import_path3.default.join(process.cwd(), "appConfig_backup.json");
+      if (import_fs3.default.existsSync(backupPath2)) {
+        return JSON.parse(import_fs3.default.readFileSync(backupPath2, "utf8"));
       }
     } catch (fsErr) {
     }
@@ -4706,202 +4233,64 @@ async function getAppConfig() {
     defaultDeliveryTime: 25
   };
 }
-async function fetchZonesFromFirestoreREST2() {
-  const apiKey = firebaseConfig3.apiKey;
-  if (!apiKey) return null;
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId3}/databases/${firebaseDatabaseId3}/documents/service_zones?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errText = await response.text();
-      let displayMessage = errText;
-      try {
-        const parsed = JSON.parse(errText);
-        if (parsed && parsed.error) {
-          displayMessage = `Code ${parsed.error.code || response.status} - ${parsed.error.message || ""} (${parsed.error.status || ""})`;
-        }
-      } catch (parseErr) {
-        displayMessage = errText.replace(/"error":\s*{/g, '"err_info": {');
-      }
-      console.log(`[ValidateAddressRoutes] REST call non-ok status: ${response.status} ${response.statusText}. Error detail: ${displayMessage}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data && data.documents) {
-      return data.documents.map((doc) => {
-        const parts = doc.name.split("/");
-        const id = parts[parts.length - 1];
-        const parsed = fromFirestoreFields3(doc.fields);
-        return { id, ...parsed };
-      });
-    }
-    return [];
-  } catch (error) {
-    console.log("[ValidateAddressRoutes] REST call exception:", error.message);
-    return null;
-  }
-}
-async function getServiceZones() {
-  try {
-    const { data: sbData, error: sbErr } = await supabase.from("service_zones").select("*");
-    if (!sbErr && sbData && sbData.length > 0) {
-      return sbData;
-    }
-  } catch (supabaseErr) {
-    console.warn("[ValidateAddressRoutes] Supabase service_zones retrieve failed:", supabaseErr.message);
-  }
-  try {
-    const restZones = await fetchZonesFromFirestoreREST2();
-    if (restZones && restZones.length > 0) return restZones;
-  } catch (e) {
-    console.log("[ValidateAddressRoutes] Firestore REST failed:", e.message);
-  }
-  try {
-    const db = getAdminDb();
-    const snapshot = await db.collection("service_zones").get();
-    if (!snapshot.empty) {
-      const listSnap = [];
-      snapshot.forEach((doc) => {
-        listSnap.push({ id: doc.id, ...doc.data() });
-      });
-      return listSnap;
-    }
-  } catch (e) {
-    if (e.message && (e.message.includes("PERMISSION_DENIED") || e.message.includes("7") || e.message.toLowerCase().includes("permission"))) {
-      console.log("[ValidateAddressRoutes] Info: Firestore Admin SDK holds no direct IAM permissions for this custom database in the current ambient workspace. Falling back gracefully to client REST or local backups.");
-    } else {
-      console.log("[ValidateAddressRoutes] Firestore Admin SDK failed:", e.message);
-    }
-  }
-  return defaultZones2;
-}
-var defaultPincodes2 = [
-  "753001",
-  "753002",
-  "753003",
-  "753004",
-  "753005",
-  "753006",
-  "753007",
-  "753008",
-  "753009",
-  "753010",
-  "753011",
-  "753012",
-  "753013",
-  "753014",
-  "753015"
-];
-async function fetchPincodesFromFirestoreREST2() {
-  const apiKey = firebaseConfig3.apiKey;
-  if (!apiKey) return null;
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId3}/databases/${firebaseDatabaseId3}/documents/service_pincodes?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.log(`[ValidateAddressRoutes] REST pincodes fetch inactive: ${response.status}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data && data.documents) {
-      return data.documents.map((doc) => {
-        const parts = doc.name.split("/");
-        const id = parts[parts.length - 1];
-        const parsed = fromFirestoreFields3(doc.fields);
-        return { id, ...parsed };
-      });
-    }
-    return [];
-  } catch (error) {
-    console.log("[ValidateAddressRoutes] REST pincodes call exception:", error.message);
-    return null;
-  }
-}
-async function getServicePincodes() {
-  let list = [];
-  try {
-    const { data: sbData, error: sbErr } = await supabase.from("service_pincodes").select("*");
-    if (!sbErr && sbData && sbData.length > 0) {
-      list = sbData;
-    }
-  } catch (supabaseErr) {
-    console.warn("[ValidateAddressRoutes] Supabase service_pincodes retrieve failed:", supabaseErr.message);
-  }
-  if (list.length === 0) {
-    try {
-      const restPincodes = await fetchPincodesFromFirestoreREST2();
-      if (restPincodes && restPincodes.length > 0) {
-        list = restPincodes;
-      }
-    } catch (e) {
-      console.log("[ValidateAddressRoutes] Firestore REST pincodes failed:", e.message);
-    }
-  }
-  if (list.length === 0) {
-    try {
-      const db = getAdminDb();
-      const snapshot = await db.collection("service_pincodes").get();
-      if (!snapshot.empty) {
-        const listSnap = [];
-        snapshot.forEach((doc) => {
-          listSnap.push({ id: doc.id, ...doc.data() });
-        });
-        list = listSnap;
-      }
-    } catch (e) {
-      console.log("[ValidateAddressRoutes] Firestore Admin SDK pincodes failed:", e.message);
-    }
-  }
-  if (list.length === 0) {
-    list = defaultPincodes2.map((pin, index) => ({
-      id: `default_${index}`,
-      pincode: pin,
-      active: true
-    }));
-  }
-  return list.map((item) => {
-    if (item && item.pincode && String(item.pincode).trim().startsWith("753")) {
-      return { ...item, active: true };
-    }
-    return item;
-  }).filter(Boolean);
-}
-router8.post("/", validate(validateAddressSchema), async (req, res) => {
+router6.post("/", validate(validateAddressSchema), async (req, res) => {
   try {
     const { address, coordinates, fields } = req.body;
     const appConfig = await getAppConfig();
     const configDeliveryTime = appConfig?.defaultDeliveryTime || 25;
-    const zones = await getServiceZones();
-    const activeZones = zones.filter((z3) => z3 && (z3.is_active === true || z3.is_active === "true" || z3.is_active === 1 || String(z3.is_active).toLowerCase() === "true"));
-    const activeCityNames = activeZones.map((z3) => z3.city_name || "").filter(Boolean);
-    let activeCitiesStr = activeCityNames.join(" and ");
-    if (activeCityNames.length > 1) {
-      activeCitiesStr = activeCityNames.slice(0, -1).join(", ") + " and " + activeCityNames[activeCityNames.length - 1];
-    }
-    if (activeCityNames.length === 0) {
-      activeCitiesStr = "Cuttack";
+    let activeCitiesStr = "Cuttack";
+    try {
+      const v2Cities = await V2GeofencingService.getCities();
+      const activeCityNames = v2Cities.filter((c) => c.is_active).map((c) => c.name);
+      if (activeCityNames.length > 1) {
+        activeCitiesStr = activeCityNames.slice(0, -1).join(", ") + " and " + activeCityNames[activeCityNames.length - 1];
+      } else if (activeCityNames.length === 1) {
+        activeCitiesStr = activeCityNames[0];
+      }
+    } catch (e) {
+      console.warn("[ValidateAddressRoutes] Failed to fetch active cities for display message:", e);
     }
     const normalizedCity = fields && fields.city ? String(fields.city).trim().toLowerCase() : "";
     const normalizedZip = fields && fields.pincode ? String(fields.pincode).trim() : "";
     const fullAddressText = address ? String(address).toLowerCase() : "";
     if (normalizedZip) {
-      const activePincodes = await getServicePincodes();
-      const enabledPincodes = activePincodes.filter((p) => p && (p.active === true || p.active === "true" || p.active === 1 || String(p.active).toLowerCase() === "true")).map((p) => String(p.pincode).trim()).filter(Boolean);
-      const isCityCuttack = normalizedCity === "cuttack" || fullAddressText.includes("cuttack") || normalizedZip.startsWith("753");
-      const isPincodeAllowed = enabledPincodes.includes(normalizedZip) || normalizedZip.startsWith("753");
-      if (isCityCuttack && isPincodeAllowed) {
+      let isPincodeAllowed = false;
+      try {
+        const v2Pincodes = await V2GeofencingService.getPincodes();
+        isPincodeAllowed = v2Pincodes.some((p) => p.pincode === normalizedZip && p.is_active);
+      } catch (err) {
+        console.warn("[ValidateAddressRoutes] Failed to fetch V2 pincodes:", err.message);
+      }
+      let isCityActive = false;
+      let matchedCityName2 = "Cuttack";
+      try {
+        const v2Cities = await V2GeofencingService.getCities();
+        const activeCities = v2Cities.filter((c) => c.is_active);
+        const cityMatch = activeCities.find(
+          (c) => normalizedCity === c.name.toLowerCase() || fullAddressText.includes(c.name.toLowerCase())
+        );
+        if (cityMatch) {
+          isCityActive = true;
+          matchedCityName2 = cityMatch.name;
+        }
+      } catch (err) {
+        console.warn("[ValidateAddressRoutes] Failed to fetch V2 cities:", err.message);
+      }
+      if (isCityActive && isPincodeAllowed) {
         return res.json({
           success: true,
           deliverable: true,
           message: "\u{1F4CD} Delivery Available",
           estimatedDeliveryMins: configDeliveryTime,
-          zone: "Cuttack"
+          zone: matchedCityName2
         });
-      } else if (!isCityCuttack) {
+      } else if (!isCityActive) {
         return res.status(200).json({
           success: false,
           deliverable: false,
-          message: "\u26A0 Delivery Unavailable\n\nFrosty Bite currently serves selected areas of Cuttack only."
+          message: `\u26A0 Delivery Unavailable
+
+Frosty Bite currently serves selected areas of ${activeCitiesStr} only.`
         });
       } else {
         return res.status(200).json({
@@ -4909,7 +4298,7 @@ router8.post("/", validate(validateAddressSchema), async (req, res) => {
           deliverable: false,
           message: `\u26A0 Delivery Unavailable
 
-Frosty Bite currently serves selected areas of Cuttack only.
+Frosty Bite currently serves selected areas of ${activeCitiesStr} only.
 (Pincode ${normalizedZip} is outside our active boundaries)`
         });
       }
@@ -4917,80 +4306,73 @@ Frosty Bite currently serves selected areas of Cuttack only.
     const uLat = coordinates ? typeof coordinates.lat === "number" ? coordinates.lat : typeof coordinates.lat === "string" && !isNaN(parseFloat(coordinates.lat)) ? parseFloat(coordinates.lat) : typeof coordinates.latitude === "number" ? coordinates.latitude : typeof coordinates.latitude === "string" && !isNaN(parseFloat(coordinates.latitude)) ? parseFloat(coordinates.latitude) : null : null;
     const uLng = coordinates ? typeof coordinates.lng === "number" ? coordinates.lng : typeof coordinates.lng === "string" && !isNaN(parseFloat(coordinates.lng)) ? parseFloat(coordinates.lng) : typeof coordinates.longitude === "number" ? coordinates.longitude : typeof coordinates.longitude === "string" && !isNaN(parseFloat(coordinates.longitude)) ? parseFloat(coordinates.longitude) : null : null;
     if (uLat !== null && uLng !== null) {
-      let matchedZone = null;
-      let minDistance = Infinity;
-      for (const zone of activeZones) {
-        if (!zone || zone.latitude === void 0 || zone.longitude === void 0) continue;
-        const zoneLat = parseFloat(String(zone.latitude));
-        const zoneLng = parseFloat(String(zone.longitude));
-        const radiusMeters = parseFloat(String(zone.radius_meters)) || 12e3;
-        if (isNaN(zoneLat) || isNaN(zoneLng)) continue;
-        const dist = calculateDistance(zoneLat, zoneLng, uLat, uLng);
-        const radiusKm = radiusMeters / 1e3;
-        if (dist <= radiusKm) {
-          if (dist < minDistance) {
-            minDistance = dist;
-            matchedZone = zone;
-          }
-        }
-      }
-      if (matchedZone) {
-        return res.json({
-          success: true,
-          deliverable: true,
-          message: "\u{1F4CD} Delivery Available",
-          estimatedDeliveryMins: configDeliveryTime,
-          zone: matchedZone.city_name,
-          distanceKm: Number(minDistance.toFixed(2))
-        });
-      } else {
-        return res.status(200).json({
-          success: false,
-          deliverable: false,
-          message: `\u26A0 Delivery Unavailable
+      try {
+        const checkResult = await V2GeofencingService.checkServiceability({ latitude: uLat, longitude: uLng });
+        if (checkResult.data.serviceable) {
+          return res.json({
+            success: true,
+            deliverable: true,
+            message: "\u{1F4CD} Delivery Available",
+            estimatedDeliveryMins: checkResult.data.estimatedDeliveryMinutes || configDeliveryTime,
+            zone: checkResult.data.city?.name || "Cuttack",
+            distanceKm: checkResult.data.distanceMeters ? Number((checkResult.data.distanceMeters / 1e3).toFixed(2)) : 0
+          });
+        } else if (checkResult.data.reason === "SERVICEABILITY_UNAVAILABLE") {
+          return res.status(503).json({
+            success: false,
+            deliverable: false,
+            serviceable: false,
+            reason: "SERVICEABILITY_UNAVAILABLE",
+            message: "\u26A0 Serviceability Temporarily Unavailable\n\nWe are experiencing server database connectivity issues. Please click retry to validate again."
+          });
+        } else {
+          return res.status(200).json({
+            success: false,
+            deliverable: false,
+            message: `\u26A0 Delivery Unavailable
 
 Frosty Bite currently delivers only in ${activeCitiesStr}. Your pinned location is outside our service area.`
+          });
+        }
+      } catch (err) {
+        console.warn("[ValidateAddressRoutes] V2 geofencing check failed due to exception:", err.message);
+        return res.status(503).json({
+          success: false,
+          deliverable: false,
+          serviceable: false,
+          reason: "SERVICEABILITY_UNAVAILABLE",
+          message: "\u26A0 Serviceability Temporarily Unavailable\n\nWe are experiencing server database connectivity issues. Please click retry to validate again."
         });
       }
     }
-    let matchedCityZone = null;
-    for (const zone of activeZones) {
-      if (!zone || !zone.city_name) continue;
-      const zName = String(zone.city_name).toLowerCase();
-      if (normalizedCity === zName || fullAddressText.includes(zName)) {
-        matchedCityZone = zone;
-        break;
+    let matchedCityName = null;
+    try {
+      const v2Cities = await V2GeofencingService.getCities();
+      const activeCities = v2Cities.filter((c) => c.is_active);
+      const matched = activeCities.find(
+        (c) => normalizedCity === c.name.toLowerCase() || fullAddressText.includes(c.name.toLowerCase())
+      );
+      if (matched) {
+        matchedCityName = matched.name;
       }
+    } catch (e) {
+      console.warn("[ValidateAddressRoutes] V2 cities check failed in general text Layer C:", e);
     }
-    if (matchedCityZone) {
+    if (matchedCityName) {
       return res.json({
         success: true,
         deliverable: true,
         message: "\u{1F4CD} Delivery Available",
         estimatedDeliveryMins: configDeliveryTime,
-        zone: matchedCityZone.city_name
+        zone: matchedCityName
       });
-    }
-    const inactiveZones = zones.filter((z3) => z3 && !(z3.is_active === true || z3.is_active === "true" || z3.is_active === 1 || String(z3.is_active).toLowerCase() === "true"));
-    for (const zone of inactiveZones) {
-      if (!zone || !zone.city_name) continue;
-      const zName = String(zone.city_name).toLowerCase();
-      if (normalizedCity === zName || fullAddressText.includes(zName)) {
-        return res.status(200).json({
-          success: false,
-          deliverable: false,
-          message: `\u26A0 Delivery Unavailable
-
-Frosty Bite currently delivers only in ${activeCitiesStr}. ${zone.city_name} is not currently active.`
-        });
-      }
     }
     return res.status(200).json({
       success: false,
       deliverable: false,
       message: `\u26A0 Delivery Unavailable
 
-Frosty Bite currently serves selected areas of Cuttack only.`
+Frosty Bite currently serves selected areas of ${activeCitiesStr} only.`
     });
   } catch (error) {
     console.error("[ValidateAddressRoutes] Error validating address:", error);
@@ -5001,15 +4383,24 @@ Frosty Bite currently serves selected areas of Cuttack only.`
     });
   }
 });
-router8.get("/check-pincode/:pincode", async (req, res) => {
+router6.get("/check-pincode/:pincode", async (req, res) => {
   try {
     const { pincode } = req.params;
+    if (!pincode) {
+      return res.json({ allowed: false, error: "Pincode is required" });
+    }
     const cleanPin = pincode.trim().replace(/\s/g, "");
     if (!/^\d{6}$/.test(cleanPin)) {
       return res.json({ allowed: false, error: "Invalid pincode format" });
     }
-    if (cleanPin.startsWith("753")) {
-      return res.json({ allowed: true, source: "cuttack_override" });
+    try {
+      const v2Pincodes = await V2GeofencingService.getPincodes();
+      const foundPin = v2Pincodes.find((p) => p.pincode === cleanPin && p.is_active);
+      if (foundPin) {
+        return res.json({ allowed: true, source: "v2_geofencing" });
+      }
+    } catch (err) {
+      console.warn("[Server Pincode Check] V2GeofencingService getPincodes failed:", err.message);
     }
     try {
       const { data, error } = await supabase.from("delivery_pincodes").select("*").eq("pincode", cleanPin).eq("is_active", true);
@@ -5033,7 +4424,7 @@ router8.get("/check-pincode/:pincode", async (req, res) => {
     return res.json({ allowed: false, error: err.message });
   }
 });
-router8.post("/notify", validate(notifyRequestSchema), async (req, res) => {
+router6.post("/notify", validate(notifyRequestSchema), async (req, res) => {
   try {
     const { email, phone, city, coords } = req.body;
     const emailTrimmed = email ? String(email).trim().toLowerCase() : "";
@@ -5049,13 +4440,13 @@ router8.post("/notify", validate(notifyRequestSchema), async (req, res) => {
       created_at: (/* @__PURE__ */ new Date()).toISOString()
     };
     try {
-      const backupPath = path4.join(process.cwd(), "notify_requests_backup.json");
+      const backupPath = import_path3.default.join(process.cwd(), "notify_requests_backup.json");
       let currentList = [];
-      if (fs4.existsSync(backupPath)) {
-        currentList = JSON.parse(fs4.readFileSync(backupPath, "utf8"));
+      if (import_fs3.default.existsSync(backupPath)) {
+        currentList = JSON.parse(import_fs3.default.readFileSync(backupPath, "utf8"));
       }
       currentList.push(record);
-      fs4.writeFileSync(backupPath, JSON.stringify(currentList, null, 2), "utf8");
+      import_fs3.default.writeFileSync(backupPath, JSON.stringify(currentList, null, 2), "utf8");
       console.log(`[ValidateAddressRoutes] Saved notification request locally for: ${emailTrimmed}`);
     } catch (saveErr) {
       console.warn("[ValidateAddressRoutes] Failed to write notification request backup locally:", saveErr.message);
@@ -5078,638 +4469,12 @@ router8.post("/notify", validate(notifyRequestSchema), async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
-var validateaddress_routes_default = router8;
-
-// server/routes/deliveryareas.routes.ts
-import express7 from "express";
-import fs5 from "fs";
-import path5 from "path";
-init_supabase();
-var router9 = express7.Router();
-var firebaseConfig4 = {};
-try {
-  const configPath = path5.join(process.cwd(), "firebase-applet-config.json");
-  if (fs5.existsSync(configPath)) {
-    firebaseConfig4 = JSON.parse(fs5.readFileSync(configPath, "utf8"));
-  }
-} catch (e) {
-  console.warn("[DeliveryAreasRoutes] Could not load firebase-applet-config.json:", e);
-}
-var firebaseProjectId4 = firebaseConfig4.projectId || "frostybite07";
-var firebaseDatabaseId4 = firebaseConfig4.firestoreDatabaseId || "ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c";
-var inMemoryDeliveryAreas = [];
-var inMemoryInitialized3 = false;
-var defaultDeliveryAreas = [
-  { id: "area_1", area_name: "Madhupatna", pincode: "753010", is_deliverable: true },
-  { id: "area_2", area_name: "Badambadi", pincode: "753012", is_deliverable: true },
-  { id: "area_3", area_name: "College Square", pincode: "753003", is_deliverable: true },
-  { id: "area_4", area_name: "CDA Sector 6", pincode: "753014", is_deliverable: false },
-  { id: "area_5", area_name: "CDA Sector 7", pincode: "753014", is_deliverable: false },
-  { id: "area_6", area_name: "Buxi Bazaar", pincode: "753001", is_deliverable: true },
-  { id: "area_7", area_name: "Choudhury Bazar", pincode: "753002", is_deliverable: true },
-  { id: "area_8", area_name: "CDA Sector 9", pincode: "753014", is_deliverable: false }
-];
-function writeBackup(areas) {
-  try {
-    const dataString = JSON.stringify(areas, null, 2);
-    fs5.writeFileSync("/tmp/deliveryAreas.json", dataString);
-    fs5.writeFileSync(path5.join(process.cwd(), "deliveryAreas_backup.json"), dataString);
-    console.log("[DeliveryAreasRoutes] Saved delivery areas backup to files");
-  } catch (err) {
-    console.warn("[DeliveryAreasRoutes] Failed to write backend backup files:", err);
-  }
-}
-function readBackup() {
-  try {
-    const paths = [
-      "/tmp/deliveryAreas.json",
-      path5.join(process.cwd(), "deliveryAreas_backup.json")
-    ];
-    for (const p of paths) {
-      if (fs5.existsSync(p)) {
-        const raw = fs5.readFileSync(p, "utf8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn("[DeliveryAreasRoutes] Failed to read backup from files:", err);
-  }
-  return null;
-}
-function lazyLoadAreas() {
-  if (inMemoryInitialized3 && inMemoryDeliveryAreas.length > 0) {
-    return inMemoryDeliveryAreas;
-  }
-  const fileBackup = readBackup();
-  if (fileBackup && fileBackup.length > 0) {
-    inMemoryDeliveryAreas = fileBackup;
-    inMemoryInitialized3 = true;
-    return inMemoryDeliveryAreas;
-  }
-  inMemoryDeliveryAreas = [...defaultDeliveryAreas];
-  inMemoryInitialized3 = true;
-  writeBackup(inMemoryDeliveryAreas);
-  return inMemoryDeliveryAreas;
-}
-function toFirestoreValue3(val) {
-  if (val === null || val === void 0) return { nullValue: null };
-  if (typeof val === "boolean") return { booleanValue: val };
-  if (typeof val === "number") {
-    return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
-  }
-  if (typeof val === "string") return { stringValue: val };
-  return { stringValue: String(val) };
-}
-function fromFirestoreFields4(fields) {
-  const result = {};
-  if (!fields) return result;
-  for (const [key, valObj] of Object.entries(fields)) {
-    if (!valObj || typeof valObj !== "object") continue;
-    const entries = Object.entries(valObj);
-    if (entries.length === 0) continue;
-    const [type, value] = entries[0];
-    switch (type) {
-      case "booleanValue":
-        result[key] = value;
-        break;
-      case "integerValue":
-        result[key] = parseInt(value, 10);
-        break;
-      case "doubleValue":
-        result[key] = parseFloat(value);
-        break;
-      case "stringValue": {
-        const strVal = value;
-        if (strVal === "true" || strVal === "false") {
-          result[key] = strVal === "true";
-        } else {
-          result[key] = strVal;
-        }
-        break;
-      }
-      case "nullValue":
-        result[key] = null;
-        break;
-      default:
-        result[key] = value;
-    }
-  }
-  return result;
-}
-var ADMIN_EMAILS4 = [
-  "restaurantbarkass@gmail.com",
-  "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
-];
-function isFirebaseToken4(token) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return false;
-    const payload = decodeJwtPayload4(token);
-    return !!payload?.iss?.startsWith("https://securetoken.google.com/");
-  } catch {
-    return false;
-  }
-}
-function decodeJwtPayload4(token) {
-  try {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-      base64Url.length + (4 - base64Url.length % 4) % 4,
-      "="
-    );
-    return JSON.parse(Buffer.from(base64, "base64").toString("utf8"));
-  } catch {
-    return null;
-  }
-}
-function getEmailFromArbitraryToken4(token) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const base64Url = parts[1];
-    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    while (base64.length % 4) {
-      base64 += "=";
-    }
-    const jsonPayload = Buffer.from(base64, "base64").toString("utf8");
-    const payload = JSON.parse(jsonPayload);
-    if (payload) {
-      if (payload.email) {
-        return payload.email;
-      }
-      if (payload.user_metadata && payload.user_metadata.email) {
-        return payload.user_metadata.email;
-      }
-      if (payload.user && payload.user.email) {
-        return payload.user.email;
-      }
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-async function isAdmin4(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[DeliveryAreasRoutes] Missing or malformed Authorization header");
-    return false;
-  }
-  const token = authHeader.split("Bearer ")[1];
-  if (!token || token === "null" || token === "undefined" || !token.trim()) {
-    console.log("[DeliveryAreasRoutes] Bearer token is empty/null/undefined");
-    return false;
-  }
-  let verifiedEmail;
-  if (isFirebaseToken4(token)) {
-    try {
-      const adminAuth = getAdminAuth();
-      const decoded = await adminAuth.verifyIdToken(token);
-      verifiedEmail = decoded.email;
-      console.log("[DeliveryAreasRoutes] Firebase verified email:", verifiedEmail);
-    } catch (err) {
-      console.log("[DeliveryAreasRoutes] Firebase verification failed:", err.message);
-    }
-  } else {
-    console.log("[DeliveryAreasRoutes] Not a Firebase token; skipping Firebase verification");
-  }
-  if (!verifiedEmail) {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (!error && user?.email) {
-        verifiedEmail = user.email;
-        console.log("[DeliveryAreasRoutes] Supabase verified email:", verifiedEmail);
-      } else if (error) {
-        console.log("[DeliveryAreasRoutes] Supabase verification failed:", error.message);
-      }
-    } catch (err) {
-      console.log("[DeliveryAreasRoutes] Supabase exception:", err.message);
-    }
-  }
-  if (!verifiedEmail) {
-    try {
-      const parts = token.split(".");
-      const signature = parts[2] || "";
-      const isTestSignature = signature === "signature" || signature === "securesig";
-      if (isTestSignature) {
-        const decodedEmail = getEmailFromArbitraryToken4(token);
-        if (decodedEmail) {
-          console.log("[DeliveryAreasRoutes] Extracted email from JWT fallback payload (Allowed test signature):", decodedEmail);
-          verifiedEmail = decodedEmail;
-        }
-      } else {
-        console.warn("[DeliveryAreasRoutes] Fallback JWT email extraction rejected: token lacks verified signature and is not an authorized test signature.");
-      }
-    } catch (err) {
-      console.warn("[DeliveryAreasRoutes] Fallback JWT email extraction failed:", err);
-    }
-  }
-  if (!verifiedEmail) {
-    console.log("[DeliveryAreasRoutes] No verified email resolved from token");
-    return false;
-  }
-  const normEmail = verifiedEmail.trim().toLowerCase();
-  if (ADMIN_EMAILS4.includes(normEmail)) {
-    console.log(`[DeliveryAreasRoutes] ${normEmail} matched static admin whitelist`);
-    return true;
-  }
-  try {
-    const { data: userRecord } = await supabase.from("users").select("role").eq("email", normEmail).maybeSingle();
-    if (userRecord?.role === "admin") {
-      console.log(`[DeliveryAreasRoutes] ${normEmail} has DB role=admin`);
-      return true;
-    }
-  } catch (err) {
-    console.log("[DeliveryAreasRoutes] DB role lookup error:", err.message);
-  }
-  console.log(`[DeliveryAreasRoutes] ${normEmail} is not an admin`);
-  return false;
-}
-async function fetchFromFirestoreREST() {
-  const apiKey = firebaseConfig4.apiKey;
-  if (!apiKey) return null;
-  const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId4}/databases/${firebaseDatabaseId4}/documents/delivery_areas?key=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errText = await response.text();
-      console.log(`[DeliveryAreasRoutes] REST GET non-ok ${response.status}: ${errText}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data?.documents) {
-      return data.documents.map((doc) => {
-        const id = doc.name.split("/").pop();
-        return { id, ...fromFirestoreFields4(doc.fields) };
-      });
-    }
-    return [];
-  } catch (err) {
-    console.log("[DeliveryAreasRoutes] REST GET exception:", err.message);
-    return null;
-  }
-}
-router9.get("/", async (req, res) => {
-  try {
-    const localAreas = lazyLoadAreas();
-    try {
-      const { data: sbData, error: sbErr } = await supabase.from("delivery_areas").select("*");
-      if (!sbErr && sbData) {
-        const missingDefaults = defaultDeliveryAreas.filter(
-          (def) => !sbData.some((item) => item.id === def.id || item.area_name === def.area_name)
-        );
-        if (missingDefaults.length > 0) {
-          console.log(`[DeliveryAreasRoutes] Seeding ${missingDefaults.length} missing default delivery areas to Supabase\u2026`);
-          const merged = [...sbData];
-          for (const item of missingDefaults) {
-            const seededItem = {
-              id: item.id,
-              area_name: item.area_name,
-              pincode: item.pincode,
-              is_deliverable: item.is_deliverable,
-              updated_at: (/* @__PURE__ */ new Date()).toISOString()
-            };
-            merged.push(seededItem);
-            try {
-              const { error: upsertErr } = await supabase.from("delivery_areas").upsert(seededItem);
-              if (upsertErr) {
-                console.warn("[DeliveryAreasRoutes] Failed to seed default delivery area item:", item.id, upsertErr.message);
-              }
-            } catch (err) {
-              console.warn("[DeliveryAreasRoutes] Failed to seed default delivery area item:", item.id, err.message);
-            }
-          }
-          inMemoryDeliveryAreas = merged;
-        } else {
-          inMemoryDeliveryAreas = sbData;
-        }
-        inMemoryInitialized3 = true;
-        writeBackup(inMemoryDeliveryAreas);
-        return res.json(inMemoryDeliveryAreas);
-      } else if (sbErr) {
-        console.warn("[DeliveryAreasRoutes] Supabase read failed, falling back:", sbErr.message);
-      }
-    } catch (e) {
-      console.warn("[DeliveryAreasRoutes] Supabase exception, falling back:", e.message);
-    }
-    try {
-      const restAreas = await fetchFromFirestoreREST();
-      if (restAreas !== null) {
-        if (restAreas.length === 0) {
-          console.log("[DeliveryAreasRoutes] Firestore empty; seeding defaults\u2026");
-          inMemoryDeliveryAreas = [...defaultDeliveryAreas];
-          inMemoryInitialized3 = true;
-          writeBackup(inMemoryDeliveryAreas);
-          const db = getAdminDb();
-          for (const item of defaultDeliveryAreas) {
-            await db.collection("delivery_areas").doc(item.id).set({
-              area_name: item.area_name,
-              pincode: item.pincode,
-              is_deliverable: item.is_deliverable
-            }).catch(() => {
-            });
-          }
-        } else {
-          const mergedAreas = restAreas.map((firestoreArea) => {
-            const localArea = localAreas.find((a) => a.id === firestoreArea.id);
-            if (localArea) {
-              const localTime = localArea.updated_at ? new Date(localArea.updated_at).getTime() : 0;
-              const firestoreTime = firestoreArea.updated_at ? new Date(firestoreArea.updated_at).getTime() : 0;
-              if (localTime > firestoreTime) {
-                console.log(`[DeliveryAreasRoutes] SmartSync: Keeping newer local area for ${firestoreArea.area_name} (${localArea.updated_at} > ${firestoreArea.updated_at || "none"})`);
-                return localArea;
-              }
-              if (localTime === firestoreTime && (localArea.is_deliverable !== firestoreArea.is_deliverable || localArea.pincode !== firestoreArea.pincode || localArea.area_name !== firestoreArea.area_name)) {
-                console.log(`[DeliveryAreasRoutes] SmartSync: Preserving active local configuration change for ${firestoreArea.area_name}`);
-                return localArea;
-              }
-            }
-            return firestoreArea;
-          });
-          localAreas.forEach((localArea) => {
-            if (!mergedAreas.some((a) => a.id === localArea.id)) {
-              mergedAreas.push(localArea);
-            }
-          });
-          inMemoryDeliveryAreas = mergedAreas;
-          inMemoryInitialized3 = true;
-          writeBackup(mergedAreas);
-        }
-        return res.json(inMemoryDeliveryAreas);
-      }
-    } catch (e) {
-      console.log("[DeliveryAreasRoutes] REST GET failed:", e.message);
-    }
-    try {
-      const db = getAdminDb();
-      const snapshot = await db.collection("delivery_areas").get();
-      if (!snapshot.empty) {
-        const list = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-        inMemoryDeliveryAreas = list;
-        inMemoryInitialized3 = true;
-        writeBackup(list);
-        return res.json(list);
-      }
-    } catch (e) {
-      if (e.message?.includes("PERMISSION_DENIED") || e.message?.includes("7") || e.message?.toLowerCase().includes("permission")) {
-        console.log("[DeliveryAreasRoutes] Firestore Admin SDK permission denied for custom DB; falling back gracefully.");
-      } else {
-        console.log("[DeliveryAreasRoutes] Admin SDK GET failed:", e.message);
-      }
-    }
-    return res.json(lazyLoadAreas());
-  } catch (error) {
-    console.error("[DeliveryAreasRoutes] GET failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router9.post("/", async (req, res) => {
-  try {
-    if (!await isAdmin4(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const { area_name, pincode, is_deliverable } = req.body;
-    if (!area_name || !pincode) {
-      return res.status(400).json({ error: "Bad Request", message: "area_name and pincode are required" });
-    }
-    const trimmedArea = String(area_name).trim();
-    const trimmedPin = String(pincode).trim();
-    if (!/^\d{6}$/.test(trimmedPin)) {
-      return res.status(400).json({ error: "Bad Request", message: "Pincode must be exactly 6 digits" });
-    }
-    const newId = "area_" + Math.random().toString(36).substring(2, 10);
-    const newAreaData = {
-      id: newId,
-      area_name: trimmedArea,
-      pincode: trimmedPin,
-      is_deliverable: is_deliverable !== void 0 ? Boolean(is_deliverable) : true,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const areas = lazyLoadAreas();
-    areas.push(newAreaData);
-    inMemoryDeliveryAreas = areas;
-    writeBackup(areas);
-    try {
-      await supabase.from("delivery_areas").upsert({
-        id: newId,
-        area_name: newAreaData.area_name,
-        pincode: newAreaData.pincode,
-        is_deliverable: newAreaData.is_deliverable,
-        updated_at: newAreaData.updated_at
-      });
-      console.log("[DeliveryAreasRoutes] POST saved to Supabase");
-    } catch (e) {
-      console.warn("[DeliveryAreasRoutes] Supabase POST exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          area_name: toFirestoreValue3(newAreaData.area_name),
-          pincode: toFirestoreValue3(newAreaData.pincode),
-          is_deliverable: toFirestoreValue3(newAreaData.is_deliverable),
-          updated_at: toFirestoreValue3(newAreaData.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId4}/databases/${firebaseDatabaseId4}/documents/delivery_areas/${newId}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] REST POST exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("delivery_areas").doc(newId).set({
-          area_name: newAreaData.area_name,
-          pincode: newAreaData.pincode,
-          is_deliverable: newAreaData.is_deliverable
-        });
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] SDK POST failed:", e.message);
-      }
-    }
-    res.status(201).json(newAreaData);
-  } catch (error) {
-    console.error("[DeliveryAreasRoutes] POST failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router9.patch("/:id", async (req, res) => {
-  console.log("========================");
-  console.log("PATCH ROUTE HIT");
-  console.log("ID:", req.params.id);
-  console.log("BODY:", req.body);
-  console.log("AUTH:", req.headers.authorization);
-  console.log("========================");
-  try {
-    const isUserAdmin = await isAdmin4(req);
-    console.log("ADMIN:", isUserAdmin);
-    if (!isUserAdmin) {
-      return res.status(403).json({
-        error: "Forbidden",
-        message: "Admin permissions required"
-      });
-    }
-    const { id } = req.params;
-    const body = req.body;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const areas = lazyLoadAreas();
-    const index = areas.findIndex((p) => p.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Area not found" });
-    }
-    const updatedAreaData = { ...areas[index] };
-    if (body.area_name !== void 0) {
-      updatedAreaData.area_name = String(body.area_name).trim();
-    }
-    if (body.pincode !== void 0) {
-      const trimmedPin = String(body.pincode).trim();
-      if (!/^\d{6}$/.test(trimmedPin)) {
-        return res.status(400).json({ error: "Bad Request", message: "Pincode must be 6 digits" });
-      }
-      updatedAreaData.pincode = trimmedPin;
-    }
-    if (body.is_deliverable !== void 0) {
-      updatedAreaData.is_deliverable = Boolean(body.is_deliverable);
-    }
-    updatedAreaData.updated_at = (/* @__PURE__ */ new Date()).toISOString();
-    areas[index] = updatedAreaData;
-    inMemoryDeliveryAreas = areas;
-    writeBackup(areas);
-    try {
-      const sbFields = {
-        updated_at: updatedAreaData.updated_at
-      };
-      if (body.area_name !== void 0) sbFields.area_name = updatedAreaData.area_name;
-      if (body.pincode !== void 0) sbFields.pincode = updatedAreaData.pincode;
-      if (body.is_deliverable !== void 0) sbFields.is_deliverable = updatedAreaData.is_deliverable;
-      const { error: sbErr } = await supabase.from("delivery_areas").update(sbFields).eq("id", id);
-      if (sbErr) {
-        console.error("[DeliveryAreasRoutes] Supabase PATCH error for delivery_areas:", sbErr.message);
-        const isRls = sbErr.code === "42501" || sbErr.message.toLowerCase().includes("row-level security") || sbErr.message.toLowerCase().includes("permission denied");
-        return res.status(isRls ? 403 : 500).json({
-          error: isRls ? "Permission Denied" : "Database Error",
-          message: sbErr.message,
-          code: sbErr.code,
-          isRlsViolation: isRls
-        });
-      } else {
-        console.log("[DeliveryAreasRoutes] PATCH saved to Supabase (delivery_areas) successfully");
-      }
-    } catch (e) {
-      console.warn("[DeliveryAreasRoutes] Supabase PATCH exception:", e.message);
-      return res.status(500).json({
-        error: "Database Exception",
-        message: e.message
-      });
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const fields = {
-          area_name: toFirestoreValue3(updatedAreaData.area_name),
-          pincode: toFirestoreValue3(updatedAreaData.pincode),
-          is_deliverable: toFirestoreValue3(updatedAreaData.is_deliverable),
-          updated_at: toFirestoreValue3(updatedAreaData.updated_at)
-        };
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId4}/databases/${firebaseDatabaseId4}/documents/delivery_areas/${id}`;
-        const queryParams = Object.keys(fields).map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
-        const fsRes = await fetch(`${url}?${queryParams}`, {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${firebaseToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ fields })
-        });
-        firestoreSuccess = fsRes.ok;
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] REST PATCH exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("delivery_areas").doc(id).set({
-          area_name: updatedAreaData.area_name,
-          pincode: updatedAreaData.pincode,
-          is_deliverable: updatedAreaData.is_deliverable
-        }, { merge: true });
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] SDK PATCH failed:", e.message);
-      }
-    }
-    res.json(updatedAreaData);
-  } catch (error) {
-    console.error("[DeliveryAreasRoutes] PATCH failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-router9.delete("/:id", async (req, res) => {
-  try {
-    if (!await isAdmin4(req)) {
-      return res.status(403).json({ error: "Forbidden", message: "Admin permissions required" });
-    }
-    const { id } = req.params;
-    const authHeader = req.headers.authorization;
-    const firebaseToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    const areas = lazyLoadAreas();
-    const index = areas.findIndex((p) => p.id === id);
-    if (index === -1) {
-      return res.status(404).json({ error: "Not Found", message: "Area not found" });
-    }
-    const filtered = areas.filter((p) => p.id !== id);
-    inMemoryDeliveryAreas = filtered;
-    writeBackup(filtered);
-    try {
-      await supabase.from("delivery_areas").delete().eq("id", id);
-      console.log("[DeliveryAreasRoutes] DELETE from Supabase succeeded");
-    } catch (e) {
-      console.warn("[DeliveryAreasRoutes] Supabase DELETE exception:", e.message);
-    }
-    let firestoreSuccess = false;
-    if (firebaseToken) {
-      try {
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId4}/databases/${firebaseDatabaseId4}/documents/delivery_areas/${id}`;
-        const fsRes = await fetch(url, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${firebaseToken}` }
-        });
-        firestoreSuccess = fsRes.ok;
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] REST DELETE exception:", e.message);
-      }
-    }
-    if (!firestoreSuccess) {
-      try {
-        const db = getAdminDb();
-        await db.collection("delivery_areas").doc(id).delete();
-      } catch (e) {
-        console.warn("[DeliveryAreasRoutes] SDK DELETE failed:", e.message);
-      }
-    }
-    res.json({ success: true, message: "Delivery area removed successfully" });
-  } catch (error) {
-    console.error("[DeliveryAreasRoutes] DELETE failed:", error);
-    res.status(500).json({ error: "Internal Server Error", message: error.message });
-  }
-});
-var deliveryareas_routes_default = router9;
+var validateaddress_routes_default = router6;
 
 // server/routes/reviews.routes.ts
+var import_express7 = __toESM(require("express"), 1);
 init_supabase();
-import express8 from "express";
-var router10 = express8.Router();
+var router7 = import_express7.default.Router();
 var fallbackReviews = [
   {
     id: "fb-1",
@@ -5740,7 +4505,7 @@ var fallbackReviews = [
     created_at: new Date(Date.now() - 15 * 24 * 3600 * 1e3).toISOString()
   }
 ];
-router10.get("/", async (req, res) => {
+router7.get("/", async (req, res) => {
   try {
     const { data, error } = await supabase.from("reviews").select("*").order("created_at", { ascending: false }).limit(6);
     if (error) {
@@ -5756,12 +4521,12 @@ router10.get("/", async (req, res) => {
     return res.json(fallbackReviews);
   }
 });
-var reviews_routes_default = router10;
+var reviews_routes_default = router7;
 
 // server/routes/search.routes.ts
+var import_express8 = __toESM(require("express"), 1);
 init_supabase();
-import express9 from "express";
-var router11 = express9.Router();
+var router8 = import_express8.default.Router();
 var defaultTrending = [
   "Anniversary Cakes",
   "Chocolate Truffle",
@@ -5770,7 +4535,7 @@ var defaultTrending = [
   "Cupcakes",
   "Fresh Fruit Cake"
 ];
-router11.get("/trending", async (req, res) => {
+router8.get("/trending", async (req, res) => {
   const limitCount = parseInt(req.query.limit, 10) || 6;
   try {
     const { data, error } = await supabase.from("search_analytics").select("query").order("count", { ascending: false }).limit(limitCount);
@@ -5787,7 +4552,7 @@ router11.get("/trending", async (req, res) => {
     return res.json(defaultTrending.slice(0, limitCount));
   }
 });
-router11.post("/log", async (req, res) => {
+router8.post("/log", async (req, res) => {
   const { searchTerm, userId = "anonymous" } = req.body;
   if (!searchTerm) {
     return res.status(400).json({ error: "searchTerm is required" });
@@ -5843,17 +4608,180 @@ router11.post("/log", async (req, res) => {
     });
   }
 });
-var search_routes_default = router11;
+var search_routes_default = router8;
+
+// server/routes/v2geofencing.routes.ts
+var import_express9 = require("express");
+var router9 = (0, import_express9.Router)();
+router9.get("/service-area", async (req, res) => {
+  try {
+    const area = await V2GeofencingService.getServiceArea();
+    res.json(area);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch service area", details: err.message });
+  }
+});
+router9.patch("/service-area", async (req, res) => {
+  try {
+    const updated = await V2GeofencingService.updateServiceArea(req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update service area", details: err.message });
+  }
+});
+router9.get("/cities", async (req, res) => {
+  try {
+    const cities = await V2GeofencingService.getCities();
+    res.json(cities);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch cities", details: err.message });
+  }
+});
+router9.post("/cities", async (req, res) => {
+  try {
+    const { name, state, country, is_active, boundary } = req.body;
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "City name is required" });
+    }
+    const created = await V2GeofencingService.createCity({ name, state, country, is_active, boundary });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create city", details: err.message });
+  }
+});
+router9.patch("/cities/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const updated = await V2GeofencingService.updateCity(id, req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update city", details: err.message });
+  }
+});
+router9.delete("/cities/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    await V2GeofencingService.deleteCity(id);
+    res.json({ success: true, message: `City ${id} deleted` });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete city", details: err.message });
+  }
+});
+router9.get("/pincodes", async (req, res) => {
+  try {
+    const cityId = req.query.city_id;
+    const pincodes = await V2GeofencingService.getPincodes(cityId);
+    res.json(pincodes);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch pincodes", details: err.message });
+  }
+});
+router9.post("/pincodes", async (req, res) => {
+  try {
+    const { city_id, pincode, is_active, boundary } = req.body;
+    if (!city_id || !pincode) {
+      return res.status(400).json({ error: "city_id and pincode are required" });
+    }
+    const created = await V2GeofencingService.createPincode({ city_id, pincode, is_active, boundary });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ error: err.message || "Failed to create pincode" });
+  }
+});
+router9.patch("/pincodes/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const updated = await V2GeofencingService.updatePincode(id, req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: err.message || "Failed to update pincode" });
+  }
+});
+router9.delete("/pincodes/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    await V2GeofencingService.deletePincode(id);
+    res.json({ success: true, message: `Pincode ${id} deleted` });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete pincode", details: err.message });
+  }
+});
+router9.get("/localities", async (req, res) => {
+  try {
+    const cityId = req.query.city_id;
+    const pincodeId = req.query.pincode_id;
+    const localities = await V2GeofencingService.getLocalities(cityId, pincodeId);
+    res.json(localities);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch localities", details: err.message });
+  }
+});
+router9.post("/localities", async (req, res) => {
+  try {
+    const { city_id, pincode_id, name, is_active, delivery_fee, minimum_order, estimated_delivery_minutes, boundary } = req.body;
+    if (!city_id || !name) {
+      return res.status(400).json({ error: "city_id and locality name are required" });
+    }
+    const created = await V2GeofencingService.createLocality({
+      city_id,
+      pincode_id,
+      name,
+      is_active,
+      delivery_fee,
+      minimum_order,
+      estimated_delivery_minutes,
+      boundary
+    });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create locality", details: err.message });
+  }
+});
+router9.patch("/localities/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const updated = await V2GeofencingService.updateLocality(id, req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ error: "Failed to update locality", details: err.message });
+  }
+});
+router9.delete("/localities/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    await V2GeofencingService.deleteLocality(id);
+    res.json({ success: true, message: `Locality ${id} deleted` });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete locality", details: err.message });
+  }
+});
+var handleServiceabilityCheck = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body || {};
+    const result = await V2GeofencingService.checkServiceability({ latitude, longitude });
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    console.error("[V2 Geofencing Route Error]", err);
+    res.status(500).json({
+      serviceable: false,
+      reason: "INTERNAL_ERROR",
+      message: "We currently don't deliver to this area."
+    });
+  }
+};
+router9.post("/geofencing/check", handleServiceabilityCheck);
+router9.post("/check", handleServiceabilityCheck);
+var v2geofencing_routes_default = router9;
 
 // server/app.ts
-var envPath = path6.resolve(process.cwd(), ".env");
-var emgPath = path6.resolve(process.cwd(), ".env.example");
-if (fs6.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
+var envPath = import_path4.default.resolve(process.cwd(), ".env");
+var emgPath = import_path4.default.resolve(process.cwd(), ".env.example");
+if (import_fs4.default.existsSync(envPath)) {
+  import_dotenv.default.config({ path: envPath });
 }
-if (process.env.NODE_ENV !== "production" && fs6.existsSync(emgPath)) {
+if (process.env.NODE_ENV !== "production" && import_fs4.default.existsSync(emgPath)) {
   try {
-    const exampleConfig = dotenv.parse(fs6.readFileSync(emgPath));
+    const exampleConfig = import_dotenv.default.parse(import_fs4.default.readFileSync(emgPath));
     for (const k in exampleConfig) {
       if (k.startsWith("SMTP_") || !process.env[k] || process.env[k] === "") {
         process.env[k] = exampleConfig[k];
@@ -5863,7 +4791,7 @@ if (process.env.NODE_ENV !== "production" && fs6.existsSync(emgPath)) {
     console.warn("[App] Error parsing .env.example:", err);
   }
 }
-var app = express10();
+var app = (0, import_express10.default)();
 app.use((req, res, next) => {
   const start = Date.now();
   console.log(`[App] Incoming Request: ${req.method} ${req.url}`);
@@ -5882,7 +4810,7 @@ app.use((req, res, next) => {
   next();
 });
 var isProd = process.env.NODE_ENV === "production";
-app.use(helmet({
+app.use((0, import_helmet.default)({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -5928,7 +4856,7 @@ app.use(helmet({
   crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: false
 }));
-app.use(cors((req, callback) => {
+app.use((0, import_cors.default)((req, callback) => {
   const origin = req.header("Origin");
   const host = req.header("Host");
   let isAllowed = false;
@@ -5961,8 +4889,8 @@ app.use("/avatar", (req, res, next) => {
   console.log(`[App] Avatar route reached: ${req.method} ${req.url}`);
   next();
 });
-app.use(express10.json({ limit: "10mb" }));
-app.use(express10.urlencoded({ limit: "10mb", extended: true }));
+app.use(import_express10.default.json({ limit: "10mb" }));
+app.use(import_express10.default.urlencoded({ limit: "10mb", extended: true }));
 app.get("/health", (req, res) => {
   console.log("[App] Health check hit");
   res.json({
@@ -5977,9 +4905,9 @@ app.get("/ping", (req, res) => {
 });
 app.get("/migration-script", (req, res) => {
   try {
-    const migrationPath = path6.resolve(process.cwd(), "supabase_migration.sql");
-    if (fs6.existsSync(migrationPath)) {
-      const sqlText = fs6.readFileSync(migrationPath, "utf-8");
+    const migrationPath = import_path4.default.resolve(process.cwd(), "supabase_migration.sql");
+    if (import_fs4.default.existsSync(migrationPath)) {
+      const sqlText = import_fs4.default.readFileSync(migrationPath, "utf-8");
       res.json({ sql: sqlText });
     } else {
       res.status(404).json({ error: "Migration script not found on server." });
@@ -5993,12 +4921,10 @@ app.use(["/avatar", "/api/avatar"], avatar_routes_default);
 app.use(["/auth", "/api/auth"], auth_routes_default);
 app.use(["/config", "/api/config"], config_routes_default);
 app.use(["/notifications", "/api/notifications"], notification_routes_default);
-app.use(["/service-zones", "/api/service-zones"], servicezones_routes_default);
-app.use(["/service-pincodes", "/api/service-pincodes"], servicepincodes_routes_default);
 app.use(["/validate-address", "/api/validate-address"], validateaddress_routes_default);
-app.use(["/delivery-areas", "/api/delivery-areas"], deliveryareas_routes_default);
 app.use(["/reviews", "/api/reviews"], reviews_routes_default);
 app.use(["/search", "/api/search"], search_routes_default);
+app.use(["/v2", "/api/v2"], v2geofencing_routes_default);
 app.get("/orders/:orderId/status", async (req, res) => {
   const { orderId } = req.params;
   if (!orderId) {
@@ -6085,7 +5011,7 @@ app.get("/debug-address", async (req, res) => {
   };
   try {
     const { supabase: supabase2 } = await Promise.resolve().then(() => (init_supabase(), supabase_exports));
-    const { data, error } = await supabase2.from("service_zones").select("*").limit(2);
+    const { data, error } = await supabase2.from("cities").select("*").limit(2);
     if (error) {
       report.supabaseReachability.status = "failed";
       report.supabaseReachability.error = error;
@@ -6121,14 +5047,14 @@ app.use((err, req, res, next) => {
 var app_default = app;
 
 // server/api.ts
-var envPath2 = path7.resolve(process.cwd(), ".env");
-var emgPath2 = path7.resolve(process.cwd(), ".env.example");
-if (fs7.existsSync(envPath2)) {
-  dotenv2.config({ path: envPath2 });
+var envPath2 = import_path5.default.resolve(process.cwd(), ".env");
+var emgPath2 = import_path5.default.resolve(process.cwd(), ".env.example");
+if (import_fs5.default.existsSync(envPath2)) {
+  import_dotenv2.default.config({ path: envPath2 });
 }
-if (process.env.NODE_ENV !== "production" && fs7.existsSync(emgPath2)) {
+if (process.env.NODE_ENV !== "production" && import_fs5.default.existsSync(emgPath2)) {
   try {
-    const exampleConfig = dotenv2.parse(fs7.readFileSync(emgPath2));
+    const exampleConfig = import_dotenv2.default.parse(import_fs5.default.readFileSync(emgPath2));
     for (const k in exampleConfig) {
       if (k.startsWith("SMTP_") || !process.env[k] || process.env[k] === "") {
         process.env[k] = exampleConfig[k];
@@ -6139,7 +5065,3 @@ if (process.env.NODE_ENV !== "production" && fs7.existsSync(emgPath2)) {
   }
 }
 var api_default = app_default;
-export {
-  api_default as default
-};
-//# sourceMappingURL=index.js.map

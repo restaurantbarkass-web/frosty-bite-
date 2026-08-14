@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../supabase';
+import { ServiceZonesRepository, DiagnosticsRepository } from '../../repositories';
 import toast from 'react-hot-toast';
 import { GeofencingV2Manager } from '../../components/admin/v2/GeofencingV2Manager';
 import { safeTrim } from '../../utils/string';
@@ -202,21 +203,10 @@ export const ServiceZones: React.FC = () => {
   const fetchZones = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/service-zones');
-      if (response.ok) {
-        const data = await response.json();
-        setZones(data);
-      } else {
-        const { data } = await supabase.from('service_zones').select('*');
-        setZones(data || []);
-      }
+      const data = await ServiceZonesRepository.getServiceZones();
+      setZones(data);
     } catch (err) {
-      try {
-        const { data } = await supabase.from('service_zones').select('*');
-        setZones(data || []);
-      } catch (_) {
-        setZones([]);
-      }
+      setZones([]);
     } finally {
       setIsLoading(false);
     }
@@ -226,21 +216,10 @@ export const ServiceZones: React.FC = () => {
   const fetchPincodes = useCallback(async () => {
     setIsPincodesLoading(true);
     try {
-      const response = await fetch('/api/service-pincodes');
-      if (response.ok) {
-        const data = await response.json();
-        setPincodes(data);
-      } else {
-        const { data } = await supabase.from('service_pincodes').select('*');
-        setPincodes(data || []);
-      }
+      const data = await ServiceZonesRepository.getServicePincodes();
+      setPincodes(data);
     } catch (err) {
-      try {
-        const { data } = await supabase.from('service_pincodes').select('*');
-        setPincodes(data || []);
-      } catch (_) {
-        setPincodes([]);
-      }
+      setPincodes([]);
     } finally {
       setIsPincodesLoading(false);
     }
@@ -250,21 +229,10 @@ export const ServiceZones: React.FC = () => {
   const fetchDeliveryAreas = useCallback(async () => {
     setIsAreasLoading(true);
     try {
-      const response = await fetch('/api/delivery-areas');
-      if (response.ok) {
-        const data = await response.json();
-        setDeliveryAreas(data);
-      } else {
-        const { data } = await supabase.from('delivery_areas').select('*');
-        setDeliveryAreas(data || []);
-      }
+      const data = await ServiceZonesRepository.getDeliveryAreas();
+      setDeliveryAreas(data);
     } catch (err) {
-      try {
-        const { data } = await supabase.from('delivery_areas').select('*');
-        setDeliveryAreas(data || []);
-      } catch (_) {
-        setDeliveryAreas([]);
-      }
+      setDeliveryAreas([]);
     } finally {
       setIsAreasLoading(false);
     }
@@ -1601,46 +1569,14 @@ const RlsDiagnosticsPanel: React.FC = () => {
       let insertStr = '✅ Allowed';
 
       // 1. SELECT test
-      try {
-        const { error } = await supabase.from(table).select('*').limit(1);
-        if (error) {
-          if (error.code === '42501') {
-            selectStr = '❌ Blocked (RLS)';
-            selectType = 'blocked';
-          } else if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.message?.includes('schema cache')) {
-            selectStr = '❓ Table Missing';
-            selectType = 'missing';
-          } else {
-            selectStr = `⚠️ Code ${error.code}`;
-            selectType = 'error';
-          }
-        }
-      } catch (e: any) {
-        selectStr = '💥 Fail';
-        selectType = 'error';
-      }
+      const selectRes = await DiagnosticsRepository.testTableSelect(table);
+      selectStr = selectRes.selectStr;
+      selectType = selectRes.selectType;
 
-      // 2. INSERT test (trigger validation/RLS failure checking with invalid keys)
-      try {
-        const { error } = await supabase.from(table).insert({ id: '00000000-0000-0000-0000-000000000000' }).select();
-        if (error) {
-          if (error.code === '42501') {
-            insertStr = '❌ Blocked (RLS)';
-            insertType = 'blocked';
-          } else if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.message?.includes('schema cache')) {
-            insertStr = '❓ Table Missing';
-            insertType = 'missing';
-          } else {
-            // Other errors (e.g. invalid UUID format 22P02, duplicate keys, required field violations)
-            // mean Postgres got past RLS and tried to perform database validation checks!
-            insertStr = '✅ Allowed (Checked)';
-            insertType = 'ok';
-          }
-        }
-      } catch (e: any) {
-        insertStr = '💥 Fail';
-        insertType = 'error';
-      }
+      // 2. INSERT test
+      const insertRes = await DiagnosticsRepository.testTableInsert(table);
+      insertStr = insertRes.insertStr;
+      insertType = insertRes.insertType;
 
       const overallStatus = 
         selectType === 'missing' || insertType === 'missing' ? 'missing' :

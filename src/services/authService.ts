@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { UserRepository } from '../repositories';
 import { getRoleFromEmail } from '../constants';
 
 // Deduplicated Auth Sync requester to completely prevent duplicate concurrent /api/auth/sync requests
@@ -109,7 +110,7 @@ export const authService = {
     } catch (e) {}
 
     try {
-      await supabase.from('users').insert({
+      await UserRepository.createUserRecord({
         email: cleanEmail,
         name: name || cleanEmail.split('@')[0],
         full_name: name || cleanEmail.split('@')[0],

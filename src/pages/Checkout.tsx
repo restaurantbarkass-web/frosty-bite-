@@ -28,6 +28,7 @@ import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
+import { CouponsRepository } from '../repositories';
 import { supabaseService } from '../services/supabaseService';
 import { emailService } from '../services/emailService';
 import toast from 'react-hot-toast';
@@ -746,15 +747,9 @@ export const Checkout: React.FC = () => {
         haptic.checkout();
       }
 
-      // Increment coupon usage count if applied
+      // Increment coupon usage count if applied via CouponsRepository
       if (appliedCoupon?.id) {
-        try {
-          const { data: currentCoupon } = await supabase.from('coupons').select('usage_count').eq('id', appliedCoupon.id).single();
-          const newCount = (currentCoupon?.usage_count || 0) + 1;
-          await supabase.from('coupons').update({ usage_count: newCount }).eq('id', appliedCoupon.id);
-        } catch (err: any) {
-          console.error('Failed to increment coupon usage:', err);
-        }
+        CouponsRepository.incrementUsageCount(appliedCoupon.id);
       }
       
       if (formData.paymentMethod === 'upi') {

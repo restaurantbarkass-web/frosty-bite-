@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { CacheOrchestrator } from '../core/orchestrator/CacheOrchestrator';
 
 export const supabaseService = {
   // Improved error handler
@@ -21,15 +22,17 @@ export const supabaseService = {
     return error;
   },
 
-  // Generic Fetch
+  // Generic Fetch with CacheOrchestrator deduplication
   async fetchData<T>(table: string, queryBuilder?: (q: any) => any) {
-    let q = supabase.from(table).select('*');
-    if (queryBuilder) {
-      q = queryBuilder(q);
-    }
-    const { data, error } = await q;
-    if (error) throw this.handleError(error);
-    return data as T[];
+    return CacheOrchestrator.deduplicate(`supabase_fetch_${table}`, async () => {
+      let q = supabase.from(table).select('*');
+      if (queryBuilder) {
+        q = queryBuilder(q);
+      }
+      const { data, error } = await q;
+      if (error) throw this.handleError(error);
+      return data as T[];
+    });
   },
 
   // Generic Insert

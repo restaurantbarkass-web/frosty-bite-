@@ -52,8 +52,8 @@ export function buildPreloadHeaderString(distPath?: string): string {
     linkDirectives.push(`<${img}>; rel=preload; as=image`);
   });
 
-  // Dynamic asset scanning from production build dist/index.html
-  if (PRELOAD_CONFIG.enableDynamicAssetScanning && distPath) {
+  // Dynamic asset scanning from production build dist/index.html (ONLY in production mode)
+  if (PRELOAD_CONFIG.enableDynamicAssetScanning && distPath && process.env.NODE_ENV === 'production') {
     try {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
