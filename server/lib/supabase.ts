@@ -45,7 +45,7 @@ function getSupabaseClient(): SupabaseClient {
 }
 
 // Export a Proxy that intercepts all property/method access on supabase to enforce lazy loading and automatic timeouts
-function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 4000): any {
+function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 8000): any {
   if (obj === null || obj === undefined) return obj;
 
   // If the object is a function, wrap it so its return value is wrapped, and bind the function
@@ -63,36 +63,33 @@ function wrapThenableWithTimeout(obj: any, parent: any, ms: number = 4000): any 
       get: (target: any, prop: string | symbol) => {
         if (prop === 'then') {
           return function (this: any, onfulfilled: any, onrejected: any) {
-            let completed = false;
-            const timer = setTimeout(() => {
-              if (!completed) {
-                completed = true;
-                const err = new Error(`Supabase operation timed out after ${ms}ms`);
-                if (onrejected) {
-                  onrejected(err);
-                } else {
-                  console.error('[Supabase Timeout]', err.message);
-                }
-              }
-            }, ms);
-
-            return target.then.call(
-              target,
-              (res: any) => {
+            const p = new Promise((resolve, reject) => {
+              let completed = false;
+              const timer = setTimeout(() => {
                 if (!completed) {
                   completed = true;
-                  clearTimeout(timer);
-                  if (onfulfilled) return onfulfilled(res);
+                  reject(new Error(`Supabase operation timed out after ${ms}ms`));
                 }
-              },
-              (err: any) => {
-                if (!completed) {
-                  completed = true;
-                  clearTimeout(timer);
-                  if (onrejected) return onrejected(err);
+              }, ms);
+              target.then.call(
+                target,
+                (res: any) => {
+                  if (!completed) {
+                    completed = true;
+                    clearTimeout(timer);
+                    resolve(res);
+                  }
+                },
+                (err: any) => {
+                  if (!completed) {
+                    completed = true;
+                    clearTimeout(timer);
+                    reject(err);
+                  }
                 }
-              }
-            );
+              );
+            });
+            return p.then(onfulfilled, onrejected);
           };
         }
         
@@ -112,6 +109,6 @@ export const supabase = new Proxy({} as SupabaseClient, {
   get: (target: any, prop: string | symbol) => {
     const client = getSupabaseClient();
     const value = (client as any)[prop];
-    return wrapThenableWithTimeout(value, client, 4000);
+    return wrapThenableWithTimeout(value, client, 8000);
   }
 });
