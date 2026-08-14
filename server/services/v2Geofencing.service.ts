@@ -1200,11 +1200,11 @@ export const V2GeofencingService = {
       }
     } catch (_) {}
 
-    const store = loadBackupStore();
+    const store = await loadBackupStore();
     const idx = store.localities.findIndex(l => l.id === id);
     if (idx === -1) throw new Error(`Locality with ID ${id} not found`);
     store.localities[idx] = { ...store.localities[idx], ...payload };
-    saveBackupStore(store);
+    await saveBackupStore(store);
     return store.localities[idx];
   },
 
@@ -1212,16 +1212,16 @@ export const V2GeofencingService = {
     try {
       const { error } = await supabase.from('localities').delete().eq('id', id);
       if (!error) {
-        const store = loadBackupStore();
+        const store = await loadBackupStore();
         store.localities = store.localities.filter(l => l.id !== id);
-        saveBackupStore(store);
+        await saveBackupStore(store);
         return true;
       }
     } catch (_) {}
 
-    const store = loadBackupStore();
+    const store = await loadBackupStore();
     store.localities = store.localities.filter(l => l.id !== id);
-    saveBackupStore(store);
+    await saveBackupStore(store);
     return true;
   },
 
