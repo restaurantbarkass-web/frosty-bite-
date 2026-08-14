@@ -671,10 +671,10 @@ function loadBackupStore(): V2StoreData {
       const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       return {
-        service_areas: parsed.service_areas || defaultData.service_areas,
-        cities: parsed.cities || defaultData.cities,
-        pincodes: parsed.pincodes || defaultData.pincodes,
-        localities: parsed.localities || defaultData.localities
+        service_areas: (Array.isArray(parsed.service_areas) && parsed.service_areas.length > 0) ? parsed.service_areas : defaultData.service_areas,
+        cities: (Array.isArray(parsed.cities) && parsed.cities.length > 0) ? parsed.cities : defaultData.cities,
+        pincodes: (Array.isArray(parsed.pincodes) && parsed.pincodes.length > 0) ? parsed.pincodes : defaultData.pincodes,
+        localities: (Array.isArray(parsed.localities) && parsed.localities.length > 0) ? parsed.localities : defaultData.localities
       };
     }
   } catch (err) {

@@ -139,13 +139,27 @@ export const GeofencingV2Manager: React.FC = () => {
 
       if (saRes.ok) {
         const saData = await saRes.json();
-        setServiceArea(saData);
+        if (saData && typeof saData.is_active === 'boolean') {
+          setServiceArea(saData);
+        } else {
+          setServiceArea({
+            id: 'sa-00000000-0000-0000-0000-000000000001',
+            name: 'Frosty Bite Odisha Service Region',
+            is_active: true
+          });
+        }
+      } else {
+        setServiceArea({
+          id: 'sa-00000000-0000-0000-0000-000000000001',
+          name: 'Frosty Bite Odisha Service Region',
+          is_active: true
+        });
       }
+
       if (cRes.ok) {
         const cData = await cRes.json();
-        setCities(cData);
-        // Expand first city by default if none expanded
-        if (cData.length > 0) {
+        if (Array.isArray(cData) && cData.length > 0) {
+          setCities(cData);
           setExpandedCityIds((prev) => (prev.length === 0 ? [cData[0].id] : prev));
         }
       }
