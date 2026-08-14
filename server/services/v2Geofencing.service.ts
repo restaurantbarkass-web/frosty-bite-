@@ -799,12 +799,12 @@ export const V2GeofencingService = {
     }
 
     // Backup update
-    const store = loadBackupStore();
+    const store = await loadBackupStore();
     store.service_areas[0] = {
       ...store.service_areas[0],
       ...payload
     };
-    saveBackupStore(store);
+    await saveBackupStore(store);
     return store.service_areas[0];
   },
 
@@ -929,10 +929,10 @@ export const V2GeofencingService = {
     try {
       const { data, error } = await supabase.from('cities').update(payload).eq('id', id).select().single();
       if (!error && data) {
-        const store = loadBackupStore();
+        const store = await loadBackupStore();
         const idx = store.cities.findIndex(c => c.id === id);
         if (idx !== -1) store.cities[idx] = data;
-        saveBackupStore(store);
+        await saveBackupStore(store);
         return data;
       }
     } catch (_) {}
