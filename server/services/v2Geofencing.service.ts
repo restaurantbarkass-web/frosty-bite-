@@ -815,12 +815,24 @@ export const V2GeofencingService = {
   },
 
   async createCity(cityData: { name: string; state?: string; country?: string; is_active?: boolean; boundary?: any }): Promise<V2City> {
-    const slug = cityData.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const trimmedName = (cityData.name || '').trim();
+    if (!trimmedName) {
+      throw new Error('City name is required');
+    }
+    const slug = trimmedName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const store = loadBackupStore();
+
+    // Check if city already exists in backup store
+    const existing = store.cities.find(c => c.slug === slug || c.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existing) {
+      return existing;
+    }
+
     const newCity: Partial<V2City> = {
-      name: cityData.name.trim(),
+      name: trimmedName,
       slug,
-      state: cityData.state?.trim() || 'Odisha',
-      country: cityData.country?.trim() || 'India',
+      state: (cityData.state || 'Odisha').trim(),
+      country: (cityData.country || 'India').trim(),
       is_active: cityData.is_active !== false,
       boundary: normalizeToMultiPolygon(cityData.boundary),
       created_at: new Date().toISOString(),
@@ -828,16 +840,16 @@ export const V2GeofencingService = {
     };
 
     try {
-      const { data, error } = await supabase.from('cities').insert([newCity]).select().single();
-      if (!error && data) {
-        const store = loadBackupStore();
-        store.cities.push(data);
-        saveBackupStore(store);
-        return data;
+      if (!supabaseSchemaMissing) {
+        const { data, error } = await supabase.from('cities').insert([newCity]).select().single();
+        if (!error && data) {
+          store.cities.push(data);
+          saveBackupStore(store);
+          return data;
+        }
       }
     } catch (_) {}
 
-    const store = loadBackupStore();
     const created: V2City = {
       id: `city-${Date.now()}`,
       ...(newCity as V2City)
