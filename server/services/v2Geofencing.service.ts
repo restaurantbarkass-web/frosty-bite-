@@ -730,7 +730,7 @@ export const V2GeofencingService = {
   // --------------------------------------------------------------------------
   async getServiceArea(): Promise<V2ServiceArea> {
     try {
-      const store = loadBackupStore();
+      const store = await loadBackupStore();
       const defaultSa = store.service_areas[0] || {
         id: 'sa-00000000-0000-0000-0000-000000000001',
         name: 'Frosty Bite Odisha Service Region',
@@ -790,9 +790,9 @@ export const V2GeofencingService = {
           .single();
 
         if (!error && data) {
-          const store = loadBackupStore();
+          const store = await loadBackupStore();
           store.service_areas[0] = data;
-          saveBackupStore(store);
+          await saveBackupStore(store);
           return data;
         }
       } catch (_) {}
