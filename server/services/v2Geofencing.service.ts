@@ -230,8 +230,13 @@ export function calculateSpatialDistanceMeters(
   return calculateSpatialDistanceMetersFallback(longitude, latitude, hubLngLat);
 }
 
-// Local persistence file path
-const BACKUP_FILE = path.join(process.cwd(), 'v2_geofencing_store.json');
+// Local persistence file path (adaptive for serverless read-only filesystems like Vercel)
+let BACKUP_FILE = path.join(process.cwd(), 'v2_geofencing_store.json');
+try {
+  fs.accessSync(process.cwd(), fs.constants.W_OK);
+} catch {
+  BACKUP_FILE = path.join('/tmp', 'v2_geofencing_store.json');
+}
 
 interface V2StoreData {
   service_areas: V2ServiceArea[];
@@ -667,8 +672,15 @@ function loadBackupStore(): V2StoreData {
   };
 
   try {
-    if (fs.existsSync(BACKUP_FILE)) {
-      const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
+    let targetFile = BACKUP_FILE;
+    if (!fs.existsSync(targetFile)) {
+      const altFile = path.join('/tmp', 'v2_geofencing_store.json');
+      if (fs.existsSync(altFile)) {
+        targetFile = altFile;
+      }
+    }
+    if (fs.existsSync(targetFile)) {
+      const raw = fs.readFileSync(targetFile, 'utf-8');
       const parsed = JSON.parse(raw);
       return {
         service_areas: (Array.isArray(parsed.service_areas) && parsed.service_areas.length > 0) ? parsed.service_areas : defaultData.service_areas,
@@ -689,7 +701,12 @@ function saveBackupStore(data: V2StoreData) {
   try {
     fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[V2Service] Failed to save backup store:', err);
+    try {
+      const tmpPath = path.join('/tmp', 'v2_geofencing_store.json');
+      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err2) {
+      console.warn('[V2Service] Failed to save backup store to tmp:', err2);
+    }
   }
 }
 

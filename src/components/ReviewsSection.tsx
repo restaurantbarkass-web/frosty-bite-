@@ -29,7 +29,7 @@ export const ReviewsSection: React.FC = () => {
           localStorage.setItem('reviews_cache', JSON.stringify({ data, timestamp: Date.now() }));
         }
       } catch (err) {
-        console.error('Error fetching reviews:', err);
+        console.warn('Reviews API offline, using fallback reviews cache:', err);
         try {
           const cached = localStorage.getItem('reviews_cache');
           if (cached) {
