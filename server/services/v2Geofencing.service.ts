@@ -675,8 +675,11 @@ function loadBackupStore(): V2StoreData {
     let targetFile = BACKUP_FILE;
     if (!fs.existsSync(targetFile)) {
       const altFile = path.join('/tmp', 'v2_geofencing_store.json');
+      const cwdFile = path.join(process.cwd(), 'v2_geofencing_store.json');
       if (fs.existsSync(altFile)) {
         targetFile = altFile;
+      } else if (fs.existsSync(cwdFile)) {
+        targetFile = cwdFile;
       }
     }
     if (fs.existsSync(targetFile)) {
