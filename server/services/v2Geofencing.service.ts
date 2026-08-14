@@ -1192,10 +1192,10 @@ export const V2GeofencingService = {
     try {
       const { data, error } = await supabase.from('localities').update(payload).eq('id', id).select().single();
       if (!error && data) {
-        const store = loadBackupStore();
+        const store = await loadBackupStore();
         const idx = store.localities.findIndex(l => l.id === id);
         if (idx !== -1) store.localities[idx] = data;
-        saveBackupStore(store);
+        await saveBackupStore(store);
         return data;
       }
     } catch (_) {}
