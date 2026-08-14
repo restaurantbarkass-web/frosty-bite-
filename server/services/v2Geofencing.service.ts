@@ -727,27 +727,46 @@ export const V2GeofencingService = {
   // SERVICE AREA
   // --------------------------------------------------------------------------
   async getServiceArea(): Promise<V2ServiceArea> {
-    const store = loadBackupStore();
-    const defaultSa = store.service_areas[0];
+    try {
+      const store = loadBackupStore();
+      const defaultSa = store.service_areas[0] || {
+        id: 'sa-00000000-0000-0000-0000-000000000001',
+        name: 'Frosty Bite Odisha Service Region',
+        is_active: true,
+        boundary: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-    if (!supabaseSchemaMissing) {
-      try {
-        const { data, error } = await supabase.from('service_areas').select('*').limit(1).maybeSingle();
-        if (!error && data) {
-          return {
-            ...defaultSa,
-            ...data,
-            boundary: data.boundary || defaultSa.boundary,
-            is_active: typeof data.is_active === 'boolean' ? data.is_active : defaultSa.is_active
-          };
+      if (!supabaseSchemaMissing) {
+        try {
+          const { data, error } = await supabase.from('service_areas').select('*').limit(1).maybeSingle();
+          if (!error && data) {
+            return {
+              ...defaultSa,
+              ...data,
+              boundary: data.boundary || defaultSa.boundary,
+              is_active: typeof data.is_active === 'boolean' ? data.is_active : defaultSa.is_active
+            };
+          }
+          if (error && (error.code === 'PGRST205' || error.code === '42P01')) supabaseSchemaMissing = true;
+        } catch (_) {
+          supabaseSchemaMissing = true;
         }
-        if (error && error.code === 'PGRST205') supabaseSchemaMissing = true;
-      } catch (_) {
-        supabaseSchemaMissing = true;
       }
-    }
 
-    return defaultSa;
+      return defaultSa;
+    } catch (err) {
+      console.error('[V2Service] getServiceArea error:', err);
+      return {
+        id: 'sa-00000000-0000-0000-0000-000000000001',
+        name: 'Frosty Bite Odisha Service Region',
+        is_active: true,
+        boundary: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    }
   },
 
   async updateServiceArea(updates: { is_active?: boolean; name?: string; boundary?: any }): Promise<V2ServiceArea> {
@@ -791,27 +810,33 @@ export const V2GeofencingService = {
   // CITIES
   // --------------------------------------------------------------------------
   async getCities(): Promise<V2City[]> {
-    const backupCities = loadBackupStore().cities;
-    if (!supabaseSchemaMissing) {
-      try {
-        const { data, error } = await supabase.from('cities').select('*').order('name', { ascending: true });
-        if (!error && data && data.length > 0) {
-          return data.map(city => {
-            const match = backupCities.find(b => b.slug === city.slug || b.name.toLowerCase() === city.name?.toLowerCase());
-            return {
-              ...city,
-              boundary: city.boundary || match?.boundary || backupCities[0]?.boundary,
-              is_active: typeof city.is_active === 'boolean' ? city.is_active : true
-            };
-          });
+    try {
+      const store = loadBackupStore();
+      const backupCities = store.cities || [];
+      if (!supabaseSchemaMissing) {
+        try {
+          const { data, error } = await supabase.from('cities').select('*').order('name', { ascending: true });
+          if (!error && data && data.length > 0) {
+            return data.map(city => {
+              const match = backupCities.find(b => b.slug === city.slug || b.name.toLowerCase() === city.name?.toLowerCase());
+              return {
+                ...city,
+                boundary: city.boundary || match?.boundary || backupCities[0]?.boundary,
+                is_active: typeof city.is_active === 'boolean' ? city.is_active : true
+              };
+            });
+          }
+          if (error && (error.code === 'PGRST205' || error.code === '42P01')) supabaseSchemaMissing = true;
+        } catch (_) {
+          supabaseSchemaMissing = true;
         }
-        if (error && error.code === 'PGRST205') supabaseSchemaMissing = true;
-      } catch (_) {
-        supabaseSchemaMissing = true;
       }
-    }
 
-    return backupCities;
+      return backupCities;
+    } catch (err) {
+      console.error('[V2Service] getCities error:', err);
+      return [];
+    }
   },
 
   async createCity(cityData: { name: string; state?: string; country?: string; is_active?: boolean; boundary?: any }): Promise<V2City> {
@@ -935,31 +960,36 @@ export const V2GeofencingService = {
   // PINCODES
   // --------------------------------------------------------------------------
   async getPincodes(cityId?: string): Promise<V2Pincode[]> {
-    const backupPins = loadBackupStore().pincodes;
-    if (!supabaseSchemaMissing) {
-      try {
-        let query = supabase.from('pincodes').select('*').order('pincode', { ascending: true });
-        if (cityId) query = query.eq('city_id', cityId);
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          return data.map(pin => {
-            const match = backupPins.find(b => b.pincode === pin.pincode);
-            return {
-              ...pin,
-              boundary: pin.boundary || match?.boundary || backupPins[0]?.boundary,
-              is_active: typeof pin.is_active === 'boolean' ? pin.is_active : true
-            };
-          });
+    try {
+      const store = loadBackupStore();
+      const backupPins = store.pincodes || [];
+      if (!supabaseSchemaMissing) {
+        try {
+          let query = supabase.from('pincodes').select('*').order('pincode', { ascending: true });
+          if (cityId) query = query.eq('city_id', cityId);
+          const { data, error } = await query;
+          if (!error && data && data.length > 0) {
+            return data.map(pin => {
+              const match = backupPins.find(b => b.pincode === pin.pincode);
+              return {
+                ...pin,
+                boundary: pin.boundary || match?.boundary || backupPins[0]?.boundary,
+                is_active: typeof pin.is_active === 'boolean' ? pin.is_active : true
+              };
+            });
+          }
+          if (error && (error.code === 'PGRST205' || error.code === '42P01')) supabaseSchemaMissing = true;
+        } catch (_) {
+          supabaseSchemaMissing = true;
         }
-        if (error && error.code === 'PGRST205') supabaseSchemaMissing = true;
-      } catch (_) {
-        supabaseSchemaMissing = true;
       }
-    }
 
-    const store = loadBackupStore();
-    if (cityId) return store.pincodes.filter(p => p.city_id === cityId);
-    return store.pincodes;
+      if (cityId) return store.pincodes.filter(p => p.city_id === cityId);
+      return store.pincodes;
+    } catch (err) {
+      console.error('[V2Service] getPincodes error:', err);
+      return [];
+    }
   },
 
   async createPincode(pinData: { city_id: string; pincode: string; is_active?: boolean; boundary?: any }): Promise<V2Pincode> {
@@ -1051,34 +1081,39 @@ export const V2GeofencingService = {
   // LOCALITIES
   // --------------------------------------------------------------------------
   async getLocalities(cityId?: string, pincodeId?: string): Promise<V2Locality[]> {
-    const backupLocs = loadBackupStore().localities;
-    if (!supabaseSchemaMissing) {
-      try {
-        let query = supabase.from('localities').select('*').order('name', { ascending: true });
-        if (cityId) query = query.eq('city_id', cityId);
-        if (pincodeId) query = query.eq('pincode_id', pincodeId);
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          return data.map(loc => {
-            const match = backupLocs.find(b => b.slug === loc.slug || b.name.toLowerCase() === loc.name?.toLowerCase());
-            return {
-              ...loc,
-              boundary: loc.boundary || match?.boundary || backupLocs[0]?.boundary,
-              is_active: typeof loc.is_active === 'boolean' ? loc.is_active : true
-            };
-          });
+    try {
+      const store = loadBackupStore();
+      const backupLocs = store.localities || [];
+      if (!supabaseSchemaMissing) {
+        try {
+          let query = supabase.from('localities').select('*').order('name', { ascending: true });
+          if (cityId) query = query.eq('city_id', cityId);
+          if (pincodeId) query = query.eq('pincode_id', pincodeId);
+          const { data, error } = await query;
+          if (!error && data && data.length > 0) {
+            return data.map(loc => {
+              const match = backupLocs.find(b => b.slug === loc.slug || b.name.toLowerCase() === loc.name?.toLowerCase());
+              return {
+                ...loc,
+                boundary: loc.boundary || match?.boundary || backupLocs[0]?.boundary,
+                is_active: typeof loc.is_active === 'boolean' ? loc.is_active : true
+              };
+            });
+          }
+          if (error && (error.code === 'PGRST205' || error.code === '42P01')) supabaseSchemaMissing = true;
+        } catch (_) {
+          supabaseSchemaMissing = true;
         }
-        if (error && error.code === 'PGRST205') supabaseSchemaMissing = true;
-      } catch (_) {
-        supabaseSchemaMissing = true;
       }
-    }
 
-    const store = loadBackupStore();
-    let res = store.localities;
-    if (cityId) res = res.filter(l => l.city_id === cityId);
-    if (pincodeId) res = res.filter(l => l.pincode_id === pincodeId);
-    return res;
+      let res = store.localities || [];
+      if (cityId) res = res.filter(l => l.city_id === cityId);
+      if (pincodeId) res = res.filter(l => l.pincode_id === pincodeId);
+      return res;
+    } catch (err) {
+      console.error('[V2Service] getLocalities error:', err);
+      return [];
+    }
   },
 
   async createLocality(locData: {
