@@ -1,4 +1,3 @@
-import { db } from '../lib/firebaseAdmin';
 import { point, booleanPointInPolygon, distance } from '@turf/turf';
 import { supabase } from '../lib/supabase';
 
@@ -231,10 +230,6 @@ export function calculateSpatialDistanceMeters(
   return calculateSpatialDistanceMetersFallback(longitude, latitude, hubLngLat);
 }
 
-// Local persistence file path (adaptive for serverless read-only filesystems like Vercel)
-const FIRESTORE_COLLECTION = 'geofencing';
-const FIRESTORE_DOC = 'v2_store';
-
 interface V2StoreData {
   service_areas: V2ServiceArea[];
   cities: V2City[];
@@ -242,8 +237,7 @@ interface V2StoreData {
   localities: V2Locality[];
 }
 
-async function loadBackupStore(): Promise<V2StoreData> {
-  const defaultData: V2StoreData = {
+const defaultStoreData: V2StoreData = {
     service_areas: [
       {
         id: 'sa-00000000-0000-0000-0000-000000000001',
@@ -668,30 +662,42 @@ async function loadBackupStore(): Promise<V2StoreData> {
     ]
   };
 
+let cachedStoreData: V2StoreData = { ...defaultStoreData };
+
+// Asynchronously hydrate cache from Supabase app_settings
+(async () => {
   try {
-    const doc = await db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).get();
-    if (doc.exists) {
-      const parsed = doc.data() as V2StoreData;
-      return {
-        service_areas: (Array.isArray(parsed.service_areas) && parsed.service_areas.length > 0) ? parsed.service_areas : defaultData.service_areas,
-        cities: (Array.isArray(parsed.cities) && parsed.cities.length > 0) ? parsed.cities : defaultData.cities,
-        pincodes: (Array.isArray(parsed.pincodes) && parsed.pincodes.length > 0) ? parsed.pincodes : defaultData.pincodes,
-        localities: (Array.isArray(parsed.localities) && parsed.localities.length > 0) ? parsed.localities : defaultData.localities
-      };
+    const { data: row } = await supabase.from('app_settings').select('value').eq('id', 'geofencing_v2_store').maybeSingle();
+    if (row && row.value) {
+      const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : row.value;
+      if (parsed && typeof parsed === 'object') {
+        cachedStoreData = {
+          service_areas: (Array.isArray(parsed.service_areas) && parsed.service_areas.length > 0) ? parsed.service_areas : defaultStoreData.service_areas,
+          cities: (Array.isArray(parsed.cities) && parsed.cities.length > 0) ? parsed.cities : defaultStoreData.cities,
+          pincodes: (Array.isArray(parsed.pincodes) && parsed.pincodes.length > 0) ? parsed.pincodes : defaultStoreData.pincodes,
+          localities: (Array.isArray(parsed.localities) && parsed.localities.length > 0) ? parsed.localities : defaultStoreData.localities
+        };
+      }
     }
   } catch (err) {
-    console.warn('[V2Service] Failed to read backup from Firestore, using default:', err);
+    console.warn('[V2Service] Initial cache hydration notice:', err);
   }
+})();
 
-  await saveBackupStore(defaultData);
-  return defaultData;
+function loadBackupStore(): V2StoreData {
+  return cachedStoreData;
 }
 
 async function saveBackupStore(data: V2StoreData) {
+  cachedStoreData = data;
   try {
-    await db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC).set(data);
+    await supabase.from('app_settings').upsert({
+      id: 'geofencing_v2_store',
+      value: JSON.stringify(data),
+      updated_at: new Date().toISOString()
+    });
   } catch (err) {
-    console.warn('[V2Service] Failed to save backup store to Firestore:', err);
+    console.warn('[V2Service] Failed to save backup store to Supabase:', err);
   }
 }
 
