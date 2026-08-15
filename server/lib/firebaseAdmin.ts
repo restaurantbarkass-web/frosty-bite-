@@ -1,9 +1,8 @@
-import * as adminNamespace from 'firebase-admin';
-const admin = (adminNamespace as any).default || adminNamespace;
+import admin from 'firebase-admin';
 import firebaseConfig from '../../firebase-applet-config.json' assert { type: 'json' };
 
 // Initialize Firebase Admin
-if (!admin.apps.length) {
+if (!admin.apps || admin.apps.length === 0) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault(),
     databaseURL: `https://${firebaseConfig.projectId}.firebaseio.com`,
