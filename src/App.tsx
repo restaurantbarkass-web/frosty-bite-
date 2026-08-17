@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate, Navigate, Link } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { GeofenceProvider, useGeofence } from './context/GeofenceContext';
@@ -47,6 +47,7 @@ import FinishSignIn from './pages/FinishSignIn';
 import ProductDetail from './pages/ProductDetail';
 import Orders from './pages/Orders';
 import Notifications from './pages/Notifications';
+import FAQ from './pages/FAQ';
 import NotFound from './pages/NotFound';
 import { CartSidebar } from './components/CartSidebar';
 
@@ -467,6 +468,7 @@ function AppContent() {
                   </ProtectedRoute>
                 } />
                 <Route path="/offers" element={<LocalErrorBoundary fallbackName="Offers Page"><Offers /></LocalErrorBoundary>} />
+                <Route path="/faq" element={<LocalErrorBoundary fallbackName="FAQ Page"><FAQ /></LocalErrorBoundary>} />
                 <Route path="/product/:id" element={<LocalErrorBoundary fallbackName="Product Detail Page"><ProductDetail /></LocalErrorBoundary>} />
                 <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
               </Routes>
@@ -487,6 +489,9 @@ function AppContent() {
               </div>
 
               <div className="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-4">
+                <Link to="/faq" className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all">
+                  FAQ
+                </Link>
                 <a href="https://www.instagram.com/frosty_bite07?igsh=dXpqZXE0Y2pvOWt0" target="_blank" rel="noreferrer" className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-primary transition-all">
                   Instagram
                 </a>

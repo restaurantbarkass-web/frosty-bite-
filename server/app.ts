@@ -200,7 +200,143 @@ app.use(["/notifications", "/api/notifications"], notificationRoutes);
 app.use(["/validate-address", "/api/validate-address"], validateaddressRoutes);
 app.use(["/reviews", "/api/reviews"], reviewsRoutes);
 app.use(["/search", "/api/search"], searchRoutes);
-app.use(["/v2", "/api/v2"], v2geofencingRoutes);
+app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], v2geofencingRoutes);
+
+// Direct top-level aliases for cities, pincodes, localities, service-areas, and trending
+app.get(["/cities", "/api/cities"], async (req, res) => {
+  try {
+    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+    const cities = await V2GeofencingService.getCities();
+    res.json(cities);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch cities", details: err.message });
+  }
+});
+
+app.get(["/pincodes", "/api/pincodes"], async (req, res) => {
+  try {
+    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+    const cityId = req.query.city_id as string | undefined;
+    const pincodes = await V2GeofencingService.getPincodes(cityId);
+    res.json(pincodes);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch pincodes", details: err.message });
+  }
+});
+
+app.get(["/localities", "/api/localities"], async (req, res) => {
+  try {
+    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+    const cityId = req.query.city_id as string | undefined;
+    const pincodeId = req.query.pincode_id as string | undefined;
+    const localities = await V2GeofencingService.getLocalities(cityId, pincodeId);
+    res.json(localities);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch localities", details: err.message });
+  }
+});
+
+app.get(["/service-area", "/api/service-area", "/service-areas", "/api/service-areas"], async (req, res) => {
+  try {
+    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+    const area = await V2GeofencingService.getServiceArea();
+    res.json(area);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch service area", details: err.message });
+  }
+});
+
+app.post(["/check", "/api/check", "/geofencing/check", "/api/geofencing/check"], async (req, res) => {
+  try {
+    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+    const { latitude, longitude } = req.body || {};
+    const result = await V2GeofencingService.checkServiceability({ latitude, longitude });
+    res.status(result.status).json(result.data);
+  } catch (err: any) {
+    res.status(500).json({ serviceable: false, reason: "INTERNAL_ERROR", message: "We currently don't deliver to this area." });
+  }
+});
+
+app.get(["/trending", "/api/trending"], async (req, res) => {
+  const limitCount = parseInt(req.query.limit as string, 10) || 6;
+  const defaultTrending = [
+    'Anniversary Cakes',
+    'Chocolate Truffle',
+    'Coffee Pastries',
+    'Custom Gifts',
+    'Cupcakes',
+    'Fresh Fruit Cake'
+  ];
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data, error } = await supabase
+      .from('search_analytics')
+      .select('query')
+      .order('count', { ascending: false })
+      .limit(limitCount);
+
+    if (error || !data || data.length === 0) {
+      return res.json(defaultTrending.slice(0, limitCount));
+    }
+
+    const queries = data.map((d: any) => d.query).filter(Boolean);
+    if (queries.length < limitCount) {
+      const combined = Array.from(new Set([...queries, ...defaultTrending]));
+      return res.json(combined.slice(0, limitCount));
+    }
+
+    return res.json(queries.slice(0, limitCount));
+  } catch {
+    return res.json(defaultTrending.slice(0, limitCount));
+  }
+});
+
+// Legacy Service Zones & Delivery Areas aliases
+app.get(["/service-zones", "/api/service-zones"], async (req, res) => {
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data, error } = await supabase.from('service_zones').select('*');
+    if (error) {
+      // Fallback from V2 cities if legacy table does not exist
+      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+      const cities = await V2GeofencingService.getCities();
+      return res.json(cities.map(c => ({ id: c.id, city_name: c.name, latitude: 20.2961, longitude: 85.8245, radius_meters: 15000, is_active: c.is_active })));
+    }
+    res.json(data || []);
+  } catch (err: any) {
+    res.json([]);
+  }
+});
+
+app.get(["/service-pincodes", "/api/service-pincodes"], async (req, res) => {
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data, error } = await supabase.from('service_pincodes').select('*');
+    if (error) {
+      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+      const pins = await V2GeofencingService.getPincodes();
+      return res.json(pins.map(p => ({ id: p.id, pincode: p.pincode, active: p.is_active })));
+    }
+    res.json(data || []);
+  } catch (err: any) {
+    res.json([]);
+  }
+});
+
+app.get(["/delivery-areas", "/api/delivery-areas"], async (req, res) => {
+  try {
+    const { supabase } = await import("./lib/supabase");
+    const { data, error } = await supabase.from('delivery_areas').select('*');
+    if (error) {
+      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
+      const locs = await V2GeofencingService.getLocalities();
+      return res.json(locs.map(l => ({ id: l.id, area_name: l.name, pincode: '', is_deliverable: l.is_active })));
+    }
+    res.json(data || []);
+  } catch (err: any) {
+    res.json([]);
+  }
+});
 
 // Real-time order status endpoints
 app.get("/orders/:orderId/status", async (req: Request, res: Response) => {

@@ -6,7 +6,7 @@ const router = Router();
 // ----------------------------------------------------------------------------
 // SERVICE AREA
 // ----------------------------------------------------------------------------
-router.get('/service-area', async (req: Request, res: Response) => {
+router.get(['/service-area', '/service-areas', '/geofencing/service-area', '/geofencing/service-areas'], async (req: Request, res: Response) => {
   try {
     const area = await V2GeofencingService.getServiceArea();
     res.json(area);
@@ -15,7 +15,7 @@ router.get('/service-area', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/service-area', async (req: Request, res: Response) => {
+router.patch(['/service-area', '/service-areas', '/geofencing/service-area', '/geofencing/service-areas'], async (req: Request, res: Response) => {
   try {
     const updated = await V2GeofencingService.updateServiceArea(req.body);
     res.json(updated);
@@ -27,7 +27,7 @@ router.patch('/service-area', async (req: Request, res: Response) => {
 // ----------------------------------------------------------------------------
 // CITIES
 // ----------------------------------------------------------------------------
-router.get('/cities', async (req: Request, res: Response) => {
+router.get(['/cities', '/geofencing/cities'], async (req: Request, res: Response) => {
   try {
     const cities = await V2GeofencingService.getCities();
     res.json(cities);
@@ -36,7 +36,7 @@ router.get('/cities', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/cities', async (req: Request, res: Response) => {
+router.post(['/cities', '/geofencing/cities'], async (req: Request, res: Response) => {
   try {
     const { name, state, country, is_active, boundary } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -50,7 +50,7 @@ router.post('/cities', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/cities/:id', async (req: Request, res: Response) => {
+router.patch(['/cities/:id', '/geofencing/cities/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updateCity(id, req.body);
@@ -60,7 +60,7 @@ router.patch('/cities/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/cities/:id', async (req: Request, res: Response) => {
+router.delete(['/cities/:id', '/geofencing/cities/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deleteCity(id);
@@ -73,7 +73,7 @@ router.delete('/cities/:id', async (req: Request, res: Response) => {
 // ----------------------------------------------------------------------------
 // PINCODES
 // ----------------------------------------------------------------------------
-router.get('/pincodes', async (req: Request, res: Response) => {
+router.get(['/pincodes', '/geofencing/pincodes'], async (req: Request, res: Response) => {
   try {
     const cityId = req.query.city_id as string | undefined;
     const pincodes = await V2GeofencingService.getPincodes(cityId);
@@ -83,7 +83,7 @@ router.get('/pincodes', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/pincodes', async (req: Request, res: Response) => {
+router.post(['/pincodes', '/geofencing/pincodes'], async (req: Request, res: Response) => {
   try {
     const { city_id, pincode, is_active, boundary } = req.body;
     if (!city_id || !pincode) {
@@ -96,7 +96,7 @@ router.post('/pincodes', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/pincodes/:id', async (req: Request, res: Response) => {
+router.patch(['/pincodes/:id', '/geofencing/pincodes/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updatePincode(id, req.body);
@@ -106,7 +106,7 @@ router.patch('/pincodes/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/pincodes/:id', async (req: Request, res: Response) => {
+router.delete(['/pincodes/:id', '/geofencing/pincodes/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deletePincode(id);
@@ -119,7 +119,7 @@ router.delete('/pincodes/:id', async (req: Request, res: Response) => {
 // ----------------------------------------------------------------------------
 // LOCALITIES
 // ----------------------------------------------------------------------------
-router.get('/localities', async (req: Request, res: Response) => {
+router.get(['/localities', '/geofencing/localities'], async (req: Request, res: Response) => {
   try {
     const cityId = req.query.city_id as string | undefined;
     const pincodeId = req.query.pincode_id as string | undefined;
@@ -130,7 +130,7 @@ router.get('/localities', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/localities', async (req: Request, res: Response) => {
+router.post(['/localities', '/geofencing/localities'], async (req: Request, res: Response) => {
   try {
     const { city_id, pincode_id, name, is_active, delivery_fee, minimum_order, estimated_delivery_minutes, boundary } = req.body;
     if (!city_id || !name) {
@@ -152,7 +152,7 @@ router.post('/localities', async (req: Request, res: Response) => {
   }
 });
 
-router.patch('/localities/:id', async (req: Request, res: Response) => {
+router.patch(['/localities/:id', '/geofencing/localities/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updateLocality(id, req.body);
@@ -162,7 +162,7 @@ router.patch('/localities/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/localities/:id', async (req: Request, res: Response) => {
+router.delete(['/localities/:id', '/geofencing/localities/:id'], async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deleteLocality(id);

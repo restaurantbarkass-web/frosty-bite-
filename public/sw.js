@@ -1,4 +1,4 @@
-const CACHE_NAME = 'frosty-bite-cache-v5';
+const CACHE_NAME = 'frosty-bite-cache-v6';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -75,6 +75,12 @@ self.addEventListener('fetch', event => {
   // Stale-While-Revalidate strategy for API data, menu queries, orders, and media
   const isApiOrMenuReq = event.request.url.includes('/rest/v1/') ||
                          event.request.url.includes('/api/') ||
+                         event.request.url.includes('/cities') ||
+                         event.request.url.includes('/trending') ||
+                         event.request.url.includes('/pincodes') ||
+                         event.request.url.includes('/localities') ||
+                         event.request.url.includes('/service-area') ||
+                         event.request.url.includes('/geofencing') ||
                          event.request.destination === 'image';
 
   if (isApiOrMenuReq) {

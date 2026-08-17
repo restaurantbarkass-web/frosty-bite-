@@ -24,6 +24,9 @@ export const preloadRoute = (path: string) => {
     case '/offers':
       import('../pages/Offers').catch(() => {});
       break;
+    case '/faq':
+      import('../pages/FAQ').catch(() => {});
+      break;
     case '/orders':
       import('../pages/Orders').catch(() => {});
       break;
