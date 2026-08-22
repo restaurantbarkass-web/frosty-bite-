@@ -10,6 +10,8 @@ import { CacheManager } from '../core/cache/CacheManager';
 import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
 import { AuthManager } from '../core/auth/AuthManager';
 import { SlideToLogout } from '../components/ui/SlideToLogout';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
+import { AuthModal } from '../components/AuthModal';
 
 type UserRole = 'customer' | 'admin';
 
@@ -47,9 +49,18 @@ interface AuthContextType {
   isAdmin: boolean;
   isCustomer: boolean;
   isVerified: boolean;
+  isGuest: boolean;
+  guestState: any | null;
+  authModalOpen: boolean;
+  authModalConfig: { title?: string; subtitle?: string };
   logout: (bypassConfirmation?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
   resolveAndSyncUser: (sbUserParam?: any, fbUserParam?: any) => Promise<void>;
+  loginAsGuest: () => void;
+  exitGuestMode: () => void;
+  openAuthModal: (title?: string, subtitle?: string) => void;
+  closeAuthModal: () => void;
+  requireAuthentication: (action?: () => void, title?: string, subtitle?: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +92,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
+
+  const [guestState, setGuestState] = useState<any>(() => GuestSessionManager.get());
+  const isGuest = useMemo(() => !user && GuestSessionManager.isActive(), [user]);
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalConfig, setAuthModalConfig] = useState<{ title?: string; subtitle?: string }>({});
+
+  const loginAsGuest = useCallback(() => {
+    const gs = GuestSessionManager.create();
+    setGuestState(gs);
+    setUser(null);
+    setRole('customer');
+  }, []);
+
+  const exitGuestMode = useCallback(() => {
+    GuestSessionManager.clear();
+    setGuestState(null);
+  }, []);
+
+  const openAuthModal = useCallback((title?: string, subtitle?: string) => {
+    setAuthModalConfig({ title, subtitle });
+    setAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModalOpen(false);
+  }, []);
+
+  const requireAuthentication = useCallback((action?: () => void, title?: string, subtitle?: string) => {
+    if (user) {
+      if (action) action();
+      return true;
+    }
+    openAuthModal(title, subtitle);
+    return false;
+  }, [user, openAuthModal]);
 
   const lastSupabaseUserRef = useRef<any>(undefined);
   const lastFirebaseUserRef = useRef<any>(undefined);
@@ -267,6 +314,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (dbUser) {
+        if (GuestSessionManager.isActive()) {
+          GuestSessionManager.mergeWithUser(dbUser.id);
+          setGuestState(null);
+        }
+
         const unifiedUser: UnifiedUser = {
           uid: dbUser.id,
           id: dbUser.id,
@@ -510,10 +562,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
+    isGuest,
+    guestState,
+    authModalOpen,
+    authModalConfig,
     logout,
     refreshProfile,
-    resolveAndSyncUser
-  }), [user, role, loading, isVerified, logout, refreshProfile, resolveAndSyncUser]);
+    resolveAndSyncUser,
+    loginAsGuest,
+    exitGuestMode,
+    openAuthModal,
+    closeAuthModal,
+    requireAuthentication
+  }), [user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication]);
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal((prev) => (prev ? false : prev));
@@ -549,6 +610,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <AuthModal isOpen={authModalOpen} onClose={closeAuthModal} title={authModalConfig.title} subtitle={authModalConfig.subtitle} />
       <AnimatePresence>
         {showLogoutModal && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
