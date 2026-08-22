@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, Check, X, ArrowRight, ShoppingCart, Clock } from 'lucide-react';
+import { Bell, Check, X, ArrowRight, ShoppingCart, Clock, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../supabase';
 import toast from 'react-hot-toast';
 import { Order } from '../../types';
 import { cn } from '../../lib/utils';
+import { SlideToConfirm } from '../ui/SlideToConfirm';
 
 interface OrderActionPopupProps {
   order: Order | null;
@@ -14,6 +15,7 @@ interface OrderActionPopupProps {
 
 export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClose, onAction }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showSlideCancel, setShowSlideCancel] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute to act
 
   useEffect(() => {
@@ -114,24 +116,55 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
-              <button
-                disabled={isProcessing}
-                onClick={() => handleAction('confirmed')}
-                className="flex-1 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-              >
-                <Check size={16} />
-                Accept
-              </button>
-              <button
-                disabled={isProcessing}
-                onClick={() => handleAction('cancelled')}
-                className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 disabled:opacity-50"
-              >
-                <X size={16} />
-                Reject
-              </button>
-            </div>
+            {showSlideCancel ? (
+              <div className="pt-2 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSlideCancel(false)}
+                  className="flex items-center gap-2 text-xs font-bold text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-full transition-all border border-white/10 hover:border-white/20"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Accept / Reject</span>
+                </button>
+                <SlideToConfirm
+                  onConfirm={async () => {
+                    await handleAction('cancelled');
+                  }}
+                  label="Slide to Reject Order"
+                  releaseLabel="Release to Reject"
+                  processingLabel="Rejecting Order..."
+                  successLabel="Order Rejected!"
+                  variant="danger"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSlideCancel(false)}
+                  className="w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-full text-xs font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-2 group transition-all"
+                >
+                  <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" />
+                  <span>Back</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-3 pt-2">
+                <button
+                  disabled={isProcessing}
+                  onClick={() => handleAction('confirmed')}
+                  className="flex-1 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <Check size={16} />
+                  Accept
+                </button>
+                <button
+                  disabled={isProcessing}
+                  onClick={() => setShowSlideCancel(true)}
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 disabled:opacity-50"
+                >
+                  <X size={16} />
+                  Reject
+                </button>
+              </div>
+            )}
             
             <button 
               onClick={onClose}

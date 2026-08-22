@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from '../../types';
 import { supabaseService } from '../../services/supabaseService';
+import { SlideToConfirm } from '../../components/ui/SlideToConfirm';
 import toast from 'react-hot-toast';
 
 interface OrderEditPageProps {
@@ -317,7 +318,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               {/* Cancellation Reason if Cancelled */}
               {status === 'cancelled' && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-2">
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-3">
                   <label className="text-xs font-bold text-rose-400 uppercase tracking-widest flex items-center gap-2">
                     <ShieldAlert size={14} />
                     Cancellation Reason
@@ -329,6 +330,18 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                     placeholder="e.g. Out of stock ingredients, Customer requested cancellation"
                     className="w-full bg-black/40 border border-rose-500/30 rounded-xl py-3 px-4 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
                   />
+                  <div className="pt-2">
+                    <SlideToConfirm
+                      onConfirm={async () => {
+                        await handleSave();
+                      }}
+                      label="Slide to Confirm Cancellation"
+                      releaseLabel="Release to Confirm Cancel"
+                      processingLabel="Saving Cancellation..."
+                      successLabel="Order Cancelled!"
+                      variant="danger"
+                    />
+                  </div>
                 </div>
               )}
             </div>

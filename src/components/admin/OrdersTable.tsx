@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
@@ -15,6 +15,8 @@ import { emailService } from '../../services/emailService';
 import { Order } from '../../types';
 import { ImageZoom } from '../ImageZoom';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
+import { SlideConfirmModal } from '../ui/SlideConfirmModal';
+import { SlideToConfirm } from '../ui/SlideToConfirm';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -81,6 +83,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   const [isMuted, setIsMuted] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const lastOrderCountRef = useRef<number>(0);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -322,7 +325,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     }
   };
 
-  const rejectPayment = async (orderId: string) => {
+  const rejectPayment = async (orderId: string, bypassSlideBar = false) => {
+    const orderToCancel = orders.find(o => o.id === orderId);
+    if (!bypassSlideBar && orderToCancel) {
+      setCancellingOrder(orderToCancel);
+      return;
+    }
     stopAlarm();
     const loadingToast = toast.loading('Rejecting order...');
     try {
@@ -357,7 +365,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     }
   };
 
-  const updateStatus = async (id: string, newStatus: Order['status']) => {
+  const updateStatus = async (id: string, newStatus: Order['status'], bypassSlideBar = false) => {
+    if (newStatus === 'cancelled' && !bypassSlideBar) {
+      const orderToCancel = orders.find(o => o.id === id);
+      if (orderToCancel) {
+        setCancellingOrder(orderToCancel);
+        return;
+      }
+    }
     if (newStatus === 'confirmed' || newStatus === 'cancelled') {
       stopAlarm();
     }
@@ -514,52 +529,65 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
   return (
     <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={!!deletingId}
-        onClose={() => setDeletingId(null)}
-        onConfirm={() => deletingId && deleteOrder(deletingId)}
-        title="Delete Order?"
-        description="This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+      {/* Slide Confirm Modal for Cancel Order */}
+      <SlideConfirmModal
+        isOpen={!!cancellingOrder}
+        onClose={() => setCancellingOrder(null)}
+        onConfirm={async () => {
+          if (cancellingOrder) {
+            await updateStatus(cancellingOrder.id, 'cancelled', true);
+            setCancellingOrder(null);
+          }
+        }}
+        title={cancellingOrder ? `Cancel Order #${cancellingOrder.id.slice(-6).toUpperCase()}?` : 'Cancel Order?'}
+        description="This will cancel the order, restore inventory stock, and send a notification to the customer. Slide below to confirm."
+        slideLabel="Slide to Cancel Order"
+        releaseLabel="Release to Cancel Order"
+        processingLabel="Cancelling Order..."
+        successLabel="Order Cancelled!"
         variant="danger"
+        backLabel="Back to Orders List"
       />
 
-      <div className="p-8 border-b border-white/5 flex items-center justify-between">
+      <div className="p-6 sm:p-8 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01]">
         <div>
-          <h3 className="text-xl font-bold text-white tracking-tight">Recent Orders</h3>
-          <p className="text-sm text-gray-500">Manage and track customer orders</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-black text-white tracking-tight uppercase italic">Recent Orders</h3>
+            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-mono font-bold">
+              {orders.length} orders
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 mt-1 font-medium">Manage and process active customer orders in real-time</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           {orders.some(o => o.status === 'pending') && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full animate-pulse">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full animate-pulse">
               <div className="w-2 h-2 bg-amber-500 rounded-full" />
-              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">New Orders</span>
+              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">New Orders Pending</span>
             </div>
           )}
           {notificationPermission !== 'granted' && (
             <button 
               onClick={requestNotificationPermission}
-              className="p-3 rounded-2xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-all"
+              className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-all hover:scale-105"
               title="Enable Browser Notifications"
             >
-              <Bell size={20} />
+              <Bell size={18} />
             </button>
           )}
           <button 
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-3 rounded-2xl border transition-all ${isMuted ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+            className={`p-3 rounded-2xl border transition-all hover:scale-105 ${isMuted ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}
             title={isMuted ? "Unmute Alarm" : "Mute Alarm"}
           >
-            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           <button 
             onClick={() => setAutoPrint(!autoPrint)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all ${autoPrint ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all hover:scale-105 ${autoPrint ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}
             title={autoPrint ? "Disable Auto-print" : "Enable Auto-print"}
           >
-            <Printer size={20} />
+            <Printer size={18} />
             <span className="text-xs font-bold uppercase tracking-widest">{autoPrint ? "Auto-print ON" : "Auto-print OFF"}</span>
           </button>
         </div>
@@ -620,14 +648,73 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {sortedOrders.map((order) => (
-              <motion.tr 
-                key={order.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
-                className="group transition-colors"
-              >
+            {sortedOrders.map((order) => {
+              if (deletingId === order.id) {
+                return (
+                  <tr key={order.id} className="bg-red-950/20 border-y-2 border-red-500/40">
+                    <td colSpan={8} className="p-4 sm:p-5">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: -4 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-[#16141a] border border-red-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 left-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="flex items-center gap-4 w-full lg:w-auto relative z-10">
+                          <button
+                            type="button"
+                            onClick={() => setDeletingId(null)}
+                            className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0"
+                          >
+                            <ArrowLeft size={14} />
+                            <span>Back</span>
+                          </button>
+
+                          <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 shrink-0">
+                            <Trash2 size={22} />
+                          </div>
+
+                          <div className="flex flex-col text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-red-400 uppercase tracking-widest">Delete Order</span>
+                              <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
+                                #{order.id.slice(-6).toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-300 font-medium mt-0.5">
+                              Permanently remove <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong>'s order (₹{order.total})
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-80 shrink-0 relative z-10">
+                          <SlideToConfirm
+                            onConfirm={async () => {
+                              await deleteOrder(order.id);
+                            }}
+                            label="Slide to Delete Order"
+                            releaseLabel="Release to Delete"
+                            processingLabel="Deleting Order..."
+                            successLabel="Order Deleted!"
+                            variant="danger"
+                          />
+                        </div>
+                      </motion.div>
+                    </td>
+                  </tr>
+                );
+              }
+
+              return (
+                <motion.tr 
+                  key={order.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
+                  className="group transition-colors"
+                >
                 <td className="px-8 py-6">
                   <span className="text-sm font-bold text-white font-mono tracking-tight">{order.id.slice(-6).toUpperCase()}</span>
                 </td>
@@ -904,7 +991,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
                   </div>
                 </td>
               </motion.tr>
-            ))}
+            );
+          })}
             {sortedOrders.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-8 py-20 text-center text-zinc-500 font-bold">
@@ -919,7 +1007,70 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       {/* Mobile Card View */}
       <div className="lg:hidden p-4 space-y-4">
         {sortedOrders.map((order) => (
-          <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
+          <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+            {/* Inline Overlapping Delete Card Overlay */}
+            <AnimatePresence>
+              {deletingId === order.id && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute inset-0 bg-[#141218] border-2 border-red-500/50 rounded-2xl p-5 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-red-950/80"
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setDeletingId(null)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingId(null)}
+                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center space-y-2 my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center">
+                      <Trash2 size={22} />
+                    </div>
+                    <h4 className="text-sm font-black text-white uppercase italic tracking-tight">
+                      Delete Order #{order.id.slice(-6).toUpperCase()}?
+                    </h4>
+                    <p className="text-xs text-zinc-300 font-medium px-2">
+                      Permanently remove order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <SlideToConfirm
+                      onConfirm={async () => {
+                        await deleteOrder(order.id);
+                      }}
+                      label="Slide to Delete Order"
+                      releaseLabel="Release to Delete"
+                      processingLabel="Deleting Order..."
+                      successLabel="Order Deleted!"
+                      variant="danger"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDeletingId(null)}
+                      className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>Back to Order</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-primary uppercase font-mono">#{order.id.slice(-6)}</span>
               <StatusBadge order={order} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { OrdersTable } from '../../components/admin/OrdersTable';
-import { Filter, Search, Download, Calendar, Clock, X, AlertCircle } from 'lucide-react';
+import { Filter, Search, Download, Calendar, Clock, X, AlertCircle, RefreshCw, Sparkles, CheckCircle2, Package, Truck, Layers, ShieldCheck, DollarSign } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../../lib/utils';
 import { supabase } from '../../supabase';
@@ -221,34 +221,40 @@ export const Orders: React.FC = () => {
   const processedRefundsSum = processedRefunds.reduce((sum, o) => sum + (Number(o.total) || Number(o.total_amount) || 0), 0);
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">Order Management</h1>
-          <p className="text-gray-500 font-medium">Track and manage all customer orders and cancellation claims in real-time.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full md:w-auto">
-          <select 
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-[#111] border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-orange-500/50"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="preparing">Preparing</option>
-            <option value="out_for_delivery">Dispatch</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl text-orange-500 text-[10px] sm:text-xs font-bold whitespace-nowrap">
-            <Clock size={14} />
-            <span className="hidden xs:inline">Last 24 Hours</span>
-            <span className="xs:hidden">24h</span>
+    <div className="space-y-8">
+      {/* Top Header Row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#111116]/80 backdrop-blur-2xl border border-white/10 p-6 sm:p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            Live Orders Engine
           </div>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 sm:px-4 py-1 flex-1 sm:flex-none">
+          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight italic uppercase">Order Management</h1>
+          <p className="text-zinc-400 text-xs sm:text-sm font-medium">Real-time fulfillment dashboard, payment verifications & audit trails.</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-2xl px-3 sm:px-4 py-2">
+            <Filter size={14} className="text-orange-400" />
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-[#141414] text-white">All Statuses</option>
+              <option value="pending" className="bg-[#141414] text-white">Pending</option>
+              <option value="confirmed" className="bg-[#141414] text-white">Confirmed</option>
+              <option value="preparing" className="bg-[#141414] text-white">Preparing</option>
+              <option value="out_for_delivery" className="bg-[#141414] text-white">Dispatch</option>
+              <option value="delivered" className="bg-[#141414] text-white">Delivered</option>
+              <option value="cancelled" className="bg-[#141414] text-white">Cancelled</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-2xl px-3 sm:px-4 py-1.5 flex-1 sm:flex-none">
             <div className="flex flex-col">
-              <span className="text-[8px] text-gray-500 font-bold uppercase font-sans">From</span>
+              <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">From</span>
               <input 
                 type="date" 
                 value={startDate}
@@ -256,9 +262,9 @@ export const Orders: React.FC = () => {
                 className="bg-transparent text-white text-[10px] sm:text-xs font-bold focus:outline-none w-20 sm:w-auto"
               />
             </div>
-            <div className="w-px h-8 bg-white/10 mx-1 sm:mx-2" />
+            <div className="w-px h-7 bg-white/10 mx-1 sm:mx-2" />
             <div className="flex flex-col">
-              <span className="text-[8px] text-gray-500 font-bold uppercase font-sans">To</span>
+              <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">To</span>
               <input 
                 type="date" 
                 value={endDate}
@@ -269,95 +275,125 @@ export const Orders: React.FC = () => {
             {(startDate || endDate) && (
               <button 
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="ml-1 sm:ml-2 text-gray-500 hover:text-white transition-colors"
+                className="ml-1 sm:ml-2 text-zinc-400 hover:text-white transition-colors"
+                title="Clear date filter"
               >
                 <X size={14} />
               </button>
             )}
           </div>
+
           <button 
             onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 flex-1 sm:flex-none px-6 sm:px-8 py-3 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all text-sm"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
-            <Download size={18} />
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">Export</span>
+            <Download size={16} />
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+      {/* Modern 24h Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-5">
         {[
-          { label: 'Pending', count: stats.pending, color: 'amber' },
-          { label: 'Confirmed', count: stats.confirmed, color: 'emerald' },
-          { label: 'Preparing', count: stats.preparing, color: 'blue' },
-          { label: 'Dispatch', count: stats.out_for_delivery, color: 'purple' },
-          { label: 'Delivered', count: stats.delivered, color: 'emerald' },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex items-center justify-between group hover:border-white/10 transition-all">
-            <div>
-              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1 font-sans">{stat.label}</p>
-              <h4 className="text-3xl font-black text-white">{stat.count}</h4>
+          { label: 'Pending', count: stats.pending, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+          { label: 'Confirmed', count: stats.confirmed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+          { label: 'Preparing', count: stats.preparing, icon: Package, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20' },
+          { label: 'Dispatch', count: stats.out_for_delivery, icon: Truck, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+          { label: 'Delivered', count: stats.delivered, icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+        ].map((stat) => {
+          const IconComp = stat.icon;
+          return (
+            <div 
+              key={stat.label} 
+              className="bg-[#111116]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-center justify-between group hover:border-white/20 transition-all hover:-translate-y-0.5 shadow-xl"
+            >
+              <div>
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                <h4 className="text-2xl sm:text-3xl font-black text-white font-mono">{stat.count}</h4>
+                <p className="text-[8px] text-zinc-600 font-bold uppercase mt-1">Last 24 hours</p>
+              </div>
+              <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center border shadow-lg shrink-0", stat.bg)}>
+                <IconComp size={20} className={stat.color} />
+              </div>
             </div>
-            <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 shadow-lg shadow-${stat.color}-500/5`}>
-              <span className="text-xl font-black">#</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="flex bg-[#111] p-1 rounded-2xl border border-white/5">
+      {/* Tabs & Search Navigation Bar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 bg-[#111116]/80 backdrop-blur-xl border border-white/10 p-2 sm:p-2.5 rounded-[2rem] shadow-xl">
+        <div className="flex bg-black/50 p-1.5 rounded-2xl border border-white/5 overflow-x-auto">
           <button
+            type="button"
             onClick={() => setActiveTab('active')}
             className={cn(
-              "px-6 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all",
+              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
               activeTab === 'active' 
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" 
-                : "text-zinc-500 hover:text-white"
+                ? "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-lg shadow-orange-500/20" 
+                : "text-zinc-400 hover:text-white"
             )}
           >
-            Active Orders
+            <Layers size={14} />
+            <span>Active Orders</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-[9px] font-mono">
+              {allOrders.filter(o => o.status !== 'cancelled' && o.payment_status !== 'pending_verification').length}
+            </span>
           </button>
+
           <button
+            type="button"
             onClick={() => setActiveTab('verification')}
             className={cn(
-              "px-6 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2",
+              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'verification' 
                 ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-400 hover:text-white"
             )}
           >
-            Verification
+            <ShieldCheck size={14} />
+            <span>Verification</span>
             {allOrders.filter(o => o.payment_status === 'pending_verification').length > 0 && (
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             )}
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('cancelled')}
             className={cn(
-              "px-6 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2",
+              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'cancelled' 
                 ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20" 
-                : "text-zinc-500 hover:text-white"
+                : "text-zinc-400 hover:text-white"
             )}
           >
-            Cancelled & Refunds
+            <AlertCircle size={14} />
+            <span>Cancelled & Refunds</span>
             {allOrders.filter(o => o.status === 'cancelled' && o.refund_status === 'pending_refund').length > 0 && (
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             )}
           </button>
         </div>
+
         <div className="relative flex-1 group w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-orange-400 transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Search by Order ID, Customer Name, Phone..." 
-            className="w-full bg-[#111]/80 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-650"
+            className="w-full bg-black/40 border border-white/10 rounded-2xl py-3.5 pl-12 pr-10 text-white text-xs sm:text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
