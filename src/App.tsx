@@ -331,10 +331,10 @@ function AppContent() {
   // 1. Instant App Render (No blocking splash video)
   // Non-blocking background sync handles boot, profile, and geofence updates.
 
-  // 3. STRICT Geofence Location Lock: If geofencing is enabled AND location is not strictly allowed/serviceable, lock the screen
-  if (geofencingEnabled !== false && !isAllowed && !isAdmin && !isAuthPage) {
-    return <LockedGeofenceScreen />;
-  }
+  // 3. STRICT Geofence Location Lock: Temporarily disabled (geofencing service deactivated, ready for reactivation)
+  // if (geofencingEnabled !== false && !isAllowed && !isAdmin && !isAuthPage) {
+  //   return <LockedGeofenceScreen />;
+  // }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">

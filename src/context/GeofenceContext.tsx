@@ -863,11 +863,9 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
     return false;
   }, [allowedZonesList, setSelectedCandidateLocation]);
 
-  // Serviceability Decision:
-  // Allowed ONLY if geofencing disabled (geofencingEnabled === false), admin user, OR V2 status is serviceable
-  const isAllowed = geofencingEnabled === false || 
-                    isAdmin || 
-                    (GEOFENCING_V2_ENABLED ? v2Serviceability.status === 'serviceable' : activeZone !== null);
+  // Serviceability Decision: Temporarily disabled geofencing service (always allowed, logic ready for reactivation)
+  // Original logic: geofencingEnabled === false || isAdmin || (GEOFENCING_V2_ENABLED ? v2Serviceability.status === 'serviceable' : activeZone !== null)
+  const isAllowed = true;
 
   const value = useMemo(() => ({
     isCheckingPosition,
