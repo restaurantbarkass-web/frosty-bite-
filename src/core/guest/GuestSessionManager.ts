@@ -108,13 +108,11 @@ export class GuestSessionManager {
     if (!guestState) return;
 
     try {
-      // Merge guest cart if user cart is empty
       const existingUserCart = localStorage.getItem(`user_cart_${userId}`);
       if (!existingUserCart && guestState.cart && guestState.cart.length > 0) {
         localStorage.setItem(`user_cart_${userId}`, JSON.stringify(guestState.cart));
       }
 
-      // Merge favorites if applicable
       if (guestState.favorites && guestState.favorites.length > 0) {
         const userFavKey = `user_favorites_${userId}`;
         const existingFavs = JSON.parse(localStorage.getItem(userFavKey) || '[]');
@@ -127,4 +125,22 @@ export class GuestSessionManager {
 
     GuestSessionManager.clear();
   }
+
+  static convertToUser(): void {
+    const current = GuestSessionManager.get();
+    if (current) {
+      GuestSessionManager.clear();
+    }
+  }
 }
+
+export const GuestSession = {
+  create: GuestSessionManager.create,
+  get: GuestSessionManager.get,
+  isActive: GuestSessionManager.isActive,
+  clear: GuestSessionManager.clear,
+  update: GuestSessionManager.update,
+  convertToUser: GuestSessionManager.convertToUser,
+  mergeWithUser: GuestSessionManager.mergeWithUser,
+  registerFromCheckout: GuestSessionManager.registerFromCheckout
+};
