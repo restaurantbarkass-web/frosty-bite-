@@ -12,6 +12,7 @@ import { AuthManager } from '../core/auth/AuthManager';
 import { SlideToLogout } from '../components/ui/SlideToLogout';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 import { AuthModal } from '../components/AuthModal';
+import { haptic } from '../lib/utils';
 
 type UserRole = 'customer' | 'admin';
 
@@ -507,6 +508,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user?.id]);
 
   const performLogoutCleanup = useCallback(async () => {
+    haptic.medium();
     lastSupabaseUserRef.current = null;
     lastFirebaseUserRef.current = null;
 
