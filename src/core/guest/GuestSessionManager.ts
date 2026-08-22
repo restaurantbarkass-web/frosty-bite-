@@ -1,8 +1,11 @@
 export interface GuestProfile {
   name: string;
   email: string;
+  phone?: string;
+  address?: string;
   avatar: string;
   badge_tier: string;
+  isRegisteredAtCheckout?: boolean;
 }
 
 export interface GuestState {
@@ -30,8 +33,11 @@ export class GuestSessionManager {
       guestProfile: {
         name: 'Guest User',
         email: 'guest@frostybite.app',
+        phone: '',
+        address: '',
         avatar: 'G',
-        badge_tier: 'Guest Explorer'
+        badge_tier: 'Guest Explorer',
+        isRegisteredAtCheckout: false
       },
       recentlyViewed: [],
       favorites: [],
@@ -70,6 +76,27 @@ export class GuestSessionManager {
   static update(updates: Partial<GuestState>): GuestState {
     const current = GuestSessionManager.get() || GuestSessionManager.create();
     const updated = { ...current, ...updates };
+    try {
+      localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {}
+    return updated;
+  }
+
+  static registerFromCheckout(checkoutData: { name: string; phone: string; address: string; email?: string }): GuestState {
+    const current = GuestSessionManager.get() || GuestSessionManager.create();
+    const updated: GuestState = {
+      ...current,
+      guestProfile: {
+        ...current.guestProfile,
+        name: checkoutData.name,
+        phone: checkoutData.phone,
+        address: checkoutData.address,
+        email: checkoutData.email || current.guestProfile.email,
+        avatar: checkoutData.name ? checkoutData.name.charAt(0).toUpperCase() : 'G',
+        badge_tier: 'Valued Customer',
+        isRegisteredAtCheckout: true
+      }
+    };
     try {
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated));
     } catch (e) {}

@@ -48,6 +48,7 @@ import { MapSelector } from '../components/MapSelector';
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 import { geocode } from '../lib/geocoder';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -735,6 +736,14 @@ export const Checkout: React.FC = () => {
 
       // Save to Supabase
       try {
+        if (!user) {
+          GuestSessionManager.registerFromCheckout({
+            name: formData.name,
+            phone: formData.phone,
+            address: isPickupOnly ? BAKERY_ADDRESS : formData.address
+          });
+        }
+
         await supabaseService.insertData('orders', orderData);
         haptic.checkout();
       } catch (supabaseError: any) {

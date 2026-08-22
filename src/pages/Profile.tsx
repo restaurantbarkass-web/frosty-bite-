@@ -34,6 +34,7 @@ import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { SecureFundsLockModal } from '../components/SecureFundsLockModal';
 import { AddFundsLockedModal } from '../components/AddFundsLockedModal';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
 import { SlideToLogout } from '../components/ui/SlideToLogout';
@@ -296,6 +297,28 @@ export const Profile: React.FC = () => {
     if (hour < 18) return 'from-blue-400/20 via-cyan-400/5 to-transparent';
     return 'from-purple-600/30 via-indigo-900/10 to-transparent';
   }, [theme]);
+
+  const guestState = GuestSessionManager.get();
+  const isCheckoutRegisteredGuest = isGuest && guestState?.guestProfile?.isRegisteredAtCheckout;
+
+  useEffect(() => {
+    if (isCheckoutRegisteredGuest && guestState?.guestProfile) {
+      const gp = guestState.guestProfile;
+      setUserData({
+        full_name: gp.name,
+        phone: gp.phone || '',
+        address: gp.address || '',
+        email: gp.email,
+        badge_tier: gp.badge_tier || 'Valued Customer'
+      });
+      setFormData({
+        name: gp.name,
+        phone: gp.phone || '',
+        address: gp.address || ''
+      });
+      setLoading(false);
+    }
+  }, [isCheckoutRegisteredGuest, guestState]);
 
   useEffect(() => {
     if (!authUser) return;
@@ -730,7 +753,7 @@ export const Profile: React.FC = () => {
     }
   };
 
-  if (isGuest) {
+  if (isGuest && !isCheckoutRegisteredGuest) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 pb-32">
         <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-center overflow-hidden">
