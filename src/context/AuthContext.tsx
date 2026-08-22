@@ -9,6 +9,7 @@ import { safeTrimLowerCase } from '../utils/string';
 import { CacheManager } from '../core/cache/CacheManager';
 import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
 import { AuthManager } from '../core/auth/AuthManager';
+import { SlideToLogout } from '../components/ui/SlideToLogout';
 
 type UserRole = 'customer' | 'admin';
 
@@ -317,8 +318,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
 
         if (currentVersion !== syncVersionRef.current) return;
-        setUser(unifiedUser);
-        setRole(unifiedUser.role);
+        setUser((prev) => {
+          if (
+            prev &&
+            prev.id === unifiedUser.id &&
+            prev.uid === unifiedUser.uid &&
+            prev.email === unifiedUser.email &&
+            prev.name === unifiedUser.name &&
+            prev.role === unifiedUser.role &&
+            prev.photoURL === unifiedUser.photoURL &&
+            prev.points === unifiedUser.points &&
+            prev.reward_points === unifiedUser.reward_points &&
+            prev.badge_tier === unifiedUser.badge_tier &&
+            prev.phone === unifiedUser.phone &&
+            prev.address === unifiedUser.address
+          ) {
+            return prev;
+          }
+          return unifiedUser;
+        });
+        setRole((prev) => (prev === unifiedUser.role ? prev : unifiedUser.role));
         try {
           localStorage.setItem('frostybite_has_active_session', 'true');
           localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
@@ -329,7 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[UnifiedAuth] Error in resolveAndSyncUser:', error);
     } finally {
       if (currentVersion === syncVersionRef.current) {
-        setLoading(false);
+        setLoading((prev) => (prev ? false : prev));
       }
     }
   }, []);
@@ -435,6 +454,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user?.id]);
 
+  const performLogoutCleanup = useCallback(async () => {
+    lastSupabaseUserRef.current = null;
+    lastFirebaseUserRef.current = null;
+
+    try {
+      await AuthManager.secureLogout();
+    } catch (e) {
+      console.warn('[UnifiedAuth] Error in secureLogout:', e);
+    }
+
+    setUser((prev) => (prev === null ? prev : null));
+    setRole((prev) => (prev === 'customer' ? prev : 'customer'));
+
+    try {
+      localStorage.removeItem('frostybite_active_session_email');
+      localStorage.removeItem('frostybite_has_active_session');
+      localStorage.removeItem('frostybite_cached_user');
+      localStorage.removeItem('latest_admin_auth_token');
+      localStorage.removeItem('claimed_coupon');
+      CacheManager.clearNamespace(CacheNamespace.USER).catch(() => {});
+    } catch (e) {}
+  }, []);
+
+  const logout = useCallback(async (bypassConfirmation = false) => {
+    if (!bypassConfirmation) {
+      return new Promise<void>((resolve, reject) => {
+        setPendingLogout((prev) => {
+          if (prev) {
+            try { prev.reject(new Error('superseded')); } catch (e) {}
+          }
+          return { resolve, reject };
+        });
+        setShowLogoutModal((prev) => (prev ? prev : true));
+      });
+    }
+
+    await performLogoutCleanup();
+
+    setTimeout(() => {
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }, 50);
+  }, [performLogoutCleanup]);
+
+  const refreshProfile = useCallback(async () => {
+    await resolveAndSyncUser();
+  }, [resolveAndSyncUser]);
+
   const value = useMemo(() => ({
     user,
     role,
@@ -442,57 +510,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isVerified,
     isAdmin: role === 'admin' || (!!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())),
     isCustomer: role === 'customer',
-    logout: async (bypassConfirmation = false) => {
-      if (!bypassConfirmation) {
-        return new Promise<void>((resolve, reject) => {
-          setPendingLogout({ resolve, reject });
-          setShowLogoutModal(true);
-        });
-      }
-
-      await AuthManager.secureLogout();
-      
-      setUser(null);
-      setRole('customer');
-
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 50);
-    },
-    refreshProfile: async () => {
-      await resolveAndSyncUser();
-    },
+    logout,
+    refreshProfile,
     resolveAndSyncUser
-  }), [user, role, loading, isVerified, resolveAndSyncUser]);
+  }), [user, role, loading, isVerified, logout, refreshProfile, resolveAndSyncUser]);
 
   const handleConfirmLogout = async () => {
-    setShowLogoutModal(false);
-    if (pendingLogout) {
-      try {
-        await AuthManager.secureLogout();
-        
-        setUser(null);
-        setRole('customer');
-
-        pendingLogout.resolve();
-        setPendingLogout(null);
-
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 50);
-      } catch (err) {
-        pendingLogout.reject(err);
-        setPendingLogout(null);
+    setShowLogoutModal((prev) => (prev ? false : prev));
+    setPendingLogout((prev) => {
+      if (prev) {
+        performLogoutCleanup()
+          .then(() => {
+            prev.resolve();
+            setTimeout(() => {
+              if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+              }
+            }, 50);
+          })
+          .catch((err) => {
+            prev.reject(err);
+          });
       }
-    }
+      return null;
+    });
   };
 
   const handleCancelLogout = () => {
-    setShowLogoutModal(false);
-    if (pendingLogout) {
-      pendingLogout.reject(new Error('cancelled'));
-      setPendingLogout(null);
-    }
+    setShowLogoutModal((prev) => (prev ? false : prev));
+    setPendingLogout((prev) => {
+      if (prev) {
+        try { prev.reject(new Error('cancelled')); } catch (e) {}
+      }
+      return null;
+    });
   };
 
   return (
@@ -530,22 +581,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 Are you sure you want to log out of Frosty Bite? We will miss serving you delicious, fresh-baked gourmet treats!
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="space-y-4">
+                <SlideToLogout
+                  onLogout={async () => {
+                    await performLogoutCleanup();
+                    setPendingLogout((prev) => {
+                      if (prev) {
+                        try { prev.resolve(); } catch (e) {}
+                      }
+                      return null;
+                    });
+                  }}
+                  onSuccess={() => {
+                    setShowLogoutModal((prev) => (prev ? false : prev));
+                  }}
+                  autoRedirect={true}
+                  redirectPath="/login"
+                />
+
                 <button
                   type="button"
                   onClick={handleCancelLogout}
-                  className="flex-1 py-3 px-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 text-zinc-350 hover:text-white border border-white/10 text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer"
+                  className="w-full py-3 px-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] active:scale-95 text-zinc-400 hover:text-white border border-white/10 text-xs font-bold tracking-widest uppercase transition-all duration-200 cursor-pointer"
                   id="btn_cancel_logout"
                 >
-                  No, Keep Me In
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmLogout}
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 active:scale-95 text-white shadow-lg shadow-orange-600/20 text-xs font-bold tracking-wide transition-all duration-200 cursor-pointer"
-                  id="btn_confirm_logout"
-                >
-                  Yes, Log Me Out
+                  Stay Logged In
                 </button>
               </div>
             </motion.div>

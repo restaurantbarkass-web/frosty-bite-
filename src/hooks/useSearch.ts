@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { FoodItem } from '../types';
 import { searchService, AiRecommendationResponse } from '../services/searchService';
 import { useAuth } from '../context/AuthContext';
@@ -6,13 +6,21 @@ import { useAuth } from '../context/AuthContext';
 export const useSearch = (allItems: FoodItem[]) => {
   const { user } = useAuth();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<FoodItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [smartRec, setSmartRec] = useState<AiRecommendationResponse | null>(null);
   const [isProcessingRec, setIsProcessingRec] = useState(false);
+
+  // Compute Search Results synchronously with useMemo to eliminate extra effect and state update
+  const results = useMemo(() => {
+    const norm = (query || '').trim();
+    if (norm.length > 0) {
+      return searchService.filterAndRankItems(allItems, norm);
+    }
+    return [];
+  }, [query, allItems]);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -31,16 +39,8 @@ export const useSearch = (allItems: FoodItem[]) => {
       .catch((err) => console.error("Error loading trending searches:", err));
   }, []);
 
-  // Handle Search Result Updates
-  useEffect(() => {
-    const norm = (query || '').trim();
-    if (norm.length > 0) {
-      const filtered = searchService.filterAndRankItems(allItems, norm);
-      setResults(filtered);
-    } else {
-      setResults(prev => prev.length > 0 ? [] : prev);
-    }
-  }, [query, allItems]);
+  const allItemsRef = useRef(allItems);
+  allItemsRef.current = allItems;
 
   // Debounced AI Suggestions & Smart Recommendation
   useEffect(() => {
@@ -54,9 +54,10 @@ export const useSearch = (allItems: FoodItem[]) => {
     }
 
     const timer = setTimeout(async () => {
-      if (allItems.length > 0) {
+      const itemsToUse = allItemsRef.current;
+      if (itemsToUse.length > 0) {
         // Get Suggestions
-        searchService.getAiSuggestions(query, allItems).then(s => {
+        searchService.getAiSuggestions(query, itemsToUse).then(s => {
           if (active) setAiSuggestions(s);
         }).catch((err) => {
           console.error("Error getting AI suggestions:", err);
@@ -68,7 +69,7 @@ export const useSearch = (allItems: FoodItem[]) => {
           if (active) setIsProcessingRec(false);
         }, 15000); // 15s safety timeout
 
-        searchService.getSmartRecommendation(query, allItems).then(rec => {
+        searchService.getSmartRecommendation(query, itemsToUse).then(rec => {
           if (!active) return;
           setSmartRec(rec);
           setIsProcessingRec(false);
@@ -86,7 +87,7 @@ export const useSearch = (allItems: FoodItem[]) => {
       active = false;
       clearTimeout(timer);
     };
-  }, [query, allItems]);
+  }, [query]);
 
   const performSearch = useCallback(async (searchTerm: string) => {
     const trimmed = (searchTerm || '').trim();
@@ -107,7 +108,7 @@ export const useSearch = (allItems: FoodItem[]) => {
       localStorage.setItem('frosty_recent_searches', JSON.stringify(updated));
       return updated;
     });
-  }, [user]);
+  }, [user?.uid]);
 
   const removeRecent = useCallback((term: string) => {
     setRecent(prev => {
@@ -124,7 +125,6 @@ export const useSearch = (allItems: FoodItem[]) => {
 
   const clear = useCallback(() => {
     setQuery('');
-    setResults([]);
     setAiSuggestions([]);
     setSmartRec(null);
     setIsProcessingRec(false);

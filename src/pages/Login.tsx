@@ -301,11 +301,11 @@ export const Login: React.FC = () => {
         if (hasLocation) {
           navigate('/');
         } else {
-          setStep('location');
+          setStep(prev => prev === 'location' ? prev : 'location');
         }
       }
     }
-  }, [user, isAdmin, navigate]);
+  }, [user?.uid || user?.id, isAdmin, navigate]);
 
   // Countdown timer for resend
   const execute1ClickLogin = async (targetEmail: string) => {

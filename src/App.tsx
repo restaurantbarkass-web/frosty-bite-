@@ -30,7 +30,7 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import Lenis from '@studio-freight/lenis';
 
 import { useAuth } from './context/AuthContext';
-import { useCart } from './context/CartContext';
+import { useCart, useCartActions } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
 
@@ -70,7 +70,7 @@ const PageLoader = () => (
 );
 
 const CartPageRoute: React.FC = () => {
-  const { setIsCartOpen } = useCart();
+  const { setIsCartOpen } = useCartActions();
   useEffect(() => {
     setIsCartOpen(true);
   }, [setIsCartOpen]);
@@ -79,7 +79,10 @@ const CartPageRoute: React.FC = () => {
 };
 
 const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
+  if (loading) {
+    return <PageLoader />;
+  }
   if (user) {
     return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
   }
@@ -208,7 +211,7 @@ function AppContent() {
       active = false;
       unsubscribeFCM();
     };
-  }, [user]);
+  }, [user?.uid || user?.id]);
 
   useEffect(() => {
     // Disable smooth-scroll libraries on touch devices to prioritize native momentum scrolling

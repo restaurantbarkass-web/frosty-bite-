@@ -88,7 +88,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
     }
     
     return links;
-  }, [user, isAdmin]);
+  }, [user?.uid || user?.id, isAdmin]);
 
   const navLinks = getNavLinks;
 

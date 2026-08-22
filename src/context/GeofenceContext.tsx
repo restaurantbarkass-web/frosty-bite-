@@ -363,11 +363,33 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
             hasSelectedLocation: true
           };
 
-          setV2Serviceability(newState);
-          setDetectedCity(newState.city);
-          setDetectedPincode(newState.pincode);
-          setDetectedAddress(newState.locality ? `${newState.locality}, ${newState.city}` : newState.city);
-          setActiveZone({ name: newState.locality || newState.city || 'Service Zone', distance: (newState.distanceMeters || 0) / 1000, maxRadius: 20 });
+          setV2Serviceability((prev) => {
+            if (
+              prev.status === newState.status &&
+              prev.city === newState.city &&
+              prev.pincode === newState.pincode &&
+              prev.locality === newState.locality &&
+              prev.coordinates?.latitude === newState.coordinates?.latitude &&
+              prev.coordinates?.longitude === newState.coordinates?.longitude &&
+              prev.deliveryFee === newState.deliveryFee &&
+              prev.minimumOrder === newState.minimumOrder
+            ) {
+              return prev;
+            }
+            return newState;
+          });
+          setDetectedCity((prev) => (prev === newState.city ? prev : newState.city));
+          setDetectedPincode((prev) => (prev === newState.pincode ? prev : newState.pincode));
+          setDetectedAddress((prev) => {
+            const addr = newState.locality ? `${newState.locality}, ${newState.city}` : newState.city;
+            return prev === addr ? prev : addr;
+          });
+          setActiveZone((prev) => {
+            const name = newState.locality || newState.city || 'Service Zone';
+            const dist = (newState.distanceMeters || 0) / 1000;
+            if (prev && prev.name === name && prev.distance === dist) return prev;
+            return { name, distance: dist, maxRadius: 20 };
+          });
           setErrorMessage(null);
 
           // Add to Recent Locations
@@ -408,8 +430,21 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
             hasSelectedLocation: true
           };
 
-          setV2Serviceability(newState);
-          setActiveZone(null);
+          setV2Serviceability((prev) => {
+            if (
+              prev.status === newState.status &&
+              prev.city === newState.city &&
+              prev.pincode === newState.pincode &&
+              prev.locality === newState.locality &&
+              prev.reason === newState.reason &&
+              prev.coordinates?.latitude === newState.coordinates?.latitude &&
+              prev.coordinates?.longitude === newState.coordinates?.longitude
+            ) {
+              return prev;
+            }
+            return newState;
+          });
+          setActiveZone((prev) => (prev === null ? prev : null));
 
           try {
             localStorage.removeItem('frostybite_confirmed_lat');

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useConfig } from './ConfigContext';
 import { AppBootstrap } from '../core/bootstrap/AppBootstrap';
@@ -39,12 +39,17 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cachedBanners, setCachedBanners] = useState<any[]>([]);
   const [retryTrigger, setRetryTrigger] = useState(0);
 
-  const retryBoot = () => {
+  const userRef = useRef(user);
+  userRef.current = user;
+  const refreshProfileRef = useRef(refreshProfile);
+  refreshProfileRef.current = refreshProfile;
+
+  const retryBoot = useCallback(() => {
     setBootState(BootState.BOOTING);
     setProgress(0);
     setErrorMessage(null);
     setRetryTrigger((prev) => prev + 1);
-  };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -59,8 +64,8 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (result.cachedProducts) setCachedProducts(result.cachedProducts);
         if (result.cachedBanners) setCachedBanners(result.cachedBanners);
 
-        if (user) {
-          refreshProfile().catch(() => {});
+        if (userRef.current) {
+          refreshProfileRef.current().catch(() => {});
         }
 
         setProgress(100);
@@ -90,7 +95,7 @@ export const BootProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cachedBanners,
       retryBoot,
     }),
-    [bootState, progress, errorMessage, cachedProducts, cachedOffers, cachedBanners]
+    [bootState, progress, errorMessage, cachedProducts, cachedOffers, cachedBanners, retryBoot]
   );
 
   return <BootContext.Provider value={value}>{children}</BootContext.Provider>;

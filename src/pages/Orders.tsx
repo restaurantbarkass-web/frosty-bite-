@@ -72,7 +72,7 @@ const Orders: React.FC = () => {
         console.warn('Error reading cached orders:', e);
       }
     }
-  }, [user]);
+  }, [user?.uid || user?.id]);
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -151,7 +151,7 @@ const Orders: React.FC = () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.uid || user?.id]);
 
   const handleReorderItem = (e: React.MouseEvent, item: any) => {
     e.preventDefault();

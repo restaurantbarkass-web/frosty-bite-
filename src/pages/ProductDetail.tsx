@@ -44,7 +44,7 @@ const ProductDetail: React.FC = () => {
     ogImage: product?.image || undefined,
     ogTitle: product ? `${product.name} - Order Online` : undefined,
     ogDescription: product ? product.description : undefined,
-  }, [product]);
+  }, [product?.id, product?.name, product?.description]);
 
   useEffect(() => {
     const fetchWishlistStatus = async () => {
@@ -59,7 +59,7 @@ const ProductDetail: React.FC = () => {
     };
 
     fetchWishlistStatus();
-  }, [user, id]);
+  }, [user?.uid, id]);
 
   useEffect(() => {
     let ticking = false;
@@ -85,7 +85,7 @@ const ProductDetail: React.FC = () => {
       window.removeEventListener('scroll', handleScroll);
       clearTimeout(timeoutId);
     };
-  }, [product]);
+  }, [product?.id]);
 
   useEffect(() => {
     const fetchProduct = async () => {

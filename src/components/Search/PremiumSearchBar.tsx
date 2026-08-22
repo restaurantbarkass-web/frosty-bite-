@@ -70,9 +70,14 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
     } catch (e) {}
   }, []);
 
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
+
   // Sync initial query
   useEffect(() => {
-    if (initialQuery !== undefined) setQuery(initialQuery);
+    if (initialQuery !== undefined) {
+      setQuery(prev => (prev !== initialQuery ? initialQuery : prev));
+    }
   }, [initialQuery]);
 
   // Debounced search logic for live filtering if needed, 
@@ -81,13 +86,13 @@ export const PremiumSearchBar: React.FC<PremiumSearchBarProps> = ({
     if (query !== initialQuery && isFocused) {
         if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = setTimeout(() => {
-            onSearch(query);
+            onSearchRef.current(query);
         }, 500);
     }
     return () => {
         if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [query, onSearch, initialQuery, isFocused]);
+  }, [query, initialQuery, isFocused]);
 
   // Animated Placeholder Typing Effect
   useEffect(() => {

@@ -73,7 +73,7 @@ export const Home: React.FC = () => {
     const filtered = displayItems.filter(item => item.available !== false);
     const itemsToUse = filtered.length > 0 ? filtered : displayItems;
     return [...itemsToUse].sort(() => 0.5 - Math.random()).slice(0, 6);
-  }, [displayItems.map(item => item.id).join(',')]);
+  }, [displayItems]);
 
   const handlePremiumSearch = React.useCallback((q: string) => {
     setSearchQuery(q);
@@ -138,39 +138,48 @@ export const Home: React.FC = () => {
   }, []);
   
   // Dynamic categories based on menu items
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [aiRecs, setAiRecs] = useState<string[]>([]);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+
+  const suggestions = React.useMemo(() => {
+    if (!searchQuery || searchQuery.trim() === '') {
+      return [];
+    }
+
+    const itemSuggestions = displayItems
+      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .map(item => item.name);
+
+    const categorySuggestions = (menuCategories || [])
+      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return Array.from(new Set([...itemSuggestions, ...categorySuggestions])).slice(0, 6);
+  }, [searchQuery, displayItems, menuCategories]);
 
   useEffect(() => {
     const handleNavbarSearch = (e: any) => {
       const queryValue = e.detail;
-      if (queryValue !== searchQuery) {
-        setSearchQuery(queryValue);
+      if (queryValue !== undefined) {
+        setSearchQuery(prev => (prev !== queryValue ? queryValue : prev));
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
       }
     };
 
-    const handleOpenOverlay = () => {
-        // Search bar on top is just a trigger now
-        window.dispatchEvent(new CustomEvent('open-search'));
-    };
-
     window.addEventListener('navbar-search', handleNavbarSearch);
     return () => window.removeEventListener('navbar-search', handleNavbarSearch);
-  }, [searchQuery]);
+  }, []);
 
   useEffect(() => {
     const queryStr = new URLSearchParams(location.search).get('search');
-    if (queryStr && queryStr !== searchQuery) {
-      setSearchQuery(queryStr);
+    if (queryStr) {
+      setSearchQuery(prev => (prev !== queryStr ? queryStr : prev));
       setTimeout(() => {
         const element = document.getElementById('menu-section');
         element?.scrollIntoView({ behavior: 'smooth' });
       }, 500);
     }
-  }, [location.search, searchQuery]);
+  }, [location.search]);
 
   useEffect(() => {
     // Delay non-critical data fetching to prioritize main menu rendering
@@ -282,25 +291,6 @@ export const Home: React.FC = () => {
       supabase.removeChannel(channel);
     };
   }, [user?.uid]);
-
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setSuggestions(prev => prev.length > 0 ? [] : prev);
-      return;
-    }
-
-    const itemSuggestions = displayItems
-      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .map(item => item.name);
-
-    const categorySuggestions = (menuCategories || [])
-      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const combined = Array.from(new Set([...itemSuggestions, ...categorySuggestions]))
-      .slice(0, 6);
-
-    setSuggestions(combined);
-  }, [searchQuery, displayItems, menuCategories]);
 
   const isVegetarianItem = (item: FoodItem) => {
     const nameLower = (item.name || '').toLowerCase();

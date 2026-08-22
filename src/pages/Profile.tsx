@@ -36,6 +36,7 @@ import { SecureFundsLockModal } from '../components/SecureFundsLockModal';
 import { AddFundsLockedModal } from '../components/AddFundsLockedModal';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
+import { SlideToLogout } from '../components/ui/SlideToLogout';
 
 import { AvatarEditor } from '../components/AvatarEditor';
 import { createAvatar } from '@dicebear/core';
@@ -457,7 +458,7 @@ export const Profile: React.FC = () => {
       if (userSubscription) supabase.removeChannel(userSubscription);
       if (ordersSubscription) supabase.removeChannel(ordersSubscription);
     };
-  }, [authUser, menuItems]);
+  }, [authUser?.uid || authUser?.id, menuItems?.length]);
 
   const loyaltyStats = useMemo(() => {
     const points = userData?.points || 0;
@@ -1082,6 +1083,33 @@ export const Profile: React.FC = () => {
               <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-gradient-to-tr from-purple-500/10 to-pink-500/10 border-pink-500/10" />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
               <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />
+            </div>
+
+            {/* Account Session Security & Slide to Logout */}
+            <div className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                    <ShieldCheck className="text-orange-500 w-5 h-5" />
+                    Session & Security
+                  </h4>
+                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">
+                    Authorized Device Authentication
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-wider w-fit">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Active Session
+                </span>
+              </div>
+
+              <SlideToLogout
+                onLogout={async () => {
+                  await logout(true);
+                }}
+                autoRedirect={true}
+                redirectPath="/login"
+              />
             </div>
           </motion.div>
         ) : activeTab === 'orders' ? (

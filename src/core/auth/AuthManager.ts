@@ -1,4 +1,6 @@
 import { supabase } from '../../supabase';
+import { auth as fbAuth } from '../../firebase';
+import { signOut as fbSignOut } from 'firebase/auth';
 import { CacheManager } from '../cache/CacheManager';
 import { CacheNamespace, CacheKeys } from '../cache/CacheKeys';
 import { CacheOrchestrator } from '../orchestrator/CacheOrchestrator';
@@ -75,6 +77,14 @@ class MasterAuthManager {
     console.log('[AuthManager] Executing secure logout & clearing private caches...');
 
     try {
+      if (fbAuth) {
+        await fbSignOut(fbAuth);
+      }
+    } catch (e) {
+      console.warn('[AuthManager] Firebase signOut warning:', e);
+    }
+
+    try {
       await supabase.auth.signOut();
     } catch (e) {
       console.warn('[AuthManager] Supabase signOut warning:', e);
@@ -89,6 +99,7 @@ class MasterAuthManager {
       localStorage.removeItem('frostybite_active_session_email');
       localStorage.removeItem('frostybite_has_active_session');
       localStorage.removeItem('frostybite_cached_user');
+      localStorage.removeItem('latest_admin_auth_token');
       localStorage.removeItem('claimed_coupon_code');
 
       const keysToRemove: string[] = [];

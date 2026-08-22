@@ -527,7 +527,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     return () => {
       window.removeEventListener('open-voice-assistant', handleVoiceTrigger);
     };
-  }, [items]);
+  }, []);
 
   return (
     <>

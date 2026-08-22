@@ -113,12 +113,23 @@ export const OrderTracking: React.FC = () => {
 
         if (orderError) throw orderError;
         if (orderData) {
-          setOrder(orderData as Order);
+          setOrder(prev => {
+            if (
+              prev &&
+              prev.id === orderData.id &&
+              prev.status === orderData.status &&
+              prev.payment_status === orderData.payment_status &&
+              prev.created_at === orderData.created_at
+            ) {
+              return prev;
+            }
+            return orderData as Order;
+          });
         }
       } catch (err) {
         console.error('Error fetching order:', err);
       } finally {
-        setLoading(false);
+        setLoading(prev => (prev ? false : prev));
       }
     };
 
@@ -138,7 +149,21 @@ export const OrderTracking: React.FC = () => {
         table: 'orders',
         filter: `id=eq.${orderId}`
       }, (payload) => {
-        setOrder(payload.new as Order);
+        if (payload.new) {
+          const updated = payload.new as Order;
+          setOrder(prev => {
+            if (
+              prev &&
+              prev.id === updated.id &&
+              prev.status === updated.status &&
+              prev.payment_status === updated.payment_status &&
+              prev.created_at === updated.created_at
+            ) {
+              return prev;
+            }
+            return updated;
+          });
+        }
       })
       .subscribe();
 

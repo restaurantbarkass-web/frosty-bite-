@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 export interface PerformanceMetrics {
   lcp: number | null; // Largest Contentful Paint (ms)
@@ -51,40 +51,67 @@ export function usePerformanceBudget() {
     }
 
     setViolations((prev) => {
-      // Remove previous entry for this metric
+      const existing = prev.find(v => v.metric === name);
+      if (existing && Math.abs(existing.value - value) < 0.001 && existing.status === status) {
+        return prev;
+      }
       const filtered = prev.filter(v => v.metric !== name);
       return [...filtered, { metric: name, value, limit, status }];
     });
   }, []);
+
+  const evaluateBudgetRef = useRef(evaluateBudget);
+  evaluateBudgetRef.current = evaluateBudget;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('PerformanceObserver' in window)) {
       return;
     }
 
-    const newMetrics = { ...metrics };
-
     // 1. First Contentful Paint & TTFB
     try {
+      let fcpVal: number | null = null;
+      let ttfbVal: number | null = null;
+      let pageLoadVal: number | null = null;
+
       const paintEntries = performance.getEntriesByType('paint');
       const fcpEntry = paintEntries.find(entry => entry.name === 'first-contentful-paint');
       if (fcpEntry) {
-        newMetrics.fcp = fcpEntry.startTime;
-        evaluateBudget('fcp', fcpEntry.startTime);
+        fcpVal = fcpEntry.startTime;
+        evaluateBudgetRef.current('fcp', fcpVal);
       }
 
       const navigationEntries = performance.getEntriesByType('navigation');
       if (navigationEntries.length > 0) {
         const nav = navigationEntries[0] as PerformanceNavigationTiming;
-        newMetrics.ttfb = nav.responseStart - nav.requestStart;
-        evaluateBudget('ttfb', newMetrics.ttfb);
+        ttfbVal = nav.responseStart - nav.requestStart;
+        evaluateBudgetRef.current('ttfb', ttfbVal);
         
-        newMetrics.pageLoad = nav.loadEventEnd;
         if (nav.loadEventEnd > 0) {
-          evaluateBudget('pageLoad', nav.loadEventEnd);
+          pageLoadVal = nav.loadEventEnd;
+          evaluateBudgetRef.current('pageLoad', pageLoadVal);
         }
       }
-      setMetrics({ ...newMetrics });
+
+      if (fcpVal !== null || ttfbVal !== null || pageLoadVal !== null) {
+        setMetrics((prev) => {
+          let changed = false;
+          const updated = { ...prev };
+          if (fcpVal !== null && prev.fcp !== fcpVal) {
+            updated.fcp = fcpVal;
+            changed = true;
+          }
+          if (ttfbVal !== null && prev.ttfb !== ttfbVal) {
+            updated.ttfb = ttfbVal;
+            changed = true;
+          }
+          if (pageLoadVal !== null && prev.pageLoad !== pageLoadVal) {
+            updated.pageLoad = pageLoadVal;
+            changed = true;
+          }
+          return changed ? updated : prev;
+        });
+      }
     } catch (e) {
       console.warn('[PerformanceBudget] Failed to parse initial static entries:', e);
     }
@@ -94,12 +121,12 @@ export function usePerformanceBudget() {
     try {
       lcpObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
-        const lastEntry = entries[entries.length - 1];
-        setMetrics((prev) => {
-          const updated = { ...prev, lcp: lastEntry.startTime };
-          evaluateBudget('lcp', lastEntry.startTime);
-          return updated;
-        });
+        if (entries.length > 0) {
+          const lastEntry = entries[entries.length - 1];
+          const val = lastEntry.startTime;
+          setMetrics((prev) => (prev.lcp === val ? prev : { ...prev, lcp: val }));
+          evaluateBudgetRef.current('lcp', val);
+        }
       });
       lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (e) {
@@ -114,11 +141,8 @@ export function usePerformanceBudget() {
         if (entries.length > 0) {
           const firstInput = entries[0] as any;
           const delay = firstInput.processingStart - firstInput.startTime;
-          setMetrics((prev) => {
-            const updated = { ...prev, fid: delay };
-            evaluateBudget('fid', delay);
-            return updated;
-          });
+          setMetrics((prev) => (prev.fid === delay ? prev : { ...prev, fid: delay }));
+          evaluateBudgetRef.current('fid', delay);
         }
       });
       fidObserver.observe({ type: 'first-input', buffered: true });
@@ -131,17 +155,18 @@ export function usePerformanceBudget() {
     try {
       let clsValue = 0;
       clsObserver = new PerformanceObserver((entryList) => {
+        let hasNewShift = false;
         for (const entry of entryList.getEntries()) {
           const layoutShift = entry as any;
-          // Only count shifts without recent user input
           if (!layoutShift.hadRecentInput) {
             clsValue += layoutShift.value;
-            setMetrics((prev) => {
-              const updated = { ...prev, cls: clsValue };
-              evaluateBudget('cls', clsValue);
-              return updated;
-            });
+            hasNewShift = true;
           }
+        }
+        if (hasNewShift) {
+          const finalCls = clsValue;
+          setMetrics((prev) => (prev.cls === finalCls ? prev : { ...prev, cls: finalCls }));
+          evaluateBudgetRef.current('cls', finalCls);
         }
       });
       clsObserver.observe({ type: 'layout-shift', buffered: true });
@@ -155,11 +180,9 @@ export function usePerformanceBudget() {
         const navEntries = performance.getEntriesByType('navigation');
         if (navEntries.length > 0) {
           const nav = navEntries[0] as PerformanceNavigationTiming;
-          setMetrics((prev) => {
-            const updated = { ...prev, pageLoad: nav.loadEventEnd };
-            evaluateBudget('pageLoad', nav.loadEventEnd);
-            return updated;
-          });
+          const val = nav.loadEventEnd;
+          setMetrics((prev) => (prev.pageLoad === val ? prev : { ...prev, pageLoad: val }));
+          evaluateBudgetRef.current('pageLoad', val);
         }
       }, 0);
     };
@@ -172,7 +195,7 @@ export function usePerformanceBudget() {
       if (fidObserver) fidObserver.disconnect();
       if (clsObserver) clsObserver.disconnect();
     };
-  }, [evaluateBudget]);
+  }, []);
 
   return {
     metrics,

@@ -345,7 +345,7 @@ export const Checkout: React.FC = () => {
     if (!addrFields.city) return;
     const combinedAddress = `${addrFields.houseNumber ? addrFields.houseNumber + ', ' : ''}${addrFields.streetName ? addrFields.streetName + ', ' : ''}${addrFields.landmark ? addrFields.landmark + ', ' : ''}${addrFields.city}${addrFields.pincode ? ' - ' + addrFields.pincode : ''}`;
     
-    setFormData(prev => ({
+    setFormData(prev => (prev.address === combinedAddress ? prev : {
       ...prev,
       address: combinedAddress
     }));
@@ -431,17 +431,13 @@ export const Checkout: React.FC = () => {
       }
     }
 
-    // Only update if the fee has actually changed to prevent infinite loops
-    if (newFee !== deliveryFee) {
-      setDeliveryFee(newFee);
-    }
+    setDeliveryFee(prev => (prev === newFee ? prev : newFee));
   }, [
     formData.location?.lat, 
     formData.location?.lng, 
     deliveryBaseFee, 
     deliveryFeePerKm, 
-    deliveryFreeKm, 
-    deliveryFee
+    deliveryFreeKm
   ]);
 
   const subtotal = cartSubtotal;
@@ -559,15 +555,14 @@ export const Checkout: React.FC = () => {
   }, [location.state]);
 
   useEffect(() => {
-    // This local logic for 'claimed_coupon' might be redundant if handles globally
     try {
       const claimed = localStorage.getItem('claimed_coupon');
       if (claimed && !appliedCoupon) {
-        handleApplyCoupon(claimed);
         localStorage.removeItem('claimed_coupon');
+        handleApplyCoupon(claimed);
       }
     } catch (e) {}
-  }, [appliedCoupon]);
+  }, []);
 
   if (cart.length === 0 && !showConfirmation) {
     return (
