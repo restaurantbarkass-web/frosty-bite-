@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { useGeofence } from '../context/GeofenceContext';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { ADMIN_EMAILS } from '../constants';
 import { authService } from '../services/authService';
 import { supabase } from '../supabase';
@@ -240,6 +241,20 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAdmin, refreshProfile, resolveAndSyncUser } = useAuth();
   const { selectManualCity, allowedZonesList } = useGeofence();
+  const { geofencingEnabled } = useAppConfig();
+
+  const handleContinueAsGuest = () => {
+    toast.success('Welcome! Browsing as Guest');
+    const geofencePassed = localStorage.getItem('geofence_passed') === 'true';
+    const selectedCity = localStorage.getItem('frostybite_selected_city_id');
+    const hasLocation = geofencePassed || selectedCity !== null;
+
+    if (hasLocation || geofencingEnabled === false) {
+      navigate('/');
+    } else {
+      setStep('location');
+    }
+  };
 
   // Unified State Machine Steps: 'welcome' | 'email' | 'name' | 'otp' | 'location'
   const [step, setStep] = useState<'welcome' | 'email' | 'name' | 'otp' | 'location'>('welcome');
@@ -1166,6 +1181,21 @@ export const Login: React.FC = () => {
         </motion.button>
       )}
 
+      {/* Top Header Guest Bypass Button */}
+      {step !== 'location' && (
+        <motion.button
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={handleContinueAsGuest}
+          className="absolute top-8 right-6 sm:right-10 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-orange-500/30 text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer group backdrop-blur-md shadow-lg"
+          id="auth_skip_guest_btn"
+        >
+          <User size={14} className="text-orange-400 group-hover:scale-110 transition-transform" />
+          <span>Continue as Guest</span>
+          <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform text-zinc-400" />
+        </motion.button>
+      )}
+
       {/* Main Glassmorphism 3.0 Container Card */}
       <div className="relative z-10 w-full max-w-[430px] px-4">
         <motion.div 
@@ -1302,6 +1332,19 @@ export const Login: React.FC = () => {
                     <span className="font-sans font-bold tracking-wide text-sm">Continue with Mobile</span>
                     <span className="bg-white/15 border border-white/10 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full select-none ml-1 shrink-0">
                       ⚡ OTP
+                    </span>
+                  </button>
+
+                  {/* Continue as Guest */}
+                  <button
+                    onClick={handleContinueAsGuest}
+                    className="w-full h-14 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-white font-bold tracking-wide border border-white/10 hover:border-orange-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer group shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
+                    id="btn_guest_init"
+                  >
+                    <User size={18} className="text-orange-400 shrink-0 group-hover:scale-110 transition-transform" />
+                    <span className="font-sans font-bold tracking-wide text-sm text-zinc-100">Continue as Guest</span>
+                    <span className="bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full select-none ml-1 shrink-0">
+                      Guest Mode
                     </span>
                   </button>
 

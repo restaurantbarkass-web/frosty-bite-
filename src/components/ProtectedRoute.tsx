@@ -64,39 +64,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Verification Block
-  if (requireVerification && !isVerified && !isAdmin) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-[#050505] text-white">
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-8 shadow-2xl shadow-primary/20"
-        >
-          <ShieldAlert size={48} />
-        </motion.div>
-        <h1 className="text-4xl font-bold mb-4 tracking-tight">Verify Your Email</h1>
-        <p className="text-gray-400 mb-10 max-w-md text-lg leading-relaxed">
-          For your security, this area requires a verified email address. Please check your inbox for the verification link.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-white/10 hover:bg-white/20 text-white px-10 py-4 rounded-2xl font-bold transition-all border border-white/10"
-          >
-            I've Verified
-          </button>
-          <button
-            onClick={() => logout()}
-            className="bg-zinc-800 hover:bg-zinc-700 text-white px-10 py-4 rounded-2xl font-bold transition-all"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Strict check for admin allowed roles
   if (allowedRoles) {
     const hasAccess = allowedRoles.some(r => {
       if (r === 'admin') return isAdmin;
@@ -105,8 +73,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     });
 
     if (!hasAccess) {
-      if (autoLogout) {
-        return null; // Handle via useEffect
+      // If autoLogout is requested or accessing admin route without admin privileges, redirect immediately
+      if (autoLogout || allowedRoles.includes('admin')) {
+        return <Navigate to="/login" replace />;
       }
 
       const roleNeeded = allowedRoles.join(' or ');
@@ -127,13 +96,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => navigate('/', { replace: true })}
               className="bg-white/10 hover:bg-white/20 text-white px-10 py-4 rounded-2xl font-bold transition-all border border-white/10"
             >
-              Go Back
+              Go to Home
             </button>
             <button
-              onClick={() => logout()}
+              onClick={() => logout(true).then(() => navigate('/login', { replace: true }))}
               className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-orange-600/20"
             >
               Logout

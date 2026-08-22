@@ -10,7 +10,7 @@ const defaultParams: AppConfig = {
   deliveryFeePerKm: 5,
   deliveryFreeKm: 3,
   defaultDeliveryTime: 25,
-  geofencingEnabled: true,
+  geofencingEnabled: false,
   geofencingLatitude: 20.4625,
   geofencingLongitude: 85.8828,
   geofencingRadius: 12,

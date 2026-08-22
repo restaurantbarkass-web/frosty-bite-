@@ -8,6 +8,7 @@ import { MenuProvider } from './context/MenuContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ConfigProvider, useConfig } from './context/ConfigContext';
+import { useAppConfig } from './hooks/useAppConfig';
 import { BootProvider, useBoot, BootState } from './context/BootContext';
 import { CustomToaster } from './components/CustomToaster';
 import { toast } from 'react-hot-toast';
@@ -92,6 +93,7 @@ const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
 function AppContent() {
   const { user, isVerified, isAdmin, loading } = useAuth();
   const { isCheckingPosition, isAllowed } = useGeofence();
+  const { geofencingEnabled } = useAppConfig();
   const { isCartOpen, setIsCartOpen } = useCart();
   const { items, loading: menuLoading } = useMenu();
   const [isSearching, setIsSearching] = useState(false);
@@ -329,8 +331,8 @@ function AppContent() {
   // 1. Instant App Render (No blocking splash video)
   // Non-blocking background sync handles boot, profile, and geofence updates.
 
-  // 3. STRICT Geofence Location Lock: If location is not strictly allowed/serviceable, lock the screen
-  if (!isAllowed && !isAdmin && !isAuthPage) {
+  // 3. STRICT Geofence Location Lock: If geofencing is enabled AND location is not strictly allowed/serviceable, lock the screen
+  if (geofencingEnabled !== false && !isAllowed && !isAdmin && !isAuthPage) {
     return <LockedGeofenceScreen />;
   }
 

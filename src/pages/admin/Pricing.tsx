@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Truck, Save, Info, MapPin, IndianRupee, Clock, Navigation, Plus, Trash2, ShieldAlert, Globe } from 'lucide-react';
+import { Truck, Save, Info, MapPin, IndianRupee, Clock, Navigation, Plus, Trash2, ShieldAlert, Globe, Sparkles } from 'lucide-react';
 import { useConfig } from '../../context/ConfigContext';
 import { InputField } from '../../components/InputField';
 import toast from 'react-hot-toast';
@@ -438,10 +438,25 @@ export const Pricing: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="py-8 bg-zinc-500/5 rounded-2xl border border-dashed border-white/10 text-center space-y-2">
-                <Globe size={32} className="text-zinc-500 mx-auto" />
-                <p className="text-sm text-zinc-400 font-medium">Geofencing rules are disabled.</p>
-                <p className="text-xs text-zinc-600 max-w-xs mx-auto">Customers globally can complete transactions without coordinate filters.</p>
+              <div className="py-12 px-6 bg-gradient-to-br from-orange-500/10 via-primary/5 to-purple-500/10 rounded-3xl border border-orange-500/30 text-center space-y-4 relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-orange-500/25">
+                  <Sparkles size={28} className="animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 text-xs font-black uppercase tracking-widest border border-orange-500/30 mb-1">
+                    Coming Soon 🚀
+                  </div>
+                  <h3 className="text-xl font-extrabold text-white tracking-tight">Advanced Service Geofence & GPS Radius</h3>
+                  <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
+                    Our next-generation multi-zone geofencing engine, real-time courier radar tracking, and custom delivery polygons are currently in development.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 bg-white/5 px-3.5 py-2 rounded-full border border-white/10 inline-block">
+                    Service geofence is deactivated. All customer orders are active globally.
+                  </span>
+                </div>
               </div>
             )}
 

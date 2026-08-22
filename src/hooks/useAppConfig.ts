@@ -13,7 +13,7 @@ export const useAppConfig = () => {
     deliveryFeePerKm: config?.deliveryFeePerKm ?? 8,
     deliveryFreeKm: config?.deliveryFreeKm ?? 5,
     defaultDeliveryTime: config?.defaultDeliveryTime ?? 25,
-    geofencingEnabled: config?.geofencingEnabled ?? true,
+    geofencingEnabled: config?.geofencingEnabled ?? false,
     geofencingLatitude: config?.geofencingLatitude ?? 20.4625,
     geofencingLongitude: config?.geofencingLongitude ?? 85.8828,
     geofencingRadius: config?.geofencingRadius ?? 12,
