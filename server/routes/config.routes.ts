@@ -295,17 +295,29 @@ router.post('/', async (req, res) => {
 
     const configString = JSON.stringify(updatedConfig);
 
-    // Perform an upsert in app_settings table (id = '1')
-    const { error: upsertErr } = await supabase
+    // Perform update in app_settings table (id = '1')
+    let { error: upsertErr } = await supabase
       .from('app_settings')
-      .upsert({
-        id: '1',
+      .update({
         value: configString,
         updated_at: new Date().toISOString()
-      });
+      })
+      .eq('id', '1');
 
     if (upsertErr) {
-      console.error('[ConfigRoutes] Supabase upsert settings error:', upsertErr.message);
+      console.warn('[ConfigRoutes] Update app_settings failed, trying upsert...', upsertErr.message);
+      const res = await supabase
+        .from('app_settings')
+        .upsert({
+          id: '1',
+          value: configString,
+          updated_at: new Date().toISOString()
+        });
+      upsertErr = res.error;
+    }
+
+    if (upsertErr) {
+      console.error('[ConfigRoutes] Supabase update settings error:', upsertErr.message);
       return res.status(500).json({ success: false, error: 'Database Error', message: 'Failed to update system settings', details: upsertErr });
     }
 

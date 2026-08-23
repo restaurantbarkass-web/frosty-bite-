@@ -191,12 +191,39 @@ const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, d
   throw new Error('Fetch failed after retries');
 };
 
+const syncConfigToDatabase = async (updatedConfig: AppConfig): Promise<void> => {
+  const { supabase } = await import('../supabase');
+  const payload = {
+    value: JSON.stringify(updatedConfig),
+    updated_at: new Date().toISOString()
+  };
+
+  // Direct update on row '1' (which is permitted by Supabase RLS policies for app_settings)
+  const { error: updateErr } = await supabase
+    .from('app_settings')
+    .update(payload)
+    .eq('id', '1');
+
+  if (updateErr) {
+    console.warn('[appConfigService] Direct update error, attempting upsert fallback:', updateErr.message);
+    const { error: upsertErr } = await supabase
+      .from('app_settings')
+      .upsert({
+        id: '1',
+        ...payload
+      });
+    if (upsertErr) {
+      throw new Error(`Direct Supabase update failed: ${updateErr.message || upsertErr.message}`);
+    }
+  }
+};
+
 export const appConfigService = {
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
     currentListeners.push(callback);
     callback(currentConfig);
 
-    appConfigService.getConfig().then(fresh => {
+    appConfigService.getConfig().then((fresh) => {
       const changed = JSON.stringify(currentConfig) !== JSON.stringify(fresh);
       if (changed) {
         currentConfig = fresh;
@@ -271,18 +298,8 @@ export const appConfigService = {
       }
 
       if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase upsert for ordering status...');
-        const { supabase } = await import('../supabase');
-        const { error: upsertErr } = await supabase
-          .from('app_settings')
-          .upsert({
-            id: '1',
-            value: JSON.stringify(updatedConfig),
-            updated_at: new Date().toISOString()
-          });
-        if (upsertErr) {
-          throw new Error(`Direct Supabase update failed: ${upsertErr.message}`);
-        }
+        console.log('[appConfigService] Falling back to direct Supabase update for ordering status...');
+        await syncConfigToDatabase(updatedConfig);
         freshConfig = updatedConfig;
       }
 
@@ -329,18 +346,8 @@ export const appConfigService = {
       }
 
       if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase upsert for pickup only status...');
-        const { supabase } = await import('../supabase');
-        const { error: upsertErr } = await supabase
-          .from('app_settings')
-          .upsert({
-            id: '1',
-            value: JSON.stringify(updatedConfig),
-            updated_at: new Date().toISOString()
-          });
-        if (upsertErr) {
-          throw new Error(`Direct Supabase update failed: ${upsertErr.message}`);
-        }
+        console.log('[appConfigService] Falling back to direct Supabase update for pickup only status...');
+        await syncConfigToDatabase(updatedConfig);
         freshConfig = updatedConfig;
       }
 
@@ -396,18 +403,8 @@ export const appConfigService = {
       }
 
       if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase upsert for delivery pricing...');
-        const { supabase } = await import('../supabase');
-        const { error: upsertErr } = await supabase
-          .from('app_settings')
-          .upsert({
-            id: '1',
-            value: JSON.stringify(updatedConfig),
-            updated_at: new Date().toISOString()
-          });
-        if (upsertErr) {
-          throw new Error(`Direct Supabase update failed: ${upsertErr.message}`);
-        }
+        console.log('[appConfigService] Falling back to direct Supabase update for delivery pricing...');
+        await syncConfigToDatabase(updatedConfig);
         freshConfig = updatedConfig;
       }
 
@@ -469,18 +466,8 @@ export const appConfigService = {
       }
 
       if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase upsert for geofencing...');
-        const { supabase } = await import('../supabase');
-        const { error: upsertErr } = await supabase
-          .from('app_settings')
-          .upsert({
-            id: '1',
-            value: JSON.stringify(updatedConfig),
-            updated_at: new Date().toISOString()
-          });
-        if (upsertErr) {
-          throw new Error(`Direct Supabase update failed: ${upsertErr.message}`);
-        }
+        console.log('[appConfigService] Falling back to direct Supabase update for geofencing...');
+        await syncConfigToDatabase(updatedConfig);
         freshConfig = updatedConfig;
       }
 
