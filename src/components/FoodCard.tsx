@@ -100,18 +100,6 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    if (!user) {
-      toast.error('Please login to add items to cart', {
-        icon: '🔐',
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      navigate('/login', { state: { from: location.pathname } });
-      return;
-    }
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {
@@ -149,18 +137,6 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   const handleBuyNow = () => {
-    if (!user) {
-      toast.error('Please login to buy treats', {
-        icon: '🔐',
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      navigate('/login', { state: { from: location.pathname } });
-      return;
-    }
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {

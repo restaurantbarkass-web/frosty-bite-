@@ -320,8 +320,6 @@ function AppContent() {
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isCheckoutPage = location.pathname === '/checkout';
   
-  const PROTECTED_PATHS = ['/checkout', '/upi-checkout', '/admin', '/profile', '/orders', '/notifications'];
-  
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
   const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;

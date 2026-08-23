@@ -260,18 +260,6 @@ const ProductDetail: React.FC = () => {
   }, [isLoading]);
 
   const handleAddToCart = () => {
-    if (!user) {
-      toast.error('Please login to add items to cart', {
-        icon: '🔐',
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
-    }
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {
@@ -300,18 +288,6 @@ const ProductDetail: React.FC = () => {
   const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   const handleBuyNow = () => {
-    if (!user) {
-      toast.error('Please login to buy treats', {
-        icon: '🔐',
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
-    }
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {

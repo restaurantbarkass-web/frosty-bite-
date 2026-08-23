@@ -733,7 +733,7 @@ export const Checkout: React.FC = () => {
 
       const orderData = {
         id: orderId,
-        user_id: user?.uid || 'guest',
+        user_id: user?.uid || null,
         items: orderItems,
         subtotal: subtotal,
         discount: discountAmount,
