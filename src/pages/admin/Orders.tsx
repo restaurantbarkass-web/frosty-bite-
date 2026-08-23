@@ -82,8 +82,13 @@ export const Orders: React.FC = () => {
       })
       .subscribe();
 
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 

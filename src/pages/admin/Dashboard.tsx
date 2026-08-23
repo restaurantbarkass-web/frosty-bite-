@@ -12,7 +12,7 @@ import { supabase } from '../../supabase';
 import { Order } from '../../types';
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const { config, toggleOrderingStatus, updatePickupOnlyStatus } = useConfig();
   const [isToggling, setIsToggling] = useState(false);
   const [isTogglingPickup, setIsTogglingPickup] = useState(false);
@@ -79,8 +79,13 @@ export const Dashboard: React.FC = () => {
       })
       .subscribe();
 
+    const interval = setInterval(() => {
+      fetchRecentOrders();
+    }, 15000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, []);
 
@@ -89,7 +94,7 @@ export const Dashboard: React.FC = () => {
     setIsToggling(true);
     const newStatus = !config.isOrderingOpen;
     try {
-      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
+      const token = await getAuthToken();
       await toggleOrderingStatus(token);
       toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
     } catch (error) {
@@ -105,7 +110,7 @@ export const Dashboard: React.FC = () => {
     setIsTogglingPickup(true);
     const newStatus = !isPickupOnly;
     try {
-      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
+      const token = await getAuthToken();
       await updatePickupOnlyStatus(newStatus, token);
       toast.success(`Pickup Only is now ${newStatus ? 'ENABLED (Bakery Pickup Only)' : 'DISABLED (Home Delivery Active)'}`);
     } catch (error) {

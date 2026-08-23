@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
 export const Pricing: React.FC = () => {
-  const { user } = useAuth();
+  const { user, getAuthToken } = useAuth();
   const { config, updateDeliveryPricing, updateGeofencingSettings, updatePickupOnlyStatus, isLoading: configLoading } = useConfig();
   const [baseFee, setBaseFee] = useState(20);
   const [perKm, setPerKm] = useState(8);
@@ -67,7 +67,7 @@ export const Pricing: React.FC = () => {
   const handleSavePricing = async () => {
     setIsSaving(true);
     try {
-      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
+      const token = await getAuthToken();
       await updateDeliveryPricing({
         baseFee,
         perKm,
@@ -87,7 +87,7 @@ export const Pricing: React.FC = () => {
   const handleSaveGeofencing = async () => {
     setIsSavingGeo(true);
     try {
-      const token = (user && typeof user.getIdToken === 'function' ? await user.getIdToken() : null) || localStorage.getItem('latest_admin_auth_token');
+      const token = await getAuthToken();
       await updateGeofencingSettings({
         geofencingEnabled,
         geofencingLatitude,

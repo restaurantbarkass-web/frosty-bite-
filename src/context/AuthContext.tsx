@@ -62,6 +62,7 @@ interface AuthContextType {
   openAuthModal: (title?: string, subtitle?: string) => void;
   closeAuthModal: () => void;
   requireAuthentication: (action?: () => void, title?: string, subtitle?: string) => boolean;
+  getAuthToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,6 +120,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
+  }, []);
+
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    let token: string | null = null;
+    try {
+      const fbUser = fbAuth.currentUser;
+      if (fbUser) {
+        token = await fbUser.getIdToken();
+      }
+    } catch (fbErr) {
+      console.warn('[UnifiedAuth] getAuthToken: Firebase token retrieval failed:', fbErr);
+    }
+    if (!token) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || null;
+      } catch (sbErr) {
+        console.warn('[UnifiedAuth] getAuthToken: Supabase token retrieval failed:', sbErr);
+      }
+    }
+    if (token) {
+      try {
+        localStorage.setItem('latest_admin_auth_token', token);
+      } catch (e) {}
+    } else {
+      try {
+        token = localStorage.getItem('latest_admin_auth_token');
+      } catch (e) {}
+    }
+    return token;
   }, []);
 
   const requireAuthentication = useCallback((action?: () => void, title?: string, subtitle?: string) => {
@@ -344,36 +375,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           vibe: dbUser.vibe || null,
           title: dbUser.title || null,
           emailVerified: true,
-          getIdToken: async () => {
-            let token: string | null = null;
-            if (fbUser) {
-              try {
-                token = await fbUser.getIdToken();
-              } catch (fbErr) {
-                console.warn('[UnifiedAuth] Firebase getIdToken failed:', fbErr);
-              }
-            }
-            if (!token) {
-              try {
-                const { data } = await supabase.auth.getSession();
-                token = data.session?.access_token || null;
-              } catch (sbErr) {
-                console.warn('[UnifiedAuth] getSession failed:', sbErr);
-              }
-            }
-            if (token) {
-              try {
-                localStorage.setItem('latest_admin_auth_token', token);
-              } catch (e) {}
-            }
-            return token;
-          }
+          getIdToken: getAuthToken
         };
-
+ 
         if (currentVersion !== syncVersionRef.current) return;
         setUser((prev) => {
           if (
             prev &&
+            typeof prev.getIdToken === 'function' &&
             prev.id === unifiedUser.id &&
             prev.uid === unifiedUser.uid &&
             prev.email === unifiedUser.email &&
@@ -575,8 +584,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     exitGuestMode,
     openAuthModal,
     closeAuthModal,
-    requireAuthentication
-  }), [user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication]);
+    requireAuthentication,
+    getAuthToken
+  }), [user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication, getAuthToken]);
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal((prev) => (prev ? false : prev));
