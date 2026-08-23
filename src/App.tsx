@@ -35,21 +35,21 @@ import { useCart, useCartActions } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
 
-import Home from './pages/HomePage';
-import Offers from './pages/Offers';
-import Checkout from './pages/Checkout';
-import UPICheckout from './pages/UPICheckout';
-import OrderTracking from './pages/OrderTracking';
-import AdminLayout from './pages/AdminLayout';
-import Profile from './pages/Profile';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import FinishSignIn from './pages/FinishSignIn';
-import ProductDetail from './pages/ProductDetail';
-import Orders from './pages/Orders';
-import Notifications from './pages/Notifications';
-import FAQ from './pages/FAQ';
-import NotFound from './pages/NotFound';
+const Home = React.lazy(() => import('./pages/HomePage'));
+const Offers = React.lazy(() => import('./pages/Offers'));
+const Checkout = React.lazy(() => import('./pages/Checkout'));
+const UPICheckout = React.lazy(() => import('./pages/UPICheckout'));
+const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
+const AdminLayout = React.lazy(() => import('./pages/AdminLayout'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Login = React.lazy(() => import('./pages/Login'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const FinishSignIn = React.lazy(() => import('./pages/FinishSignIn'));
+const ProductDetail = React.lazy(() => import('./pages/ProductDetail'));
+const Orders = React.lazy(() => import('./pages/Orders'));
+const Notifications = React.lazy(() => import('./pages/Notifications'));
+const FAQ = React.lazy(() => import('./pages/FAQ'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
 import { CartSidebar } from './components/CartSidebar';
 
 const PageLoader = () => (
@@ -430,18 +430,14 @@ function AppContent() {
                 } />
                 <Route path="/finish-sign-in" element={<LocalErrorBoundary fallbackName="Finish Sign In Page"><FinishSignIn /></LocalErrorBoundary>} />
                 <Route path="/checkout" element={
-                  <ProtectedRoute>
-                    <LocalErrorBoundary fallbackName="Checkout Page">
-                      <Checkout />
-                    </LocalErrorBoundary>
-                  </ProtectedRoute>
+                  <LocalErrorBoundary fallbackName="Checkout Page">
+                    <Checkout />
+                  </LocalErrorBoundary>
                 } />
                 <Route path="/upi-checkout/:orderId" element={
-                  <ProtectedRoute>
-                    <LocalErrorBoundary fallbackName="UPI Checkout Page">
-                      <UPICheckout />
-                    </LocalErrorBoundary>
-                  </ProtectedRoute>
+                  <LocalErrorBoundary fallbackName="UPI Checkout Page">
+                    <UPICheckout />
+                  </LocalErrorBoundary>
                 } />
                 <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
                 <Route path="/admin/*" element={

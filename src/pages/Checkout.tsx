@@ -91,22 +91,52 @@ export const Checkout: React.FC = () => {
   const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
   const [shakeKey, setShakeKey] = useState<number>(0);
 
-  const [formData, setFormData] = useState({
-    name: user?.displayName || user?.email?.split('@')[0] || '',
-    phone: '',
-    address: '',
-    location: undefined as { lat: number; lng: number } | undefined,
-    notes: '',
-    paymentMethod: 'upi' as 'upi' | 'cod'
+  const [formData, setFormData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('frostybite_checkout_form');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.name && (user?.displayName || user?.email?.split('@')[0])) {
+          parsed.name = user?.displayName || user?.email?.split('@')[0];
+        }
+        return parsed;
+      }
+    } catch (e) {}
+    return {
+      name: user?.displayName || user?.email?.split('@')[0] || '',
+      phone: '',
+      address: '',
+      location: undefined as { lat: number; lng: number } | undefined,
+      notes: '',
+      paymentMethod: 'upi' as 'upi' | 'cod'
+    };
   });
 
-  const [addrFields, setAddrFields] = useState({
-    houseNumber: '',
-    streetName: '',
-    landmark: '',
-    city: 'Cuttack',
-    pincode: ''
+  const [addrFields, setAddrFields] = useState(() => {
+    try {
+      const saved = localStorage.getItem('frostybite_checkout_addr');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      houseNumber: '',
+      streetName: '',
+      landmark: '',
+      city: 'Cuttack',
+      pincode: ''
+    };
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('frostybite_checkout_form', JSON.stringify(formData));
+    } catch (e) {}
+  }, [formData]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('frostybite_checkout_addr', JSON.stringify(addrFields));
+    } catch (e) {}
+  }, [addrFields]);
 
   const [deliveryMode, setDeliveryMode] = useState<'instant' | 'scheduled'>('instant');
   const [scheduledDate, setScheduledDate] = useState('');
@@ -746,9 +776,19 @@ export const Checkout: React.FC = () => {
 
         await supabaseService.insertData('orders', orderData);
         haptic.checkout();
+        
+        // Clear saved checkout draft inputs on success
+        try {
+          localStorage.removeItem('frostybite_checkout_form');
+          localStorage.removeItem('frostybite_checkout_addr');
+        } catch (e) {}
       } catch (supabaseError: any) {
         console.warn('Supabase order creation fallback activated:', supabaseError);
         haptic.checkout();
+        try {
+          localStorage.removeItem('frostybite_checkout_form');
+          localStorage.removeItem('frostybite_checkout_addr');
+        } catch (e) {}
       }
 
       // Increment coupon usage count if applied via CouponsRepository
@@ -942,7 +982,7 @@ export const Checkout: React.FC = () => {
         orderData={confirmedOrder}
         onClose={() => {
           setShowConfirmation(false);
-          navigate('/orders');
+          navigate(user ? '/orders' : `/order-tracking/${confirmedOrder.orderId}`);
         }}
       />
     );

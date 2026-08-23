@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Package, MapPin, CreditCard, Clock, MessageCircle, Truck, CheckCircle2 } from 'lucide-react';
+import { Package, MapPin, CreditCard, Clock, MessageCircle, Truck, CheckCircle2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { RESTAURANT_WHATSAPP } from '../constants';
+import { useAuth } from '../context/AuthContext';
 
 interface OrderItem {
   id: string;
@@ -43,6 +44,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
   onClose 
 }) => {
   const navigate = useNavigate();
+  const { user, openAuthModal } = useAuth();
   const idValue = orderData?.orderId || orderData?.id || '';
   const amountValue = orderData?.amount || orderData?.total || 0;
   const deliveryTime = orderData?.estimatedDelivery || 45;
@@ -269,6 +271,34 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                  )}
               </motion.div>
             </div>
+
+            {/* Optional Account Creation for Guest Users */}
+            {!user && (
+              <motion.div 
+                variants={itemVariants}
+                className="mt-6 p-5 rounded-3xl bg-gradient-to-b from-primary/10 to-transparent border border-primary/20 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center sm:justify-start gap-2 text-primary font-bold text-xs tracking-wider uppercase">
+                    <Sparkles size={14} className="animate-pulse" />
+                    <span>Create Your Free Account</span>
+                  </div>
+                  <p className="text-white font-extrabold text-sm tracking-tight">
+                    Save your order history & earn reward points!
+                  </p>
+                  <p className="text-zinc-400 text-[10px]">
+                    Optionally sign up in just 10 seconds. No obligation.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('Create Account', 'Sign up to track your order history and earn rewards!')}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-black font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors cursor-pointer shrink-0"
+                >
+                  Sign Up Free
+                </button>
+              </motion.div>
+            )}
 
             {/* Action Buttons */}
             <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-8">

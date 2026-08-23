@@ -209,7 +209,7 @@ export const UPICheckout: React.FC = () => {
         orderData={confirmedOrder}
         onClose={() => {
           setShowConfirmation(false);
-          navigate('/orders');
+          navigate(user ? '/orders' : `/order-tracking/${confirmedOrder.orderId}`);
         }}
       />
     );
