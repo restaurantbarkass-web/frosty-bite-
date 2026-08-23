@@ -1318,20 +1318,27 @@ export const Login: React.FC = () => {
                     <span className="font-sans font-bold tracking-wide text-sm text-zinc-200">Continue with Email</span>
                   </button>
 
-                  {/* Continue with Mobile (Unlocked & Beautifully Styled) */}
+                  {/* Continue with Mobile (Locked - Coming Soon) */}
                   <button
+                    type="button"
                     onClick={() => {
-                      setAuthMode('signin');
-                      setSignInMethod('mobile_otp');
-                      setStep('email');
+                      toast('Continue with Mobile is coming soon! Please sign in with Email, Google, or Continue as Guest.', {
+                        icon: '🔒',
+                        style: {
+                          borderRadius: '16px',
+                          background: '#18181b',
+                          color: '#fff',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                        }
+                      });
                     }}
-                    className="w-full h-14 rounded-2xl bg-gradient-to-r from-orange-600/90 to-amber-600/90 hover:from-orange-500 hover:to-amber-500 text-white font-bold tracking-wide border border-white/10 hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_25px_rgba(249,115,22,0.15)] hover:shadow-[0_15px_30px_rgba(249,115,22,0.25)] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
+                    className="w-full h-14 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400 hover:text-zinc-200 font-bold tracking-wide border border-white/10 hover:border-amber-500/30 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer group shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
                     id="btn_mobile_init"
                   >
-                    <Phone size={18} className="text-white shrink-0" />
-                    <span className="font-sans font-bold tracking-wide text-sm">Continue with Mobile</span>
-                    <span className="bg-white/15 border border-white/10 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full select-none ml-1 shrink-0">
-                      ⚡ OTP
+                    <Lock size={16} className="text-amber-500/80 group-hover:text-amber-400 transition-colors shrink-0" />
+                    <span className="font-sans font-bold tracking-wide text-sm text-zinc-300 group-hover:text-zinc-100">Continue with Mobile</span>
+                    <span className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full select-none ml-1 shrink-0 flex items-center gap-1">
+                      Coming Soon
                     </span>
                   </button>
 
@@ -1641,16 +1648,21 @@ export const Login: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          setSignupMethod('mobile_otp');
-                          setError(null);
+                          toast('Mobile OTP verification is coming soon! Please register with Email OTP.', {
+                            icon: '🔒',
+                            style: {
+                              borderRadius: '16px',
+                              background: '#18181b',
+                              color: '#fff',
+                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                            }
+                          });
                         }}
-                        className={`flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer ${
-                          signupMethod === 'mobile_otp' 
-                            ? 'bg-zinc-800 text-white border border-white/5 shadow-inner' 
-                            : 'text-zinc-500 hover:text-zinc-300 bg-transparent'
-                        }`}
+                        className="flex-1 py-1.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wider rounded-xl transition-all duration-300 cursor-pointer text-zinc-500 hover:text-zinc-400 bg-transparent flex items-center justify-center gap-1.5"
                       >
-                        📱 Mobile OTP
+                        <Lock size={12} className="text-amber-500/80" />
+                        <span>Mobile OTP</span>
+                        <span className="text-[8px] bg-amber-500/10 text-amber-400 px-1 py-0.2 rounded border border-amber-500/20">Soon</span>
                       </button>
                     </div>
                   </div>
