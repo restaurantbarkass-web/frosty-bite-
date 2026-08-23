@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('maplibre') || id.includes('mapbox')) {
                 return 'vendor-maps';
               }
               if (id.includes('recharts') || id.includes('d3')) {
@@ -56,6 +56,15 @@ export default defineConfig(({ mode }) => {
               }
               if (id.includes('jspdf') || id.includes('html5-qrcode') || id.includes('lottie') || id.includes('lottie-react')) {
                 return 'vendor-utils';
+              }
+              if (id.includes('turf') || id.includes('@turf')) {
+                return 'vendor-turf';
+              }
+              if (id.includes('@google/genai')) {
+                return 'vendor-genai';
+              }
+              if (id.includes('gsap') || id.includes('motion')) {
+                return 'vendor-animation';
               }
             }
           }
