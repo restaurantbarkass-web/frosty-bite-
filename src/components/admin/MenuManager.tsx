@@ -92,9 +92,9 @@ export const MenuManager: React.FC = () => {
       if (data) {
         const mappedItems = data.map((item: any) => {
           let ai_desc = item.ai_description || '';
-          let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
+          let est_time = item.estimated_delivery_time !== undefined && item.estimated_delivery_time !== null ? Number(item.estimated_delivery_time) : undefined;
           let est_unit = item.estimated_delivery_time_unit || '';
-          let est_string = item.estimated_delivery_time_string || '';
+          let est_string = '';
           let avail_date = item.available_date || '';
           let avail_day = item.available_day || '';
           
@@ -102,19 +102,19 @@ export const MenuManager: React.FC = () => {
             try {
               const parsed = JSON.parse(ai_desc);
               ai_desc = parsed.ai_description || '';
-              if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
+              if (parsed.estimated_delivery_time !== undefined && parsed.estimated_delivery_time !== null) {
                 est_time = Number(parsed.estimated_delivery_time);
               }
-              if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
+              if (parsed.estimated_delivery_time_unit) {
                 est_unit = parsed.estimated_delivery_time_unit;
               }
-              if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
+              if (parsed.estimated_delivery_time_string) {
                 est_string = parsed.estimated_delivery_time_string;
               }
-              if (!avail_date && parsed.available_date !== undefined) {
+              if (parsed.available_date) {
                 avail_date = parsed.available_date;
               }
-              if (!avail_day && parsed.available_day !== undefined) {
+              if (parsed.available_day) {
                 avail_day = parsed.available_day;
               }
             } catch (e) {
@@ -223,7 +223,6 @@ export const MenuManager: React.FC = () => {
         available: stockQty === 0 ? false : formData.available,
         estimated_delivery_time: estTimeVal,
         estimated_delivery_time_unit: formData.estimated_delivery_time_unit,
-        estimated_delivery_time_string: formData.estimated_delivery_time_unit === 'days' ? formData.estimated_delivery_time_string : '',
         available_date: formData.available_date ? formData.available_date : null,
         available_day: formData.available_day ? formData.available_day : null
       };
@@ -240,7 +239,6 @@ export const MenuManager: React.FC = () => {
             result.error.code === '42703' ||
             result.error.message?.includes('estimated_delivery_time') ||
             result.error.message?.includes('estimated_delivery_time_unit') ||
-            result.error.message?.includes('estimated_delivery_time_string') ||
             result.error.message?.includes('available_date') ||
             result.error.message?.includes('available_day') ||
             result.error.message?.includes('column') ||
@@ -250,7 +248,6 @@ export const MenuManager: React.FC = () => {
           const fallbackBody = { ...body };
           delete (fallbackBody as any).estimated_delivery_time;
           delete (fallbackBody as any).estimated_delivery_time_unit;
-          delete (fallbackBody as any).estimated_delivery_time_string;
           delete (fallbackBody as any).available_date;
           delete (fallbackBody as any).available_day;
           result = await supabase
@@ -268,7 +265,6 @@ export const MenuManager: React.FC = () => {
             result.error.code === '42703' ||
             result.error.message?.includes('estimated_delivery_time') ||
             result.error.message?.includes('estimated_delivery_time_unit') ||
-            result.error.message?.includes('estimated_delivery_time_string') ||
             result.error.message?.includes('available_date') ||
             result.error.message?.includes('available_day') ||
             result.error.message?.includes('column') ||
@@ -278,7 +274,6 @@ export const MenuManager: React.FC = () => {
           const fallbackBody = { ...body };
           delete (fallbackBody as any).estimated_delivery_time;
           delete (fallbackBody as any).estimated_delivery_time_unit;
-          delete (fallbackBody as any).estimated_delivery_time_string;
           delete (fallbackBody as any).available_date;
           delete (fallbackBody as any).available_day;
           result = await supabase
