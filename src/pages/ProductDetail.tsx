@@ -8,16 +8,30 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
-import { LoadingScreen } from '../components/LoadingScreen';
+import { ProductPageSkeleton } from '../components/ProductPageSkeleton';
 import { FoodCard } from '../components/FoodCard';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
 import { supabase } from '../supabase';
 import toast from 'react-hot-toast';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { preloadRoute } from '../utils/preload';
 
 import { CartSidebar } from '../components/CartSidebar';
-
 import { ImageZoom } from '../components/ImageZoom';
+
+const getInitialCachedProduct = (productId?: string): FoodItem | null => {
+  if (!productId) return null;
+  try {
+    const cachedMenu = localStorage.getItem('menu_cache') || localStorage.getItem('products_cache');
+    if (cachedMenu) {
+      const parsed = JSON.parse(cachedMenu);
+      const items: FoodItem[] = Array.isArray(parsed) ? parsed : (parsed.data || []);
+      const found = items.find(item => item.id === productId);
+      if (found) return found;
+    }
+  } catch (e) {}
+  return null;
+};
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,13 +43,19 @@ const ProductDetail: React.FC = () => {
   const purchaseSectionRef = useRef<HTMLDivElement>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   
-  const [product, setProduct] = useState<FoodItem | null>(null);
+  const initialCached = React.useMemo(() => getInitialCachedProduct(id), [id]);
+  const [product, setProduct] = useState<FoodItem | null>(initialCached);
   const [relatedItems, setRelatedItems] = useState<FoodItem[]>([]);
   const [quantity, setQuantity] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialCached);
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews' | 'ingredients'>('description');
+
+  useEffect(() => {
+    // Predictive prefetch of checkout route on detail mount
+    preloadRoute('/checkout');
+  }, []);
 
   useMetadata({
     title: product ? product.name : 'Delicious Treat',
@@ -48,9 +68,9 @@ const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchWishlistStatus = async () => {
-      if (user && id) {
+      if (id) {
         try {
-          const liked = await checkIfWishlisted(user.uid, id);
+          const liked = await checkIfWishlisted(user?.uid || null, id);
           setIsLiked(liked);
         } catch (error) {
           console.error("Error checking wishlist status:", error);
@@ -325,17 +345,11 @@ const ProductDetail: React.FC = () => {
   };
 
   const handleToggleWishlist = async () => {
-    if (!user) {
-      toast.error('Please login to add items to wishlist');
-      navigate('/login');
-      return;
-    }
-
     if (!product || isWishlisting) return;
 
     setIsWishlisting(true);
     try {
-      const added = await toggleWishlist(user.uid, product);
+      const added = await toggleWishlist(user?.uid || null, product);
       setIsLiked(added);
       if (added) {
         toast.success('Added to wishlist!', {
@@ -363,7 +377,7 @@ const ProductDetail: React.FC = () => {
         const errData = JSON.parse(error.message);
         if (errData.error === "DATABASE_QUOTA_EXCEEDED") isQuota = true;
       } catch (e) {
-        if (error.message.toLowerCase().includes('quota') || error.message.toLowerCase().includes('limit exceeded')) {
+        if (error.message?.toLowerCase().includes('quota') || error.message?.toLowerCase().includes('limit exceeded')) {
           isQuota = true;
         }
       }
@@ -386,8 +400,8 @@ const ProductDetail: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return <LoadingScreen />;
+  if (isLoading && !product) {
+    return <ProductPageSkeleton />;
   }
 
   if (!product) {

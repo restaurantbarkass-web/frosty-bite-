@@ -1,13 +1,34 @@
 import { FoodItem } from '../types';
 import { supabase } from '../supabase';
 
-export const toggleWishlist = async (userId: string, item: FoodItem) => {
+export const toggleWishlist = async (userId: string | null | undefined, item: FoodItem) => {
+  if (!userId) {
+    // Guest Wishlist (Local Storage)
+    try {
+      const guestKey = 'frostybite_guest_wishlist';
+      const cached = localStorage.getItem(guestKey);
+      const list: FoodItem[] = cached ? JSON.parse(cached) : [];
+      const exists = list.some(i => i.id === item.id);
+      
+      let updated: FoodItem[];
+      if (exists) {
+        updated = list.filter(i => i.id !== item.id);
+        localStorage.setItem(guestKey, JSON.stringify(updated));
+        return false;
+      } else {
+        updated = [...list, item];
+        localStorage.setItem(guestKey, JSON.stringify(updated));
+        return true;
+      }
+    } catch (e) {
+      console.warn('Guest wishlist error:', e);
+      return false;
+    }
+  }
+
   const cacheKey = `wishlist_cache_${userId}`;
   
   try {
-    // 1. Get user from supabase auth if they are logged in there (as per user's snippet preference)
-    const { data: { user: sbUser } } = await supabase.auth.getUser();
-    // We prefer the provided userId (from Firebase) as it's the primary identity in this app
     const effectiveUserId = userId; 
 
     // 2. Check if item exists in Supabase wishlist
@@ -24,7 +45,6 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
 
     if (existing) {
       // 3. REMOVE Case
-      console.log(`Removing from Supabase: ${existing.id}`);
       const { error: deleteError } = await supabase
         .from('wishlist')
         .delete()
@@ -54,7 +74,6 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
       return false; // Removed successfully
     } else {
       // 4. ADD Case
-      console.log('Adding to Supabase...');
       const { error: insertError } = await supabase
         .from('wishlist')
         .insert({
@@ -64,9 +83,7 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
         });
 
       if (insertError) {
-        // Handle unique constraint conflict gracefully
         if (insertError.code === '23505') return true;
-        
         console.error('Supabase insert error:', insertError);
         throw new Error(`Add to Supabase failed: ${insertError.message}`);
       }
@@ -94,7 +111,19 @@ export const toggleWishlist = async (userId: string, item: FoodItem) => {
   }
 };
 
-export const checkIfWishlisted = async (userId: string, itemId: string) => {
+export const checkIfWishlisted = async (userId: string | null | undefined, itemId: string) => {
+  if (!userId) {
+    try {
+      const guestKey = 'frostybite_guest_wishlist';
+      const cached = localStorage.getItem(guestKey);
+      if (!cached) return false;
+      const list: FoodItem[] = JSON.parse(cached);
+      return list.some(i => i.id === itemId);
+    } catch {
+      return false;
+    }
+  }
+
   try {
     const { data, error } = await supabase
       .from('wishlist')
@@ -110,12 +139,20 @@ export const checkIfWishlisted = async (userId: string, itemId: string) => {
   }
 };
 
-export const getUserWishlist = async (userId: string) => {
+export const getUserWishlist = async (userId: string | null | undefined) => {
+  if (!userId) {
+    try {
+      const guestKey = 'frostybite_guest_wishlist';
+      const cached = localStorage.getItem(guestKey);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  }
+
   const cacheKey = `wishlist_cache_${userId}`;
   
   try {
-    // Only use Supabase
-    console.log(`Fetching wishlist for user: ${userId}`);
     const { data, error } = await supabase
       .from('wishlist')
       .select('*')
@@ -127,7 +164,6 @@ export const getUserWishlist = async (userId: string) => {
     }
 
     if (data) {
-      console.log(`Found ${data.length} wishlist items in Supabase`);
       const items = data.map(d => d.item_details).filter(Boolean);
       try {
         localStorage.setItem(cacheKey, JSON.stringify(items));

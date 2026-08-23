@@ -27,6 +27,9 @@ export const preloadRoute = (path: string) => {
     case '/faq':
       import('../pages/FAQ').catch(() => {});
       break;
+    case '/checkout':
+      import('../pages/Checkout').catch(() => {});
+      break;
     case '/orders':
       import('../pages/Orders').catch(() => {});
       break;
@@ -43,6 +46,11 @@ export const preloadRoute = (path: string) => {
       import('../pages/ForgotPassword').catch(() => {});
       break;
     default:
+      if (cleanPath.startsWith('/upi-checkout/')) {
+        import('../pages/UPICheckout').catch(() => {});
+      } else if (cleanPath.startsWith('/track-order/')) {
+        import('../pages/OrderTracking').catch(() => {});
+      }
       break;
   }
 };
