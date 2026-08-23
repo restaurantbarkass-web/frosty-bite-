@@ -477,7 +477,8 @@ export const Checkout: React.FC = () => {
         ? (subtotal * appliedCoupon.value) / 100 
         : appliedCoupon.value)
     : 0;
-  const finalPrice = Math.max(0, subtotal - discountAmount + deliveryFee);
+  const effectiveDeliveryFee = isPickupOnly ? 0 : deliveryFee;
+  const finalPrice = Math.max(0, subtotal - discountAmount + effectiveDeliveryFee);
 
   const handleApplyCoupon = async (codeOverride?: string) => {
     const trimmedCode = safeTrim(codeOverride || couponCode);
@@ -737,10 +738,10 @@ export const Checkout: React.FC = () => {
         items: orderItems,
         subtotal: subtotal,
         discount: discountAmount,
-        delivery_charge: isPickupOnly ? 0 : deliveryFee,
+        delivery_charge: effectiveDeliveryFee,
         order_type: isPickupOnly ? 'pickup' : 'delivery',
         coupon_code: appliedCoupon?.code || null,
-        total: isPickupOnly ? Math.max(0, subtotal - discountAmount) : finalPrice,
+        total: finalPrice,
         status: formData.paymentMethod === 'upi' ? 'awaiting_payment' : 'pending',
         payment_method: formData.paymentMethod,
         payment_status: 'pending',
@@ -822,7 +823,7 @@ export const Checkout: React.FC = () => {
             address: formData.address,
             notes: formData.notes,
             discount: discountAmount,
-            delivery_charge: deliveryFee,
+            delivery_charge: effectiveDeliveryFee,
             couponCode: appliedCoupon?.code,
             estimatedDelivery: Math.max(
               validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
@@ -851,7 +852,7 @@ export const Checkout: React.FC = () => {
           notes: formData.notes,
           method: 'cod' as const,
           amount: finalPrice,
-          delivery_charge: deliveryFee,
+          delivery_charge: effectiveDeliveryFee,
           discount: discountAmount,
           couponCode: appliedCoupon?.code,
           items: cart.map(item => ({
