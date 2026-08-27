@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
@@ -10,7 +10,7 @@ import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
 import { preloadRoute } from '../utils/preload';
 
-export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = ({ onCartClick, onSearchClick }) => {
+export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = React.memo(({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
   const { user, role, isAdmin, logout } = useAuth();
   const location = useLocation();
@@ -18,7 +18,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { config } = useAppConfig();
   const [showHeader, setShowHeader] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
   const [bounceKey, setBounceKey] = useState(0);
 
   useEffect(() => {
@@ -32,19 +32,18 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      setLastScrollY((prev) => {
-        if (Math.abs(currentScrollY - prev) < 10) return prev;
-        
-        if (currentScrollY > prev && currentScrollY > 100) {
-          setShowHeader(false);
-        } else {
-          setShowHeader(true);
-        }
-        return currentScrollY;
-      });
+      const prev = lastScrollYRef.current;
+      if (Math.abs(currentScrollY - prev) < 10) return;
+      
+      if (currentScrollY > prev && currentScrollY > 100) {
+        setShowHeader(false);
+      } else {
+        setShowHeader(true);
+      }
+      lastScrollYRef.current = currentScrollY;
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -442,4 +441,6 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
       </AnimatePresence>
     </nav>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';

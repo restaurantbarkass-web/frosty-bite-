@@ -19,7 +19,7 @@ const SearchAnalytics = lazy(() => import('./admin/SearchAnalytics').then(m => (
 const Rewards = lazy(() => import('./admin/Rewards').then(m => ({ default: m.RewardsManager })));
 const ServiceZones = lazy(() => import('./admin/ServiceZones').then(m => ({ default: m.ServiceZones })));
 const RlsDiagnostics = lazy(() => import('./admin/RlsDiagnostics').then(m => ({ default: m.RlsDiagnostics })));
-import { BannerManager } from '../components/admin/BannerManager';
+const BannerManager = lazy(() => import('../components/admin/BannerManager').then(m => ({ default: m.BannerManager })));
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');

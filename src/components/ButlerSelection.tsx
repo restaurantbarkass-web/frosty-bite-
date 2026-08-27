@@ -8,7 +8,7 @@ import { useMenu } from '../context/MenuContext';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
-export const ButlerSelection: React.FC = () => {
+export const ButlerSelection: React.FC = React.memo(() => {
   const { items } = useMenu();
   const [recommendation, setRecommendation] = useState<AiRecommendationResponse | null>(null);
   const [recommendedItem, setRecommendedItem] = useState<FoodItem | null>(null);
@@ -244,4 +244,6 @@ export const ButlerSelection: React.FC = () => {
       </div>
     </section>
   );
-};
+});
+
+ButlerSelection.displayName = 'ButlerSelection';

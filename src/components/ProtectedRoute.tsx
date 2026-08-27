@@ -17,7 +17,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   autoLogout = false,
   requireVerification = false
 }) => {
-  const { user, loading, isAdmin, isCustomer, isVerified, logout } = useAuth();
+  const { user, loading, authStatus, isAdmin, isCustomer, isVerified, logout } = useAuth();
   const location = useLocation();
 
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const allowedRolesKey = allowedRoles ? allowedRoles.join(',') : '';
 
   React.useEffect(() => {
-    if (!loading && userId) {
+    if (!loading && authStatus !== 'loading' && userId) {
       if (allowedRoles) {
         const hasAccess = allowedRoles.some(r => {
           if (r === 'admin') return isAdmin;
@@ -42,10 +42,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
          // Optionally force logout or just show block
       }
     }
-  }, [userId, loading, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout]);
+  }, [userId, loading, authStatus, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout]);
 
-  if (loading) {
-    // ... same loading UI ...
+  if (loading || authStatus === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6">
         <div className="flex flex-col items-center gap-6">

@@ -121,12 +121,13 @@ export const ImageZoom: React.FC<ImageZoomProps> = ({ src, alt, className, trigg
 
   // Close on Escape key
   useEffect(() => {
+    if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
+  }, [isOpen]);
 
   return (
     <>

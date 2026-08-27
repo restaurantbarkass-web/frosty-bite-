@@ -15,6 +15,7 @@ import { AuthModal } from '../components/AuthModal';
 import { haptic } from '../lib/utils';
 
 type UserRole = 'customer' | 'admin';
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 export interface UnifiedUser {
   uid: string; // Unified stable ID (maps to the database public.users.id UUID)
@@ -43,8 +44,9 @@ export interface UnifiedUser {
   getIdToken?: () => Promise<string | null>;
 }
 
-interface AuthContextType {
-  user: any;
+export interface AuthContextType {
+  authStatus: AuthStatus;
+  user: UnifiedUser | null;
   role: UserRole | null;
   loading: boolean;
   isAdmin: boolean;
@@ -68,6 +70,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<UnifiedUser | null>(() => {
     try {
       const cached = localStorage.getItem('frostybite_cached_user');
@@ -85,13 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {}
     return null;
   });
-  const [loading, setLoading] = useState<boolean>(() => {
-    try {
-      return !localStorage.getItem('frostybite_cached_user');
-    } catch (e) {
-      return true;
-    }
-  });
+  const [loading, setLoading] = useState<boolean>(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
@@ -233,6 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (currentVersion !== syncVersionRef.current) return;
         setUser(null);
         setRole('customer');
+        setAuthStatus('unauthenticated');
+        setLoading(false);
         try {
           localStorage.removeItem('frostybite_cached_user');
           localStorage.removeItem('frostybite_has_active_session');
@@ -400,62 +399,102 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return unifiedUser;
         });
         setRole((prev) => (prev === unifiedUser.role ? prev : unifiedUser.role));
+        setAuthStatus('authenticated');
+        setLoading(false);
         try {
           localStorage.setItem('frostybite_has_active_session', 'true');
           localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
           CacheManager.set(CacheKeys.USER_PROFILE, unifiedUser, CacheNamespace.USER).catch(() => {});
         } catch (e) {}
+      } else {
+        if (currentVersion !== syncVersionRef.current) return;
+        setUser(null);
+        setRole('customer');
+        setAuthStatus('unauthenticated');
+        setLoading(false);
       }
     } catch (error) {
       console.error('[UnifiedAuth] Error in resolveAndSyncUser:', error);
+      if (currentVersion === syncVersionRef.current) {
+        setAuthStatus((prev) => (prev === 'loading' ? (user ? 'authenticated' : 'unauthenticated') : prev));
+        setLoading(false);
+      }
     } finally {
       if (currentVersion === syncVersionRef.current) {
-        setLoading((prev) => (prev ? false : prev));
+        setLoading(false);
       }
     }
   }, []);
 
   useEffect(() => {
-    let hasPotentialSession = false;
-    try {
-      hasPotentialSession = !!localStorage.getItem('frostybite_active_session_email') ||
-                            localStorage.getItem('frostybite_has_active_session') === 'true';
-      if (!hasPotentialSession) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.includes('firebase')) && key.endsWith('-auth-token')) {
-            hasPotentialSession = true;
-            break;
-          }
+    let isMounted = true;
+
+    const initAuthLifecycle = async () => {
+      try {
+        // Fast restore from Supabase session
+        const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+        if (!sessionErr && sessionData?.session?.user) {
+          lastSupabaseUserRef.current = sessionData.session.user;
+          await resolveAndSyncUser(sessionData.session.user, undefined);
+          return;
+        }
+
+        // Check Firebase current user
+        if (fbAuth?.currentUser) {
+          lastFirebaseUserRef.current = fbAuth.currentUser;
+          await resolveAndSyncUser(undefined, fbAuth.currentUser);
+          return;
+        }
+
+        // Fallback check cached session
+        const cachedUserStr = localStorage.getItem('frostybite_cached_user');
+        const hasSessionFlag = localStorage.getItem('frostybite_has_active_session') === 'true';
+        if (cachedUserStr && hasSessionFlag) {
+          try {
+            const cached = JSON.parse(cachedUserStr);
+            if (cached?.email) {
+              await resolveAndSyncUser(undefined, undefined);
+              return;
+            }
+          } catch (_) {}
+        }
+
+        // If no session found anywhere
+        if (isMounted) {
+          lastSupabaseUserRef.current = null;
+          lastFirebaseUserRef.current = null;
+          setUser(null);
+          setRole('customer');
+          setAuthStatus('unauthenticated');
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('[UnifiedAuth] Initialization error:', err);
+        if (isMounted) {
+          setAuthStatus('unauthenticated');
+          setLoading(false);
         }
       }
-    } catch (e) {}
+    };
 
-    // Immediately resolve initial auth state on mount
-    resolveAndSyncUser();
-
-    // If there's no potential session stored, end loading state fast
-    if (!hasPotentialSession) {
-      if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
-      if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
-      setLoading(false);
-    }
-
-    const delay = hasPotentialSession ? 500 : 200;
-
-    const timeoutId = setTimeout(() => {
-      console.log(`[UnifiedAuth] Safety timeout reached (${delay}ms), forcing loading false`);
-      if (lastSupabaseUserRef.current === undefined) lastSupabaseUserRef.current = null;
-      if (lastFirebaseUserRef.current === undefined) lastFirebaseUserRef.current = null;
-      resolveAndSyncUser();
-    }, delay);
+    initAuthLifecycle();
 
     // Live listener for Supabase login events
     let unsubscribeSupabase: { unsubscribe: () => void } | null = null;
     try {
       const authRes = supabase.auth.onAuthStateChange((event, session) => {
         console.log(`[UnifiedAuth] Supabase auth event: ${event}`, session?.user?.email || 'null');
-        resolveAndSyncUser(session?.user || null, undefined);
+        if (event === 'SIGNED_OUT') {
+          lastSupabaseUserRef.current = null;
+          setUser(null);
+          setRole('customer');
+          setAuthStatus('unauthenticated');
+          setLoading(false);
+          return;
+        }
+        if (session?.user) {
+          resolveAndSyncUser(session.user, undefined);
+        }
       });
       if (authRes && authRes.data && authRes.data.subscription) {
         unsubscribeSupabase = authRes.data.subscription;
@@ -469,13 +508,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       unsubscribeFirebase = fbAuth.onAuthStateChanged((fbUser) => {
         console.log(`[UnifiedAuth] Firebase auth event:`, fbUser?.email || 'null');
-        resolveAndSyncUser(undefined, fbUser || null);
+        if (fbUser) {
+          resolveAndSyncUser(undefined, fbUser);
+        }
       });
     } catch (err) {
       console.warn('[UnifiedAuth] Failed to subscribe to Firebase auth events:', err);
     }
 
     return () => {
+      isMounted = false;
       if (unsubscribeSupabase) {
         try {
           unsubscribeSupabase.unsubscribe();
@@ -486,7 +528,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unsubscribeFirebase();
         } catch (_) {}
       }
-      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -527,8 +568,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('[UnifiedAuth] Error in secureLogout:', e);
     }
 
-    setUser((prev) => (prev === null ? prev : null));
-    setRole((prev) => (prev === 'customer' ? prev : 'customer'));
+    setUser(null);
+    setRole('customer');
+    setAuthStatus('unauthenticated');
+    setLoading(false);
 
     try {
       localStorage.removeItem('frostybite_active_session_email');
@@ -567,6 +610,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [resolveAndSyncUser]);
 
   const value = useMemo(() => ({
+    authStatus,
     user,
     role,
     loading,
@@ -586,7 +630,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     closeAuthModal,
     requireAuthentication,
     getAuthToken
-  }), [user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication, getAuthToken]);
+  }), [authStatus, user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication, getAuthToken]);
 
   const handleConfirmLogout = async () => {
     setShowLogoutModal((prev) => (prev ? false : prev));

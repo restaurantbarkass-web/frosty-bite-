@@ -239,9 +239,17 @@ const removeActiveOtpSession = (recipient: string) => {
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, refreshProfile, resolveAndSyncUser } = useAuth();
+  const { user, isAdmin, loading, authStatus, refreshProfile, resolveAndSyncUser } = useAuth();
   const { selectManualCity, allowedZonesList } = useGeofence();
   const { geofencingEnabled } = useAppConfig();
+
+  if (loading || authStatus === 'loading') {
+    return <LoadingScreen fullScreen={true} />;
+  }
+
+  if (user) {
+    return <Navigate to={isAdmin ? '/admin' : '/'} replace />;
+  }
 
   const handleContinueAsGuest = () => {
     toast.success('Welcome! Browsing as Guest');

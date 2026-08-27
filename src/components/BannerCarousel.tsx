@@ -13,7 +13,7 @@ interface BannerCarouselProps {
 
 import { OptimizedImage } from './ui/OptimizedImage';
 
-export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApplyCoupon, onNavigate }) => {
+export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banners, onApplyCoupon, onNavigate }) => {
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -39,8 +39,9 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApply
   const handlers = useSwipeable({
     onSwipedLeft: nextSlide,
     onSwipedRight: prevSlide,
-    preventScrollOnSwipe: true,
-    trackMouse: true
+    preventScrollOnSwipe: false,
+    trackMouse: true,
+    delta: 15
   });
 
   if (banners.length === 0) return null;
@@ -53,7 +54,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApply
     >
       <div 
         {...handlers}
-        className="relative h-[280px] sm:h-[320px] w-full overflow-hidden rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#0A0A0A]"
+        className="relative h-[280px] sm:h-[320px] w-full overflow-hidden rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 bg-[#0A0A0A] touch-pan-y"
       >
         <div
           className="flex h-full w-full transition-transform duration-700 ease-in-out"
@@ -128,4 +129,6 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners, onApply
       </div>
     </div>
   );
-};
+});
+
+BannerCarousel.displayName = 'BannerCarousel';

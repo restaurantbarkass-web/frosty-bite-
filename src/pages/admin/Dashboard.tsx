@@ -67,15 +67,41 @@ export const Dashboard: React.FC = () => {
 
     fetchRecentOrders();
 
-    // Subscribe to new orders
+    // Subscribe to orders changes with fine-grained event handlers
     const channel = supabase
       .channel('dashboard_recent_orders')
       .on('postgres_changes', { 
-        event: '*', 
+        event: 'INSERT', 
         schema: 'public', 
         table: 'orders' 
-      }, () => {
-        fetchRecentOrders();
+      }, (payload) => {
+        const newOrder = payload.new as Order;
+        if (newOrder && newOrder.id) {
+          setRecentOrders((prev) => {
+            if (prev.some((o) => o.id === newOrder.id)) return prev;
+            return [newOrder, ...prev.slice(0, 19)];
+          });
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'orders' 
+      }, (payload) => {
+        const updatedOrder = payload.new as Order;
+        if (updatedOrder && updatedOrder.id) {
+          setRecentOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o)));
+        }
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'orders' 
+      }, (payload) => {
+        const deletedId = (payload.old as any)?.id;
+        if (deletedId) {
+          setRecentOrders((prev) => prev.filter((o) => o.id !== deletedId));
+        }
       })
       .subscribe();
 
@@ -88,6 +114,14 @@ export const Dashboard: React.FC = () => {
       clearInterval(interval);
     };
   }, []);
+
+  const handleOptimisticUpdate = (orderId: string, updates: Partial<Order>) => {
+    setRecentOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)));
+  };
+
+  const handleOptimisticDelete = (orderId: string) => {
+    setRecentOrders((prev) => prev.filter((o) => o.id !== orderId));
+  };
 
   const handleToggleOrdering = async () => {
     if (!config) return;
@@ -346,7 +380,12 @@ export const Dashboard: React.FC = () => {
             <span className="text-xs text-primary font-black uppercase tracking-widest">Live Updates</span>
           </div>
         </div>
-        <OrdersTable orders={recentOrders} loading={loadingOrders} />
+        <OrdersTable 
+          orders={recentOrders} 
+          loading={loadingOrders}
+          onOptimisticUpdate={handleOptimisticUpdate}
+          onOptimisticDelete={handleOptimisticDelete}
+        />
       </div>
     </div>
   );

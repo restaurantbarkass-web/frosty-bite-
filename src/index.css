@@ -65,38 +65,79 @@
   html {
     scroll-behavior: auto;
     -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: auto;
   }
   body {
     @apply bg-background text-foreground antialiased;
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  /* Force native-feeling kinetic scrolling */
-  .overflow-y-auto, .overflow-y-scroll, .overflow-x-auto, .overflow-x-scroll {
+  /* Native-feeling kinetic momentum scrolling on mobile devices */
+  .overflow-y-auto, .overflow-y-scroll {
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+  }
+  .overflow-x-auto, .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
+  }
+  /* Ensure horizontal carousels never lock or interfere with vertical momentum scrolling */
+  .touch-carousel, .scrollbar-hide, .no-scrollbar {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
   }
 }
 
-/* Lenis Recommended CSS */
-html.lenis {
-  height: auto;
+/* Zero-lag hardware compositing & offscreen containment */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 380px;
 }
 
-.lenis.lenis-smooth {
-  scroll-behavior: auto;
+.content-visibility-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
 }
 
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
 }
 
-.lenis.lenis-stopped {
-  overflow: hidden;
+.card-contain {
+  contain: layout paint style;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
-.lenis.lenis-scrolling iframe {
-  pointer-events: none;
+/* Shimmer Keyframe in global CSS for instant performance without inline styles */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Reduced motion preference fallback for low-power or sensitive devices */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .glass {

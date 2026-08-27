@@ -12,19 +12,20 @@ import { ButlerSelection } from '../components/ButlerSelection';
 import { getFoodRecommendations } from '../services/geminiService';
 import { supabase } from '../supabase';
 import { FoodItem } from '../types';
-import { ReviewsSection } from '../components/ReviewsSection';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
-import { useCart } from '../context/CartContext';
+import { useCartActions } from '../context/CartContext';
 import { PremiumSearchBar } from '../components/Search/PremiumSearchBar';
-import { VoiceAssistant } from '../components/VoiceAssistant';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { BannerService } from '../services/BannerService';
 import { CacheManager } from '../core/cache/CacheManager';
 import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
+
+const ReviewsSection = React.lazy(() => import('../components/ReviewsSection').then(m => ({ default: m.ReviewsSection })));
+const VoiceAssistant = React.lazy(() => import('../components/VoiceAssistant').then(m => ({ default: m.VoiceAssistant })));
 
 // Variants for staggered animations
 const containerVariants: any = {
@@ -47,6 +48,46 @@ const itemVariants: any = {
       ease: [0.22, 1, 0.36, 1]
     }
   }
+};
+
+// Helpers for dietary filters (pure module level)
+const isVegetarianItem = (item: FoodItem) => {
+  const nameLower = (item.name || '').toLowerCase();
+  const descLower = (item.description || '').toLowerCase();
+  const tagsLower = (item.tags || []).map(t => t.toLowerCase());
+
+  if (tagsLower.includes('vegetarian') || tagsLower.includes('veg') || tagsLower.includes('vegan') || tagsLower.includes('eggless')) {
+    return true;
+  }
+  if (tagsLower.includes('non-veg') || tagsLower.includes('chicken') || tagsLower.includes('meat') || tagsLower.includes('egg') || tagsLower.includes('fish') || tagsLower.includes('beef')) {
+    return false;
+  }
+  const nonVegKeywords = ['chicken', 'meat', 'beef', 'pork', 'bacon', 'pepperoni', 'fish', 'non-veg', 'nonveg'];
+  const hasNonVegKeyword = nonVegKeywords.some(keyword => nameLower.includes(keyword) || descLower.includes(keyword));
+  return !hasNonVegKeyword;
+};
+
+const isSpicyItem = (item: FoodItem) => {
+  const nameLower = (item.name || '').toLowerCase();
+  const descLower = (item.description || '').toLowerCase();
+  const tagsLower = (item.tags || []).map(t => t.toLowerCase());
+
+  return (
+    tagsLower.includes('spicy') ||
+    tagsLower.includes('hot') ||
+    tagsLower.includes('chili') ||
+    tagsLower.includes('chilli') ||
+    tagsLower.includes('jalapeno') ||
+    nameLower.includes('spicy') ||
+    nameLower.includes('chili') ||
+    nameLower.includes('chilli') ||
+    nameLower.includes('jalapeno') ||
+    nameLower.includes('pepper') ||
+    descLower.includes('spicy') ||
+    descLower.includes('chili') ||
+    descLower.includes('chilli') ||
+    descLower.includes('pepper')
+  );
 };
 
 // Home Page Component
@@ -87,26 +128,6 @@ export const Home: React.FC = () => {
     if (focused) {
       window.dispatchEvent(new CustomEvent('open-search'));
     }
-  }, []);
-
-  const parallaxRef = React.useRef<HTMLImageElement>(null);
-
-  useEffect(() => {
-    // Enable parallax scrolling via direct Ref style manipulation to eliminate heavy state-driven full-page re-renders.
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (parallaxRef.current) {
-            parallaxRef.current.style.transform = `translateY(${Math.min(window.scrollY * 0.35, 200)}px)`;
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   useEffect(() => {
@@ -292,45 +313,6 @@ export const Home: React.FC = () => {
     };
   }, [user?.uid]);
 
-  const isVegetarianItem = (item: FoodItem) => {
-    const nameLower = (item.name || '').toLowerCase();
-    const descLower = (item.description || '').toLowerCase();
-    const tagsLower = (item.tags || []).map(t => t.toLowerCase());
-
-    if (tagsLower.includes('vegetarian') || tagsLower.includes('veg') || tagsLower.includes('vegan') || tagsLower.includes('eggless')) {
-      return true;
-    }
-    if (tagsLower.includes('non-veg') || tagsLower.includes('chicken') || tagsLower.includes('meat') || tagsLower.includes('egg') || tagsLower.includes('fish') || tagsLower.includes('beef')) {
-      return false;
-    }
-    const nonVegKeywords = ['chicken', 'meat', 'beef', 'pork', 'bacon', 'pepperoni', 'fish', 'non-veg', 'nonveg'];
-    const hasNonVegKeyword = nonVegKeywords.some(keyword => nameLower.includes(keyword) || descLower.includes(keyword));
-    return !hasNonVegKeyword;
-  };
-
-  const isSpicyItem = (item: FoodItem) => {
-    const nameLower = (item.name || '').toLowerCase();
-    const descLower = (item.description || '').toLowerCase();
-    const tagsLower = (item.tags || []).map(t => t.toLowerCase());
-
-    return (
-      tagsLower.includes('spicy') ||
-      tagsLower.includes('hot') ||
-      tagsLower.includes('chili') ||
-      tagsLower.includes('chilli') ||
-      tagsLower.includes('jalapeno') ||
-      nameLower.includes('spicy') ||
-      nameLower.includes('chili') ||
-      nameLower.includes('chilli') ||
-      nameLower.includes('jalapeno') ||
-      nameLower.includes('pepper') ||
-      descLower.includes('spicy') ||
-      descLower.includes('chili') ||
-      descLower.includes('chilli') ||
-      descLower.includes('pepper')
-    );
-  };
-
   const filteredItems = React.useMemo(() => {
     let result = displayItems.filter(item => {
       const matchesCategory = selectedCategory === 'All' || (item.category && item.category === selectedCategory);
@@ -367,7 +349,7 @@ export const Home: React.FC = () => {
     });
   }, [displayItems, selectedCategory, searchQuery, dietaryFilter, sortBy]);
 
-  const { setAppliedCoupon, setIsCartOpen } = useCart();
+  const { setAppliedCoupon, setIsCartOpen } = useCartActions();
 
   const handleBannerCoupon = async (code: string) => {
     try {
@@ -430,13 +412,11 @@ export const Home: React.FC = () => {
       <section className="relative min-h-[600px] md:min-h-[750px] flex items-center justify-center py-20 overflow-hidden">
         <div className="absolute inset-0 w-full h-full overflow-hidden select-none pointer-events-none">
           <img 
-            ref={parallaxRef}
             src="https://images.weserv.nl/?url=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F33038486%2Fpexels-photo-33038486.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D1600" 
             alt="Artisanal Bakery Background" 
-            className="absolute inset-x-0 -top-20 -bottom-20 w-full h-[calc(100%+80px)] object-cover scale-110 will-change-transform opacity-100"
-            style={{ 
-              transform: 'translateY(0px)'
-            }}
+            className="absolute inset-0 w-full h-full object-cover scale-105 opacity-100"
+            loading="eager"
+            decoding="async"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -550,7 +530,7 @@ export const Home: React.FC = () => {
         </AnimatePresence>
 
         {/* Categories */}
-        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4">
+        <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4 touch-carousel overscroll-x-contain">
           {menuCategories.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
@@ -583,8 +563,8 @@ export const Home: React.FC = () => {
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-16"
+            viewport={{ once: true, margin: "-50px" }}
+            className="mb-16 content-visibility-section"
           >
             <div className="flex items-end justify-between mb-8">
               <div className="space-y-1">
@@ -594,7 +574,7 @@ export const Home: React.FC = () => {
               <Link to="/orders" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">View All Orders</Link>
             </div>
             
-            <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+            <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 touch-carousel overscroll-x-contain">
               {previousPurchases.map((item) => (
                 <div key={`prev-${item.id}`} className="w-64 shrink-0">
                   <FoodCard item={item} variant="compact" />
@@ -608,8 +588,8 @@ export const Home: React.FC = () => {
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-16"
+          viewport={{ once: true, margin: "-50px" }}
+          className="mb-16 content-visibility-section"
         >
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
@@ -621,7 +601,7 @@ export const Home: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
+          <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 touch-carousel overscroll-x-contain">
             {recommendedItems.map((item) => (
               <div key={`trending-${item.id}`} className="w-72 shrink-0">
                 <FoodCard item={item} />
@@ -716,7 +696,7 @@ export const Home: React.FC = () => {
         </div>
 
         {/* Food Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 content-visibility-auto">
           {isMenuLoading ? (
             Array.from({ length: 6 }).map((_, index) => (
               <FoodCardSkeleton key={`skeleton-${index}`} />
@@ -736,12 +716,14 @@ export const Home: React.FC = () => {
       </div>
 
       {/* Reviews Section */}
-      <div id="reviews" className="mb-20">
-        <ReviewsSection />
+      <div id="reviews" className="mb-20 content-visibility-section">
+        <React.Suspense fallback={null}>
+          <ReviewsSection />
+        </React.Suspense>
       </div>
 
       {/* SEO Content Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 text-gray-400">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 text-gray-400 content-visibility-section">
         <div className="glass-dark p-8 md:p-12 rounded-[40px] border border-white/5">
           <h1 className="text-3xl md:text-5xl font-black text-white italic tracking-tighter uppercase mb-6">
             Welcome to Frosty Bite – Artisan Bakery & Frosty Treats
@@ -848,11 +830,13 @@ export const Home: React.FC = () => {
       </section>
 
       {/* Modern AI Voice Assistant */}
-      <VoiceAssistant 
-        onSearchQueryChange={setSearchQuery}
-        onDietFilterChange={setDietaryFilter}
-        onCategoryChange={setSelectedCategory}
-      />
+      <React.Suspense fallback={null}>
+        <VoiceAssistant 
+          onSearchQueryChange={setSearchQuery}
+          onDietFilterChange={setDietaryFilter}
+          onCategoryChange={setSelectedCategory}
+        />
+      </React.Suspense>
     </motion.div>
   );
 };

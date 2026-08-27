@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LottieOfferButton } from './LottieOfferButton';
 import { preloadRoute } from '../utils/preload';
 
-export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }) => {
+export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCartState();
   const { unreadCount } = useNotifications();
@@ -80,18 +80,21 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
     };
   }, []);
 
-  const navLinks = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Offers', path: '/offers', icon: Gift },
-    { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
-    { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
-    { name: 'Profile', path: '/profile', icon: User, protected: true, badge: unreadCount },
-    { name: 'Login', path: '/login', icon: User, publicOnly: true },
-  ];
+  const navLinks = React.useMemo(() => {
+    const links = [
+      { name: 'Home', path: '/', icon: Home },
+      { name: 'Offers', path: '/offers', icon: Gift },
+      { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
+      { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
+      { name: 'Profile', path: '/profile', icon: User, protected: true, badge: unreadCount },
+      { name: 'Login', path: '/login', icon: User, publicOnly: true },
+    ];
 
-  if (isAdmin) {
-    navLinks.splice(2, 0, { name: 'Admin', path: '/admin', icon: LayoutDashboard, protected: true });
-  }
+    if (isAdmin) {
+      links.splice(2, 0, { name: 'Admin', path: '/admin', icon: LayoutDashboard, protected: true });
+    }
+    return links;
+  }, [isAdmin, onCartClick, totalItems, unreadCount]);
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] h-20 pointer-events-none">
@@ -250,4 +253,6 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = ({ onCartClick }
       </motion.div>
     </div>
   );
-};
+});
+
+BottomNav.displayName = 'BottomNav';

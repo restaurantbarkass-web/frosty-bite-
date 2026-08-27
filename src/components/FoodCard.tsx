@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2, Sparkles } from 'lucide-react';
 import { FoodItem } from '../types';
-import { useCart } from '../context/CartContext';
+import { useCartActions } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -31,7 +31,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   onClick,
   showBuyNow = false
 }) => {
-  const { addToCart, setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen } = useCartActions();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -177,21 +177,18 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
         animate={isFlying ? {
           scale: [1, 0.96, 1.03, 1],
           rotate: [0, -1.2, 1.2, 0],
-          borderColor: ["rgba(255,255,255,0.05)", "rgba(249,115,22,0.8)", "rgba(255,255,255,0.05)"]
         } : { opacity: 1, y: 0, scale: 1 }}
         whileHover={!isTouchDevice ? { 
-          y: -8, 
-          scale: 1.025,
-          boxShadow: "0 25px 50px -12px rgba(249,115,22,0.25)",
-          borderColor: "rgba(249,115,22,0.35)"
+          y: -6, 
+          scale: 1.02,
         } : undefined}
         transition={{ 
           type: "spring", 
-          stiffness: 350, 
-          damping: 22 
+          stiffness: 300, 
+          damping: 24 
         }}
         className={cn(
-          "group relative bg-white/5 overflow-hidden border border-white/5 transition-all shadow-xl cursor-pointer",
+          "group relative bg-white/5 overflow-hidden border border-white/5 hover:border-primary/30 transition-colors shadow-xl cursor-pointer card-contain",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
         onMouseEnter={() => {

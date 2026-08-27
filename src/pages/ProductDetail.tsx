@@ -4,7 +4,7 @@ import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Share2, ShieldCheck, ShoppingCart, Star, Zap, Clock, Flame, Plus, Minus, ArrowLeft, Sparkles, MessageCircle, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useCart } from '../context/CartContext';
+import { useCartActions, useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { FoodItem } from '../types';
 import { Button } from '../components/Button';
@@ -16,7 +16,6 @@ import toast from 'react-hot-toast';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { preloadRoute } from '../utils/preload';
 
-import { CartSidebar } from '../components/CartSidebar';
 import { ImageZoom } from '../components/ImageZoom';
 
 const getInitialCachedProduct = (productId?: string): FoodItem | null => {
@@ -36,7 +35,8 @@ const getInitialCachedProduct = (productId?: string): FoodItem | null => {
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addToCart, totalItems, setIsCartOpen } = useCart();
+  const { addToCart, setIsCartOpen } = useCartActions();
+  const { totalItems } = useCartState();
   const { user } = useAuth();
   const { isOrderingOpen, isPickupOnly } = useAppConfig();
   
@@ -82,29 +82,18 @@ const ProductDetail: React.FC = () => {
   }, [user?.uid, id]);
 
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (purchaseSectionRef.current) {
-            const rect = purchaseSectionRef.current.getBoundingClientRect();
-            // If purchase element top is details-column height or below/above visible viewport, show the FAB
-            const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-            setShowScrollFab(!isVisible);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
+    const target = purchaseSectionRef.current;
+    if (!target) return;
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    const timeoutId = setTimeout(handleScroll, 500);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setShowScrollFab(!entry.isIntersecting);
+      },
+      { threshold: 0.1 }
+    );
 
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(timeoutId);
-    };
+    observer.observe(target);
+    return () => observer.disconnect();
   }, [product?.id]);
 
   useEffect(() => {
@@ -269,13 +258,7 @@ const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading) {
-      const scrollTimer = setTimeout(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
-        if ((window as any).lenis) {
-          (window as any).lenis.scrollTo(0, { immediate: true });
-        }
-      }, 60);
-      return () => clearTimeout(scrollTimer);
+      window.scrollTo(0, 0);
     }
   }, [isLoading]);
 
@@ -746,7 +729,7 @@ const ProductDetail: React.FC = () => {
             </div>
           </motion.div>
 
-          <div className="flex space-x-6 overflow-x-auto pb-8 scrollbar-hide -mx-6 px-6">
+          <div className="flex space-x-6 overflow-x-auto pb-8 scrollbar-hide -mx-6 px-6 touch-carousel overscroll-x-contain">
             {relatedItems.map((item) => (
               <div key={item.id} className="w-72 shrink-0">
                 <FoodCard item={item} />

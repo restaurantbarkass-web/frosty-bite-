@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { Filter, Search, Download, Calendar, Clock, X, AlertCircle, RefreshCw, Sparkles, CheckCircle2, Package, Truck, Layers, ShieldCheck, DollarSign } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -27,9 +27,44 @@ export const Orders: React.FC = () => {
     delivered: 0
   });
 
+  const calculateStats = useCallback((ordersData: Order[]) => {
+    const nowTs = new Date().getTime();
+    const twentyFourHoursAgo = nowTs - (24 * 60 * 60 * 1000);
+    const last24hOrders = ordersData.filter(o => {
+      const ca = o.created_at;
+      const d = ca ? new Date(ca) : null;
+      return d && d.getTime() >= twentyFourHoursAgo;
+    });
+
+    setStats({
+      pending: last24hOrders.filter(o => o.status === 'pending').length,
+      confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
+      preparing: last24hOrders.filter(o => o.status === 'preparing').length,
+      out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
+      delivered: last24hOrders.filter(o => o.status === 'delivered').length,
+    });
+  }, []);
+
+  const handleOptimisticUpdate = useCallback((orderId: string, updates: Partial<Order>) => {
+    setAllOrders((prev) => {
+      const next = prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o));
+      calculateStats(next);
+      return next;
+    });
+  }, [calculateStats]);
+
+  const handleOptimisticDelete = useCallback((orderId: string) => {
+    setAllOrders((prev) => {
+      const next = prev.filter((o) => o.id !== orderId);
+      calculateStats(next);
+      return next;
+    });
+  }, [calculateStats]);
+
   useEffect(() => {
-    const fetchOrders = async () => {
+    const fetchOrders = async (isBackground = false) => {
       try {
+        if (!isBackground) setLoading(true);
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -45,52 +80,69 @@ export const Orders: React.FC = () => {
       } catch (error) {
         console.error('Error fetching admin orders from Supabase:', error);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
-    };
-
-    const calculateStats = (ordersData: Order[]) => {
-      const nowTs = new Date().getTime();
-      const twentyFourHoursAgo = nowTs - (24 * 60 * 60 * 1000);
-      const last24hOrders = ordersData.filter(o => {
-        const ca = o.created_at;
-        const d = ca ? new Date(ca) : null;
-        return d && d.getTime() >= twentyFourHoursAgo;
-      });
-
-      setStats({
-        pending: last24hOrders.filter(o => o.status === 'pending').length,
-        confirmed: last24hOrders.filter(o => o.status === 'confirmed').length,
-        preparing: last24hOrders.filter(o => o.status === 'preparing').length,
-        out_for_delivery: last24hOrders.filter(o => o.status === 'out_for_delivery').length,
-        delivered: last24hOrders.filter(o => o.status === 'delivered').length,
-      });
     };
 
     fetchOrders();
 
-    // Set up real-time subscription for admin orders
+    // Fine-grained Realtime Channel for Admin Orders
     const channel = supabase
-      .channel('admin_orders_all_view')
+      .channel('admin_orders_realtime_sync')
       .on('postgres_changes', { 
-         event: '*', 
+         event: 'INSERT', 
          schema: 'public', 
          table: 'orders' 
       }, (payload) => {
-        console.log('[Realtime] Admin orders table changed, re-fetching...');
-        fetchOrders();
+        const newOrder = payload.new as Order;
+        if (newOrder && newOrder.id) {
+          setAllOrders((prev) => {
+            if (prev.some((o) => o.id === newOrder.id)) return prev;
+            const updated = [newOrder, ...prev];
+            calculateStats(updated);
+            return updated;
+          });
+        }
+      })
+      .on('postgres_changes', { 
+         event: 'UPDATE', 
+         schema: 'public', 
+         table: 'orders' 
+      }, (payload) => {
+        const updatedOrder = payload.new as Order;
+        if (updatedOrder && updatedOrder.id) {
+          setAllOrders((prev) => {
+            const updated = prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
+            calculateStats(updated);
+            return updated;
+          });
+        }
+      })
+      .on('postgres_changes', { 
+         event: 'DELETE', 
+         schema: 'public', 
+         table: 'orders' 
+      }, (payload) => {
+        const deletedId = (payload.old as any)?.id;
+        if (deletedId) {
+          setAllOrders((prev) => {
+            const updated = prev.filter((o) => o.id !== deletedId);
+            calculateStats(updated);
+            return updated;
+          });
+        }
       })
       .subscribe();
 
     const interval = setInterval(() => {
-      fetchOrders();
+      fetchOrders(true);
     }, 15000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, []);
+  }, [calculateStats]);
 
   const updateRefundStatus = async (orderId: string, status: 'none' | 'pending_refund' | 'refunded' | 'failed') => {
     const loadingToast = toast.loading('Processing refund audit...');
@@ -555,7 +607,9 @@ export const Orders: React.FC = () => {
             if (o.payment_status === 'pending_verification' || o.status === 'awaiting_payment') return false;
             return true;
           })} 
-          loading={loading} 
+          loading={loading}
+          onOptimisticUpdate={handleOptimisticUpdate}
+          onOptimisticDelete={handleOptimisticDelete}
         />
       )}
     </div>

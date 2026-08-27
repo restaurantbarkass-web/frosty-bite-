@@ -14,7 +14,6 @@ import { CustomToaster } from './components/CustomToaster';
 import { toast } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
-import { SearchOverlay } from './components/Search/SearchOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { LocalErrorBoundary } from './components/LocalErrorBoundary';
@@ -50,7 +49,8 @@ const Orders = React.lazy(() => import('./pages/Orders'));
 const Notifications = React.lazy(() => import('./pages/Notifications'));
 const FAQ = React.lazy(() => import('./pages/FAQ'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
-import { CartSidebar } from './components/CartSidebar';
+const CartSidebar = React.lazy(() => import('./components/CartSidebar').then(m => ({ default: m.CartSidebar })));
+const SearchOverlay = React.lazy(() => import('./components/Search/SearchOverlay').then(m => ({ default: m.SearchOverlay })));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -80,9 +80,9 @@ const CartPageRoute: React.FC = () => {
 };
 
 const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, loading } = useAuth();
-  if (loading) {
-    return <PageLoader />;
+  const { user, isAdmin, loading, authStatus } = useAuth();
+  if (loading || authStatus === 'loading') {
+    return <LoadingScreen fullScreen={true} />;
   }
   if (user) {
     return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
@@ -375,16 +375,20 @@ function AppContent() {
       {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       <FlyingCartOverlay />
       
-      <SearchOverlay 
-        isOpen={isSearchOverlayOpen} 
-        onClose={() => {
-            setIsSearchOverlayOpen(false);
-            setInitialSearchQuery('');
-        }} 
-        allItems={items}
-        initialScan={isSearchOverlayScan}
-        initialQuery={initialSearchQuery}
-      />
+      {isSearchOverlayOpen && (
+        <Suspense fallback={null}>
+          <SearchOverlay 
+            isOpen={isSearchOverlayOpen} 
+            onClose={() => {
+                setIsSearchOverlayOpen(false);
+                setInitialSearchQuery('');
+            }} 
+            allItems={items}
+            initialScan={isSearchOverlayScan}
+            initialQuery={initialSearchQuery}
+          />
+        </Suspense>
+      )}
       
       <main className={cn(
         "transition-all flex-1 flex flex-col min-h-svh relative",

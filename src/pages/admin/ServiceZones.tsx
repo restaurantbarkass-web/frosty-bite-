@@ -417,7 +417,7 @@ export const ServiceZones: React.FC = () => {
       let token: string | null = null;
 
       if (user && typeof user.getIdToken === 'function') {
-        token = await user.getIdToken(true);
+        token = await user.getIdToken();
 
         console.log('Firebase User:', user.email);
         console.log('Token Length:', token?.length);

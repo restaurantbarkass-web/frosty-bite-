@@ -49,7 +49,7 @@ const getCloudinaryUrl = (url: string, params: { w?: number; q?: string; f?: str
   }
 };
 
-export const OptimizedImage: React.FC<OptimizedImageProps> = ({
+export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   src,
   alt,
   className,
@@ -179,14 +179,17 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
           srcSet={srcSetString}
           sizes={defaultSizes}
           alt={alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={priority ? "high" : "low"}
           onLoad={() => setIsLoaded(true)}
           onError={() => {
             console.error("Image load fail:", src);
             setError(true);
           }}
           className={cn(
-            "w-full h-full object-cover transition-all duration-200 ease-out",
-            isLoaded ? "opacity-100 scale-100 blur-0" : "opacity-0 scale-105 blur-sm",
+            "w-full h-full object-cover transition-opacity duration-300 ease-out",
+            isLoaded ? "opacity-100" : "opacity-0",
             className
           )}
           referrerPolicy="no-referrer"
@@ -201,16 +204,8 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = ({
           </span>
         </div>
       )}
-
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .animate-shimmer {
-          animation: shimmer 1.5s infinite linear;
-        }
-      `}</style>
     </div>
   );
-};
+});
+
+OptimizedImage.displayName = 'OptimizedImage';

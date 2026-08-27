@@ -166,7 +166,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
           message: messageText,
           history: chatHistory,
           items: items,
-          customerName: user?.full_name || user?.email || null
+          customerName: (user as any)?.full_name || user?.displayName || user?.email || null
         })
       });
 

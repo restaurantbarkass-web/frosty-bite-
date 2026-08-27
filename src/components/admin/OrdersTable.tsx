@@ -72,10 +72,25 @@ const StatusBadge = ({ order }: { order: Order }) => {
 interface OrdersTableProps {
   orders: Order[];
   loading?: boolean;
+  onOptimisticUpdate?: (orderId: string, updates: Partial<Order>) => void;
+  onOptimisticDelete?: (orderId: string) => void;
 }
 
-export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loading: externalLoading }) => {
-  const orders = Array.isArray(rawOrders) ? rawOrders : [];
+export const OrdersTable: React.FC<OrdersTableProps> = ({ 
+  orders: rawOrders, 
+  loading: externalLoading,
+  onOptimisticUpdate,
+  onOptimisticDelete
+}) => {
+  const [localOrders, setLocalOrders] = useState<Order[]>(() => Array.isArray(rawOrders) ? rawOrders : []);
+
+  useEffect(() => {
+    if (Array.isArray(rawOrders)) {
+      setLocalOrders(rawOrders);
+    }
+  }, [rawOrders]);
+
+  const orders = localOrders;
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
@@ -288,6 +303,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
   const verifyPayment = async (orderId: string) => {
     stopAlarm();
+    const prevOrder = orders.find(o => o.id === orderId);
+    const optimisticUpdates: Partial<Order> = {
+      payment_status: 'paid',
+      status: 'confirmed',
+      updated_at: new Date().toISOString()
+    };
+
+    // Apply Optimistic Update Immediately
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...optimisticUpdates } : o));
+    onOptimisticUpdate?.(orderId, optimisticUpdates);
+
     const loadingToast = toast.loading('Verifying payment...');
     try {
       const { error } = await supabase
@@ -301,7 +327,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
       if (error) throw error;
 
-      const order = orders.find(o => o.id === orderId);
+      const order = prevOrder;
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Payment Verified',
@@ -321,6 +347,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
     } catch (error: any) {
       console.error('Verify payment error:', error);
+      // Rollback on failure
+      if (prevOrder) {
+        setLocalOrders(prev => prev.map(o => o.id === orderId ? prevOrder : o));
+        onOptimisticUpdate?.(orderId, prevOrder);
+      }
       toast.error(error.message || 'Verification failed', { id: loadingToast });
     }
   };
@@ -332,6 +363,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       return;
     }
     stopAlarm();
+
+    const prevOrder = orders.find(o => o.id === orderId);
+    const optimisticUpdates: Partial<Order> = {
+      payment_status: 'pending',
+      status: 'cancelled',
+      utr: null,
+      notes: "Admin rejected payment proof (UTR). If you already paid, your money will be refunded according to our policy within 24 hours. Please contact support.",
+      updated_at: new Date().toISOString()
+    };
+
+    // Apply Optimistic Update Immediately
+    setLocalOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...optimisticUpdates } : o));
+    onOptimisticUpdate?.(orderId, optimisticUpdates);
+
     const loadingToast = toast.loading('Rejecting order...');
     try {
       const { error } = await supabase
@@ -347,7 +392,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
       if (error) throw error;
 
-      const order = orders.find(o => o.id === orderId);
+      const order = prevOrder;
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Order Rejected & Refund Initiated',
@@ -361,6 +406,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success('Order rejected & cancelled. Refund notice sent.', { id: loadingToast });
     } catch (error: any) {
       console.error('Reject payment error:', error);
+      // Rollback on failure
+      if (prevOrder) {
+        setLocalOrders(prev => prev.map(o => o.id === orderId ? prevOrder : o));
+        onOptimisticUpdate?.(orderId, prevOrder);
+      }
       toast.error(error.message || 'Rejection failed', { id: loadingToast });
     }
   };
@@ -376,9 +426,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
     if (newStatus === 'confirmed' || newStatus === 'cancelled') {
       stopAlarm();
     }
+
+    const prevOrder = orders.find(o => o.id === id);
+    const optimisticUpdates: Partial<Order> = { 
+      status: newStatus,
+      updated_at: new Date().toISOString() 
+    };
+    
+    if (newStatus === 'confirmed') {
+      optimisticUpdates.payment_status = 'paid';
+    }
+
+    // Apply Optimistic Update Immediately
+    setLocalOrders(prev => prev.map(o => o.id === id ? { ...o, ...optimisticUpdates } : o));
+    onOptimisticUpdate?.(id, optimisticUpdates);
+
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
-      const order = orders.find(o => o.id === id);
+      const order = prevOrder;
       
       if (newStatus === 'cancelled') {
         // Intercept and use safe cancelOrder routine
@@ -457,6 +522,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
     } catch (error: any) {
       console.error('Update status error:', error);
+      // Rollback on failure
+      if (prevOrder) {
+        setLocalOrders(prev => prev.map(o => o.id === id ? prevOrder : o));
+        onOptimisticUpdate?.(id, prevOrder);
+      }
       toast.error(error.message || 'Update failed', { id: loadingToast });
     }
   };
@@ -464,8 +534,23 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingOrder) return;
-    const loadingToast = toast.loading('Saving changes...');
 
+    const prevOrder = editingOrder;
+    const optimisticUpdates: Partial<Order> = {
+      customer_name: editFormData.customer_name,
+      phone: editFormData.phone,
+      address: editFormData.address,
+      notes: editFormData.notes,
+      estimated_delivery_time: editFormData.estimated_delivery_time,
+      updated_at: new Date().toISOString()
+    };
+
+    // Apply Optimistic Update Immediately
+    setLocalOrders(prev => prev.map(o => o.id === editingOrder.id ? { ...o, ...optimisticUpdates } : o));
+    onOptimisticUpdate?.(editingOrder.id, optimisticUpdates);
+    setEditingOrder(null);
+
+    const loadingToast = toast.loading('Saving changes...');
     try {
       const { error } = await supabase
         .from('orders')
@@ -477,19 +562,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
           estimated_delivery_time: editFormData.estimated_delivery_time,
           updated_at: new Date().toISOString()
         })
-        .eq('id', editingOrder.id);
+        .eq('id', prevOrder.id);
 
       if (error) throw error;
       
-      setEditingOrder(null);
       toast.success('Changes saved!', { id: loadingToast });
     } catch (error: any) {
       console.error('Edit submit error:', error);
+      // Rollback on failure
+      setLocalOrders(prev => prev.map(o => o.id === prevOrder.id ? prevOrder : o));
+      onOptimisticUpdate?.(prevOrder.id, prevOrder);
       toast.error(error.message || 'Failed to save', { id: loadingToast });
     }
   };
 
   const deleteOrder = async (id: string) => {
+    const prevOrder = orders.find(o => o.id === id);
+    setDeletingId(null);
+
+    // Apply Optimistic Delete Immediately
+    setLocalOrders(prev => prev.filter(o => o.id !== id));
+    onOptimisticDelete?.(id);
+
     const loadingToast = toast.loading('Deleting order...');
     try {
       const { error } = await supabase
@@ -499,10 +593,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({ orders: rawOrders, loa
 
       if (error) throw error;
       
-      setDeletingId(null);
       toast.success('Order deleted', { id: loadingToast });
     } catch (error: any) {
       console.error('Delete error:', error);
+      // Rollback on failure
+      if (prevOrder) {
+        setLocalOrders(prev => [prevOrder, ...prev]);
+      }
       toast.error(error.message || 'Failed to delete', { id: loadingToast });
     }
   };

@@ -375,11 +375,11 @@ export const Profile: React.FC = () => {
         if (authUser) {
           setUserData(authUser);
           setFormData({
-            name: authUser.full_name || authUser.name || '',
-            phone: authUser.phone || '',
-            address: authUser.address || ''
+            name: (authUser as any)?.full_name || authUser.displayName || (authUser as any)?.name || '',
+            phone: (authUser as any)?.phone || (authUser as any)?.phoneNumber || '',
+            address: (authUser as any)?.address || ''
           });
-          if (authUser.settings) setSettingsData(authUser.settings);
+          if ((authUser as any)?.settings) setSettingsData((authUser as any).settings);
         }
 
         // Recent orders

@@ -54,8 +54,14 @@ export default defineConfig(({ mode }) => {
               if (id.includes('supabase') || id.includes('@supabase')) {
                 return 'vendor-supabase';
               }
-              if (id.includes('jspdf') || id.includes('html5-qrcode') || id.includes('lottie') || id.includes('lottie-react')) {
-                return 'vendor-utils';
+              if (id.includes('html5-qrcode')) {
+                return 'vendor-qrcode';
+              }
+              if (id.includes('jspdf')) {
+                return 'vendor-pdf';
+              }
+              if (id.includes('lottie') || id.includes('lottie-react') || id.includes('lottie-web') || id.includes('canvas-confetti')) {
+                return 'vendor-lottie';
               }
               if (id.includes('turf') || id.includes('@turf')) {
                 return 'vendor-turf';
@@ -65,6 +71,9 @@ export default defineConfig(({ mode }) => {
               }
               if (id.includes('gsap') || id.includes('motion')) {
                 return 'vendor-animation';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
               }
             }
           }
