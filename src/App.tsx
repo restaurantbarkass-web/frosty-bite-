@@ -10,6 +10,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ConfigProvider, useConfig } from './context/ConfigContext';
 import { useAppConfig } from './hooks/useAppConfig';
 import { BootProvider, useBoot, BootState } from './context/BootContext';
+import { VersionProvider } from './context/VersionContext';
 import { CustomToaster } from './components/CustomToaster';
 import { toast } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
@@ -19,6 +20,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { LocalErrorBoundary } from './components/LocalErrorBoundary';
 import { IntroSplash } from './components/IntroSplash';
 import { OnboardingScreen } from './components/OnboardingScreen';
+import { AppUpdateScreen } from './components/AppUpdateScreen';
 import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,7 +29,6 @@ import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import Lenis from '@studio-freight/lenis';
 
 import { useAuth } from './context/AuthContext';
 import { useCart, useCartActions } from './context/CartContext';
@@ -215,57 +216,6 @@ function AppContent() {
     };
   }, [user?.uid || user?.id]);
 
-  useEffect(() => {
-    // Disable smooth-scroll libraries on touch devices to prioritize native momentum scrolling
-    const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-    if (isTouchDevice) {
-      return;
-    }
-
-    let LenisConstructor = Lenis as any;
-    if (LenisConstructor && LenisConstructor.default) {
-      LenisConstructor = LenisConstructor.default;
-    }
-    if (typeof LenisConstructor !== 'function') {
-      console.warn('[Lenis] Lenis import is not a valid constructor, skipping smooth scroll.');
-      return;
-    }
-
-    const lenis = new LenisConstructor({
-      duration: 2,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      orientation: 'vertical',
-      gestureOrientation: 'vertical',
-      smoothWheel: true,
-      wheelMultiplier: 1,
-      touchMultiplier: 1.5,
-      infinite: false,
-    });
-
-    let rafId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    }
-    rafId = requestAnimationFrame(raf);
-
-    (window as any).lenis = lenis;
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      lenis.destroy();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (showSplash) {
-      const timer = setTimeout(() => {
-        handleSplashComplete();
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [showSplash, handleSplashComplete]);
-
   const [isSearchOverlayScan, setIsSearchOverlayScan] = useState(false);
   const [initialSearchQuery, setInitialSearchQuery] = useState('');
 
@@ -310,9 +260,6 @@ function AppContent() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    if ((window as any).lenis) {
-      (window as any).lenis.scrollTo(0, { immediate: true });
-    }
   }, [location.pathname]);
 
   const isAdminPage = location.pathname.startsWith('/admin');
@@ -527,6 +474,7 @@ function AppContent() {
       )}
 
       <PWAInstallPrompt />
+      <AppUpdateScreen />
     </div>
   );
 }
@@ -538,15 +486,17 @@ export default function App() {
         <AuthProvider>
           <ConfigProvider>
             <BootProvider>
-              <GeofenceProvider>
-                <MenuProvider>
-                  <NotificationProvider>
-                    <CartProvider>
-                      <AppContent />
-                    </CartProvider>
-                  </NotificationProvider>
-                </MenuProvider>
-              </GeofenceProvider>
+              <VersionProvider>
+                <GeofenceProvider>
+                  <MenuProvider>
+                    <NotificationProvider>
+                      <CartProvider>
+                        <AppContent />
+                      </CartProvider>
+                    </NotificationProvider>
+                  </MenuProvider>
+                </GeofenceProvider>
+              </VersionProvider>
             </BootProvider>
           </ConfigProvider>
         </AuthProvider>

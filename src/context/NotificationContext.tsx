@@ -31,7 +31,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { user, role, isAdmin } = useAuth() as any;
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [incomingOrder, setIncomingOrder] = useState<any | null>(null);
-  const lastOrderIdRef = useRef<string | null>(null);
 
   const userRef = useRef(user);
 
@@ -39,126 +38,106 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     userRef.current = user;
   }, [user]);
 
-  // Load notifications from local storage on auth state change
+  // Load notifications from local storage on user state change or mount
   useEffect(() => {
-    const currentUser = userRef.current;
-    if (!currentUser) {
-      setNotifications([]);
-      return;
-    }
-
-    const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
+    const uid = user ? (user.id || user.uid || 'guest') : 'guest';
+    const cacheKey = `user_notifications_${uid}`;
+    
     let cached: string | null = null;
     try {
       cached = localStorage.getItem(cacheKey);
     } catch (e) {
       console.warn('Failed to read notifications from localStorage:', e);
     }
-    if (cached) {
+
+    if (cached !== null) {
       try {
         const parsed = JSON.parse(cached);
-        setNotifications(Array.isArray(parsed) ? parsed : (parsed.data || []));
+        const list: Notification[] = Array.isArray(parsed) ? parsed : (parsed.data || []);
+        setNotifications(list);
       } catch (e) {
         setNotifications([]);
       }
     } else {
-      // Default initial welcome notification if none exist
-      const welcomeNotif: Notification = {
-        id: `welcome-${Date.now()}`,
-        title: 'Welcome to Frosty Bite! ✨',
-        message: 'Explore our curated premium menu and start earning loyalty points today.',
-        type: 'system',
-        read: false,
-        created_at: new Date().toISOString(),
-        user_id: currentUser.id || currentUser.uid
-      };
-      setNotifications([welcomeNotif]);
-      try {
-        localStorage.setItem(cacheKey, JSON.stringify([welcomeNotif]));
-      } catch (e) {
-        console.warn('Failed to write notifications to localStorage:', e);
-      }
+      // First-time visit: Start with clean empty list so no false unread notifications pop up on refresh
+      setNotifications([]);
     }
 
     // Admin new order monitor using Supabase Realtime
     let unsubAdminOrders: (() => void) | null = null;
     if (isAdmin || role === 'admin') {
-      const stableUid = currentUser.id || currentUser.uid;
+      const stableUid = user ? (user.id || user.uid || 'admin') : 'admin';
+      const sessionStartTime = Date.now();
+      const seenOrderIds = new Set<string>();
+
       const channel = supabase
-        .channel('admin_order_monitor_notifications')
+        .channel(`admin_order_monitor_${Date.now()}`)
         .on('postgres_changes', { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'orders' 
         }, (payload) => {
           const latestOrder = payload.new as any;
+          if (!latestOrder || !latestOrder.id) return;
           
-          if (lastOrderIdRef.current && lastOrderIdRef.current !== latestOrder.id) {
-            // New order received!
-            if (latestOrder.status === 'pending') {
-              setIncomingOrder(latestOrder);
-            }
-            
-            toast.success(`New Order #${latestOrder.id.slice(-6).toUpperCase()} received!`, {
-              duration: 8000,
-              icon: '🍕'
-            });
+          // Avoid duplicate triggers
+          if (seenOrderIds.has(latestOrder.id)) return;
+          seenOrderIds.add(latestOrder.id);
 
-            if (!window.location.pathname.includes('/admin')) {
-              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-              audio.play().catch(() => {});
-            }
-
-            showDeviceNotification('New Order Received!', {
-              body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
-              icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
-            });
-
-            // Also save a notification locally for the admin
-            const newNotif: Notification = {
-              id: `order-notif-${latestOrder.id}`,
-              title: 'New Order Received! 🍕',
-              message: `${latestOrder.customer_name} placed order #${latestOrder.id.slice(-6).toUpperCase()} for ₹${latestOrder.total}`,
-              type: 'order',
-              read: false,
-              created_at: new Date().toISOString(),
-              user_id: stableUid,
-              link: `/admin/orders?id=${latestOrder.id}`
-            };
-
-            setNotifications(prev => {
-              const updated = [newNotif, ...prev];
-              try {
-                localStorage.setItem(cacheKey, JSON.stringify(updated));
-              } catch (e) {
-                console.warn('Failed to write notifications to localStorage:', e);
-              }
-              return updated;
-            });
+          // Discard older existing orders if sent during initial channel subscription
+          const orderTime = latestOrder.created_at ? new Date(latestOrder.created_at).getTime() : Date.now();
+          if (orderTime < sessionStartTime - 5000) {
+            return;
           }
-          lastOrderIdRef.current = latestOrder.id;
+
+          // Genuine live incoming order
+          if (latestOrder.status === 'pending') {
+            setIncomingOrder(latestOrder);
+          }
+          
+          toast.success(`New Order #${latestOrder.id.slice(-6).toUpperCase()} received!`, {
+            duration: 8000,
+            icon: '🍕'
+          });
+
+          if (!window.location.pathname.includes('/admin')) {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+          }
+
+          showDeviceNotification('New Order Received!', {
+            body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
+            icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
+          });
+
+          // Save notification locally for admin
+          const newNotif: Notification = {
+            id: `order-notif-${latestOrder.id}`,
+            title: 'New Order Received! 🍕',
+            message: `${latestOrder.customer_name} placed order #${latestOrder.id.slice(-6).toUpperCase()} for ₹${latestOrder.total}`,
+            type: 'order',
+            read: false,
+            created_at: new Date().toISOString(),
+            user_id: stableUid,
+            link: `/admin/orders?id=${latestOrder.id}`
+          };
+
+          setNotifications(prev => {
+            if (prev.some(n => n.id === newNotif.id)) return prev;
+            const updated = [newNotif, ...prev];
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(updated));
+            } catch (e) {
+              console.warn('Failed to write notifications to localStorage:', e);
+            }
+            return updated;
+          });
         })
         .subscribe();
 
       unsubAdminOrders = () => {
         supabase.removeChannel(channel);
       };
-      
-      // Seed the initial lastOrderIdRef from Supabase
-      (async () => {
-        try {
-          const { data } = await supabase
-            .from('orders')
-            .select('id')
-            .order('created_at', { ascending: false })
-            .limit(1);
-          if (data && data.length > 0) {
-            lastOrderIdRef.current = data[0].id;
-          }
-        } catch (err) {
-          console.error("Failed to seed initial last order ID from Supabase:", err);
-        }
-      })();
     }
 
     return () => {
@@ -166,15 +145,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   }, [user?.id, user?.uid, role, isAdmin]);
 
+  // Compute strictly unread items
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAsRead = React.useCallback(async (id: string) => {
-    const currentUser = userRef.current;
-    if (!currentUser) return;
-
     setNotifications(prev => {
       const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
-      const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
+      const currentUser = userRef.current;
+      const uid = currentUser ? (currentUser.id || currentUser.uid || 'guest') : 'guest';
+      const cacheKey = `user_notifications_${uid}`;
       try {
         localStorage.setItem(cacheKey, JSON.stringify(updated));
       } catch (e) {
@@ -185,12 +164,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   const markAllAsRead = React.useCallback(async () => {
-    const currentUser = userRef.current;
-    if (!currentUser) return;
-
     setNotifications(prev => {
       const updated = prev.map(n => ({ ...n, read: true }));
-      const cacheKey = `user_notifications_${currentUser.id || currentUser.uid}`;
+      const currentUser = userRef.current;
+      const uid = currentUser ? (currentUser.id || currentUser.uid || 'guest') : 'guest';
+      const cacheKey = `user_notifications_${uid}`;
       try {
         localStorage.setItem(cacheKey, JSON.stringify(updated));
       } catch (e) {
@@ -203,8 +181,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     const currentUser = userRef.current;
-    const targetUserId = notif.user_id || currentUser?.id || currentUser?.uid || '';
-    if (!targetUserId) return;
+    const targetUserId = notif.user_id || (currentUser ? (currentUser.id || currentUser.uid) : 'guest') || 'guest';
 
     const newNotif: Notification = {
       ...notif,
@@ -215,6 +192,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
 
     setNotifications(prev => {
+      // Prevent exact duplicate notifications within short time window
+      if (prev.some(p => p.id === newNotif.id || (p.title === newNotif.title && p.message === newNotif.message && Math.abs(new Date(p.created_at).getTime() - new Date(newNotif.created_at).getTime()) < 3000))) {
+        return prev;
+      }
       const updated = [newNotif, ...prev];
       const cacheKey = `user_notifications_${targetUserId}`;
       try {

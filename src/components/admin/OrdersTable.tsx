@@ -144,11 +144,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
-  // Real-time notification logic for new orders
+  // Real-time tracking for auto-print only when genuinely new incoming orders arrive
   useEffect(() => {
-    if (loading) return;
+    if (loading || orders.length === 0) return;
 
-    // On initial load, just populate the known IDs
+    // On initial load or first data arrival, populate known IDs without printing/alerting
     if (!hasInitializedRef.current) {
       orders.forEach(o => knownOrderIdsRef.current.add(o.id));
       lastOrderCountRef.current = orders.length;
@@ -156,69 +156,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       return;
     }
 
-    // Find new orders that weren't in our known set
+    // Identify newly added orders since initial load
     const newOrders = orders.filter(o => !knownOrderIdsRef.current.has(o.id));
     
     if (newOrders.length > 0) {
-      // Mark as known immediately to avoid duplicate notifications during re-renders
       newOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
 
-      newOrders.forEach(async (order) => {
-        // Save to notifications collection
-        const user = auth.currentUser;
-        addNotification({
-          title: 'New Order Received',
-          message: `${order.customer_name} placed an order for ₹${order.total}`,
-          type: 'order',
-          user_id: user?.uid || '',
-          link: '/admin'
-        });
-
-        // Show Styled Toast
-        toast((t) => (
-          <div className="flex items-center gap-3 bg-[#18181b] p-2 pr-4 rounded-2xl border border-white/10 shadow-2xl">
-            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary">
-              <Bell size={18} />
-            </div>
-            <div className="flex flex-col">
-              <p className="text-white text-xs font-bold leading-tight">
-                New Order #{order.id.slice(-6).toUpperCase()}
-              </p>
-              <p className="text-zinc-500 text-[10px]">
-                From {order.customer_name}
-              </p>
-            </div>
-            <button 
-              onClick={() => {
-                toast.dismiss(t.id);
-                const el = document.getElementById(`order-${order.id}`);
-                el?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="ml-2 px-3 py-1.5 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-accent transition-all active:scale-95"
-            >
-              VIEW
-            </button>
-            <button 
-              onClick={() => toast.dismiss(t.id)}
-              className="p-1 text-zinc-600 hover:text-white transition-colors"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        ), { 
-          duration: 10000,
-          position: 'top-right'
-        });
-
-        // Show Safe Browser/Device Notification
-        showDeviceNotification('New Order Received!', {
-          body: `${order.customer_name} placed an order for ₹${order.total}`,
-          icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg' 
-        });
-      });
-
-      // Auto-print newest if enabled
-      if (autoPrint) {
+      // Auto-print newest order if merchant explicitly enabled auto-print
+      if (autoPrint && newOrders[0]) {
         handlePrintKOT(newOrders[0], true);
       }
     }

@@ -6,9 +6,34 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  
+  // Dynamic build and deployment version computation (supports Vercel CI, Git SHA, custom tags, or build timestamps)
+  const gitSha = env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || '';
+  const deploymentId = env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_DEPLOYMENT_ID || '';
+  const explicitVersion = env.VITE_APP_VERSION || env.APP_VERSION || process.env.VITE_APP_VERSION || process.env.APP_VERSION || '';
+  
+  let computedVersion = explicitVersion;
+  if (!computedVersion) {
+    if (gitSha) {
+      computedVersion = `v-${gitSha.slice(0, 8)}`;
+    } else if (deploymentId) {
+      computedVersion = `v-${deploymentId.slice(0, 10)}`;
+    } else if (mode === 'production') {
+      computedVersion = `v-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Date.now().toString(36).slice(-4)}`;
+    } else {
+      computedVersion = 'dev-preview';
+    }
+  }
+
+  const buildTime = new Date().toISOString();
+  const appEnv = env.VERCEL_ENV || process.env.VERCEL_ENV || mode;
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
+      '__APP_VERSION__': JSON.stringify(computedVersion),
+      '__APP_BUILD_TIME__': JSON.stringify(buildTime),
+      '__APP_ENV__': JSON.stringify(appEnv),
       'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(env.GOOGLE_MAPS_PLATFORM_KEY || env.VITE_GOOGLE_MAPS_PLATFORM_KEY || '')
     },
     resolve: {
