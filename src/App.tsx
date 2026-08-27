@@ -268,7 +268,7 @@ function AppContent() {
   const isCheckoutPage = location.pathname === '/checkout';
   
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
-  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage;
+  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
 
   const { bootState } = useBoot();
