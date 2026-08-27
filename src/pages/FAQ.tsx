@@ -21,12 +21,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   Share2,
-  ChevronDown,
   ArrowRight,
   Clock,
-  MapPin,
   ShieldCheck,
-  Headphones
+  Headphones,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RESTAURANT_WHATSAPP } from '../constants';
@@ -35,7 +34,7 @@ import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 
 // Helper to map category to Lucide icon
-const getCategoryIcon = (category: FAQCategory, size = 18) => {
+const getCategoryIcon = (category: FAQCategory, size = 16) => {
   switch (category) {
     case 'Ordering':
       return <ShoppingBag size={size} />;
@@ -76,7 +75,7 @@ export const FAQ: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<FAQCategory>('All');
-  const [openIds, setOpenIds] = useState<string[]>(['order-place']); // Default open the first popular question
+  const [openIds, setOpenIds] = useState<string[]>(['order-place']); // Default open first question
   const [allowMultiple, setAllowMultiple] = useState(true);
   const [helpfulFeedback, setHelpfulFeedback] = useState<Record<string, 'yes' | 'no'>>({});
 
@@ -104,10 +103,9 @@ export const FAQ: React.FC = () => {
         selectedCategory === 'All' || item.category === selectedCategory;
 
       if (!matchesCategory) return false;
-
       if (!query) return true;
 
-      // Text search matching
+      // Text search matching across all fields
       const questionMatch = item.question.toLowerCase().includes(query);
       const answerMatch = item.answer.toLowerCase().includes(query);
       const tagsMatch = item.tags.some((tag) => tag.toLowerCase().includes(query));
@@ -141,7 +139,9 @@ export const FAQ: React.FC = () => {
 
   const expandAll = () => {
     setOpenIds(filteredFAQs.map((faq) => faq.id));
-    toast.success('All questions expanded');
+    toast.success('All questions expanded', {
+      style: { background: '#18181b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
+    });
   };
 
   const collapseAll = () => {
@@ -158,16 +158,17 @@ export const FAQ: React.FC = () => {
         icon: response === 'yes' ? '✨' : '💬',
         style: {
           borderRadius: '16px',
-          background: '#1c1917',
+          background: '#18181b',
           color: '#fff',
-          fontSize: '13px'
+          fontSize: '13px',
+          border: '1px solid rgba(255,255,255,0.1)'
         }
       }
     );
   };
 
   const handleShare = async (faq: FAQItem) => {
-    const shareText = `Frosty Bite Bakery FAQ: ${faq.question}\n\n${faq.answer}`;
+    const shareText = `Frosty Bite Bakery FAQ:\nQ: ${faq.question}\n\nA: ${faq.answer}`;
     if (navigator.share) {
       try {
         await navigator.share({
@@ -180,13 +181,14 @@ export const FAQ: React.FC = () => {
       }
     } else {
       await navigator.clipboard.writeText(shareText);
-      toast.success('Question and answer copied to clipboard!', {
+      toast.success('Answer copied to clipboard!', {
         icon: '📋',
         style: {
           borderRadius: '16px',
-          background: '#1c1917',
+          background: '#18181b',
           color: '#fff',
-          fontSize: '13px'
+          fontSize: '13px',
+          border: '1px solid rgba(255,255,255,0.1)'
         }
       });
     }
@@ -195,15 +197,15 @@ export const FAQ: React.FC = () => {
   return (
     <div
       id="faq-page-container"
-      className="min-h-screen bg-[#FAF8F5] text-stone-900 transition-colors duration-300 relative selection:bg-orange-200 selection:text-orange-950"
+      className="min-h-screen bg-black text-white selection:bg-primary/30 selection:text-white relative pb-28 md:pb-20"
     >
-      {/* Delicate warm ambient gradients */}
-      <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-amber-100/40 via-orange-50/30 to-transparent pointer-events-none" />
-      <div className="absolute top-20 right-10 w-72 h-72 bg-amber-200/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-40 left-10 w-80 h-80 bg-orange-200/15 rounded-full blur-3xl pointer-events-none" />
+      {/* Background ambient lighting */}
+      <div className="absolute top-0 inset-x-0 h-96 bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent pointer-events-none" />
+      <div className="absolute top-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-40 left-10 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Container */}
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-24 md:pb-32">
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12">
         {/* ========================================================================= */}
         {/* HERO SECTION */}
         {/* ========================================================================= */}
@@ -213,9 +215,9 @@ export const FAQ: React.FC = () => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-100/80 border border-orange-200/80 text-orange-900 text-xs font-semibold uppercase tracking-wider mb-5 shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-5"
           >
-            <Sparkles size={14} className="text-orange-600 animate-pulse" />
+            <Sparkles size={14} className="animate-pulse text-primary" />
             <span>Help Center & Knowledge Base</span>
           </motion.div>
 
@@ -224,7 +226,7 @@ export const FAQ: React.FC = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-3xl sm:text-4xl md:text-5xl font-black text-stone-900 tracking-tight font-display mb-4"
+            className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-4"
           >
             Frequently Asked Questions
           </motion.h1>
@@ -233,9 +235,9 @@ export const FAQ: React.FC = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-base sm:text-lg text-stone-600 font-medium leading-relaxed max-w-xl mx-auto mb-8"
+            className="text-base sm:text-lg text-zinc-400 font-medium leading-relaxed max-w-xl mx-auto mb-8"
           >
-            Everything you need to know about Frosty Bite Bakery.
+            Instant answers about ordering, delivery speeds, custom cake designs, refunds, and dietary choices.
           </motion.p>
 
           {/* Search Bar */}
@@ -245,9 +247,9 @@ export const FAQ: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="relative max-w-2xl mx-auto"
           >
-            <div className="relative flex items-center bg-white rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-stone-200/80 hover:border-orange-300 focus-within:border-orange-500 focus-within:ring-4 focus-within:ring-orange-500/15 transition-all duration-300">
-              <div className="pl-5 sm:pl-6 text-stone-400">
-                <Search size={22} className="text-stone-500" />
+            <div className="relative flex items-center bg-zinc-900/90 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-white/10 hover:border-primary/50 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 transition-all duration-300 shadow-2xl">
+              <div className="pl-5 sm:pl-6 text-zinc-400">
+                <Search size={22} className="text-zinc-400" />
               </div>
 
               <input
@@ -256,8 +258,8 @@ export const FAQ: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search your question..."
-                className="w-full py-4 sm:py-5 pl-3.5 pr-12 sm:pr-20 text-stone-900 placeholder:text-stone-400 bg-transparent text-sm sm:text-base font-medium rounded-2xl sm:rounded-3xl outline-none"
+                placeholder="Search your question (e.g., eggless, delivery, refund)..."
+                className="w-full py-4 sm:py-5 pl-3.5 pr-12 sm:pr-24 text-white placeholder:text-zinc-500 bg-transparent text-sm sm:text-base font-medium rounded-2xl sm:rounded-3xl outline-none"
                 aria-label="Search FAQ questions"
               />
 
@@ -268,14 +270,14 @@ export const FAQ: React.FC = () => {
                     setSearchQuery('');
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-4 p-1.5 rounded-full hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition-colors"
+                  className="absolute right-4 p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
                   aria-label="Clear search input"
                 >
                   <X size={18} />
                 </button>
               ) : (
-                <div className="hidden sm:flex items-center gap-1.5 absolute right-4 px-2 py-1 rounded-md bg-stone-100 border border-stone-200/70 text-[11px] font-semibold text-stone-500">
-                  <kbd className="font-mono">/</kbd>
+                <div className="hidden sm:flex items-center gap-1.5 absolute right-5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-white/10 text-[11px] font-semibold text-zinc-400">
+                  <kbd className="font-mono text-zinc-300">/</kbd>
                   <span>to search</span>
                 </div>
               )}
@@ -286,14 +288,14 @@ export const FAQ: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-2.5 flex items-center justify-between text-xs text-stone-500 px-3"
+                className="mt-3 flex items-center justify-between text-xs text-zinc-400 px-3"
               >
                 <span>
-                  Found <strong className="text-stone-800 font-bold">{filteredFAQs.length}</strong> {filteredFAQs.length === 1 ? 'question' : 'questions'} matching &ldquo;{searchQuery}&rdquo;
+                  Found <strong className="text-white font-bold">{filteredFAQs.length}</strong> {filteredFAQs.length === 1 ? 'question' : 'questions'} matching &ldquo;{searchQuery}&rdquo;
                 </span>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="text-orange-600 hover:underline font-semibold"
+                  className="text-primary hover:underline font-semibold"
                 >
                   Clear search
                 </button>
@@ -307,14 +309,14 @@ export const FAQ: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs text-stone-500"
+              className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs"
             >
-              <span className="font-medium text-stone-400">Popular searches:</span>
-              {['Home delivery', 'UPI payment', 'Custom cake', 'Eggless', 'Cancel order'].map((term) => (
+              <span className="font-medium text-zinc-500">Popular:</span>
+              {['Home delivery', 'UPI payment', 'Custom cake', 'Eggless', 'Cancel order', 'Pickup'].map((term) => (
                 <button
                   key={term}
                   onClick={() => setSearchQuery(term)}
-                  className="px-2.5 py-1 rounded-lg bg-white/80 hover:bg-orange-50 border border-stone-200/60 hover:border-orange-200 text-stone-700 hover:text-orange-800 transition-all font-medium shadow-2xs"
+                  className="px-3 py-1.5 rounded-full bg-zinc-900/80 hover:bg-primary/20 border border-white/10 hover:border-primary/40 text-zinc-300 hover:text-primary transition-all font-medium"
                 >
                   {term}
                 </button>
@@ -328,10 +330,10 @@ export const FAQ: React.FC = () => {
         {/* ========================================================================= */}
         <section id="faq-categories-section" className="mb-8 sm:mb-10">
           <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-stone-500">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
               Browse by Category
             </h2>
-            <span className="text-xs text-stone-400 font-medium">
+            <span className="text-xs text-zinc-500 font-medium">
               {FAQ_ITEMS.length} total questions
             </span>
           </div>
@@ -351,24 +353,24 @@ export const FAQ: React.FC = () => {
                       setSelectedCategory(category.id);
                     }}
                     className={cn(
-                      "relative flex items-center gap-2 px-4 py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap shrink-0 select-none shadow-2xs",
+                      "relative flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-200 whitespace-nowrap shrink-0 select-none cursor-pointer",
                       isSelected
-                        ? "bg-orange-600 text-white shadow-md shadow-orange-600/20"
-                        : "bg-white hover:bg-stone-100/80 text-stone-700 border border-stone-200/80 hover:border-stone-300"
+                        ? "bg-primary text-white shadow-lg shadow-primary/30 border border-primary"
+                        : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-white/10 hover:border-white/20"
                     )}
                     aria-selected={isSelected}
                     role="tab"
                   >
-                    <span className={cn(isSelected ? "text-white" : "text-stone-500")}>
+                    <span className={cn(isSelected ? "text-white" : "text-primary")}>
                       {getCategoryIcon(category.id, 16)}
                     </span>
                     <span>{category.label}</span>
                     <span
                       className={cn(
-                        "ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                        "ml-0.5 px-2 py-0.5 rounded-full text-[10px] font-black",
                         isSelected
                           ? "bg-white/20 text-white"
-                          : "bg-stone-100 text-stone-500"
+                          : "bg-zinc-800 text-zinc-400"
                       )}
                     >
                       {count}
@@ -384,11 +386,10 @@ export const FAQ: React.FC = () => {
         {/* ACCORDION CONTROLS (EXPAND/COLLAPSE & STATS) */}
         {/* ========================================================================= */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5 px-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-stone-600">
-            <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />
+          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+            <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span>
               Showing {filteredFAQs.length} {filteredFAQs.length === 1 ? 'result' : 'results'}
-              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
             </span>
           </div>
 
@@ -396,25 +397,25 @@ export const FAQ: React.FC = () => {
             <button
               id="faq-expand-all-btn"
               onClick={expandAll}
-              className="text-stone-600 hover:text-orange-600 font-semibold transition-colors"
+              className="text-zinc-400 hover:text-primary font-semibold transition-colors cursor-pointer"
             >
               Expand all
             </button>
-            <span className="text-stone-300">|</span>
+            <span className="text-zinc-700">|</span>
             <button
               id="faq-collapse-all-btn"
               onClick={collapseAll}
-              className="text-stone-600 hover:text-orange-600 font-semibold transition-colors"
+              className="text-zinc-400 hover:text-primary font-semibold transition-colors cursor-pointer"
             >
               Collapse all
             </button>
-            <span className="text-stone-300">|</span>
-            <label className="flex items-center gap-1.5 cursor-pointer text-stone-600 select-none">
+            <span className="text-zinc-700">|</span>
+            <label className="flex items-center gap-1.5 cursor-pointer text-zinc-400 select-none hover:text-white transition-colors">
               <input
                 type="checkbox"
                 checked={allowMultiple}
                 onChange={(e) => setAllowMultiple(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-orange-600 focus:ring-orange-500 border-stone-300 cursor-pointer"
+                className="w-3.5 h-3.5 rounded text-primary focus:ring-primary border-zinc-700 bg-zinc-800 cursor-pointer"
               />
               <span>Multi-open</span>
             </label>
@@ -425,213 +426,194 @@ export const FAQ: React.FC = () => {
         {/* FAQ ACCORDION LIST */}
         {/* ========================================================================= */}
         <section id="faq-accordion-list" className="space-y-3.5">
-          <AnimatePresence mode="popLayout">
-            {filteredFAQs.length > 0 ? (
-              filteredFAQs.map((faq, index) => {
-                const isOpen = openIds.includes(faq.id);
+          {filteredFAQs.length > 0 ? (
+            filteredFAQs.map((faq) => {
+              const isOpen = openIds.includes(faq.id);
 
-                return (
-                  <motion.div
-                    key={faq.id}
-                    layout
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.3) }}
-                    className={cn(
-                      "group bg-white rounded-2xl sm:rounded-3xl border transition-all duration-300 overflow-hidden",
-                      isOpen
-                        ? "border-orange-300/90 shadow-[0_10px_30px_rgba(249,115,22,0.08)] ring-1 ring-orange-400/20"
-                        : "border-stone-200/80 hover:border-stone-300 shadow-xs hover:shadow-md"
-                    )}
+              return (
+                <div
+                  key={faq.id}
+                  className={cn(
+                    "group bg-zinc-900/80 backdrop-blur-md rounded-2xl sm:rounded-3xl border transition-all duration-200 overflow-hidden",
+                    isOpen
+                      ? "border-primary/50 shadow-[0_10px_30px_rgba(255,107,38,0.1)] ring-1 ring-primary/20"
+                      : "border-white/10 hover:border-white/20"
+                  )}
+                >
+                  {/* Accordion Header / Button */}
+                  <button
+                    id={`faq-question-btn-${faq.id}`}
+                    onClick={() => toggleFAQ(faq.id)}
+                    className="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl sm:rounded-3xl"
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${faq.id}`}
                   >
-                    {/* Accordion Header / Button */}
-                    <button
-                      id={`faq-question-btn-${faq.id}`}
-                      onClick={() => toggleFAQ(faq.id)}
-                      className="w-full text-left p-5 sm:p-6 flex items-start justify-between gap-4 select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-2xl sm:rounded-3xl"
-                      aria-expanded={isOpen}
-                      aria-controls={`faq-answer-${faq.id}`}
-                    >
-                      <div className="flex-1 pr-2">
-                        {/* Tags / Category Badges */}
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-stone-100 text-stone-600 border border-stone-200/60">
-                            {getCategoryIcon(faq.category, 11)}
-                            <span>{faq.category}</span>
+                    <div className="flex-1 pr-2">
+                      {/* Tags / Category Badges */}
+                      <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-white/10">
+                          {getCategoryIcon(faq.category, 12)}
+                          <span>{faq.category}</span>
+                        </span>
+
+                        {faq.isPopular && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <Sparkles size={11} className="text-amber-400" />
+                            <span>Top Question</span>
                           </span>
-
-                          {faq.isPopular && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-200/80">
-                              <Sparkles size={10} className="text-amber-600" />
-                              <span>Top Question</span>
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Question Text */}
-                        <h3 className="text-base sm:text-lg font-bold text-stone-900 group-hover:text-orange-950 transition-colors leading-snug">
-                          {faq.question}
-                        </h3>
-                      </div>
-
-                      {/* Expand / Collapse Icon Pill (+ / -) */}
-                      <div
-                        className={cn(
-                          "shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-300 mt-0.5",
-                          isOpen
-                            ? "bg-orange-600 text-white rotate-180 shadow-sm shadow-orange-600/30"
-                            : "bg-stone-100 text-stone-600 group-hover:bg-orange-50 group-hover:text-orange-600"
-                        )}
-                        aria-hidden="true"
-                      >
-                        {isOpen ? (
-                          <Minus size={16} strokeWidth={2.5} />
-                        ) : (
-                          <Plus size={16} strokeWidth={2.5} />
                         )}
                       </div>
-                    </button>
 
-                    {/* Accordion Content Panel with Smooth Animation */}
-                    <AnimatePresence initial={false}>
-                      {isOpen && (
-                        <motion.div
-                          id={`faq-answer-${faq.id}`}
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-                          className="overflow-hidden border-t border-stone-100 bg-gradient-to-b from-stone-50/50 to-white"
-                        >
-                          <div className="p-5 sm:p-6 pt-4 sm:pt-5 space-y-4">
-                            {/* Main Answer Paragraph */}
-                            <p className="text-sm sm:text-base text-stone-700 font-normal leading-relaxed">
-                              {faq.answer}
-                            </p>
+                      {/* Question Text */}
+                      <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-primary transition-colors leading-snug">
+                        {faq.question}
+                      </h3>
+                    </div>
 
-                            {/* Highlight Bullet Points if present */}
-                            {faq.highlights && faq.highlights.length > 0 && (
-                              <div className="bg-orange-50/50 rounded-xl sm:rounded-2xl p-4 border border-orange-100/80 space-y-2">
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-orange-900 flex items-center gap-1.5">
-                                  <CheckCircle2 size={14} className="text-orange-600" />
-                                  <span>Key Highlights</span>
-                                </h4>
-                                <ul className="space-y-1.5 text-xs sm:text-sm text-stone-700">
-                                  {faq.highlights.map((highlight, idx) => (
-                                    <li key={idx} className="flex items-start gap-2">
-                                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-400 mt-2 shrink-0" />
-                                      <span className="leading-snug">{highlight}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+                    {/* Expand / Collapse Icon Pill (+ / -) */}
+                    <div
+                      className={cn(
+                        "shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-200 mt-0.5",
+                        isOpen
+                          ? "bg-primary text-white rotate-180 shadow-md shadow-primary/30"
+                          : "bg-zinc-800 text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white"
+                      )}
+                      aria-hidden="true"
+                    >
+                      {isOpen ? (
+                        <Minus size={16} strokeWidth={2.5} />
+                      ) : (
+                        <Plus size={16} strokeWidth={2.5} />
+                      )}
+                    </div>
+                  </button>
 
-                            {/* Micro Actions Bar: Helpful feedback & share */}
-                            <div className="pt-3 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">Was this answer helpful?</span>
-                                <div className="inline-flex items-center gap-1">
-                                  <button
-                                    id={`faq-helpful-yes-${faq.id}`}
-                                    onClick={() => handleFeedback(faq.id, 'yes')}
-                                    className={cn(
-                                      "px-2.5 py-1 rounded-lg border flex items-center gap-1 font-semibold transition-all",
-                                      helpfulFeedback[faq.id] === 'yes'
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900"
-                                    )}
-                                    aria-label="Mark answer as helpful"
-                                  >
-                                    <ThumbsUp size={12} />
-                                    <span>Yes</span>
-                                  </button>
+                  {/* Accordion Content Panel */}
+                  {isOpen && (
+                    <div
+                      id={`faq-answer-${faq.id}`}
+                      className="border-t border-white/10 bg-zinc-950/60 transition-all duration-200"
+                    >
+                      <div className="p-5 sm:p-6 pt-4 sm:pt-5 space-y-4">
+                        {/* Main Answer Paragraph */}
+                        <p className="text-sm sm:text-base text-zinc-300 font-normal leading-relaxed">
+                          {faq.answer}
+                        </p>
 
-                                  <button
-                                    id={`faq-helpful-no-${faq.id}`}
-                                    onClick={() => handleFeedback(faq.id, 'no')}
-                                    className={cn(
-                                      "px-2.5 py-1 rounded-lg border flex items-center gap-1 font-semibold transition-all",
-                                      helpfulFeedback[faq.id] === 'no'
-                                        ? "bg-rose-50 text-rose-700 border-rose-300"
-                                        : "bg-white hover:bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900"
-                                    )}
-                                    aria-label="Mark answer as not helpful"
-                                  >
-                                    <ThumbsDown size={12} />
-                                    <span>No</span>
-                                  </button>
-                                </div>
-                              </div>
+                        {/* Highlight Bullet Points if present */}
+                        {faq.highlights && faq.highlights.length > 0 && (
+                          <div className="bg-primary/5 rounded-xl sm:rounded-2xl p-4 border border-primary/20 space-y-2">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                              <CheckCircle2 size={14} className="text-primary" />
+                              <span>Key Highlights</span>
+                            </h4>
+                            <ul className="space-y-1.5 text-xs sm:text-sm text-zinc-300">
+                              {faq.highlights.map((highlight, idx) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                                  <span className="leading-snug">{highlight}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Micro Actions Bar: Helpful feedback & share */}
+                        <div className="pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-zinc-400">Was this answer helpful?</span>
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                id={`faq-helpful-yes-${faq.id}`}
+                                onClick={() => handleFeedback(faq.id, 'yes')}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg border flex items-center gap-1 font-semibold transition-all cursor-pointer",
+                                  helpfulFeedback[faq.id] === 'yes'
+                                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                    : "bg-zinc-800 hover:bg-zinc-700 border-white/10 text-zinc-300 hover:text-white"
+                                )}
+                                aria-label="Mark answer as helpful"
+                              >
+                                <ThumbsUp size={12} />
+                                <span>Yes</span>
+                              </button>
 
                               <button
-                                id={`faq-share-btn-${faq.id}`}
-                                onClick={() => handleShare(faq)}
-                                className="inline-flex items-center gap-1.5 text-stone-500 hover:text-orange-600 font-medium transition-colors"
-                                aria-label="Share this question"
+                                id={`faq-helpful-no-${faq.id}`}
+                                onClick={() => handleFeedback(faq.id, 'no')}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg border flex items-center gap-1 font-semibold transition-all cursor-pointer",
+                                  helpfulFeedback[faq.id] === 'no'
+                                    ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                                    : "bg-zinc-800 hover:bg-zinc-700 border-white/10 text-zinc-300 hover:text-white"
+                                )}
+                                aria-label="Mark answer as not helpful"
                               >
-                                <Share2 size={13} />
-                                <span>Share</span>
+                                <ThumbsDown size={12} />
+                                <span>No</span>
                               </button>
                             </div>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                );
-              })
-            ) : (
-              /* "NO RESULTS FOUND" EMPTY STATE */
-              <motion.div
-                key="no-results"
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center py-16 px-6 bg-white rounded-3xl border border-stone-200/80 shadow-sm max-w-lg mx-auto"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-orange-100/60 text-orange-600 flex items-center justify-center mx-auto mb-4 border border-orange-200/60">
-                  <HelpCircle size={32} />
+
+                          <button
+                            id={`faq-share-btn-${faq.id}`}
+                            onClick={() => handleShare(faq)}
+                            className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-primary font-medium transition-colors cursor-pointer"
+                            aria-label="Share this question"
+                          >
+                            <Share2 size={13} />
+                            <span>Share</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              );
+            })
+          ) : (
+            /* "NO RESULTS FOUND" EMPTY STATE */
+            <div className="text-center py-16 px-6 bg-zinc-900/70 rounded-3xl border border-white/10 max-w-lg mx-auto">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4 border border-primary/20">
+                <HelpCircle size={32} />
+              </div>
 
-                <h3 className="text-lg font-bold text-stone-900 mb-2 font-display">
-                  No matching questions found
-                </h3>
+              <h3 className="text-lg font-bold text-white mb-2">
+                No matching questions found
+              </h3>
 
-                <p className="text-sm text-stone-600 mb-6 leading-relaxed">
-                  We could not find any FAQ matching &ldquo;
-                  <span className="font-semibold text-stone-800">{searchQuery}</span>
-                  &rdquo; in {selectedCategory === 'All' ? 'any category' : selectedCategory}. Try using broader terms or ask our bakery butler directly!
-                </p>
+              <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
+                We could not find any FAQ matching &ldquo;
+                <span className="font-semibold text-white">{searchQuery}</span>
+                &rdquo; in {selectedCategory === 'All' ? 'any category' : selectedCategory}. Try using broader terms or chat with our team directly!
+              </p>
 
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    id="faq-reset-filters-btn"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSelectedCategory('All');
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-orange-600/20"
-                  >
-                    Clear All Filters
-                  </button>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <button
+                  id="faq-reset-filters-btn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('All');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-primary/20 cursor-pointer"
+                >
+                  Clear All Filters
+                </button>
 
-                  <a
-                    href={`https://wa.me/${RESTAURANT_WHATSAPP}?text=${encodeURIComponent(
-                      `Hello Frosty Bite, I have a question about: ${searchQuery}`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-5 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5"
-                  >
-                    <MessageCircle size={14} className="text-emerald-600" />
-                    <span>Ask on WhatsApp</span>
-                  </a>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <a
+                  href={`https://wa.me/${RESTAURANT_WHATSAPP}?text=${encodeURIComponent(
+                    `Hello Frosty Bite, I have a question about: ${searchQuery}`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 border border-white/10"
+                >
+                  <MessageCircle size={14} className="text-emerald-400" />
+                  <span>Ask on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ========================================================================= */}
@@ -639,39 +621,39 @@ export const FAQ: React.FC = () => {
         {/* ========================================================================= */}
         <section
           id="faq-trust-badges"
-          className="mt-14 pt-10 border-t border-stone-200/80 grid grid-cols-1 sm:grid-cols-3 gap-6"
+          className="mt-14 pt-10 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-5"
         >
-          <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-5 border border-stone-200/70 flex items-start gap-3.5 shadow-2xs">
-            <div className="p-2.5 rounded-xl bg-orange-100/70 text-orange-700 shrink-0">
+          <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl p-5 border border-white/10 flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 border border-primary/20">
               <Clock size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-stone-900 mb-1">30–45 Min Fresh Delivery</h4>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <h4 className="text-sm font-bold text-white mb-1">30–45 Min Fresh Delivery</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Fast temperature-controlled dispatch for fresh celebration cakes and treats.
               </p>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-5 border border-stone-200/70 flex items-start gap-3.5 shadow-2xs">
-            <div className="p-2.5 rounded-xl bg-emerald-100/70 text-emerald-700 shrink-0">
+          <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl p-5 border border-white/10 flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0 border border-emerald-500/20">
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-stone-900 mb-1">100% Freshness Guarantee</h4>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <h4 className="text-sm font-bold text-white mb-1">100% Freshness Guarantee</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Pristine arrival assurance with prompt replacement or instant full refund.
               </p>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-5 border border-stone-200/70 flex items-start gap-3.5 shadow-2xs">
-            <div className="p-2.5 rounded-xl bg-amber-100/70 text-amber-700 shrink-0">
+          <div className="bg-zinc-900/60 backdrop-blur-md rounded-2xl p-5 border border-white/10 flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 shrink-0 border border-amber-500/20">
               <Cake size={20} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-stone-900 mb-1">Custom Cake Artistry</h4>
-              <p className="text-xs text-stone-600 leading-relaxed">
+              <h4 className="text-sm font-bold text-white mb-1">Custom Cake Artistry</h4>
+              <p className="text-xs text-zinc-400 leading-relaxed">
                 Handcrafted bespoke designs, 100% eggless options, and personal dedication piping.
               </p>
             </div>
@@ -683,22 +665,21 @@ export const FAQ: React.FC = () => {
         {/* ========================================================================= */}
         <section
           id="faq-contact-card"
-          className="mt-10 bg-gradient-to-br from-stone-900 via-stone-850 to-stone-950 text-white rounded-3xl p-7 sm:p-10 shadow-xl relative overflow-hidden"
+          className="mt-10 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black text-white rounded-3xl p-7 sm:p-10 border border-white/10 shadow-2xl relative overflow-hidden"
         >
-          {/* Subtle warm glow inside card */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
             <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-orange-300 text-xs font-semibold uppercase tracking-wider mb-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-semibold uppercase tracking-wider mb-1">
                 <Headphones size={13} />
                 <span>Need Personalized Help?</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-black tracking-tight font-display text-white">
+              <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
                 Still have questions?
               </h3>
-              <p className="text-stone-300 text-sm sm:text-base leading-relaxed">
-                Can&apos;t find the answer you&apos;re looking for? Chat directly with our head pastry team or customer concierge on WhatsApp for instant assistance.
+              <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
+                Can&apos;t find the answer you&apos;re looking for? Chat directly with our pastry concierge on WhatsApp for instant order assistance.
               </p>
             </div>
 
@@ -710,7 +691,7 @@ export const FAQ: React.FC = () => {
                 )}`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <MessageCircle size={18} />
                 <span>Chat on WhatsApp</span>
@@ -719,7 +700,7 @@ export const FAQ: React.FC = () => {
               <Link
                 id="faq-explore-menu-btn"
                 to="/"
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all border border-white/10"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all border border-white/10 cursor-pointer"
               >
                 <span>Browse Menu</span>
                 <ArrowRight size={16} />

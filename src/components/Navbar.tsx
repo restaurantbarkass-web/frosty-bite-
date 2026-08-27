@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag, HelpCircle } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,18 +29,31 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
     return () => window.removeEventListener('cart-bounce', handleCartBounce);
   }, []);
 
+  const showHeaderRef = useRef(true);
+
   useEffect(() => {
-    const handleScroll = () => {
+    let ticking = false;
+
+    const updateHeader = () => {
       const currentScrollY = window.scrollY;
       const prev = lastScrollYRef.current;
-      if (Math.abs(currentScrollY - prev) < 10) return;
       
-      if (currentScrollY > prev && currentScrollY > 100) {
-        setShowHeader(false);
-      } else {
-        setShowHeader(true);
+      if (Math.abs(currentScrollY - prev) >= 12) {
+        const nextShow = !(currentScrollY > prev && currentScrollY > 100);
+        if (nextShow !== showHeaderRef.current) {
+          showHeaderRef.current = nextShow;
+          setShowHeader(nextShow);
+        }
+        lastScrollYRef.current = currentScrollY;
       }
-      lastScrollYRef.current = currentScrollY;
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateHeader);
+        ticking = true;
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -85,6 +98,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
       if (isAdmin) links.push({ name: 'Admin', path: '/admin', icon: LayoutDashboard });
       links.push({ name: 'Profile', path: '/profile', icon: User });
     }
+    links.push({ name: 'FAQ', path: '/faq', icon: HelpCircle });
     
     return links;
   }, [user?.uid || user?.id, isAdmin]);

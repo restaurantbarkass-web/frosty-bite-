@@ -1144,9 +1144,10 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4">
               <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-primary/5 group-hover:bg-primary/10" />
               <SmartActionCard label="Lock Funds" icon={Shield} onClick={() => setIsFundsLockOpen(true)} color="bg-orange-500/5 group-hover:bg-orange-500/10 border-orange-500/10" />
+              <SmartActionCard label="Help & FAQ" icon={HelpCircle} onClick={() => navigate('/faq')} color="bg-amber-500/5 group-hover:bg-amber-500/10 border-amber-500/10" />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
               <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-gradient-to-tr from-purple-500/10 to-pink-500/10 border-pink-500/10" />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
