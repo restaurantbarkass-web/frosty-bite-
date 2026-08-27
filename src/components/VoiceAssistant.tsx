@@ -750,3 +750,5 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     </>
   );
 };
+
+export default VoiceAssistant;

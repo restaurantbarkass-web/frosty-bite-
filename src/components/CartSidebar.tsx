@@ -332,3 +332,5 @@ export const CartSidebar: React.FC = () => {
     </AnimatePresence>
   );
 };
+
+export default CartSidebar;

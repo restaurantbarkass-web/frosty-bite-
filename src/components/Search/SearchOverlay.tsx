@@ -1070,3 +1070,5 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
     </AnimatePresence>
   );
 };
+
+export default SearchOverlay;

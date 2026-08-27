@@ -70,25 +70,25 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
-  const [user, setUser] = useState<UnifiedUser | null>(() => {
+  // Synchronous cache hydration on application bootstrap
+  const initialCachedUser: UnifiedUser | null = (() => {
     try {
       const cached = localStorage.getItem('frostybite_cached_user');
-      if (cached) return JSON.parse(cached);
-    } catch (e) {}
-    return null;
-  });
-  const [role, setRole] = useState<UserRole | null>(() => {
-    try {
-      const cached = localStorage.getItem('frostybite_cached_user');
-      if (cached) {
+      const hasSession = localStorage.getItem('frostybite_has_active_session') === 'true';
+      if (cached && hasSession) {
         const parsed = JSON.parse(cached);
-        return parsed.role || 'customer';
+        if (parsed && (parsed.id || parsed.uid) && parsed.email) {
+          return parsed;
+        }
       }
     } catch (e) {}
     return null;
-  });
-  const [loading, setLoading] = useState<boolean>(true);
+  })();
+
+  const [user, setUser] = useState<UnifiedUser | null>(initialCachedUser);
+  const [role, setRole] = useState<UserRole | null>(initialCachedUser?.role || null);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(initialCachedUser ? 'authenticated' : 'loading');
+  const [loading, setLoading] = useState<boolean>(!initialCachedUser);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
@@ -403,6 +403,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         try {
           localStorage.setItem('frostybite_has_active_session', 'true');
+          localStorage.setItem('frostybite_active_session_email', unifiedUser.email);
           localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
           CacheManager.set(CacheKeys.USER_PROFILE, unifiedUser, CacheNamespace.USER).catch(() => {});
         } catch (e) {}
@@ -424,42 +425,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
       }
     }
-  }, []);
+  }, [getAuthToken, user]);
 
   useEffect(() => {
     let isMounted = true;
 
     const initAuthLifecycle = async () => {
       try {
-        // Fast restore from Supabase session
-        const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-        if (!sessionErr && sessionData?.session?.user) {
-          lastSupabaseUserRef.current = sessionData.session.user;
-          await resolveAndSyncUser(sessionData.session.user, undefined);
+        // 1. Check if Firebase auth state is ready (asynchronously reads indexedDB)
+        let fbUser: any = fbAuth.currentUser;
+        if (!fbUser) {
+          if (typeof (fbAuth as any).authStateReady === 'function') {
+            try {
+              await (fbAuth as any).authStateReady();
+              fbUser = fbAuth.currentUser;
+            } catch (e) {
+              console.warn('[UnifiedAuth] authStateReady error:', e);
+            }
+          } else {
+            fbUser = await new Promise((resolve) => {
+              const unsub = fbAuth.onAuthStateChanged((u) => {
+                unsub();
+                resolve(u);
+              }, () => resolve(null));
+              setTimeout(() => resolve(null), 1500);
+            });
+          }
+        }
+
+        // 2. Check Supabase session
+        let sbUser: any = null;
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          sbUser = sessionData?.session?.user || null;
+        } catch (e) {
+          console.warn('[UnifiedAuth] Supabase getSession error:', e);
+        }
+
+        lastFirebaseUserRef.current = fbUser;
+        lastSupabaseUserRef.current = sbUser;
+
+        if (fbUser || sbUser) {
+          await resolveAndSyncUser(sbUser, fbUser);
           return;
         }
 
-        // Check Firebase current user
-        if (fbAuth?.currentUser) {
-          lastFirebaseUserRef.current = fbAuth.currentUser;
-          await resolveAndSyncUser(undefined, fbAuth.currentUser);
-          return;
-        }
-
-        // Fallback check cached session
+        // 3. Fallback check cached session
         const cachedUserStr = localStorage.getItem('frostybite_cached_user');
         const hasSessionFlag = localStorage.getItem('frostybite_has_active_session') === 'true';
-        if (cachedUserStr && hasSessionFlag) {
-          try {
-            const cached = JSON.parse(cachedUserStr);
-            if (cached?.email) {
-              await resolveAndSyncUser(undefined, undefined);
-              return;
-            }
-          } catch (_) {}
+        const fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+
+        if (hasSessionFlag && (cachedUserStr || fallbackEmail)) {
+          let emailToSync = fallbackEmail;
+          if (!emailToSync && cachedUserStr) {
+            try {
+              emailToSync = JSON.parse(cachedUserStr)?.email;
+            } catch (_) {}
+          }
+          if (emailToSync) {
+            await resolveAndSyncUser(null, null);
+            return;
+          }
         }
 
-        // If no session found anywhere
+        // 4. Truly unauthenticated session
         if (isMounted) {
           lastSupabaseUserRef.current = null;
           lastFirebaseUserRef.current = null;
@@ -467,11 +496,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setRole('customer');
           setAuthStatus('unauthenticated');
           setLoading(false);
+          try {
+            localStorage.removeItem('frostybite_cached_user');
+            localStorage.removeItem('frostybite_has_active_session');
+            localStorage.removeItem('frostybite_active_session_email');
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('[UnifiedAuth] Initialization error:', err);
         if (isMounted) {
-          setAuthStatus('unauthenticated');
+          setAuthStatus(prev => (user ? 'authenticated' : 'unauthenticated'));
           setLoading(false);
         }
       }

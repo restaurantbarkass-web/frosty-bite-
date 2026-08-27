@@ -133,3 +133,5 @@ export const ReviewsSection: React.FC = () => {
     </section>
   );
 };
+
+export default ReviewsSection;
