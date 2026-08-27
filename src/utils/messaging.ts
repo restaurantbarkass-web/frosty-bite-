@@ -98,3 +98,38 @@ export const subscribeToMessages = (callback: (payload: any) => void): (() => vo
     unsubscribe();
   };
 };
+
+/**
+ * Safely displays a system/device notification across all platforms (Desktop, Android, iOS PWA)
+ * On Android and mobile Chrome, calling `new Notification()` throws an Illegal constructor error.
+ * This helper uses `ServiceWorkerRegistration.showNotification()` with a fallback to `new Notification()`.
+ */
+export const showDeviceNotification = async (title: string, options?: NotificationOptions): Promise<void> => {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return;
+  }
+
+  if (window.Notification.permission !== 'granted') {
+    return;
+  }
+
+  // 1. Try Service Worker showNotification first (Required on Mobile Chrome / Android / iOS PWA)
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(title, options);
+        return;
+      }
+    } catch (swErr) {
+      console.warn('[Push Notifications] ServiceWorker showNotification failed, trying fallback:', swErr);
+    }
+  }
+
+  // 2. Fallback to window.Notification constructor for Desktop browsers that support it
+  try {
+    new window.Notification(title, options);
+  } catch (notifErr) {
+    console.warn('[Push Notifications] Direct Notification constructor failed:', notifErr);
+  }
+};

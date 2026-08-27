@@ -17,6 +17,7 @@ import { ImageZoom } from '../ImageZoom';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 import { SlideConfirmModal } from '../ui/SlideConfirmModal';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
+import { showDeviceNotification } from '../../utils/messaging';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -209,13 +210,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           position: 'top-right'
         });
 
-        // Show Browser Notification
-        if (Notification.permission === 'granted') {
-          new Notification('New Order Received!', {
-            body: `${order.customer_name} placed an order for ₹${order.total}`,
-            icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg' 
-          });
-        }
+        // Show Safe Browser/Device Notification
+        showDeviceNotification('New Order Received!', {
+          body: `${order.customer_name} placed an order for ₹${order.total}`,
+          icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg' 
+        });
       });
 
       // Auto-print newest if enabled

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
-import { requestForToken } from '../utils/messaging';
+import { requestForToken, showDeviceNotification } from '../utils/messaging';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
@@ -63,28 +63,14 @@ export const Notifications: React.FC = () => {
   const handleTestPush = async () => {
     setIsTesting(true);
     try {
-      // 1. Show a physical native push popup via Service Worker registration
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.ready;
-        await reg.showNotification('Frosty Bite Butler', {
-          body: '🧁 Fresh out of the oven! Your premium gourmet simulated cake selection has been carefully detailed and decorated.',
-          icon: '/logo_192.png',
-          badge: '/logo_192.png',
-          vibrate: [100, 50, 100],
-          tag: 'test-push-notification',
-          renotify: true,
-          data: { link: '/notifications' }
-        } as any);
-        toast.success('Live preview alert triggered on your device!');
-      } else if ('Notification' in window && Notification.permission === 'granted') {
-        new window.Notification('Frosty Bite Butler', {
-          body: '🧁 Fresh out of the oven! Your premium gourmet simulated cake selection has been carefully detailed.',
-          icon: '/logo_192.png'
-        });
-        toast.success('Standard notification generated!');
-      } else {
-        toast.error('Permission not enabled yet page-side.');
-      }
+      // 1. Show a physical native push popup via Service Worker / safe device notification helper
+      await showDeviceNotification('Frosty Bite Butler', {
+        body: '🧁 Fresh out of the oven! Your premium gourmet simulated cake selection has been carefully detailed and decorated.',
+        icon: '/logo_192.png',
+        badge: '/logo_192.png',
+        tag: 'test-push-notification',
+      } as any);
+      toast.success('Live preview alert triggered on your device!');
 
       // 2. Loop with cloud endpoint FCM proxy
       if (user) {

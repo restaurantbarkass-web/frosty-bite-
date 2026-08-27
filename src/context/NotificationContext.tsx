@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
+import { showDeviceNotification } from '../utils/messaging';
 
 export interface Notification {
   id: string;
@@ -108,12 +109,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               audio.play().catch(() => {});
             }
 
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('New Order Received!', {
-                body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
-                icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
-              });
-            }
+            showDeviceNotification('New Order Received!', {
+              body: `${latestOrder.customer_name} placed an order for ₹${latestOrder.total}`,
+              icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
+            });
 
             // Also save a notification locally for the admin
             const newNotif: Notification = {
