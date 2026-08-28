@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { WhatsAppService } from './whatsapp.service';
+import { EmailService } from './email.service';
 import { supabase } from '../lib/supabase';
 
 export interface OtpJob {
@@ -334,14 +335,9 @@ export class OtpQueueService {
           const result = await WhatsAppService.sendOtpWhatsApp(job.recipient, job.otp);
           return result;
         } else {
-          // Email OTP flow integration
-          const { error } = await supabase.auth.signInWithOtp({
-            email: job.recipient,
-          });
-          if (error) {
-            throw error;
-          }
-          return { success: true, message: 'Email OTP dispatched' };
+          // Email OTP flow - send custom 6-digit OTP email
+          const sent = await EmailService.sendOTPEmail(job.recipient, job.otp);
+          return { success: true, message: 'Email 6-digit OTP dispatched', sent };
         }
 
       } catch (err: any) {

@@ -27,14 +27,34 @@ const mobileOtps = new Map<string, { otp: string; expires_at: number; email: str
 // Memory fallback for daily OTP limits (max 3 per user per day)
 const otpDailyLimitsMemory = new Map<string, { count: number; dateStr: string }>();
 
+// Maximum OTP requests allowed per day per user (more generous to prevent blocking legitimate users)
+const DAILY_OTP_LIMIT = process.env.NODE_ENV !== 'production' ? 100 : 25;
+
 // Helper to get UTC Date String ('YYYY-MM-DD')
 function getUtcDateString(): string {
   const d = new Date();
   return d.toISOString().split('T')[0];
 }
 
-// Check and increment daily OTP send limit (max 3 per day per user)
-async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed: boolean; count: number }> {
+// Reset daily OTP send limit (e.g. after successful login or administrative reset)
+async function resetOtpLimit(identifier: string): Promise<void> {
+  const cleanId = identifier.trim().toLowerCase();
+  otpDailyLimitsMemory.delete(cleanId);
+  try {
+    await supabase
+      .from('otps')
+      .update({
+        request_count: 0,
+        last_request_at: Date.now()
+      })
+      .eq('email', cleanId);
+  } catch (err: any) {
+    console.warn('[resetOtpLimit] DB update failed:', err.message);
+  }
+}
+
+// Check and increment daily OTP send limit
+async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed: boolean; count: number; limit: number }> {
   const cleanId = identifier.trim().toLowerCase();
   const currentDateStr = getUtcDateString();
   const now = Date.now();
@@ -43,8 +63,8 @@ async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed:
   const memLimit = otpDailyLimitsMemory.get(cleanId);
   if (memLimit) {
     if (memLimit.dateStr === currentDateStr) {
-      if (memLimit.count >= 3) {
-        return { allowed: false, count: memLimit.count };
+      if (memLimit.count >= DAILY_OTP_LIMIT) {
+        return { allowed: false, count: memLimit.count, limit: DAILY_OTP_LIMIT };
       }
     } else {
       // Different day, reset memory
@@ -83,10 +103,10 @@ async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed:
   // Combine memory and DB count (choose the maximum of both to prevent bypasses)
   const currentCount = Math.max(dbCount, (memLimit?.dateStr === currentDateStr ? memLimit.count : 0));
 
-  if (currentCount >= 3) {
+  if (currentCount >= DAILY_OTP_LIMIT) {
     // Sync memory if missing
     otpDailyLimitsMemory.set(cleanId, { count: currentCount, dateStr: currentDateStr });
-    return { allowed: false, count: currentCount };
+    return { allowed: false, count: currentCount, limit: DAILY_OTP_LIMIT };
   }
 
   const newCount = currentCount + 1;
@@ -121,7 +141,7 @@ async function checkAndIncrementOtpLimit(identifier: string): Promise<{ allowed:
     console.warn('[checkAndIncrementOtpLimit] DB write failed:', err.message);
   }
 
-  return { allowed: true, count: newCount };
+  return { allowed: true, count: newCount, limit: DAILY_OTP_LIMIT };
 }
 
 // Synchronize user with backend
@@ -324,6 +344,58 @@ const whatsappOtpsMemory = new Map<string, {
   created_at: string; // ISO String
 }>();
 
+// In-memory sync for Email OTPs
+interface EmailOtpRecord {
+  id: string;
+  email: string;
+  otp_code: string; // hashed
+  expires_at: number; // timestamp
+  attempts: number;
+  created_at: number;
+}
+const emailOtpsMemory = new Map<string, EmailOtpRecord>();
+
+// Helper to save Email OTP
+async function saveEmailOtp(email: string, otp: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  const hashedOtp = hashOtp(otp);
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
+  const createdAt = Date.now();
+  const id = crypto.randomUUID();
+
+  emailOtpsMemory.set(cleanEmail, {
+    id,
+    email: cleanEmail,
+    otp_code: hashedOtp,
+    expires_at: expiresAt,
+    attempts: 0,
+    created_at: createdAt
+  });
+}
+
+// Helper to retrieve Email OTP
+async function getEmailOtp(email: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  return emailOtpsMemory.get(cleanEmail) || null;
+}
+
+// Helper to increment Email attempts
+async function incrementEmailAttempts(email: string, currentAttempts: number) {
+  const cleanEmail = email.trim().toLowerCase();
+  const newAttempts = currentAttempts + 1;
+  const mem = emailOtpsMemory.get(cleanEmail);
+  if (mem) {
+    mem.attempts = newAttempts;
+    emailOtpsMemory.set(cleanEmail, mem);
+  }
+}
+
+// Helper to delete Email OTP
+async function deleteEmailOtp(email: string) {
+  const cleanEmail = email.trim().toLowerCase();
+  emailOtpsMemory.delete(cleanEmail);
+}
+
 // Helper to hash OTP
 function hashOtp(otp: string): string {
   return crypto.createHash('sha256').update(otp).digest('hex');
@@ -445,12 +517,12 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
     }
 
-    // Check 3 OTP per day limit
+    // Check daily OTP limit
     const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
     if (!limitCheck.allowed) {
       return res.status(429).json({
         success: false,
-        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+        error: `Security Limit: You have reached the maximum daily limit of ${limitCheck.limit} verification OTPs. Please try again later.`
       });
     }
 
@@ -706,6 +778,9 @@ router.post('/verify-otp', async (req, res) => {
     const payload = Buffer.from(JSON.stringify(mockPayload)).toString('base64');
     const fakeCustomToken = `${header}.${payload}.securesig`;
 
+    // Reset daily rate limit on successful verification
+    await resetOtpLimit(cleanPhone);
+
     return res.json({
       success: true,
       customToken: fakeCustomToken,
@@ -727,12 +802,12 @@ router.post('/resend-otp', async (req, res) => {
   try {
     const cleanPhone = normalizePhone(phone);
     
-    // Check 3 OTP per day limit
+    // Check daily OTP limit
     const limitCheck = await checkAndIncrementOtpLimit(cleanPhone);
     if (!limitCheck.allowed) {
       return res.status(429).json({
         success: false,
-        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+        error: `Security Limit: You have reached the maximum daily limit of ${limitCheck.limit} verification OTPs. Please try again later.`
       });
     }
 
@@ -825,7 +900,7 @@ router.post('/verify-mobile-otp', async (req, res) => {
   return req.app._router.handle(req, res); // Redirects internally
 });
 
-// POST /send-email-otp - Triggers a standard Supabase OTP but with strict server-side rate limiting (max 3/day)
+// POST /send-email-otp - Generates a 6-digit OTP, saves it securely, and dispatches via SMTP / Email Queue
 router.post('/send-email-otp', async (req, res) => {
   const { email, idempotencyKey } = req.body;
   if (!email) {
@@ -835,12 +910,12 @@ router.post('/send-email-otp', async (req, res) => {
   try {
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check 3 OTP per day limit
+    // Check daily OTP limit
     const limitCheck = await checkAndIncrementOtpLimit(normalizedEmail);
     if (!limitCheck.allowed) {
       return res.status(429).json({
         success: false,
-        error: 'Security Limit: You have requested the maximum limit of 3 verification OTPs for today. Please try again tomorrow.'
+        error: `Security Limit: You have reached the maximum daily limit of ${limitCheck.limit} verification OTPs. Please try again later.`
       });
     }
 
@@ -849,21 +924,187 @@ router.post('/send-email-otp', async (req, res) => {
     const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
       .replace(/[^a-zA-Z0-9.-:_]/g, '_');
 
-    // Route standard Supabase email OTP through the queue for concurrency, backoff, and deduplication
+    // Generate guaranteed 6-digit numerical OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save to secure memory store
+    await saveEmailOtp(normalizedEmail, otp);
+
+    // Route through Queue for rate-control and email dispatch
     const queueService = OtpQueueService.getInstance();
     await queueService.enqueue(
       normalizedEmail,
       'email',
-      '', // Supabase generates its own OTP internally for email
+      otp,
       clientIp,
       idempotencyKey,
       {}
     );
 
-    return res.json({ success: true, message: 'OTP verification code sent successfully to your email.' });
+    return res.json({ 
+      success: true, 
+      message: 'A 6-digit verification code has been dispatched to your email.',
+      dev_otp_hint: process.env.NODE_ENV !== 'production' ? otp : undefined
+    });
   } catch (err: any) {
     console.error('[send-email-otp] Exception:', err.message || err);
     return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching email OTP.' });
+  }
+});
+
+// POST /verify-email-otp - Verifies the 6-digit email OTP and logs the user in
+router.post('/verify-email-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email address and 6-digit verification code are required.' });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+
+    if (cleanOtp.length !== 6) {
+      return res.status(400).json({ error: 'Please enter the full 6-digit verification code.' });
+    }
+
+    // 1. Get OTP record
+    const otpRecord = await getEmailOtp(normalizedEmail);
+    if (!otpRecord) {
+      return res.status(401).json({ error: 'Verification code not found or has expired. Please request a new code.' });
+    }
+
+    // 2. Check Expiry
+    if (otpRecord.expires_at < Date.now()) {
+      await deleteEmailOtp(normalizedEmail);
+      return res.status(401).json({ error: 'Verification code has expired. Please request a new code.' });
+    }
+
+    // 3. Check Attempt Count (max 5 attempts)
+    if (otpRecord.attempts >= 5) {
+      await deleteEmailOtp(normalizedEmail);
+      return res.status(429).json({ error: 'Maximum attempts exceeded. Please request a new verification code.' });
+    }
+
+    // 4. Validate OTP (hash comparison)
+    const hashedInput = hashOtp(cleanOtp);
+    if (otpRecord.otp_code !== hashedInput) {
+      await incrementEmailAttempts(normalizedEmail, otpRecord.attempts);
+      return res.status(401).json({ error: 'Incorrect verification code. Please check your email and try again.' });
+    }
+
+    // Success! Clear OTP immediately to prevent reuse
+    await deleteEmailOtp(normalizedEmail);
+
+    // Resolve or create user in database
+    let dbUser: any = null;
+    try {
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+      dbUser = existingUser;
+    } catch (e) {
+      console.warn('[verify-email-otp] Error querying user:', e);
+    }
+
+    if (!dbUser) {
+      const displayName = normalizedEmail.split('@')[0];
+      try {
+        const { data: insertedUser, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            email: normalizedEmail,
+            name: displayName,
+            full_name: displayName,
+            auth_methods: ['otp', 'email_otp'],
+            last_login: new Date().toISOString(),
+            last_login_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (!insertError && insertedUser) {
+          dbUser = insertedUser;
+        }
+      } catch (err: any) {
+        console.warn('[verify-email-otp] Error inserting user:', err);
+      }
+    }
+
+    if (!dbUser) {
+      dbUser = {
+        id: `usr_${Date.now()}`,
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0],
+        role: 'customer'
+      };
+    }
+
+    // Update login timestamp
+    try {
+      if (dbUser?.id && !String(dbUser.id).startsWith('usr_')) {
+        await supabase
+          .from('users')
+          .update({
+            last_login: new Date().toISOString(),
+            last_login_at: new Date().toISOString()
+          })
+          .eq('id', dbUser.id);
+      }
+    } catch (_) {}
+
+    // Sync login audit
+    const syncedUid = dbUser.supabase_uid || dbUser.id;
+    try {
+      await UserService.syncUser({
+        uid: syncedUid,
+        supabaseUid: dbUser.supabase_uid || dbUser.id,
+        email: dbUser.email,
+        displayName: dbUser.name || dbUser.email.split('@')[0],
+        photoURL: dbUser.avatar_url || null
+      });
+    } catch (syncErr: any) {
+      console.warn('[verify-email-otp] DB syncing failed:', syncErr.message);
+    }
+
+    // Generate custom login token
+    const mockPayload = {
+      iss: 'https://securetoken.google.com/mock',
+      sub: syncedUid,
+      email: dbUser.email,
+      email_verified: true,
+      name: dbUser.name
+    };
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64');
+    const payload = Buffer.from(JSON.stringify(mockPayload)).toString('base64');
+    const fakeCustomToken = `${header}.${payload}.securesig`;
+
+    // Reset daily rate limit on successful verification
+    await resetOtpLimit(normalizedEmail);
+
+    return res.json({
+      success: true,
+      customToken: fakeCustomToken,
+      email: dbUser.email,
+      user: dbUser
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Verification failed.' });
+  }
+});
+
+// POST /reset-otp-limit - Reset rate limit for email or phone
+router.post('/reset-otp-limit', async (req, res) => {
+  const { identifier } = req.body;
+  if (!identifier) {
+    return res.status(400).json({ error: 'Identifier (email or phone) is required.' });
+  }
+  try {
+    await resetOtpLimit(identifier);
+    return res.json({ success: true, message: `OTP rate limit has been reset for ${identifier}` });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Failed to reset OTP limit.' });
   }
 });
 

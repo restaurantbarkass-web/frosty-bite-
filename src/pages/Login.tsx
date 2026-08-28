@@ -292,7 +292,7 @@ export const Login: React.FC = () => {
   const [isNewUser, setIsNewUser] = useState(false);
   
   // OTP array input
-  const [otpArray, setOtpArray] = useState<string[]>(['', '', '', '', '', '', '', '']);
+  const [otpArray, setOtpArray] = useState<string[]>(['', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Premium WhatsApp OTP additional states
@@ -554,7 +554,7 @@ export const Login: React.FC = () => {
             const remaining = getRemainingTime(emailTrimmed, 60);
             setResendTimer(remaining);
             setTimerSeconds(180);
-            setOtpArray(['', '', '', '', '', '', '', '']);
+            setOtpArray(['', '', '', '', '', '']);
             setStep('otp');
             setSuccess('You have an active verification session. Resumed current session.');
             setIsLoading(false);
@@ -569,7 +569,7 @@ export const Login: React.FC = () => {
           setResendTimer(60); 
           setSuccess('Verification code sent! Please check your inbox.');
           setTimerSeconds(180);
-          setOtpArray(['', '', '', '', '', '', '', '']);
+          setOtpArray(['', '', '', '', '', '']);
           setStep('otp');
         } else {
           // No user found in signin mode
@@ -761,7 +761,7 @@ export const Login: React.FC = () => {
           setResendTimer(remaining);
           setSuccess(`You have an active verification session. Resumed current session.`);
           setTimerSeconds(180);
-          setOtpArray(['', '', '', '', '', '', '', '']);
+          setOtpArray(['', '', '', '', '', '']);
           setStep('otp');
           setIsLoading(false);
           return;
@@ -773,7 +773,7 @@ export const Login: React.FC = () => {
         setResendTimer(60);
         setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
         setTimerSeconds(180);
-        setOtpArray(['', '', '', '', '', '', '', '']);
+        setOtpArray(['', '', '', '', '', '']);
         setStep('otp');
       } else {
         // Check if phone already exists
@@ -915,7 +915,7 @@ export const Login: React.FC = () => {
     if (isLoading || isVerifiedSuccess) return;
 
     const otpCode = otpArray.join('');
-    const expectedLength = signInMethod === 'mobile_otp' ? 6 : 8;
+    const expectedLength = 6;
 
     if (otpCode.length < expectedLength) {
       setError(`Incorrect or incomplete code. Please enter the full ${expectedLength}-digit verification code.`);
@@ -1056,7 +1056,7 @@ export const Login: React.FC = () => {
         saveActiveOtpSession(emailTrimmed, 60 * 1000);
         
         setResendTimer(60);
-        setOtpArray(['', '', '', '', '', '', '', '']);
+        setOtpArray(['', '', '', '', '', '']);
         setSuccess('A fresh code was sent! Check your inbox.');
       }
     } catch (err: any) {
@@ -1163,46 +1163,6 @@ export const Login: React.FC = () => {
       {/* Animated glowing plasma blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#ef4444]/10 rounded-full blur-[140px] animate-pulse" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#f97316]/10 rounded-full blur-[140px] animate-pulse delay-1000" />
-
-      {/* Glossy Header Back Button */}
-      {step !== 'welcome' && step !== 'location' && (
-        <motion.button
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={() => {
-            setError(null);
-            setSuccess(null);
-            if (step === 'email') setStep('welcome');
-            if (step === 'name') setStep('email');
-            if (step === 'otp') {
-              setStep(isNewUser ? 'name' : 'email');
-              setOtpArray(['', '', '', '', '', '']);
-            }
-          }}
-          className="absolute top-8 left-6 sm:left-10 z-20 flex items-center gap-2 text-zinc-400 hover:text-white transition-all cursor-pointer group"
-          id="auth_back_btn"
-        >
-          <div className="w-9 h-9 rounded-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 flex items-center justify-center transition-all">
-            <ArrowLeft size={16} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Go Back</span>
-        </motion.button>
-      )}
-
-      {/* Top Header Guest Bypass Button */}
-      {step !== 'location' && (
-        <motion.button
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          onClick={handleContinueAsGuest}
-          className="absolute top-8 right-6 sm:right-10 z-20 flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 hover:border-orange-500/30 text-xs font-bold text-zinc-300 hover:text-white transition-all cursor-pointer group backdrop-blur-md shadow-lg"
-          id="auth_skip_guest_btn"
-        >
-          <User size={14} className="text-orange-400 group-hover:scale-110 transition-transform" />
-          <span>Continue as Guest</span>
-          <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform text-zinc-400" />
-        </motion.button>
-      )}
 
       {/* Main Glassmorphism 3.0 Container Card */}
       <div className="relative z-10 w-full max-w-[430px] px-4">
