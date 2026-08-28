@@ -159,13 +159,15 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Send OTP directly using server email dispatcher with guaranteed 6-digit delivery
+  // Send OTP directly using server email dispatcher with automatic Supabase Auth fallback
   async sendOTP(email: string) {
     if (!email || typeof email !== 'string') {
       throw new Error('Valid email address is required.');
     }
     const normalizedEmail = safeTrimLowerCase(email);
+    let serverErrorMsg: string | null = null;
 
+    // 1. Attempt server-side Express OTP dispatch
     try {
       const res = await fetch('/api/auth/send-email-otp', {
         method: 'POST',
@@ -181,16 +183,40 @@ export const authService = {
         return data;
       } else if (res.status === 429 && data?.error) {
         throw new Error(data.error);
-      } else {
-        const errorMsg = data?.error || 'Failed to dispatch 6-digit verification code. Please try again.';
-        throw new Error(errorMsg);
+      } else if (data?.error) {
+        serverErrorMsg = data.error;
       }
     } catch (err: any) {
-      if (err?.message) {
+      if (err?.message && (err.message.includes('Security Limit') || err.message.includes('maximum daily limit') || err.message.includes('rate limit'))) {
         throw err;
       }
-      console.error('[authService] Server email OTP error:', err);
-      throw new Error('Failed to send verification code. Please check your network connection.');
+      console.warn('[authService] Server email OTP dispatcher unavailable, falling back to Supabase auth:', err?.message || err);
+    }
+
+    // 2. Fallback to Supabase client-side Auth (works on Vercel static deployments)
+    try {
+      console.log('[authService] Dispatching OTP via Supabase client fallback...');
+      const { error: sbError } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          shouldCreateUser: true
+        }
+      });
+
+      if (sbError) {
+        console.warn('[authService] Supabase client OTP error:', sbError);
+        throw new Error(sbError.message || serverErrorMsg || 'Failed to dispatch email verification code.');
+      }
+
+      console.log('[authService] Supabase client OTP dispatched successfully!');
+      return {
+        success: true,
+        message: 'A verification code has been dispatched to your email.',
+        fallback: true
+      };
+    } catch (fallbackErr: any) {
+      console.error('[authService] All email OTP channels failed:', fallbackErr);
+      throw new Error(fallbackErr.message || serverErrorMsg || 'Failed to send verification code. Please check your network connection.');
     }
   },
 
@@ -432,12 +458,13 @@ export const authService = {
     const normalizedEmail = safeTrimLowerCase(email);
     const cleanOtp = safeTrim(otp);
 
-    if (cleanOtp.length !== 6) {
-      throw new Error('Please enter the complete 6-digit verification code.');
+    if (cleanOtp.length < 6 || cleanOtp.length > 8) {
+      throw new Error('Please enter the complete verification code.');
     }
 
     // 1. Try server-side email OTP verification first for 6-digit codes
-    try {
+    if (cleanOtp.length === 6) {
+      try {
         const serverRes = await fetch('/api/auth/verify-email-otp', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -478,6 +505,7 @@ export const authService = {
           throw err;
         }
         console.warn('[AuthService] Server email OTP verification error, falling back to Supabase auth:', err);
+      }
     }
 
     let isNewUser = true;

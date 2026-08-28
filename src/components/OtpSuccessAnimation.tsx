@@ -128,8 +128,8 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
   const [showTips, setShowTips] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const otpLength = 6;
+  const [otpRefs] = useState(() => ({ current: [] as (HTMLInputElement | null)[] }));
+  const [otpLength, setOtpLength] = useState<number>(6);
 
   // Floating ambient golden/champagne confectioner's dust particles
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
@@ -302,22 +302,29 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
     e.preventDefault();
     setHasError(false);
     setError(null);
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, otpLength);
-    if (!pasted) return;
+    const rawDigits = e.clipboardData.getData('text').replace(/\D/g, '');
+    if (!rawDigits) return;
+
+    const targetLength = rawDigits.length >= 8 ? 8 : (rawDigits.length >= 6 ? 6 : otpLength);
+    if (targetLength !== otpLength) {
+      setOtpLength(targetLength);
+    }
+
+    const pasted = rawDigits.slice(0, targetLength);
 
     playKeypressTick();
     const nextArr = [...otpArray];
-    for (let i = 0; i < otpLength; i++) {
+    for (let i = 0; i < targetLength; i++) {
       nextArr[i] = pasted[i] || '';
     }
     setOtpArray(nextArr);
 
-    const focusIndex = Math.min(pasted.length, otpLength - 1);
+    const focusIndex = Math.min(pasted.length, targetLength - 1);
     otpRefs.current[focusIndex]?.focus();
     setActiveBox(focusIndex);
 
-    if (nextArr.slice(0, otpLength).every((cell) => cell !== '')) {
-      submitOtpCode(nextArr.slice(0, otpLength).join(''));
+    if (nextArr.slice(0, targetLength).every((cell) => cell !== '')) {
+      submitOtpCode(nextArr.slice(0, targetLength).join(''));
     }
   };
 
@@ -469,11 +476,27 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
             {/* 6-Digit Luxury Passkey Grid */}
             <div className="space-y-3 py-2">
               <div className="flex justify-between items-center max-w-[340px] mx-auto px-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  6-Digit Passkey
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    {otpLength}-Digit Passkey
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newLen = otpLength === 6 ? 8 : 6;
+                      setOtpLength(newLen);
+                      setOtpArray(Array(8).fill(''));
+                      setError(null);
+                      setHasError(false);
+                      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+                    }}
+                    className="text-[9px] text-amber-400/80 hover:text-amber-300 underline font-medium tracking-tight cursor-pointer"
+                  >
+                    Switch to {otpLength === 6 ? '8' : '6'} digits
+                  </button>
+                </div>
                 <span className="text-[10px] font-medium text-zinc-500 font-mono">
-                  {otpArray.slice(0, 6).filter(Boolean).length}/6
+                  {otpArray.slice(0, otpLength).filter(Boolean).length}/{otpLength}
                 </span>
               </div>
 
