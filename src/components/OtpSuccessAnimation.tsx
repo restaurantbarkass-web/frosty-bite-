@@ -10,7 +10,7 @@ interface OtpSuccessAnimationProps {
   signInMethod: 'password' | 'otp' | 'mobile_otp';
   email: string;
   phone: string;
-  error: string | null;
+  error: string | boolean | null;
   setError: (err: string | null) => void;
   onVerify: (otpCode: string) => Promise<any>;
   onSuccessRedirect: (result: any) => void;
@@ -165,6 +165,18 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
       setActiveBox(targetIdx);
     }, 150);
   }, []);
+
+  // React to error prop changes to trigger subtle shake animation and red highlight
+  useEffect(() => {
+    if (error) {
+      setHasError(true);
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 550);
+      return () => clearTimeout(timer);
+    } else {
+      setHasError(false);
+    }
+  }, [error]);
 
   // Trigger optical ripple wave across slots
   const triggerRippleSequence = useCallback(async () => {

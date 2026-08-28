@@ -5,6 +5,7 @@ import { KeyRound, ArrowLeft, Mail, Loader2, CheckCircle2, Lock, ShieldCheck, Re
 import { authService } from '../services/authService';
 import { InputField } from '../components/InputField';
 import { Button } from '../components/Button';
+import { OtpInput } from '../components/OtpInput';
 
 type ResetStep = 'send_otp' | 'verify_otp' | 'success';
 
@@ -264,16 +265,22 @@ const ForgotPassword = () => {
               </div>
 
               <form onSubmit={handleResetPassword} className="space-y-4">
-                <InputField
-                  id="forgot_otp_code_input"
-                  label="6-Digit Code"
-                  type="text"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
-                  required
-                />
+                <div className="space-y-2">
+                  <label className="block text-xs font-black uppercase tracking-wider text-zinc-400 text-center">
+                    6-Digit Verification Code
+                  </label>
+                  <OtpInput
+                    id="forgot_otp_code_input"
+                    value={otpCode}
+                    onChange={(val) => {
+                      setOtpCode(val);
+                      setError(null);
+                    }}
+                    error={Boolean(error)}
+                    length={6}
+                    autoFocus
+                  />
+                </div>
 
                 <InputField
                   id="forgot_new_password_input"
