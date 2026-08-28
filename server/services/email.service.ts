@@ -87,13 +87,19 @@ export class EmailService {
     const rawFrom = process.env.SMTP_FROM || `"Frosty Bite" <${defaultUser}>`;
     const from = formatFromAddress(rawFrom);
     
-    console.log(`[EmailService] Normalized From: ${from} (Raw: ${rawFrom})`);
+    // Ensure the code is strictly a 6-digit numeric string
+    const rawDigits = String(otp || '').replace(/\D/g, '');
+    const cleanOtp = rawDigits.length >= 6 
+      ? rawDigits.slice(0, 6) 
+      : (rawDigits ? rawDigits.padStart(6, '0') : Math.floor(100000 + Math.random() * 900000).toString());
+
+    console.log(`[EmailService] Normalized From: ${from} (Raw: ${rawFrom}), Dispathing 6-Digit Code: ${cleanOtp}`);
 
     const mailOptions = {
       from,
       to: email,
-      subject: `Your Frosty Bite Verification Code: ${otp}`,
-      text: `Welcome to Frosty Bite! Your login verification code is: ${otp}. This code is valid for 5 minutes.`,
+      subject: `Your Frosty Bite 6-Digit Verification Code: ${cleanOtp}`,
+      text: `Welcome to Frosty Bite! Your 6-digit login verification code is: ${cleanOtp}. This code is valid for 5 minutes.`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -173,10 +179,10 @@ export class EmailService {
           <div class="container">
             <div class="logo">FROSTY<span>BITE</span></div>
             <h1>Log Into Your Account</h1>
-            <p>Welcome back! Use the following one-time passcode to complete your sign-in. This code will expire in 5 minutes.</p>
+            <p>Welcome back! Use the following 6-digit one-time passcode to complete your sign-in. This code will expire in 5 minutes.</p>
             
             <div class="code-box">
-              <div class="code">${otp}</div>
+              <div class="code">${cleanOtp}</div>
             </div>
             
             <p style="font-size: 13px; margin-top: 20px; color: #ff6b00;">If you did not request this code, you can safely ignore this email.</p>
