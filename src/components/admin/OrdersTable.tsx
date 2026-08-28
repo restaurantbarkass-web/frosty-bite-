@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
@@ -18,6 +18,7 @@ import { ConfirmationModal } from '../ui/ConfirmationModal';
 import { SlideConfirmModal } from '../ui/SlideConfirmModal';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { showDeviceNotification } from '../../utils/messaging';
+import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -100,6 +101,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [autoPrint, setAutoPrint] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+  const [cancelledOrderForWhatsApp, setCancelledOrderForWhatsApp] = useState<{ order: Order; reason?: string } | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const lastOrderCountRef = useRef<number>(0);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -391,7 +393,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       
       if (newStatus === 'cancelled') {
         // Intercept and use safe cancelOrder routine
-        await supabaseService.cancelOrder(id, 'Cancelled by Administrator', 'admin', 'admin');
+        const cancelledResult = await supabaseService.cancelOrder(id, 'Cancelled by Administrator', 'admin', 'admin');
         
         if (order && order.user_id !== 'guest' && order.user_id) {
           addNotification({
@@ -404,6 +406,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         }
         
         toast.success('Order cancelled. Stock restored & logs created.', { id: loadingToast });
+        const finalCancelledOrder = (order ? { ...order, status: 'cancelled' as const, cancellation_reason: 'Cancelled by Administrator' } : cancelledResult) as Order;
+        setCancelledOrderForWhatsApp({ order: finalCancelledOrder, reason: 'Cancelled by Administrator' });
         return;
       }
 
@@ -570,26 +574,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
   return (
     <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-      {/* Slide Confirm Modal for Cancel Order */}
-      <SlideConfirmModal
-        isOpen={!!cancellingOrder}
-        onClose={() => setCancellingOrder(null)}
-        onConfirm={async () => {
-          if (cancellingOrder) {
-            await updateStatus(cancellingOrder.id, 'cancelled', true);
-            setCancellingOrder(null);
-          }
-        }}
-        title={cancellingOrder ? `Cancel Order #${cancellingOrder.id.slice(-6).toUpperCase()}?` : 'Cancel Order?'}
-        description="This will cancel the order, restore inventory stock, and send a notification to the customer. Slide below to confirm."
-        slideLabel="Slide to Cancel Order"
-        releaseLabel="Release to Cancel Order"
-        processingLabel="Cancelling Order..."
-        successLabel="Order Cancelled!"
-        variant="danger"
-        backLabel="Back to Orders List"
-      />
-
       <div className="p-6 sm:p-8 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01]">
         <div>
           <div className="flex items-center gap-2">
@@ -690,6 +674,65 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           </thead>
           <tbody className="divide-y divide-white/5">
             {sortedOrders.map((order) => {
+              if (cancellingOrder?.id === order.id) {
+                return (
+                  <tr key={order.id} className="bg-rose-950/20 border-y-2 border-rose-500/40">
+                    <td colSpan={8} className="p-4 sm:p-5">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.98, y: -4 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-[#16141a] border border-rose-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 left-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="flex items-center gap-4 w-full lg:w-auto relative z-10">
+                          <button
+                            type="button"
+                            onClick={() => setCancellingOrder(null)}
+                            className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0"
+                          >
+                            <ArrowLeft size={14} />
+                            <span>Back</span>
+                          </button>
+
+                          <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+                            <AlertCircle size={22} />
+                          </div>
+
+                          <div className="flex flex-col text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-rose-400 uppercase tracking-widest">Cancel Order</span>
+                              <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
+                                #{order.id.slice(-6).toUpperCase()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-300 font-medium mt-0.5">
+                              Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) &amp; restore inventory
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-full lg:w-80 shrink-0 relative z-10">
+                          <SlideToConfirm
+                            onConfirm={async () => {
+                              await updateStatus(order.id, 'cancelled', true);
+                              setCancellingOrder(null);
+                            }}
+                            label="Slide to Cancel Order"
+                            releaseLabel="Release to Cancel"
+                            processingLabel="Cancelling Order..."
+                            successLabel="Order Cancelled!"
+                            variant="danger"
+                          />
+                        </div>
+                      </motion.div>
+                    </td>
+                  </tr>
+                );
+              }
+
               if (deletingId === order.id) {
                 return (
                   <tr key={order.id} className="bg-red-950/20 border-y-2 border-red-500/40">
@@ -1049,8 +1092,70 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       <div className="lg:hidden p-4 space-y-4">
         {sortedOrders.map((order) => (
           <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 relative overflow-hidden">
-            {/* Inline Overlapping Delete Card Overlay */}
+            {/* Inline Overlapping Delete / Cancel Card Overlay */}
             <AnimatePresence>
+              {cancellingOrder?.id === order.id && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute inset-0 bg-[#141218] border-2 border-rose-500/50 rounded-2xl p-5 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-rose-950/80"
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setCancellingOrder(null)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCancellingOrder(null)}
+                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center space-y-2 my-2">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+                      <AlertCircle size={22} />
+                    </div>
+                    <h4 className="text-sm font-black text-white uppercase italic tracking-tight">
+                      Cancel Order #{order.id.slice(-6).toUpperCase()}?
+                    </h4>
+                    <p className="text-xs text-zinc-300 font-medium px-2">
+                      Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) and restore inventory stock
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <SlideToConfirm
+                      onConfirm={async () => {
+                        await updateStatus(order.id, 'cancelled', true);
+                        setCancellingOrder(null);
+                      }}
+                      label="Slide to Cancel Order"
+                      releaseLabel="Release to Cancel"
+                      processingLabel="Cancelling Order..."
+                      successLabel="Order Cancelled!"
+                      variant="danger"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCancellingOrder(null)}
+                      className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <ArrowLeft size={12} />
+                      <span>Back to Order</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
               {deletingId === order.id && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -1384,6 +1489,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           />
         )}
       </AnimatePresence>
+
+      {/* Admin WhatsApp Cancellation Success Modal */}
+      <AdminCancellationSuccessModal
+        isOpen={!!cancelledOrderForWhatsApp}
+        onClose={() => setCancelledOrderForWhatsApp(null)}
+        order={cancelledOrderForWhatsApp?.order || null}
+        cancellationReason={cancelledOrderForWhatsApp?.reason}
+      />
     </div>
   );
 };

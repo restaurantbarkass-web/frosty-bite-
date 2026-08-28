@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Order } from '../../types';
 import { cn } from '../../lib/utils';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
+import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 
 interface OrderActionPopupProps {
   order: Order | null;
@@ -16,6 +17,7 @@ interface OrderActionPopupProps {
 export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClose, onAction }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSlideCancel, setShowSlideCancel] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute to act
 
   useEffect(() => {
@@ -52,7 +54,11 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
       if (error) throw error;
       
       toast.success(status === 'confirmed' ? 'Order accepted!' : 'Order rejected.');
-      onAction(status);
+      if (status === 'cancelled') {
+        setShowWhatsAppModal(true);
+      } else {
+        onAction(status);
+      }
     } catch (error) {
       console.error('Error updating order:', error);
       toast.error('Failed to update order status');
@@ -185,6 +191,17 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
           </div>
         </div>
       </motion.div>
+
+      {/* WhatsApp Cancellation Success Modal */}
+      <AdminCancellationSuccessModal
+        isOpen={showWhatsAppModal}
+        onClose={() => {
+          setShowWhatsAppModal(false);
+          onAction('cancelled');
+        }}
+        order={order ? { ...order, status: 'cancelled' } : null}
+        cancellationReason="Order rejected by store manager"
+      />
     </AnimatePresence>
   );
 };

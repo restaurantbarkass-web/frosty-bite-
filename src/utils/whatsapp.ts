@@ -52,3 +52,117 @@ export const sendOTP = (phone: string, otp: string) => {
   const message = `Your delivery verification OTP is: *${otp}* 🚚`;
   sendWhatsAppMessage(phone, message);
 };
+
+/**
+ * Reusable phone number normalization utility for WhatsApp click-to-chat.
+ * Strips formatting, handles Indian 10-digit/11-digit numbers, preserves existing 91 country code,
+ * and validates that the number is usable.
+ */
+export function normalizePhoneNumber(phone?: string | null): string | null {
+  if (!phone || typeof phone !== 'string') return null;
+
+  // 1. Remove all non-digit characters
+  const clean = phone.replace(/\D/g, '');
+  if (!clean) return null;
+
+  // 2. If 12 digits starting with 91 (Indian standard format), preserve
+  if (clean.length === 12 && clean.startsWith('91')) {
+    return clean;
+  }
+
+  // 3. Indian 10-digit mobile starting with 6,7,8,9
+  if (clean.length === 10 && /^[6-9]/.test(clean)) {
+    return `91${clean}`;
+  }
+
+  // 4. Indian 11-digit mobile starting with 0 followed by 6,7,8,9
+  if (clean.length === 11 && clean.startsWith('0') && /^[6-9]/.test(clean.slice(1))) {
+    return `91${clean.slice(1)}`;
+  }
+
+  // 5. Standard international format (10 to 15 digits)
+  if (clean.length >= 10 && clean.length <= 15) {
+    return clean;
+  }
+
+  return null;
+}
+
+/**
+ * Builds the standard Frosty Bite WhatsApp order cancellation notification message.
+ */
+export function buildCancellationWhatsAppMessage(
+  order: {
+    id: string;
+    customer_name?: string;
+    customerName?: string;
+    total?: number;
+    total_amount?: number;
+    cancellation_reason?: string;
+  },
+  customReason?: string
+): string {
+  const customerName = (order.customer_name || order.customerName || 'Customer').trim();
+  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const amount = order.total ?? order.total_amount ?? 0;
+
+  const rawReason = customReason || order.cancellation_reason;
+  const reasonText = (rawReason && rawReason.trim())
+    ? `Reason: ${rawReason.trim()}`
+    : `Reason: Order cancelled by bakery management.`;
+
+  return `Hello ${customerName} 👋
+
+This is Frosty Bite Bakery.
+
+Your order #${orderNumber} has been cancelled.
+
+Order Amount: ₹${amount}
+
+${reasonText}
+
+If you have any questions, please contact Frosty Bite Bakery.
+
+We’re sorry for the inconvenience and appreciate your understanding. 🍰
+
+— Frosty Bite Bakery`;
+}
+
+/**
+ * Opens WhatsApp click-to-chat with pre-filled cancellation message.
+ * Returns success status or error message.
+ */
+export function openCancellationWhatsApp(
+  phone: string | null | undefined,
+  order: any,
+  customReason?: string
+): { success: boolean; error?: string; normalizedPhone?: string } {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    return {
+      success: false,
+      error: 'No customer phone number is available or phone number is invalid.'
+    };
+  }
+
+  const message = buildCancellationWhatsAppMessage(order, customReason);
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${normalized}?text=${encodedMessage}`;
+
+  try {
+    const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      return {
+        success: false,
+        error: 'Unable to open WhatsApp window. Please check your browser popup blocker permissions.'
+      };
+    }
+    return { success: true, normalizedPhone: normalized };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Unable to open WhatsApp.'
+    };
+  }
+}
+

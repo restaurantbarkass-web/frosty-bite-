@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Order } from '../../types';
 import { supabaseService } from '../../services/supabaseService';
 import { SlideToConfirm } from '../../components/ui/SlideToConfirm';
+import { AdminCancellationSuccessModal } from '../../components/admin/AdminCancellationSuccessModal';
+import { normalizePhoneNumber, openCancellationWhatsApp } from '../../utils/whatsapp';
 import toast from 'react-hot-toast';
 
 interface OrderEditPageProps {
@@ -40,6 +42,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
   const [utr, setUtr] = useState(order.utr || '');
   const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState<string | number>(order.estimated_delivery_time || 30);
   const [cancellationReason, setCancellationReason] = useState(order.cancellation_reason || '');
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
 
   // Financial fields
   const [deliveryCharge, setDeliveryCharge] = useState<number>(order.delivery_charge ?? 0);
@@ -142,6 +145,10 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
       const mergedOrder = { ...order, ...updatePayload };
       if (onOrderUpdated) {
         onOrderUpdated(mergedOrder as Order);
+      }
+
+      if (status === 'cancelled') {
+        setShowWhatsAppModal(true);
       }
     } catch (err: any) {
       console.error('Error updating order:', err);
@@ -716,6 +723,21 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
         </div>
       </main>
+
+      {/* WhatsApp Cancellation Success Modal */}
+      <AdminCancellationSuccessModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        order={{
+          ...order,
+          customer_name: customerName,
+          phone: phone,
+          total: computedTotal,
+          status: 'cancelled',
+          cancellation_reason: cancellationReason
+        }}
+        cancellationReason={cancellationReason}
+      />
     </div>
   );
 };
