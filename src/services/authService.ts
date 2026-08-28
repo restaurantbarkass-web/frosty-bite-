@@ -159,15 +159,13 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Send OTP directly using server email dispatcher with automatic Supabase fallback
+  // Send OTP directly using server email dispatcher with guaranteed 6-digit delivery
   async sendOTP(email: string) {
     if (!email || typeof email !== 'string') {
       throw new Error('Valid email address is required.');
     }
     const normalizedEmail = safeTrimLowerCase(email);
-    let serverError: string | null = null;
 
-    // 1. Attempt backend API email OTP dispatch first
     try {
       const res = await fetch('/api/auth/send-email-otp', {
         method: 'POST',
@@ -179,46 +177,20 @@ export const authService = {
       const data = await safeParseResponse(res);
 
       if (res.ok && data?.success) {
-        console.log('[authService] Server email OTP dispatched successfully');
+        console.log('[authService] Server 6-digit email OTP dispatched successfully');
         return data;
       } else if (res.status === 429 && data?.error) {
-        // Daily rate limit exceeded
         throw new Error(data.error);
       } else {
-        serverError = data?.error || (res.status !== 200 ? `Server status ${res.status}` : 'Server dispatch failed');
+        const errorMsg = data?.error || 'Failed to dispatch 6-digit verification code. Please try again.';
+        throw new Error(errorMsg);
       }
     } catch (err: any) {
-      if (err?.message && (err.message.includes('Security Limit') || err.message.includes('maximum daily limit') || err.message.includes('rate limit'))) {
+      if (err?.message) {
         throw err;
       }
-      console.warn('[authService] Server email OTP endpoint unavailable, falling back to Supabase client auth:', err?.message || err);
-      serverError = err?.message || 'Server unavailable';
-    }
-
-    // 2. Fall back to Supabase client-side OTP dispatch (works anywhere without backend servers)
-    try {
-      console.log('[authService] Dispatching OTP via Supabase client fallback...');
-      const { data: sbData, error: sbError } = await supabase.auth.signInWithOtp({
-        email: normalizedEmail,
-        options: {
-          shouldCreateUser: true
-        }
-      });
-
-      if (sbError) {
-        console.warn('[authService] Supabase client OTP fallback error:', sbError);
-        throw new Error(sbError.message || serverError || 'Failed to dispatch email verification code.');
-      }
-
-      console.log('[authService] Supabase client OTP dispatched successfully!');
-      return {
-        success: true,
-        message: 'A verification code has been dispatched to your email.',
-        fallback: true
-      };
-    } catch (fallbackErr: any) {
-      console.error('[authService] All email OTP channels failed:', fallbackErr);
-      throw new Error(fallbackErr.message || serverError || 'Failed to send verification code. Please check your network connection.');
+      console.error('[authService] Server email OTP error:', err);
+      throw new Error('Failed to send verification code. Please check your network connection.');
     }
   },
 
