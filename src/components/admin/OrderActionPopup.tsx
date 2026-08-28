@@ -17,6 +17,7 @@ interface OrderActionPopupProps {
 export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClose, onAction }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSlideCancel, setShowSlideCancel] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('Out of Stock');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute to act
 
@@ -45,10 +46,17 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
 
   const handleAction = async (status: 'confirmed' | 'cancelled') => {
     setIsProcessing(true);
+    const finalReason = rejectionReason.trim() || 'Order rejected by store manager';
+
     try {
+      const updateData: any = { status };
+      if (status === 'cancelled') {
+        updateData.cancellation_reason = finalReason;
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({ status })
+        .update(updateData)
         .eq('id', order.id);
 
       if (error) throw error;
@@ -124,16 +132,54 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
             {/* Actions */}
             {showSlideCancel ? (
               <div className="pt-2 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setShowSlideCancel(false)}
-                  className="flex items-center gap-2 text-xs font-bold text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 px-3.5 py-1.5 rounded-full transition-all border border-white/10 hover:border-white/20"
-                >
-                  <ArrowLeft size={14} />
-                  <span>Back to Accept / Reject</span>
-                </button>
+                <div className="bg-black/40 border border-rose-500/30 rounded-2xl p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between text-left">
+                    <label className="text-[11px] font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                      <span>Rejection Reason</span>
+                      <span className="text-rose-400 font-extrabold">*</span>
+                    </label>
+                    <span className="text-[9px] text-zinc-400 font-medium">Mandatory</span>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Type reason (e.g. Out of stock)..."
+                    className="w-full bg-[#18161f] text-white text-xs px-3 py-2 rounded-xl border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium"
+                  />
+
+                  <div className="flex flex-wrap gap-1">
+                    {['Out of Stock', 'Kitchen Busy', 'Store Closed', 'Invalid Address'].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRejectionReason(preset)}
+                        className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer ${
+                          rejectionReason === preset
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-white/5 text-zinc-300 border border-white/10'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  {!rejectionReason.trim() && (
+                    <p className="text-[10px] font-bold text-rose-400 text-left">
+                      ⚠️ Rejection reason is required
+                    </p>
+                  )}
+                </div>
+
                 <SlideToConfirm
+                  disabled={!rejectionReason.trim()}
                   onConfirm={async () => {
+                    if (!rejectionReason.trim()) {
+                      toast.error('Rejection reason is required');
+                      return;
+                    }
                     await handleAction('cancelled');
                   }}
                   label="Slide to Reject Order"
@@ -142,10 +188,11 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                   successLabel="Order Rejected!"
                   variant="danger"
                 />
+                
                 <button
                   type="button"
                   onClick={() => setShowSlideCancel(false)}
-                  className="w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-full text-xs font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-2 group transition-all"
+                  className="w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-full text-xs font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-2 group transition-all cursor-pointer"
                 >
                   <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" />
                   <span>Back</span>
@@ -156,7 +203,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                 <button
                   disabled={isProcessing}
                   onClick={() => handleAction('confirmed')}
-                  className="flex-1 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Check size={16} />
                   Accept
@@ -164,7 +211,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                 <button
                   disabled={isProcessing}
                   onClick={() => setShowSlideCancel(true)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 disabled:opacity-50"
+                  className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <X size={16} />
                   Reject
@@ -174,7 +221,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
             
             <button 
               onClick={onClose}
-              className="w-full text-center text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] pt-2 hover:text-white transition-colors"
+              className="w-full text-center text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] pt-2 hover:text-white transition-colors cursor-pointer"
             >
               Dismiss for now
             </button>
@@ -199,8 +246,8 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
           setShowWhatsAppModal(false);
           onAction('cancelled');
         }}
-        order={order ? { ...order, status: 'cancelled' } : null}
-        cancellationReason="Order rejected by store manager"
+        order={order ? { ...order, status: 'cancelled', cancellation_reason: rejectionReason.trim() } : null}
+        cancellationReason={rejectionReason.trim() || 'Order rejected by store manager'}
       />
     </AnimatePresence>
   );

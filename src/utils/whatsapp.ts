@@ -166,3 +166,73 @@ export function openCancellationWhatsApp(
   }
 }
 
+/**
+ * Builds the standard Frosty Bite WhatsApp order delivery confirmation notification message.
+ */
+export function buildDeliveryWhatsAppMessage(
+  order: {
+    id: string;
+    customer_name?: string;
+    customerName?: string;
+    total?: number;
+    total_amount?: number;
+  }
+): string {
+  const customerName = (order.customer_name || order.customerName || 'Customer').trim();
+  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const amount = order.total ?? order.total_amount ?? 0;
+
+  return `Hello ${customerName} 👋
+
+This is Frosty Bite Bakery. 🍰
+
+Your order #${orderNumber} has been successfully delivered! 🎉
+
+Order Amount: ₹${amount}
+
+We hope you enjoyed your order. ❤️
+
+Thank you for choosing Frosty Bite Bakery!
+
+We'd love to have you order from us again. 😊
+
+— Frosty Bite Bakery`;
+}
+
+/**
+ * Opens WhatsApp click-to-chat with pre-filled delivery confirmation message.
+ * Returns success status or error message.
+ */
+export function openDeliveryWhatsApp(
+  phone: string | null | undefined,
+  order: any
+): { success: boolean; error?: string; normalizedPhone?: string } {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    return {
+      success: false,
+      error: 'No customer phone number is available or phone number is invalid.'
+    };
+  }
+
+  const message = buildDeliveryWhatsAppMessage(order);
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${normalized}?text=${encodedMessage}`;
+
+  try {
+    const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      return {
+        success: false,
+        error: 'Unable to open WhatsApp window. Please check your browser popup blocker permissions.'
+      };
+    }
+    return { success: true, normalizedPhone: normalized };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Unable to open WhatsApp.'
+    };
+  }
+}
+

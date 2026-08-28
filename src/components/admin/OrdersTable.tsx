@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, MessageSquare, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
@@ -19,6 +19,7 @@ import { SlideConfirmModal } from '../ui/SlideConfirmModal';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { showDeviceNotification } from '../../utils/messaging';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
+import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -101,7 +102,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [autoPrint, setAutoPrint] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+  const [cancellingReason, setCancellingReason] = useState<string>('Out of Stock');
   const [cancelledOrderForWhatsApp, setCancelledOrderForWhatsApp] = useState<{ order: Order; reason?: string } | null>(null);
+  const [deliveredOrderForWhatsApp, setDeliveredOrderForWhatsApp] = useState<Order | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const lastOrderCountRef = useRef<number>(0);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -361,10 +364,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
-  const updateStatus = async (id: string, newStatus: Order['status'], bypassSlideBar = false) => {
+  const updateStatus = async (id: string, newStatus: Order['status'], bypassSlideBar = false, customReason?: string) => {
+    const reasonToUse = (customReason || cancellingReason || 'Cancelled by Administrator').trim() || 'Cancelled by Administrator';
+
     if (newStatus === 'cancelled' && !bypassSlideBar) {
       const orderToCancel = orders.find(o => o.id === id);
       if (orderToCancel) {
+        setCancellingReason(orderToCancel.cancellation_reason || 'Out of Stock');
         setCancellingOrder(orderToCancel);
         return;
       }
@@ -376,6 +382,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     const prevOrder = orders.find(o => o.id === id);
     const optimisticUpdates: Partial<Order> = { 
       status: newStatus,
+      cancellation_reason: newStatus === 'cancelled' ? reasonToUse : prevOrder?.cancellation_reason,
       updated_at: new Date().toISOString() 
     };
     
@@ -392,13 +399,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       const order = prevOrder;
       
       if (newStatus === 'cancelled') {
-        // Intercept and use safe cancelOrder routine
-        const cancelledResult = await supabaseService.cancelOrder(id, 'Cancelled by Administrator', 'admin', 'admin');
+        // Intercept and use safe cancelOrder routine with persisted mandatory reason
+        const cancelledResult = await supabaseService.cancelOrder(id, reasonToUse, 'admin', 'admin');
         
         if (order && order.user_id !== 'guest' && order.user_id) {
           addNotification({
             title: 'Order Cancelled by Admin',
-            message: `Order #${id.slice(-6).toUpperCase()} was cancelled by management.`,
+            message: `Order #${id.slice(-6).toUpperCase()} was cancelled. Reason: ${reasonToUse}`,
             type: 'order',
             user_id: order.user_id,
             link: `/order-tracking/${id}`
@@ -406,8 +413,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         }
         
         toast.success('Order cancelled. Stock restored & logs created.', { id: loadingToast });
-        const finalCancelledOrder = (order ? { ...order, status: 'cancelled' as const, cancellation_reason: 'Cancelled by Administrator' } : cancelledResult) as Order;
-        setCancelledOrderForWhatsApp({ order: finalCancelledOrder, reason: 'Cancelled by Administrator' });
+        const finalCancelledOrder = (order ? { ...order, status: 'cancelled' as const, cancellation_reason: reasonToUse } : { ...cancelledResult, cancellation_reason: reasonToUse }) as Order;
+        setCancelledOrderForWhatsApp({ order: finalCancelledOrder, reason: reasonToUse });
         return;
       }
 
@@ -459,12 +466,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           }
         }
 
-        // Trigger Rewards Engine on Delivery
+        // Trigger Rewards Engine & WhatsApp Notification on Delivery
         if (newStatus === 'delivered') {
           rewardsService.processOrderForRewards(order.user_id, order.total)
             .then(() => console.log('Rewards processed for order:', id))
             .catch(err => console.error('Rewards processing failed:', err));
         }
+      }
+
+      if (newStatus === 'delivered' && prevOrder?.status !== 'delivered') {
+        const finalDeliveredOrder = (prevOrder ? { ...prevOrder, status: 'delivered' as const } : { id, status: 'delivered' as const }) as Order;
+        setDeliveredOrderForWhatsApp(finalDeliveredOrder);
       }
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
@@ -683,49 +695,102 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.98, y: -4 }}
                         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-[#16141a] border border-rose-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                        className="flex flex-col gap-4 bg-[#16141a] border border-rose-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
                       >
                         <div className="absolute top-0 left-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                        <div className="flex items-center gap-4 w-full lg:w-auto relative z-10">
-                          <button
-                            type="button"
-                            onClick={() => setCancellingOrder(null)}
-                            className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0"
-                          >
-                            <ArrowLeft size={14} />
-                            <span>Back</span>
-                          </button>
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 w-full relative z-10">
+                          <div className="flex items-center gap-4">
+                            <button
+                              type="button"
+                              onClick={() => setCancellingOrder(null)}
+                              className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
+                            >
+                              <ArrowLeft size={14} />
+                              <span>Back</span>
+                            </button>
 
-                          <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
-                            <AlertCircle size={22} />
-                          </div>
-
-                          <div className="flex flex-col text-left">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-rose-400 uppercase tracking-widest">Cancel Order</span>
-                              <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
-                                #{order.id.slice(-6).toUpperCase()}
-                              </span>
+                            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+                              <AlertCircle size={22} />
                             </div>
-                            <p className="text-xs text-zinc-300 font-medium mt-0.5">
-                              Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) &amp; restore inventory
-                            </p>
+
+                            <div className="flex flex-col text-left">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-rose-400 uppercase tracking-widest">Cancel Order</span>
+                                <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
+                                  #{order.id.slice(-6).toUpperCase()}
+                                </span>
+                              </div>
+                              <p className="text-xs text-zinc-300 font-medium mt-0.5">
+                                Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) &amp; restore inventory
+                              </p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="w-full lg:w-80 shrink-0 relative z-10">
-                          <SlideToConfirm
-                            onConfirm={async () => {
-                              await updateStatus(order.id, 'cancelled', true);
-                              setCancellingOrder(null);
-                            }}
-                            label="Slide to Cancel Order"
-                            releaseLabel="Release to Cancel"
-                            processingLabel="Cancelling Order..."
-                            successLabel="Order Cancelled!"
-                            variant="danger"
-                          />
+                        {/* Mandatory Input Field for Cancellation Reason */}
+                        <div className="bg-black/50 border border-rose-500/30 rounded-2xl p-4 space-y-3 relative z-10">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <span>Cancellation Reason</span>
+                              <span className="text-rose-400 font-extrabold text-sm">*</span>
+                            </label>
+                            <span className="text-[10px] text-zinc-400 font-medium">Mandatory for audit &amp; WhatsApp dispatch</span>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                              type="text"
+                              value={cancellingReason}
+                              onChange={(e) => setCancellingReason(e.target.value)}
+                              placeholder="Enter cancellation reason (e.g. Out of stock, Kitchen overload)..."
+                              className="flex-1 bg-[#0f0f13] text-white text-xs px-4 py-2.5 rounded-xl border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium transition-colors"
+                            />
+                            
+                            <div className="w-full sm:w-72 shrink-0">
+                              <SlideToConfirm
+                                disabled={!cancellingReason.trim()}
+                                onConfirm={async () => {
+                                  if (!cancellingReason.trim()) {
+                                    toast.error('Cancellation reason is required');
+                                    return;
+                                  }
+                                  await updateStatus(order.id, 'cancelled', true, cancellingReason.trim());
+                                  setCancellingOrder(null);
+                                }}
+                                label="Slide to Cancel Order"
+                                releaseLabel="Release to Cancel"
+                                processingLabel="Cancelling Order..."
+                                successLabel="Order Cancelled!"
+                                variant="danger"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Quick Preset Reason Pills */}
+                          <div className="flex items-center gap-2 flex-wrap pt-1">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Quick Presets:</span>
+                            {['Out of Stock', 'Kitchen Busy', 'Store Closed', 'Customer Request', 'Invalid Address'].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                onClick={() => setCancellingReason(preset)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                  cancellingReason === preset
+                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-950 border border-rose-400'
+                                    : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10'
+                                }`}
+                              >
+                                {preset}
+                              </button>
+                            ))}
+                          </div>
+
+                          {!cancellingReason.trim() && (
+                            <p className="text-[11px] font-bold text-rose-400 animate-pulse">
+                              ⚠️ Cancellation reason is required to slide &amp; cancel this order.
+                            </p>
+                          )}
                         </div>
                       </motion.div>
                     </td>
@@ -992,9 +1057,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => updateStatus(order.id, 'delivered')}
-                            className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                            className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
                           >
                             Mark Delivered
+                          </button>
+                        </div>
+                      )}
+
+                      {order.status === 'delivered' && (
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => setDeliveredOrderForWhatsApp(order)}
+                            className="w-full px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <MessageSquare size={12} />
+                            <span>📱 WhatsApp Confirmation</span>
                           </button>
                         </div>
                       )}
@@ -1100,42 +1177,79 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-[#141218] border-2 border-rose-500/50 rounded-2xl p-5 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-rose-950/80"
+                  className="absolute inset-0 bg-[#141218] border-2 border-rose-500/50 rounded-2xl p-3.5 sm:p-4 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-rose-950/80 overflow-y-auto custom-scrollbar space-y-2.5"
                 >
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setCancellingOrder(null)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95"
-                    >
-                      <ArrowLeft size={14} />
-                      <span>Back</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCancellingOrder(null)}
-                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col items-center text-center space-y-2 my-2">
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
-                      <AlertCircle size={22} />
+                  <div className="flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                        <AlertCircle size={15} />
+                      </div>
+                      <h4 className="text-xs font-black text-white uppercase italic tracking-tight">
+                        Cancel Order #{order.id.slice(-6).toUpperCase()}
+                      </h4>
                     </div>
-                    <h4 className="text-sm font-black text-white uppercase italic tracking-tight">
-                      Cancel Order #{order.id.slice(-6).toUpperCase()}?
-                    </h4>
-                    <p className="text-xs text-zinc-300 font-medium px-2">
-                      Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) and restore inventory stock
-                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCancellingOrder(null)}
+                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full shrink-0"
+                    >
+                      <X size={15} />
+                    </button>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <p className="text-[11px] text-zinc-300 font-medium px-1 shrink-0">
+                    Cancel for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
+                  </p>
+
+                  {/* Mandatory Cancellation Reason Input */}
+                  <div className="space-y-1.5 bg-black/40 p-2.5 rounded-xl border border-rose-500/30 shrink-0">
+                    <div className="flex items-center justify-between text-left">
+                      <label className="text-[10px] font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                        <span>Reason</span>
+                        <span className="text-rose-400 font-extrabold">*</span>
+                      </label>
+                      {!cancellingReason.trim() && (
+                        <span className="text-[9px] font-bold text-rose-400">
+                          Required
+                        </span>
+                      )}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={cancellingReason}
+                      onChange={(e) => setCancellingReason(e.target.value)}
+                      placeholder="Enter reason..."
+                      className="w-full bg-[#1c1a24] text-white text-xs px-2.5 py-1.5 rounded-lg border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium"
+                    />
+
+                    <div className="flex flex-wrap gap-1">
+                      {['Out of Stock', 'Kitchen Busy', 'Store Closed', 'Customer Request'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setCancellingReason(preset)}
+                          className={`px-2 py-0.5 rounded-md text-[9px] font-bold transition-all cursor-pointer ${
+                            cancellingReason === preset
+                              ? 'bg-rose-500 text-white'
+                              : 'bg-white/5 text-zinc-300 border border-white/10'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 shrink-0 pt-1">
                     <SlideToConfirm
+                      disabled={!cancellingReason.trim()}
                       onConfirm={async () => {
-                        await updateStatus(order.id, 'cancelled', true);
+                        if (!cancellingReason.trim()) {
+                          toast.error('Cancellation reason is required');
+                          return;
+                        }
+                        await updateStatus(order.id, 'cancelled', true, cancellingReason.trim());
                         setCancellingOrder(null);
                       }}
                       label="Slide to Cancel Order"
@@ -1147,7 +1261,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button
                       type="button"
                       onClick={() => setCancellingOrder(null)}
-                      className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                      className="w-full py-1.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
                     >
                       <ArrowLeft size={12} />
                       <span>Back to Order</span>
@@ -1162,7 +1276,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-[#141218] border-2 border-red-500/50 rounded-2xl p-5 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-red-950/80"
+                  className="absolute inset-0 bg-[#141218] border-2 border-red-500/50 rounded-2xl p-4 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-red-950/80 overflow-y-auto custom-scrollbar space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <button
@@ -1456,10 +1570,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               <div className="pt-2">
                 <button 
                   onClick={() => updateStatus(order.id, 'delivered')}
-                  className="w-full py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   Mark Delivered
+                </button>
+              </div>
+            )}
+
+            {order.status === 'delivered' && (
+              <div className="pt-2">
+                <button 
+                  onClick={() => setDeliveredOrderForWhatsApp(order)}
+                  className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <MessageSquare size={14} />
+                  📱 Send Delivery Confirmation
                 </button>
               </div>
             )}
@@ -1496,6 +1622,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         onClose={() => setCancelledOrderForWhatsApp(null)}
         order={cancelledOrderForWhatsApp?.order || null}
         cancellationReason={cancelledOrderForWhatsApp?.reason}
+      />
+
+      {/* Admin WhatsApp Delivery Success Modal */}
+      <AdminDeliverySuccessModal
+        isOpen={!!deliveredOrderForWhatsApp}
+        onClose={() => setDeliveredOrderForWhatsApp(null)}
+        order={deliveredOrderForWhatsApp}
       />
     </div>
   );

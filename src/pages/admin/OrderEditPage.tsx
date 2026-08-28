@@ -10,6 +10,7 @@ import { Order } from '../../types';
 import { supabaseService } from '../../services/supabaseService';
 import { SlideToConfirm } from '../../components/ui/SlideToConfirm';
 import { AdminCancellationSuccessModal } from '../../components/admin/AdminCancellationSuccessModal';
+import { AdminDeliverySuccessModal } from '../../components/admin/AdminDeliverySuccessModal';
 import { normalizePhoneNumber, openCancellationWhatsApp } from '../../utils/whatsapp';
 import toast from 'react-hot-toast';
 
@@ -43,6 +44,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
   const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState<string | number>(order.estimated_delivery_time || 30);
   const [cancellationReason, setCancellationReason] = useState(order.cancellation_reason || '');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showDeliveryWhatsAppModal, setShowDeliveryWhatsAppModal] = useState(false);
 
   // Financial fields
   const [deliveryCharge, setDeliveryCharge] = useState<number>(order.delivery_charge ?? 0);
@@ -108,7 +110,15 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    
+    if (status === 'cancelled' && !cancellationReason.trim()) {
+      toast.error('Cancellation reason is required when status is set to Cancelled');
+      return;
+    }
+
     setSaving(true);
+
+    const finalReason = cancellationReason.trim();
 
     const updatePayload = {
       customer_name: customerName,
@@ -123,7 +133,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
       payment_method: paymentMethod,
       utr: utr,
       estimated_delivery_time: estimatedDeliveryTime,
-      cancellation_reason: status === 'cancelled' ? cancellationReason : null,
+      cancellation_reason: status === 'cancelled' ? finalReason : null,
       delivery_charge: deliveryCharge,
       discount: discount,
       subtotal: computedSubtotal,
@@ -134,6 +144,10 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
     };
 
     try {
+      if (status === 'cancelled') {
+        await supabaseService.cancelOrder(order.id, finalReason || 'Cancelled via Order Edit Page', 'admin', 'admin');
+      }
+
       const { error } = await supabaseService.updateData('orders', order.id, updatePayload);
       if (error) {
         throw new Error(error.message || 'Failed to update order in database');
@@ -149,6 +163,8 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
       if (status === 'cancelled') {
         setShowWhatsAppModal(true);
+      } else if (order.status !== 'delivered' && status === 'delivered') {
+        setShowDeliveryWhatsAppModal(true);
       }
     } catch (err: any) {
       console.error('Error updating order:', err);
@@ -348,6 +364,31 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                       successLabel="Order Cancelled!"
                       variant="danger"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery WhatsApp Action if Delivered */}
+              {status === 'delivered' && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                        <CheckCircle2 size={14} />
+                        Order Marked as Delivered
+                      </p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Send delivery confirmation notification directly to customer via WhatsApp.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeliveryWhatsAppModal(true)}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 shrink-0"
+                    >
+                      <MessageSquare size={14} />
+                      <span>📱 Send Delivery Confirmation</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -737,6 +778,23 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           cancellation_reason: cancellationReason
         }}
         cancellationReason={cancellationReason}
+      />
+
+      {/* WhatsApp Delivery Success Modal */}
+      <AdminDeliverySuccessModal
+        isOpen={showDeliveryWhatsAppModal}
+        onClose={() => setShowDeliveryWhatsAppModal(false)}
+        order={{
+          ...order,
+          customer_name: customerName,
+          customerName: customerName,
+          phone: phone,
+          address: address,
+          total: computedTotal,
+          total_amount: computedTotal,
+          status: 'delivered',
+          items: items
+        }}
       />
     </div>
   );
