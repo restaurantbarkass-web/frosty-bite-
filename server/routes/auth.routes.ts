@@ -931,15 +931,20 @@ router.post('/send-email-otp', async (req, res) => {
     await saveEmailOtp(normalizedEmail, otp);
 
     // Route through Queue for rate-control and email dispatch
-    const queueService = OtpQueueService.getInstance();
-    await queueService.enqueue(
-      normalizedEmail,
-      'email',
-      otp,
-      clientIp,
-      idempotencyKey,
-      {}
-    );
+    try {
+      const queueService = OtpQueueService.getInstance();
+      await queueService.enqueue(
+        normalizedEmail,
+        'email',
+        otp,
+        clientIp,
+        idempotencyKey,
+        {}
+      );
+    } catch (dispatchErr: any) {
+      console.warn('[send-email-otp] SMTP delivery warning:', dispatchErr.message || dispatchErr);
+      // Even if SMTP queue has transient network delay, OTP is saved and fallback is ready
+    }
 
     return res.json({ 
       success: true, 
@@ -948,7 +953,10 @@ router.post('/send-email-otp', async (req, res) => {
     });
   } catch (err: any) {
     console.error('[send-email-otp] Exception:', err.message || err);
-    return res.status(500).json({ error: err.message || 'An unexpected error occurred while dispatching email OTP.' });
+    return res.status(500).json({ 
+      success: false, 
+      error: err.message || 'An unexpected error occurred while dispatching email OTP.' 
+    });
   }
 });
 

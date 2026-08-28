@@ -45,6 +45,16 @@ export const logout = async () => {
 
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 
+async function safeParseResponse(res: Response): Promise<any> {
+  const text = await res.text().catch(() => '');
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export const authService = {
   // Email/Password Login
   async handleEmailLogin(email: string, pass: string) {
@@ -149,23 +159,67 @@ export const authService = {
     if (error) throw error;
   },
 
-  // Send OTP directly using Supabase client with backend rate limiting
+  // Send OTP directly using server email dispatcher with automatic Supabase fallback
   async sendOTP(email: string) {
     if (!email || typeof email !== 'string') {
       throw new Error('Valid email address is required.');
     }
-    const res = await fetch('/api/auth/send-email-otp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'Failed to dispatch email verification code.');
+    const normalizedEmail = safeTrimLowerCase(email);
+    let serverError: string | null = null;
+
+    // 1. Attempt backend API email OTP dispatch first
+    try {
+      const res = await fetch('/api/auth/send-email-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+      const data = await safeParseResponse(res);
+
+      if (res.ok && data?.success) {
+        console.log('[authService] Server email OTP dispatched successfully');
+        return data;
+      } else if (res.status === 429 && data?.error) {
+        // Daily rate limit exceeded
+        throw new Error(data.error);
+      } else {
+        serverError = data?.error || (res.status !== 200 ? `Server status ${res.status}` : 'Server dispatch failed');
+      }
+    } catch (err: any) {
+      if (err?.message && (err.message.includes('Security Limit') || err.message.includes('maximum daily limit') || err.message.includes('rate limit'))) {
+        throw err;
+      }
+      console.warn('[authService] Server email OTP endpoint unavailable, falling back to Supabase client auth:', err?.message || err);
+      serverError = err?.message || 'Server unavailable';
     }
-    console.log("OTP sent");
+
+    // 2. Fall back to Supabase client-side OTP dispatch (works anywhere without backend servers)
+    try {
+      console.log('[authService] Dispatching OTP via Supabase client fallback...');
+      const { data: sbData, error: sbError } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          shouldCreateUser: true
+        }
+      });
+
+      if (sbError) {
+        console.warn('[authService] Supabase client OTP fallback error:', sbError);
+        throw new Error(sbError.message || serverError || 'Failed to dispatch email verification code.');
+      }
+
+      console.log('[authService] Supabase client OTP dispatched successfully!');
+      return {
+        success: true,
+        message: 'A verification code has been dispatched to your email.',
+        fallback: true
+      };
+    } catch (fallbackErr: any) {
+      console.error('[authService] All email OTP channels failed:', fallbackErr);
+      throw new Error(fallbackErr.message || serverError || 'Failed to send verification code. Please check your network connection.');
+    }
   },
 
   // Send mobile phone number verification code via WhatsApp
@@ -177,13 +231,13 @@ export const authService = {
       },
       body: JSON.stringify({ phone, isSignup, email, name, password })
     });
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'Failed to dispatch WhatsApp verification code.');
+    const data = await safeParseResponse(res);
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.error || 'Failed to dispatch WhatsApp verification code.');
     }
 
     // Client-side local WhatsApp server dispatch fallback
-    if (data.client_dispatch_required) {
+    if (data?.client_dispatch_required) {
       let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
       try {
         configuredUrl = safeTrim(localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
@@ -285,13 +339,13 @@ export const authService = {
       },
       body: JSON.stringify({ phone, otp })
     });
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'WhatsApp verification code is invalid.');
+    const data = await safeParseResponse(res);
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.error || 'WhatsApp verification code is invalid.');
     }
 
     // Direct local state authentication sync
-    if (data.user) {
+    if (data?.user) {
       try {
         localStorage.setItem('frostybite_active_session_email', data.user.email);
         localStorage.setItem('frostybite_has_active_session', 'true');
@@ -309,9 +363,9 @@ export const authService = {
       },
       body: JSON.stringify({ phone })
     });
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      throw new Error(data.error || 'Failed to resend WhatsApp verification code.');
+    const data = await safeParseResponse(res);
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.error || 'Failed to resend WhatsApp verification code.');
     }
 
     // Client-side local WhatsApp server dispatch fallback

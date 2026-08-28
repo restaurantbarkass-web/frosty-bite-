@@ -36,6 +36,10 @@ const parseAuthError = (err: any): string => {
     return 'A network connectivity issue occurred. Please check your internet connection and try again.';
   }
 
+  if (normalized.includes('unexpected token') || normalized.includes('not valid json') || normalized.includes('syntaxerror') || normalized.includes('json.parse') || normalized.includes('a server e') || normalized.includes('500') || normalized.includes('502') || normalized.includes('504')) {
+    return 'We were unable to communicate with the verification server. Please check your connection and try again.';
+  }
+
   return typeof err === 'string' ? err : (err.message || 'An unexpected recovery error occurred. Please try again.');
 };
 

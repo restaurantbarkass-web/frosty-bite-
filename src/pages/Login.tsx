@@ -89,6 +89,10 @@ const parseAuthError = (err: any): string => {
     return 'Incorrect or expired verification code. Please check your Inbox for the latest code or request a new one.';
   }
 
+  if (normalized.includes('unexpected token') || normalized.includes('not valid json') || normalized.includes('syntaxerror') || normalized.includes('json.parse') || normalized.includes('a server e') || normalized.includes('500') || normalized.includes('502') || normalized.includes('504')) {
+    return 'We were unable to communicate with the verification server. Please check your connection and try again.';
+  }
+
   if (normalized.includes('supabase') || normalized.includes('database') || normalized.includes('relation') || normalized.includes('row level security') || normalized.includes('rls') || normalized.includes('postgres') || normalized.includes('server error') || normalized.includes('internal')) {
     return 'Our servers are completing automated maintenance. Please try again in a few moments.';
   }
