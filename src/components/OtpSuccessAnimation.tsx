@@ -473,7 +473,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                   6-Digit Passkey
                 </span>
                 <span className="text-[10px] font-medium text-zinc-500 font-mono">
-                  {otpArray.slice(0, otpLength).filter(Boolean).length}/{otpLength}
+                  {otpArray.slice(0, 6).filter(Boolean).length}/6
                 </span>
               </div>
 

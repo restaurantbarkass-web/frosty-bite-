@@ -86,14 +86,9 @@ export class ErrorBoundary extends Component<Props, State> {
       const target = event.target as any;
       if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK')) {
         const src = target.src || target.href || '';
-        console.error('[ErrorBoundary] Critical resource failed to load:', src);
-        try {
-          event.preventDefault();
-        } catch (_) {}
-        this.setState({
-          hasError: true,
-          error: new Error(`Critical Asset Fetch Failure: Failed to load dynamically imported module: ${src}`)
-        });
+        console.warn('[ErrorBoundary] Non-blocking resource loading warning:', src);
+        // Let lazyWithRetry or React Suspense boundaries manage dynamic script retries
+        return;
       }
     } else {
       const errEvent = event as any;

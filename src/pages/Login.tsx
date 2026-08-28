@@ -295,7 +295,7 @@ export const Login: React.FC = () => {
   const [signupMethod, setSignupMethod] = useState<'email' | 'mobile_otp'>('email');
   const [isNewUser, setIsNewUser] = useState(false);
   
-  // OTP array input
+  // OTP array input (6 digits)
   const [otpArray, setOtpArray] = useState<string[]>(['', '', '', '', '', '']);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 

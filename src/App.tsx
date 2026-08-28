@@ -34,24 +34,25 @@ import { useAuth } from './context/AuthContext';
 import { useCart, useCartActions } from './context/CartContext';
 import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const Home = React.lazy(() => import('./pages/HomePage'));
-const Offers = React.lazy(() => import('./pages/Offers'));
-const Checkout = React.lazy(() => import('./pages/Checkout'));
-const UPICheckout = React.lazy(() => import('./pages/UPICheckout'));
-const OrderTracking = React.lazy(() => import('./pages/OrderTracking'));
-const AdminLayout = React.lazy(() => import('./pages/AdminLayout'));
-const Profile = React.lazy(() => import('./pages/Profile'));
-const Login = React.lazy(() => import('./pages/Login'));
-const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
-const FinishSignIn = React.lazy(() => import('./pages/FinishSignIn'));
-const ProductDetail = React.lazy(() => import('./pages/ProductDetail'));
-const Orders = React.lazy(() => import('./pages/Orders'));
-const Notifications = React.lazy(() => import('./pages/Notifications'));
-const FAQ = React.lazy(() => import('./pages/FAQ'));
-const NotFound = React.lazy(() => import('./pages/NotFound'));
-const CartSidebar = React.lazy(() => import('./components/CartSidebar').then(m => ({ default: m.CartSidebar })));
-const SearchOverlay = React.lazy(() => import('./components/Search/SearchOverlay').then(m => ({ default: m.SearchOverlay })));
+const Home = lazyWithRetry(() => import('./pages/HomePage'));
+const Offers = lazyWithRetry(() => import('./pages/Offers'));
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
+const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
+const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
+const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
+const Orders = lazyWithRetry(() => import('./pages/Orders'));
+const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
+const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
+const CartSidebar = lazyWithRetry(() => import('./components/CartSidebar'));
+const SearchOverlay = lazyWithRetry(() => import('./components/Search/SearchOverlay'));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
