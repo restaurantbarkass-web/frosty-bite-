@@ -924,8 +924,8 @@ router.post('/send-email-otp', async (req, res) => {
     const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
       .replace(/[^a-zA-Z0-9.-:_]/g, '_');
 
-    // Generate guaranteed 6-digit numerical OTP code
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate guaranteed 8-digit numerical OTP code
+    const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
 
     // Save to secure memory store
     await saveEmailOtp(normalizedEmail, otp);
@@ -948,7 +948,7 @@ router.post('/send-email-otp', async (req, res) => {
 
     return res.json({ 
       success: true, 
-      message: 'A 6-digit verification code has been dispatched to your email.',
+      message: 'An 8-digit verification code has been dispatched to your email.',
       dev_otp_hint: process.env.NODE_ENV !== 'production' ? otp : undefined
     });
   } catch (err: any) {

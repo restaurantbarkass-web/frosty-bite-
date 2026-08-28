@@ -179,7 +179,7 @@ export class EmailService {
           <div class="container">
             <div class="logo">FROSTY<span>BITE</span></div>
             <h1>Log Into Your Account</h1>
-            <p>Welcome back! Use the following 6-digit one-time passcode to complete your sign-in. This code will expire in 5 minutes.</p>
+            <p>Welcome back! Use the following 8-digit one-time passcode to complete your sign-in. This code will expire in 5 minutes.</p>
             
             <div class="code-box">
               <div class="code">${cleanOtp}</div>

@@ -128,8 +128,8 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
   const [showTips, setShowTips] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [otpRefs] = useState(() => ({ current: [] as (HTMLInputElement | null)[] }));
-  const [otpLength, setOtpLength] = useState<number>(6);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const otpLength = 8;
 
   // Floating ambient golden/champagne confectioner's dust particles
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
@@ -305,26 +305,21 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
     const rawDigits = e.clipboardData.getData('text').replace(/\D/g, '');
     if (!rawDigits) return;
 
-    const targetLength = rawDigits.length >= 8 ? 8 : (rawDigits.length >= 6 ? 6 : otpLength);
-    if (targetLength !== otpLength) {
-      setOtpLength(targetLength);
-    }
-
-    const pasted = rawDigits.slice(0, targetLength);
+    const pasted = rawDigits.slice(0, 8);
 
     playKeypressTick();
     const nextArr = [...otpArray];
-    for (let i = 0; i < targetLength; i++) {
+    for (let i = 0; i < 8; i++) {
       nextArr[i] = pasted[i] || '';
     }
     setOtpArray(nextArr);
 
-    const focusIndex = Math.min(pasted.length, targetLength - 1);
+    const focusIndex = Math.min(pasted.length, 7);
     otpRefs.current[focusIndex]?.focus();
     setActiveBox(focusIndex);
 
-    if (nextArr.slice(0, targetLength).every((cell) => cell !== '')) {
-      submitOtpCode(nextArr.slice(0, targetLength).join(''));
+    if (nextArr.slice(0, 8).every((cell) => cell !== '')) {
+      submitOtpCode(nextArr.slice(0, 8).join(''));
     }
   };
 
@@ -422,7 +417,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight text-white font-sans">Verify Passkey</h2>
                 <p className="text-zinc-400 text-xs leading-relaxed max-w-[260px] mx-auto">
-                  {isEmail ? 'We dispatched a 6-digit recipe code to' : 'We dispatched a 6-digit WhatsApp code to'}
+                  {isEmail ? 'We dispatched an 8-digit security code to' : 'We dispatched an 8-digit WhatsApp code to'}
                 </p>
               </div>
             </div>
@@ -473,39 +468,23 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
               </motion.div>
             )}
 
-            {/* 6-Digit Luxury Passkey Grid */}
+            {/* 8-Digit Luxury Passkey Grid */}
             <div className="space-y-3 py-2">
               <div className="flex justify-between items-center max-w-[340px] mx-auto px-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                    {otpLength}-Digit Passkey
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newLen = otpLength === 6 ? 8 : 6;
-                      setOtpLength(newLen);
-                      setOtpArray(Array(8).fill(''));
-                      setError(null);
-                      setHasError(false);
-                      setTimeout(() => otpRefs.current[0]?.focus(), 50);
-                    }}
-                    className="text-[9px] text-amber-400/80 hover:text-amber-300 underline font-medium tracking-tight cursor-pointer"
-                  >
-                    Switch to {otpLength === 6 ? '8' : '6'} digits
-                  </button>
-                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  8-Digit Passkey
+                </span>
                 <span className="text-[10px] font-medium text-zinc-500 font-mono">
-                  {otpArray.slice(0, otpLength).filter(Boolean).length}/{otpLength}
+                  {otpArray.slice(0, 8).filter(Boolean).length}/8
                 </span>
               </div>
 
               <div 
-                className={`flex justify-center gap-2 sm:gap-2.5 max-w-[340px] mx-auto py-1 ${
+                className={`grid grid-cols-8 gap-1 sm:gap-1.5 max-w-[340px] mx-auto py-1 w-full ${
                   isShaking ? 'animate-[shake_0.5s_cubic-bezier(.36,.07,.19,.97)_both]' : ''
                 }`}
               >
-                {Array.from({ length: otpLength }).map((_, idx) => {
+                {Array.from({ length: 8 }).map((_, idx) => {
                   const digit = otpArray[idx] || '';
                   const isFocused = activeBox === idx;
                   const isRippled = rippleIndex === idx;
@@ -515,7 +494,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                   return (
                     <div 
                       key={idx} 
-                      className="relative flex-1 aspect-square max-w-[48px] min-w-[38px] h-14 sm:h-16"
+                      className="relative w-full aspect-[4/5] min-w-0 flex items-center justify-center"
                     >
                       <input
                         ref={(el) => { otpRefs.current[idx] = el; }}
@@ -531,7 +510,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                         onChange={(e) => handleInputChange(e.target.value, idx)}
                         onKeyDown={(e) => handleKeyDown(e, idx)}
                         onPaste={handlePaste}
-                        className={`absolute inset-0 w-full h-full text-center border rounded-2xl text-xl sm:text-2xl font-black font-mono focus:outline-none transition-all select-all duration-200 cursor-text
+                        className={`w-full h-11 sm:h-13 text-center border rounded-xl text-base sm:text-lg font-black font-mono focus:outline-none transition-all select-all duration-200 cursor-text
                           ${isSlotError
                             ? 'border-red-500 bg-red-500/10 text-red-400 ring-2 ring-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.35)]'
                             : isFocused 

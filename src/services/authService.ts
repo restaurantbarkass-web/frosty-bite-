@@ -450,7 +450,7 @@ export const authService = {
     return data;
   },
 
-  // Verify OTP directly using backend 6-digit email OTP validator with Supabase fallback
+  // Verify OTP directly using backend 8-digit email OTP validator with Supabase fallback
   async verifyOTP(email: string, otp: string, isSignupHint?: boolean) {
     if (!email || typeof email !== 'string') {
       throw new Error('Valid email address is required.');
@@ -458,54 +458,52 @@ export const authService = {
     const normalizedEmail = safeTrimLowerCase(email);
     const cleanOtp = safeTrim(otp);
 
-    if (cleanOtp.length < 6 || cleanOtp.length > 8) {
-      throw new Error('Please enter the complete verification code.');
+    if (cleanOtp.length !== 8) {
+      throw new Error('Please enter the complete 8-digit verification code.');
     }
 
-    // 1. Try server-side email OTP verification first for 6-digit codes
-    if (cleanOtp.length === 6) {
-      try {
-        const serverRes = await fetch('/api/auth/verify-email-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail, otp: cleanOtp })
-        });
-        const serverData = await serverRes.json().catch(() => null);
+    // 1. Try server-side email OTP verification first
+    try {
+      const serverRes = await fetch('/api/auth/verify-email-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, otp: cleanOtp })
+      });
+      const serverData = await serverRes.json().catch(() => null);
 
-        if (serverRes.ok && serverData?.success) {
-          try {
-            localStorage.setItem('frostybite_active_session_email', normalizedEmail);
-            localStorage.setItem('frostybite_has_active_session', 'true');
-            if (serverData.customToken) {
-              localStorage.setItem('auth_token', serverData.customToken);
-            }
-          } catch (e) {}
+      if (serverRes.ok && serverData?.success) {
+        try {
+          localStorage.setItem('frostybite_active_session_email', normalizedEmail);
+          localStorage.setItem('frostybite_has_active_session', 'true');
+          if (serverData.customToken) {
+            localStorage.setItem('auth_token', serverData.customToken);
+          }
+        } catch (e) {}
 
-          const syncedUid = serverData.user?.supabase_uid || serverData.user?.id || 'email-user';
-          return {
-            user: {
-              uid: syncedUid,
-              email: normalizedEmail,
-              displayName: serverData.user?.name || serverData.user?.full_name || normalizedEmail.split('@')[0],
-              emailVerified: true,
-              getIdToken: async () => serverData.customToken || 'verified-email-token',
-              reload: async () => {},
-            }
-          };
-        } else if (serverRes.status === 400 || serverRes.status === 401 || serverRes.status === 429) {
-          throw new Error(serverData?.error || 'Incorrect verification code. Please check your email and try again.');
-        }
-      } catch (err: any) {
-        if (err?.message && (
-          err.message.includes('Incorrect') || 
-          err.message.includes('expired') || 
-          err.message.includes('exceeded') || 
-          err.message.includes('Invalid')
-        )) {
-          throw err;
-        }
-        console.warn('[AuthService] Server email OTP verification error, falling back to Supabase auth:', err);
+        const syncedUid = serverData.user?.supabase_uid || serverData.user?.id || 'email-user';
+        return {
+          user: {
+            uid: syncedUid,
+            email: normalizedEmail,
+            displayName: serverData.user?.name || serverData.user?.full_name || normalizedEmail.split('@')[0],
+            emailVerified: true,
+            getIdToken: async () => serverData.customToken || 'verified-email-token',
+            reload: async () => {},
+          }
+        };
+      } else if (serverRes.status === 400 || serverRes.status === 401 || serverRes.status === 429) {
+        throw new Error(serverData?.error || 'Incorrect verification code. Please check your email and try again.');
       }
+    } catch (err: any) {
+      if (err?.message && (
+        err.message.includes('Incorrect') || 
+        err.message.includes('expired') || 
+        err.message.includes('exceeded') || 
+        err.message.includes('Invalid')
+      )) {
+        throw err;
+      }
+      console.warn('[AuthService] Server email OTP verification error, falling back to Supabase auth:', err);
     }
 
     let isNewUser = true;

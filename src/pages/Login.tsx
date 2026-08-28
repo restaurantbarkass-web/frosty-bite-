@@ -295,8 +295,8 @@ export const Login: React.FC = () => {
   const [signupMethod, setSignupMethod] = useState<'email' | 'mobile_otp'>('email');
   const [isNewUser, setIsNewUser] = useState(false);
   
-  // OTP array input (6 digits)
-  const [otpArray, setOtpArray] = useState<string[]>(['', '', '', '', '', '']);
+  // OTP array input (8 digits)
+  const [otpArray, setOtpArray] = useState<string[]>(Array(8).fill(''));
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Premium WhatsApp OTP additional states
@@ -480,7 +480,7 @@ export const Login: React.FC = () => {
       setTimerSeconds(remaining);
       setSignInMethod('mobile_otp');
       setIsNewUser(false);
-      setOtpArray(['', '', '', '', '', '']);
+      setOtpArray(Array(8).fill(''));
       setStep('otp');
       setSuccess('You have an active verification session. Resumed current session.');
       return;
@@ -498,7 +498,7 @@ export const Login: React.FC = () => {
       
       setResendTimer(60);
       setTimerSeconds(180);
-      setOtpArray(['', '', '', '', '', '']);
+      setOtpArray(Array(8).fill(''));
       if (res.dev_otp_hint) {
         setDevOtpHint(res.dev_otp_hint);
       } else {
@@ -562,7 +562,7 @@ export const Login: React.FC = () => {
           setResendTimer(60); 
           setSuccess('Verification code sent! Please check your inbox.');
           setTimerSeconds(180);
-          setOtpArray(['', '', '', '', '', '']);
+          setOtpArray(Array(8).fill(''));
           setStep('otp');
         } else {
           // No user found in signin mode
@@ -755,7 +755,7 @@ export const Login: React.FC = () => {
         setResendTimer(60);
         setSuccess(`Verification code sent! Please check your email inbox at ${emailTrimmed}.`);
         setTimerSeconds(180);
-        setOtpArray(['', '', '', '', '', '']);
+        setOtpArray(Array(8).fill(''));
         setStep('otp');
       } else {
         // Check if phone already exists
@@ -781,7 +781,7 @@ export const Login: React.FC = () => {
         if (isOtpSessionActive(cleanPhone)) {
           const remaining = getRemainingTime(cleanPhone, 180);
           setTimerSeconds(remaining);
-          setOtpArray(['', '', '', '', '', '']);
+          setOtpArray(Array(8).fill(''));
           setStep('otp');
           setSuccess('You have an active verification session. Resumed current session.');
           setIsLoading(false);
@@ -793,7 +793,7 @@ export const Login: React.FC = () => {
         saveActiveOtpSession(cleanPhone, 180 * 1000);
         setResendTimer(60);
         setTimerSeconds(180);
-        setOtpArray(['', '', '', '', '', '']);
+        setOtpArray(Array(8).fill(''));
         if (res.dev_otp_hint) {
           setDevOtpHint(res.dev_otp_hint);
         } else {
@@ -1017,7 +1017,7 @@ export const Login: React.FC = () => {
         
         // WhatsApp reset timers and clear inputs
         setTimerSeconds(180); // 3 minutes reset
-        setOtpArray(['', '', '', '', '', '']);
+        setOtpArray(Array(8).fill(''));
         if (res.dev_otp_hint) {
           setDevOtpHint(res.dev_otp_hint);
         } else {
@@ -1038,7 +1038,7 @@ export const Login: React.FC = () => {
         saveActiveOtpSession(emailTrimmed, 60 * 1000);
         
         setResendTimer(60);
-        setOtpArray(['', '', '', '', '', '']);
+        setOtpArray(Array(8).fill(''));
         setSuccess('A fresh code was sent! Check your inbox.');
       }
     } catch (err: any) {
