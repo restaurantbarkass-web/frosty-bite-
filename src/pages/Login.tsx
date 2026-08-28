@@ -554,17 +554,6 @@ export const Login: React.FC = () => {
           setIsNewUser(false);
           setSignInMethod('otp');
 
-          if (isOtpSessionActive(emailTrimmed)) {
-            const remaining = getRemainingTime(emailTrimmed, 60);
-            setResendTimer(remaining);
-            setTimerSeconds(180);
-            setOtpArray(['', '', '', '', '', '']);
-            setStep('otp');
-            setSuccess('You have an active verification session. Resumed current session.');
-            setIsLoading(false);
-            return;
-          }
-
           await authService.sendOTP(emailTrimmed);
           
           // Save active session
@@ -759,17 +748,6 @@ export const Login: React.FC = () => {
 
         setIsNewUser(true);
         setSignInMethod('otp');
-
-        if (isOtpSessionActive(emailTrimmed)) {
-          const remaining = getRemainingTime(emailTrimmed, 60);
-          setResendTimer(remaining);
-          setSuccess(`You have an active verification session. Resumed current session.`);
-          setTimerSeconds(180);
-          setOtpArray(['', '', '', '', '', '']);
-          setStep('otp');
-          setIsLoading(false);
-          return;
-        }
 
         // Send Email OTP
         await authService.sendOTP(emailTrimmed);
