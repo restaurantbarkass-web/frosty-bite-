@@ -242,7 +242,10 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
 
           if (link.action) {
             return (
-              <div key={`bottom-nav-${link.name}`}>
+              <div 
+                key={`bottom-nav-${link.name}`}
+                id={link.name === 'Cart' ? 'cart-btn-mobile' : undefined}
+              >
                 {content}
               </div>
             );

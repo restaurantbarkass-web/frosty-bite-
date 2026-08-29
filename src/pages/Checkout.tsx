@@ -20,7 +20,12 @@ import {
   Check,
   AlertTriangle,
   Map as MapIcon,
-  Sparkles
+  Sparkles,
+  Calendar,
+  Clock,
+  Cake,
+  PartyPopper,
+  Heart
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -46,9 +51,28 @@ import { playErrorShakeSound, playSuccessChime } from '../utils/soundEffects';
 
 import { MapSelector } from '../components/MapSelector';
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
+import { DeliveryDatePicker, DeliveryScheduleData } from '../components/DeliveryDatePicker';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 import { geocode } from '../lib/geocoder';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
+
+export const DELIVERY_TIME_SLOTS = [
+  { id: 'morning', label: 'Morning', range: '09:00 AM - 12:00 PM', icon: '🌅', hint: 'Fresh Morning Bake' },
+  { id: 'afternoon', label: 'Afternoon', range: '12:00 PM - 03:00 PM', icon: '☀️', hint: 'Lunch & Tea Celebrations' },
+  { id: 'evening', label: 'Evening', range: '03:00 PM - 06:00 PM', icon: '🌇', hint: 'Evening Gatherings' },
+  { id: 'night', label: 'Night', range: '06:00 PM - 09:00 PM', icon: '🌙', hint: 'Dinner & Cake Cutting' },
+  { id: 'midnight', label: 'Midnight Surprise', range: '11:00 PM - 12:00 AM', icon: '🎂', hint: 'Midnight Celebration' },
+  { id: 'custom', label: 'Specific Time', range: 'Choose Exact Time', icon: '⏱️', hint: 'Exact Hour & Minute' },
+];
+
+export const CAKE_OCCASIONS = [
+  { id: 'Birthday', label: 'Birthday 🎂' },
+  { id: 'Anniversary', label: 'Anniversary 💍' },
+  { id: 'Party', label: 'Party / Gathering 🎉' },
+  { id: 'Congratulations', label: 'Congratulations 🎓' },
+  { id: 'Farewell', label: 'Farewell ✈️' },
+  { id: 'Just Cravings', label: 'Sweet Cravings 😋' },
+];
 
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -139,8 +163,76 @@ export const Checkout: React.FC = () => {
   }, [addrFields]);
 
   const [deliveryMode, setDeliveryMode] = useState<'instant' | 'scheduled'>('instant');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledDay, setScheduledDay] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [scheduledDay, setScheduledDay] = useState(() => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
+  });
+  const [scheduledTimeSlot, setScheduledTimeSlot] = useState<string>('evening');
+  const [customDeliveryTime, setCustomDeliveryTime] = useState<string>('18:00');
+  const [cakeMessage, setCakeMessage] = useState<string>('');
+  const [cakeOccasion, setCakeOccasion] = useState<string>('Birthday');
+  const [includeCandleKnife, setIncludeCandleKnife] = useState<boolean>(true);
+
+  const hasCakeItems = cart.some(item => 
+    (item.name && /cake|pastry|cupcake|bento|dessert|bake|brownie|tasting/i.test(item.name)) || 
+    (item.category && /cake|dessert|bakery|pastr|sweet/i.test(item.category))
+  );
+
+  const getQuickDates = () => {
+    const dates = [];
+    const today = new Date();
+    
+    // Today
+    const todayStr = today.toISOString().split('T')[0];
+    dates.push({
+      label: 'Today',
+      sub: today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dayName: today.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: todayStr,
+    });
+
+    // Tomorrow
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    dates.push({
+      label: 'Tomorrow',
+      sub: tomorrow.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dayName: tomorrow.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: tomorrowStr,
+    });
+
+    // Day After
+    const dayAfter = new Date(today);
+    dayAfter.setDate(dayAfter.getDate() + 2);
+    const dayAfterStr = dayAfter.toISOString().split('T')[0];
+    dates.push({
+      label: dayAfter.toLocaleDateString('en-US', { weekday: 'short' }),
+      sub: dayAfter.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      dayName: dayAfter.toLocaleDateString('en-US', { weekday: 'short' }),
+      value: dayAfterStr,
+    });
+
+    return dates;
+  };
+
+  const getSelectedTimeLabel = () => {
+    if (deliveryMode !== 'scheduled') {
+      return 'Instant Delivery';
+    }
+    if (scheduledTimeSlot === 'custom') {
+      if (!customDeliveryTime) return 'Specific Time';
+      // Format 24h to 12h nicely
+      const [hStr, mStr] = customDeliveryTime.split(':');
+      const h = parseInt(hStr, 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${mStr} ${ampm}`;
+    }
+    const slot = DELIVERY_TIME_SLOTS.find(s => s.id === scheduledTimeSlot);
+    return slot ? `${slot.label} (${slot.range})` : 'Evening Slot';
+  };
 
   const [validationResult, setValidationResult] = useState<{
     isValidating: boolean;
@@ -728,9 +820,19 @@ export const Checkout: React.FC = () => {
         });
       }
 
-      const scheduledArrivalStr = (!isPickupOnly && deliveryMode === 'scheduled' && scheduledDate)
-        ? `Scheduled: ${scheduledDay}, ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-        : null;
+      const selectedTimeLabel = getSelectedTimeLabel();
+
+      const scheduledArrivalStr = (deliveryMode === 'scheduled' && scheduledDate)
+        ? `Scheduled ${isPickupOnly ? 'Pickup' : 'Delivery'}: ${scheduledDay}, ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${selectedTimeLabel})`
+        : (isPickupOnly ? 'Ready for pickup in 20-30 mins' : null);
+
+      const cakeDetailsNote = [
+        deliveryMode === 'scheduled' && scheduledDate ? `[CAKE DATE: ${scheduledDay}, ${scheduledDate}]` : '',
+        deliveryMode === 'scheduled' ? `[CAKE TIME: ${selectedTimeLabel}]` : '',
+        cakeMessage?.trim() ? `[CAKE INSCRIPTION: "${cakeMessage.trim()}"]` : '',
+        cakeOccasion ? `[OCCASION: ${cakeOccasion}]` : '',
+        includeCandleKnife ? `[FREE CANDLE & KNIFE: YES]` : '',
+      ].filter(Boolean).join(' ');
 
       const orderData = {
         id: orderId,
@@ -752,16 +854,30 @@ export const Checkout: React.FC = () => {
         phone: formData.phone,
         customer_name: formData.name,
         email: user?.email || null,
+        delivery_date: deliveryMode === 'scheduled' ? scheduledDate : new Date().toISOString().split('T')[0],
+        delivery_time: selectedTimeLabel,
+        delivery_time_slot: scheduledTimeSlot,
+        cake_message: cakeMessage?.trim() || null,
+        cake_occasion: cakeOccasion || null,
+        cake_candle_knife: includeCandleKnife,
+        is_scheduled: deliveryMode === 'scheduled',
         estimated_delivery_time: isPickupOnly 
-          ? 'Ready for pickup in 20-30 mins' 
+          ? (deliveryMode === 'scheduled' && scheduledDate
+              ? `${scheduledDay}, ${scheduledDate} (${selectedTimeLabel})`
+              : 'Ready for pickup in 20-30 mins')
           : (hasDaysItems 
               ? getDaysMaxString() 
-              : `${Math.max(
-                  validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-                  ...cart.map(item => item.estimated_delivery_time || 30)
-                )} mins`),
-        estimated_arrival: isPickupOnly ? 'Ready for pickup in 20-30 mins' : scheduledArrivalStr,
-        notes: (isPickupOnly ? '[PICKUP ONLY ORDER] ' : '') + (!isPickupOnly && deliveryMode === 'scheduled' && scheduledDate ? `[SCHEDULED: ${scheduledDay}, ${scheduledDate}] ` : '') + formData.notes + (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
+              : (deliveryMode === 'scheduled' 
+                  ? `${scheduledDay}, ${scheduledDate} (${selectedTimeLabel})`
+                  : `${Math.max(
+                      validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                      ...cart.map(item => item.estimated_delivery_time || 30)
+                    )} mins`)),
+        estimated_arrival: scheduledArrivalStr,
+        notes: (isPickupOnly ? '[PICKUP ONLY ORDER] ' : '') + 
+               (cakeDetailsNote ? `${cakeDetailsNote} ` : '') + 
+               formData.notes + 
+               (appliedCoupon?.type === 'free_item' ? ` [PROMO: Free ${appliedCoupon.free_item_quantity}x ${appliedCoupon.free_item_id}]` : ''),
         created_at: new Date().toISOString(),
       };
 
@@ -822,13 +938,21 @@ export const Checkout: React.FC = () => {
             phone: formData.phone,
             address: formData.address,
             notes: formData.notes,
+            delivery_date: deliveryMode === 'scheduled' ? scheduledDate : new Date().toISOString().split('T')[0],
+            delivery_time: selectedTimeLabel,
+            cake_message: cakeMessage?.trim() || null,
+            cake_occasion: cakeOccasion || null,
+            cake_candle_knife: includeCandleKnife,
+            is_scheduled: deliveryMode === 'scheduled',
             discount: discountAmount,
             delivery_charge: effectiveDeliveryFee,
             couponCode: appliedCoupon?.code,
-            estimatedDelivery: Math.max(
-              validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-              ...cart.map(item => item.estimated_delivery_time || 30)
-            ),
+            estimatedDelivery: deliveryMode === 'scheduled' 
+              ? `${scheduledDay}, ${scheduledDate} (${selectedTimeLabel})` 
+              : (isPickupOnly ? '20-30 mins' : Math.max(
+                  validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                  ...cart.map(item => item.estimated_delivery_time || 30)
+                )),
             scrollToQR: true
           } 
         });
@@ -850,6 +974,13 @@ export const Checkout: React.FC = () => {
           phone: formData.phone,
           address: formData.address,
           notes: formData.notes,
+          delivery_date: deliveryMode === 'scheduled' ? scheduledDate : new Date().toISOString().split('T')[0],
+          delivery_time: selectedTimeLabel,
+          delivery_time_slot: scheduledTimeSlot,
+          cake_message: cakeMessage?.trim() || null,
+          cake_occasion: cakeOccasion || null,
+          cake_candle_knife: includeCandleKnife,
+          is_scheduled: deliveryMode === 'scheduled',
           method: 'cod' as const,
           amount: finalPrice,
           delivery_charge: effectiveDeliveryFee,
@@ -862,10 +993,12 @@ export const Checkout: React.FC = () => {
             quantity: item.quantity,
             image: item.image
           })),
-          estimatedDelivery: Math.max(
-            validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-            ...cart.map(item => item.estimated_delivery_time || 30)
-          )
+          estimatedDelivery: deliveryMode === 'scheduled'
+            ? `${scheduledDay}, ${scheduledDate} (${selectedTimeLabel})`
+            : (isPickupOnly ? '20-30 mins' : Math.max(
+                validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                ...cart.map(item => item.estimated_delivery_time || 30)
+              ))
         };
         
         setConfirmedOrder(orderSummary);
@@ -1466,108 +1599,142 @@ export const Checkout: React.FC = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* Delivery Scheduling: Set date and convert to day also */}
-                    <div className="pt-4 border-t border-white/5 mt-2 text-left">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-2 block">
-                        Delivery Schedule
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          disabled={isInstantDeliveryClosed || hasDaysItems}
-                          onClick={() => !isInstantDeliveryClosed && !hasDaysItems && setDeliveryMode('instant')}
-                          className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all relative ${
-                            isInstantDeliveryClosed || hasDaysItems
-                              ? 'bg-zinc-900/40 border-zinc-900/50 text-zinc-650 cursor-not-allowed'
-                              : deliveryMode === 'instant'
-                                ? 'bg-[#f97316]/10 border-[#f97316] text-white'
-                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-                          }`}
-                        >
-                          <Zap size={18} className={(isInstantDeliveryClosed || hasDaysItems) ? 'text-zinc-600' : (deliveryMode === 'instant' ? 'text-orange-500' : 'text-zinc-500')} />
-                          <span className="text-[11px] font-black uppercase tracking-wider mt-2">Instant Delivery</span>
-                          {isInstantDeliveryClosed ? (
-                            <span className="text-[8px] bg-red-500/10 text-red-500 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-red-500/20 leading-none">CLOSED</span>
-                          ) : hasDaysItems ? (
-                            <span className="text-[8px] bg-sky-500/10 text-sky-400 font-black uppercase tracking-widest px-2 py-0.5 rounded-md mt-1 border border-sky-500/20 leading-none">PRE-ORDER ONLY</span>
-                          ) : (
-                            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
-                              {Math.max(
-                                validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
-                                ...cart.map(item => item.estimated_delivery_time || 30)
-                              )} mins
-                            </span>
-                          )}
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeliveryMode('scheduled');
-                            if (!scheduledDate) {
-                              const today = new Date().toISOString().split('T')[0];
-                              handleDateChange(today);
-                            }
-                          }}
-                          className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-center transition-all ${
-                            deliveryMode === 'scheduled'
-                              ? 'bg-[#f97316]/10 border-[#f97316] text-white'
-                              : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10'
-                          }`}
-                        >
-                          <span className="text-lg">📅</span>
-                          <span className="text-[11px] font-black uppercase tracking-wider mt-2">Schedule Delivery</span>
-                          <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Set Date & Day</span>
-                        </button>
-                      </div>
-
-                      {deliveryMode === 'scheduled' && (
-                        <motion.div 
-                          key="scheduling_picker"
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="mt-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3"
-                        >
-                          <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
-                              Select Delivery Date
-                            </label>
-                            <input
-                              ref={scheduledDateRef}
-                              key={`scheduledDate-${shakeKey}`}
-                              type="date"
-                              min={new Date().toISOString().split('T')[0]}
-                              value={scheduledDate}
-                              onChange={(e) => {
-                                handleDateChange(e.target.value);
-                                if (invalidFields.scheduledDate && e.target.value) {
-                                  setInvalidFields(prev => ({ ...prev, scheduledDate: false }));
-                                }
-                              }}
-                              className={cn(
-                                "w-full h-12 px-4 rounded-xl bg-white/5 border text-white text-xs focus:outline-none transition-all font-semibold uppercase",
-                                invalidFields.scheduledDate
-                                  ? "border-red-500 ring-2 ring-red-500/30 animate-shake"
-                                  : "border-white/10 focus:border-orange-500/50"
-                              )}
-                            />
-                          </div>
-
-                          {scheduledDate && (
-                            <div className="flex items-center gap-2 bg-[#f97316]/5 border border-[#f97316]/10 px-4 py-3 rounded-xl">
-                              <span className="text-xs">📅</span>
-                              <span className="text-[11px] font-extrabold text-zinc-300 uppercase tracking-wider">
-                                Selected Day: <span className="text-orange-400 font-black">{scheduledDay}</span> ({new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
-                              </span>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </div>
                   </div>
                 </>
               )}
+
+              {/* Date & Time Scheduling: Using DeliveryDatePicker Component (Active for both Delivery & Store Pickup) */}
+              <div className="pt-2 border-t border-white/5">
+                <DeliveryDatePicker
+                  fulfillmentType={isPickupOnly ? 'pickup' : 'delivery'}
+                  mode={deliveryMode}
+                  selectedDate={scheduledDate}
+                  selectedTimeSlot={scheduledTimeSlot}
+                  customTime={customDeliveryTime}
+                  isInstantClosed={isInstantDeliveryClosed}
+                  hasPreorderOnlyItems={hasDaysItems}
+                  instantDeliveryEstimateMins={Math.max(
+                    validationResult.estimatedDeliveryMins || defaultDeliveryTime || 25,
+                    ...cart.map(item => item.estimated_delivery_time || 30)
+                  )}
+                  hasError={!!invalidFields.scheduledDate}
+                  dateInputRef={scheduledDateRef}
+                  shakeKey={shakeKey}
+                  onChange={(data: DeliveryScheduleData) => {
+                    setDeliveryMode(data.mode);
+                    setScheduledDate(data.date);
+                    setScheduledDay(data.dayName);
+                    setScheduledTimeSlot(data.timeSlot);
+                    if (data.time) {
+                      setCustomDeliveryTime(data.time);
+                    }
+                    if (invalidFields.scheduledDate && data.date) {
+                      setInvalidFields(prev => ({ ...prev, scheduledDate: false }));
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Cake Inscription & Celebration Card (Active for both Delivery & Store Pickup) */}
+              <div className="pt-4 border-t border-white/5 text-left space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Cake size={13} className="text-primary" /> Cake Message & Celebration (Optional)
+                  </label>
+                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Free Customization
+                  </span>
+                </div>
+
+                {/* Occasion chips */}
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">Select Occasion</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {CAKE_OCCASIONS.map((occ) => {
+                      const isSelected = cakeOccasion === occ.id;
+                      return (
+                        <button
+                          key={occ.id}
+                          type="button"
+                          onClick={() => setCakeOccasion(occ.id)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer",
+                            isSelected
+                              ? "bg-primary text-black border-primary font-black shadow-sm shadow-primary/20"
+                              : "bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10"
+                          )}
+                        >
+                          {occ.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Cake Inscription Input */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Text to Write on Cake
+                    </span>
+                    <span className="text-[8px] font-mono font-bold text-zinc-500">
+                      {cakeMessage.length}/50
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={50}
+                    placeholder='e.g. "Happy 25th Birthday Sarah! 💖"'
+                    value={cakeMessage}
+                    onChange={(e) => setCakeMessage(e.target.value)}
+                    className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary transition-all font-semibold"
+                  />
+                  
+                  {/* Quick Message Suggestion chips */}
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {['Happy Birthday 🎉', 'Happy Anniversary 💍', 'Best Wishes ✨', 'Congratulations 🎓'].map((msg) => (
+                      <button
+                        key={msg}
+                        type="button"
+                        onClick={() => setCakeMessage(msg)}
+                        className="px-2 py-0.5 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-md text-[8px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
+                      >
+                        + {msg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Candle and knife complement check */}
+                <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeCandleKnife}
+                    onChange={(e) => setIncludeCandleKnife(e.target.checked)}
+                    className="w-4 h-4 rounded text-primary focus:ring-primary border-zinc-700 bg-zinc-800 accent-primary cursor-pointer"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black text-zinc-200 uppercase tracking-wide">
+                      Include Free Birthday Candles & Cutting Knife 🕯️🔪
+                    </p>
+                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">
+                      Complimentary accessory pack with your cake order
+                    </p>
+                  </div>
+                </label>
+
+                {/* Live Inscription Tag Preview */}
+                {cakeMessage.trim() && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl space-y-1">
+                    <p className="text-[8px] font-black text-primary uppercase tracking-widest">
+                      🎂 Cake Inscription Preview
+                    </p>
+                    <p className="text-xs font-serif italic text-white font-medium">
+                      "{cakeMessage.trim()}"
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">
@@ -1575,7 +1742,7 @@ export const Checkout: React.FC = () => {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Anything else we should know? (e.g. deliver after 5 PM)"
+                  placeholder="Anything else we should know? (e.g. deliver after 5 PM, ring bell twice)"
                   className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white resize-none"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

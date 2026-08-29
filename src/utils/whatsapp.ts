@@ -6,8 +6,15 @@ export const openWhatsAppOrder = (orderData: {
   phone: string;
   address: string;
   notes?: string;
+  delivery_date?: string;
+  delivery_time?: string;
+  cake_message?: string;
+  cake_occasion?: string;
+  cake_candle_knife?: boolean;
+  is_scheduled?: boolean;
   method: 'upi' | 'cod';
   amount: number;
+  delivery_charge?: number;
   delivery_fee?: number;
   discount?: number;
   utr?: string;
@@ -19,8 +26,20 @@ export const openWhatsAppOrder = (orderData: {
     ? orderData.items.map(item => `• ${item.name} x ${item.quantity}`).join('\n')
     : '';
 
+  const scheduleText = orderData.delivery_date
+    ? `\n📅 *Requested Delivery Date:* ${orderData.delivery_date}${orderData.delivery_time ? `\n⏰ *Preferred Time:* ${orderData.delivery_time}` : ''}`
+    : '';
+
+  const cakeText = [
+    orderData.cake_message ? `🎂 *Cake Inscription:* "${orderData.cake_message}"` : '',
+    orderData.cake_occasion ? `🎉 *Occasion:* ${orderData.cake_occasion}` : '',
+    orderData.cake_candle_knife ? `🕯️ *Complimentary Candles & Knife:* Included` : ''
+  ].filter(Boolean).join('\n');
+
+  const cakeSection = cakeText ? `\n----------------------------\n${cakeText}` : '';
   const notesText = orderData.notes ? `\n*Notes:* ${orderData.notes}` : '';
-  const deliveryText = orderData.delivery_fee ? `\n*Delivery Fee:* ₹${orderData.delivery_fee}` : '';
+  const effectiveDelivery = orderData.delivery_charge ?? orderData.delivery_fee;
+  const deliveryText = effectiveDelivery ? `\n*Delivery Fee:* ₹${effectiveDelivery}` : '';
   const discountText = orderData.discount ? `\n*Discount Applied:* -₹${orderData.discount}` : '';
 
   const message = `🛒 *New Order Received!*
@@ -28,7 +47,7 @@ export const openWhatsAppOrder = (orderData: {
 *Order ID:* ${orderData.orderId.slice(-6).toUpperCase()}
 *Name:* ${orderData.customerName}
 *Phone:* ${orderData.phone}
-*Address:* ${orderData.address}${notesText}
+*Address:* ${orderData.address}${scheduleText}${cakeSection}${notesText}
 ----------------------------
 *Items:*
 ${itemsText}

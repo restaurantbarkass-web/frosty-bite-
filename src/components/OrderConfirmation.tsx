@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Package, MapPin, CreditCard, Clock, MessageCircle, Truck, CheckCircle2, Sparkles } from 'lucide-react';
+import { Package, MapPin, CreditCard, Clock, MessageCircle, Truck, CheckCircle2, Sparkles, Cake, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
@@ -25,12 +25,18 @@ interface OrderConfirmationProps {
     phone: string;
     address: string;
     notes?: string;
+    delivery_date?: string;
+    delivery_time?: string;
+    cake_message?: string;
+    cake_occasion?: string;
+    cake_candle_knife?: boolean;
+    is_scheduled?: boolean;
     method: 'upi' | 'cod';
     amount: number;
     delivery_charge?: number;
     discount?: number;
     items?: OrderItem[];
-    estimatedDelivery?: number;
+    estimatedDelivery?: number | string;
     id?: string; // Add optional id for backward compatibility
     total?: number; // Add optional total for backward compatibility
     utr?: string;
@@ -232,8 +238,14 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                       <Clock size={16} />
                     </div>
                     <div>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">ETA</p>
-                      <p className="text-xs font-black text-white uppercase tracking-tight">{deliveryTime} Mins</p>
+                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">
+                        {orderData.delivery_date ? 'Scheduled Delivery' : 'Estimated Time'}
+                      </p>
+                      <p className="text-xs font-black text-white uppercase tracking-tight">
+                        {orderData.delivery_date 
+                          ? `${orderData.delivery_date}${orderData.delivery_time ? ` (${orderData.delivery_time})` : ''}`
+                          : (typeof deliveryTime === 'number' ? `${deliveryTime} Mins` : deliveryTime)}
+                      </p>
                     </div>
                  </div>
                  <div className="flex items-center gap-3">
@@ -247,9 +259,30 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                  </div>
               </motion.div>
 
-              {/* UTR Info (if UPI) */}
+              {/* Cake Inscription or UTR Info */}
               <motion.div variants={itemVariants} className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col justify-center text-center md:text-left relative overflow-hidden group">
-                 {orderData.method === 'upi' ? (
+                 {orderData.cake_message ? (
+                   <div className="space-y-2">
+                     <div className="flex items-center justify-between">
+                       <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
+                         <Cake size={13} className="text-primary" /> Cake Inscription
+                       </span>
+                       {orderData.cake_occasion && (
+                         <span className="text-[8px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                           {orderData.cake_occasion}
+                         </span>
+                       )}
+                     </div>
+                     <p className="text-sm font-serif italic text-white font-semibold">
+                       "{orderData.cake_message}"
+                     </p>
+                     {orderData.cake_candle_knife && (
+                       <p className="text-[9px] text-emerald-400 font-bold tracking-wider">
+                         ✓ Free Candle & Knife Included
+                       </p>
+                     )}
+                   </div>
+                 ) : orderData.method === 'upi' ? (
                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="inline-flex items-center gap-2 text-emerald-500">
@@ -266,7 +299,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                  ) : (
                    <div className="space-y-2">
                       <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Freshness Guaranteed</p>
-                      <p className="text-xs font-medium text-zinc-400 leading-relaxed italic">Our chef starts your order immediately. Please be ready for delivery!</p>
+                      <p className="text-xs font-medium text-zinc-400 leading-relaxed italic">Our chef prepares your fresh bake for the requested time. Thank you!</p>
                    </div>
                  )}
               </motion.div>

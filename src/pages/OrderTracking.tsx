@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle, Bike } from 'lucide-react';
+import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle, Bike, Cake, Calendar, Sparkles } from 'lucide-react';
 import { supabase } from '../supabase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order } from '../types';
@@ -191,33 +191,97 @@ export const OrderTracking: React.FC = () => {
     };
   }, [orderId]);
 
-  // Use a ref-like approach for getRemainingTime to avoid it changing on every render
+  // Live real-time timing calculation (handles scheduled delivery slots and instant orders down to the second)
   const getRemainingTime = React.useCallback(() => {
-    if (!order || !order.created_at || !order.estimated_delivery_time) return null;
+    if (!order || order.status === 'delivered' || order.status === 'cancelled') return null;
     
-    const estStr = safeTrim(order.estimated_delivery_time);
-    const isMinutesOnly = /^\d+\s*(mins?|minutes?)?$/i.test(estStr);
-    if (!isMinutesOnly || estStr.toLowerCase().includes('day')) {
-      return null;
+    // 1. Check for scheduled future date delivery
+    if (order.delivery_date) {
+      try {
+        const dateParts = order.delivery_date.split('-').map(Number);
+        if (dateParts.length === 3) {
+          const [year, month, day] = dateParts;
+          let hour = 18; // default to 6:00 PM if evening
+          let minute = 0;
+          
+          const timeStr = order.delivery_time || '';
+          if (/morning/i.test(timeStr) || /09:00/i.test(timeStr)) {
+            hour = 12; // by 12:00 PM
+          } else if (/afternoon/i.test(timeStr) || /12:00/i.test(timeStr)) {
+            hour = 15; // by 3:00 PM
+          } else if (/evening/i.test(timeStr) || /03:00/i.test(timeStr)) {
+            hour = 18; // by 6:00 PM
+          } else if (/night/i.test(timeStr) || /06:00/i.test(timeStr)) {
+            hour = 21; // by 9:00 PM
+          } else if (/midnight/i.test(timeStr) || /11:00/i.test(timeStr)) {
+            hour = 23; 
+            minute = 59; // by midnight
+          } else {
+            // Check for format like "07:30 PM" or "19:30"
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+            if (timeMatch) {
+              let h = parseInt(timeMatch[1], 10);
+              const m = parseInt(timeMatch[2], 10);
+              const ampm = timeMatch[3]?.toUpperCase();
+              if (ampm === 'PM' && h < 12) h += 12;
+              if (ampm === 'AM' && h === 12) h = 0;
+              hour = h;
+              minute = m;
+            }
+          }
+
+          const targetDate = new Date(year, month - 1, day, hour, minute, 0).getTime();
+          const now = Date.now();
+          const diff = targetDate - now;
+
+          if (diff <= 0) {
+            return "Arriving any moment";
+          }
+
+          const totalSecs = Math.floor(diff / 1000);
+          const days = Math.floor(totalSecs / 86400);
+          const hours = Math.floor((totalSecs % 86400) / 3600);
+          const mins = Math.floor((totalSecs % 3600) / 60);
+          const secs = totalSecs % 60;
+
+          if (days > 0) {
+            return `${days}d ${hours}h ${mins}m ${secs.toString().padStart(2, '0')}s`;
+          }
+          if (hours > 0) {
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          }
+          return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+      } catch (e) {
+        console.warn('Error parsing scheduled date for real-time countdown:', e);
+      }
     }
-    
-    try {
-      const minsVal = parseInt(estStr, 10);
-      if (isNaN(minsVal)) return null;
+
+    // 2. Instant Delivery or standard minutes-based calculation
+    if (order.created_at && order.estimated_delivery_time) {
+      const estStr = safeTrim(String(order.estimated_delivery_time));
+      const minsMatch = estStr.match(/\b(\d+)\s*(?:mins?|minutes?)?/i);
       
-      const startTime = new Date(order.created_at).getTime();
-      const estimatedEndTime = startTime + (minsVal * 60 * 1000);
-      const now = Date.now();
-      const diff = estimatedEndTime - now;
-      
-      if (diff <= 0) return "Arriving soon";
-      
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    } catch (e) {
-      return null;
+      if (minsMatch) {
+        try {
+          const minsVal = parseInt(minsMatch[1], 10);
+          if (!isNaN(minsVal)) {
+            const startTime = new Date(order.created_at).getTime();
+            const estimatedEndTime = startTime + (minsVal * 60 * 1000);
+            const now = Date.now();
+            const diff = estimatedEndTime - now;
+
+            if (diff <= 0) return "Arriving soon";
+
+            const mins = Math.floor(diff / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+          }
+        } catch (e) {}
+      }
     }
+
+    return null;
   }, [order]);
 
   useEffect(() => {
@@ -362,25 +426,31 @@ export const OrderTracking: React.FC = () => {
           <p className="text-muted">Order ID: <span className="text-primary font-mono">{orderId}</span></p>
         </div>
         {order.status !== 'delivered' && (
-          <div className="mt-4 md:mt-0 glass px-6 py-3 rounded-2xl flex flex-col items-end gap-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Estimated Arrival</span>
-            <div className="flex items-center gap-2">
-              <Clock size={16} className="text-primary" />
-              {order.estimated_arrival ? (
-                <span className="text-sm font-extrabold text-orange-400 uppercase tracking-wide">
-                  {order.estimated_arrival}
-                </span>
-              ) : (
-                <span className="text-xl font-black text-white tabular-nums">
-                  {countdown || (order.estimated_delivery_time ? (
-                    typeof order.estimated_delivery_time === 'string' &&
-                    (order.estimated_delivery_time.toLowerCase().includes('min') || order.estimated_delivery_time.toLowerCase().includes('day'))
-                      ? order.estimated_delivery_time
-                      : `${order.estimated_delivery_time} mins`
-                  ) : 'Calculating...')}
-                </span>
-              )}
+          <div className="mt-4 md:mt-0 glass px-6 py-3 rounded-2xl flex flex-col items-end gap-1 shadow-lg border border-primary/20 bg-primary/5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+                {order.delivery_date 
+                  ? (order.order_type === 'pickup' ? 'Live Pickup Countdown' : 'Live Schedule Countdown') 
+                  : (order.order_type === 'pickup' ? 'Ready in Real-Time' : 'Real-Time Arrival')}
+              </span>
             </div>
+            <div className="flex items-center gap-2">
+              <Clock size={18} className="text-primary animate-pulse" />
+              <span className="text-xl md:text-2xl font-black text-white tabular-nums font-mono tracking-tight">
+                {countdown || (order.estimated_delivery_time ? (
+                  typeof order.estimated_delivery_time === 'string' &&
+                  (order.estimated_delivery_time.toLowerCase().includes('min') || order.estimated_delivery_time.toLowerCase().includes('day'))
+                    ? order.estimated_delivery_time
+                    : `${order.estimated_delivery_time} mins`
+                ) : 'Calculating...')}
+              </span>
+            </div>
+            {order.delivery_date && (
+              <span className="text-[9px] font-bold text-zinc-400">
+                {order.order_type === 'pickup' ? 'Pickup' : 'Delivery'}: {order.delivery_date} {order.delivery_time ? `(${order.delivery_time})` : ''}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -464,8 +534,73 @@ export const OrderTracking: React.FC = () => {
 
         {/* Order Details */}
         <div className="space-y-8">
+          {/* Scheduled Delivery / Pickup Time Slot Banner if available */}
+          {order.delivery_date && (
+            <div className="glass-dark p-6 rounded-3xl border border-primary/30 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+                  <Calendar size={14} /> {order.order_type === 'pickup' ? 'Scheduled Pickup' : 'Scheduled Delivery'}
+                </span>
+                <span className="text-[9px] font-extrabold uppercase tracking-wider bg-primary/20 text-primary px-2.5 py-0.5 rounded-full">
+                  Pre-Booked
+                </span>
+              </div>
+              <div>
+                <p className="text-base font-black text-white">
+                  📅 {order.delivery_date}
+                </p>
+                {order.delivery_time && (
+                  <p className="text-xs font-bold text-orange-400 mt-0.5 flex items-center gap-1">
+                    <Clock size={12} /> Preferred Time: {order.delivery_time}
+                  </p>
+                )}
+              </div>
+              {countdown && (
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Live Remaining:
+                  </span>
+                  <span className="text-xs font-black font-mono text-primary tabular-nums">
+                    {countdown}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cake Customization Banner if available */}
+          {(order.cake_message || order.cake_occasion || order.cake_candle_knife) && (
+            <div className="glass-dark p-6 rounded-3xl border border-amber-500/20 bg-amber-500/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                  <Cake size={14} /> Cake Customization
+                </span>
+                {order.cake_occasion && (
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full">
+                    {order.cake_occasion}
+                  </span>
+                )}
+              </div>
+              {order.cake_message && (
+                <div className="p-3 bg-white/5 border border-white/10 rounded-2xl">
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Message on Cake:</p>
+                  <p className="text-sm font-serif italic text-white font-semibold">"{order.cake_message}"</p>
+                </div>
+              )}
+              {order.cake_candle_knife && (
+                <p className="text-[10px] text-emerald-400 font-bold tracking-wider flex items-center gap-1.5">
+                  ✓ Complimentary Birthday Candles & Cutting Knife Included
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="glass-dark p-6 rounded-3xl border border-border">
-            <p className="text-muted text-sm text-center">Wait while restaurant prepares your order...</p>
+            <p className="text-muted text-sm text-center">
+              {order.delivery_date 
+                ? 'Your order is scheduled with our master chefs.' 
+                : 'Wait while restaurant prepares your order...'}
+            </p>
           </div>
 
           <div className="glass-dark p-6 rounded-3xl border border-border">

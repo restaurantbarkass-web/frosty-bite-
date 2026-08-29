@@ -54,6 +54,13 @@ export interface Order {
   gst?: number;
   estimated_delivery_time?: number | string; // in minutes or custom string unit (e.g. days)
   estimated_arrival?: string; // ISO date string
+  delivery_date?: string; // e.g. "2026-08-29"
+  delivery_time?: string; // e.g. "07:30 PM" or "Evening (03:00 PM - 06:00 PM)"
+  delivery_time_slot?: string; // e.g. "evening", "midnight", "custom"
+  cake_message?: string; // Text to write on the cake
+  cake_occasion?: string; // e.g. "Birthday", "Anniversary"
+  cake_candle_knife?: boolean; // Include candles and knife
+  is_scheduled?: boolean;
   cancelled_at?: string;
   cancellation_reason?: string;
   refund_status?: 'none' | 'pending_refund' | 'refunded' | 'failed';
