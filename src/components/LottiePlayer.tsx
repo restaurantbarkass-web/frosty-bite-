@@ -25,7 +25,13 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
   style,
   fallback
 }) => {
-  const [animationData, setAnimationData] = useState<any>(directAnimationData || (typeof url === 'object' ? url : null));
+  const [animationData, setAnimationData] = useState<any>(() => {
+    const initial = directAnimationData || (typeof url === 'object' ? url : null);
+    if (initial && typeof initial === 'object' && 'default' in initial) {
+      return (initial as any).default;
+    }
+    return initial;
+  });
   const [error, setError] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(!directAnimationData && typeof url === 'string');
 
@@ -38,7 +44,8 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
     }
 
     if (typeof rawData === 'object') {
-      setAnimationData(rawData);
+      const cleanData = (rawData && 'default' in rawData) ? (rawData as any).default : rawData;
+      setAnimationData(cleanData);
       setLoading(false);
       setError(false);
       return;
