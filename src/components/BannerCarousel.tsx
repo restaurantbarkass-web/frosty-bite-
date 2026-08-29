@@ -65,7 +65,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banne
         >
           {banners.map((banner, i) => (
             <div
-              key={banner.id}
+              key={banner.id ? `banner-${banner.id}` : `banner-${i}`}
               className="relative h-full w-full flex-shrink-0 cursor-pointer overflow-hidden group"
               onClick={() => {
                 if (banner.redirect_url) onNavigate(banner.redirect_url);
@@ -86,7 +86,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banne
                 <motion.div
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  key={index} // Re-animate on slide change
+                  key={`slide-title-${banner.id || i}-${index}`}
                   className="space-y-4"
                 >
                   <h2 className="text-3xl sm:text-4xl font-black italic uppercase tracking-tighter leading-tight drop-shadow-2xl text-white">
@@ -115,9 +115,9 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banne
 
         {/* Indicators */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
-          {banners.map((_, i) => (
+          {banners.map((banner, i) => (
             <button
-              key={i}
+              key={`indicator-${banner.id || i}`}
               onClick={(e) => {
                 e.stopPropagation();
                 setIndex(i);

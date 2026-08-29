@@ -133,7 +133,7 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
           if (link.name === 'Offers') {
             return (
               <LottieOfferButton
-                key={link.path}
+                key={`bottom-nav-${link.name}`}
                 active={isActive}
                 onClick={() => {
                   if (isActive) {
@@ -149,7 +149,6 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
 
           const content = (
             <motion.div
-              key={link.name}
               whileTap={{ scale: 0.85 }}
               animate={{
                 y: isActive ? -6 : 0,
@@ -242,12 +241,16 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
           );
 
           if (link.action) {
-            return content;
+            return (
+              <div key={`bottom-nav-${link.name}`}>
+                {content}
+              </div>
+            );
           }
 
           return (
             <Link 
-              key={link.path} 
+              key={`bottom-nav-${link.name}`} 
               to={link.path}
               onMouseEnter={() => preloadRoute(link.path)}
               onTouchStart={() => preloadRoute(link.path)}

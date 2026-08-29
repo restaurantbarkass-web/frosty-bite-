@@ -161,7 +161,7 @@ const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
     <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-[#040405]">
       {urls.map((url, idx) => (
         <video
-          key={url}
+          key={`login-video-${idx}-${url}`}
           ref={(el) => {
             videoRefs.current[idx] = el;
           }}

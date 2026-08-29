@@ -190,7 +190,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               if ('component' in link && link.component) {
                 return (
                   <Link 
-                    key={link.path} 
+                    key={`desktop-nav-${link.name}`} 
                     to={link.path} 
                     onMouseEnter={() => {
                       if (link.path && !link.path.startsWith('#')) {
@@ -217,7 +217,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
               return (
                 <Link
-                  key={link.path}
+                  key={`desktop-nav-${link.name}`}
                   to={link.path}
                   onMouseEnter={() => {
                     if (link.path && !link.path.startsWith('#')) {
@@ -396,7 +396,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   if ('component' in link && link.component) {
                     return (
                       <Link
-                        key={link.path}
+                        key={`mobile-nav-${link.name}`}
                         to={link.path}
                         onClick={(e) => {
                           setIsMobileMenuOpen(false);
@@ -425,7 +425,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
                   return (
                     <Link
-                      key={link.path}
+                      key={`mobile-nav-${link.name}`}
                       to={link.path}
                       onClick={(e) => {
                         setIsMobileMenuOpen(false);

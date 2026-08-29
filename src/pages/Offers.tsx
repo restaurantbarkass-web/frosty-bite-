@@ -247,7 +247,7 @@ const OffersPage = () => {
             {loading ? (
               [1, 2, 3].map(i => (
                 <motion.div 
-                  key={i}
+                  key={`coupon-skeleton-${i}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="h-56 rounded-[4rem] bg-white/[0.02] border border-white/[0.05] relative overflow-hidden group"
@@ -278,9 +278,9 @@ const OffersPage = () => {
                   </div>
                 </motion.div>
               ))
-            ) : coupons.map((coupon) => (
+            ) : coupons.map((coupon, idx) => (
               <motion.div
-                key={coupon.id}
+                key={coupon.id ? `coupon-${coupon.id}` : `coupon-${coupon.code}-${idx}`}
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}

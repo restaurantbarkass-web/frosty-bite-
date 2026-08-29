@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -307,7 +307,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
     ? results.filter(item => item.category === selectedCategory)
     : results;
 
-  const categories = Array.from(new Set(allItems.map(i => i.category)));
+  const categories = useMemo(() => Array.from(new Set(allItems.map(i => i.category).filter(Boolean))), [allItems]);
 
   return (
     <AnimatePresence>
@@ -447,7 +447,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         <div className="flex flex-col gap-1.5 max-h-[280px] overflow-y-auto no-scrollbar">
                           {recent.map((s, i) => (
                             <div
-                              key={i}
+                              key={`recent-${s}-${i}`}
                               className="flex items-center justify-between group p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
                             >
                               <button
@@ -487,7 +487,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       <div className="flex flex-wrap gap-2">
                         {trending.map((s, i) => (
                           <motion.button
-                            key={i}
+                            key={`trending-term-${s}-${i}`}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => {
@@ -537,9 +537,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {trendingItems.map((item) => (
+                        {trendingItems.map((item, idx) => (
                           <div 
-                            key={item.id}
+                            key={item.id ? `trending-item-${item.id}` : `trending-item-${idx}`}
                             onClick={() => {
                               navigate(`/product/${item.id}`);
                               onClose();
@@ -630,7 +630,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           <div className="flex flex-wrap gap-2">
                             {liveSuggestions.keywords.map((kw, i) => (
                               <motion.button
-                                key={i}
+                                key={`suggested-kw-${kw}-${i}`}
                                 whileHover={{ scale: 1.04 }}
                                 whileTap={{ scale: 0.96 }}
                                 onClick={() => {
@@ -659,9 +659,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            {liveSuggestions.mostOrdered.map((item) => (
+                            {liveSuggestions.mostOrdered.map((item, idx) => (
                               <div
-                                key={item.id}
+                                key={item.id ? `most-ordered-${item.id}` : `most-ordered-${idx}`}
                                 onClick={() => {
                                   navigate(`/product/${item.id}`);
                                   onClose();
@@ -724,9 +724,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                             Direct Matches ({liveSuggestions.directMatches.length})
                           </div>
                           <div className="divide-y divide-white/5 rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
-                            {liveSuggestions.directMatches.map((item) => (
+                            {liveSuggestions.directMatches.map((item, idx) => (
                               <div
-                                key={item.id}
+                                key={item.id ? `direct-match-${item.id}` : `direct-match-${idx}`}
                                 onClick={() => {
                                   navigate(`/product/${item.id}`);
                                   onClose();
@@ -937,7 +937,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       >
                         {aiSuggestions.map((s, i) => (
                           <button
-                            key={i}
+                            key={`ai-suggestion-${s}-${i}`}
                             onClick={() => setQuery(s)}
                             className="flex items-center gap-2 px-4 py-2 bg-primary/5 hover:bg-primary/20 border border-primary/10 rounded-xl text-xs font-medium text-primary transition-all"
                           >
@@ -968,9 +968,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       >
                         All
                       </button>
-                      {categories.map(cat => (
+                      {categories.map((cat, idx) => (
                         <button
-                          key={cat}
+                          key={`cat-filter-${cat}-${idx}`}
                           onClick={() => setSelectedCategory(cat)}
                           className={cn(
                             "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
@@ -992,7 +992,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       <AnimatePresence mode="popLayout">
                         {filteredResults.map((item, idx) => (
                           <motion.div
-                            key={item.id}
+                            key={item.id ? `search-res-${item.id}` : `search-res-${idx}`}
                             initial={{ opacity: 0, scale: 0.9, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1039,9 +1039,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           <h3 className="text-[10px] font-black uppercase tracking-widest">Recommended for you</h3>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                          {allItems.slice(0, 4).map(item => (
+                          {allItems.slice(0, 4).map((item, idx) => (
                             <FoodCard 
-                              key={item.id} 
+                              key={item.id ? `fallback-item-${item.id}` : `fallback-item-${idx}`} 
                               item={item} 
                               onClick={onClose}
                               showBuyNow={true}

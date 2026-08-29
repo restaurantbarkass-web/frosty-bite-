@@ -530,11 +530,11 @@ export const Home: React.FC = () => {
 
         {/* Categories */}
         <div className="flex space-x-3 sm:space-x-4 overflow-x-auto pb-8 no-scrollbar -mx-4 px-4 touch-carousel overscroll-x-contain">
-          {menuCategories.map((cat) => {
+          {menuCategories.map((cat, idx) => {
             const isSelected = selectedCategory === cat;
             return (
               <motion.button
-                key={cat}
+                key={`home-cat-${cat}-${idx}`}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.94 }}
                 transition={{ type: "spring", stiffness: 400, damping: 20 }}
@@ -574,8 +574,8 @@ export const Home: React.FC = () => {
             </div>
             
             <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 touch-carousel overscroll-x-contain">
-              {previousPurchases.map((item) => (
-                <div key={`prev-${item.id}`} className="w-64 shrink-0">
+              {previousPurchases.map((item, idx) => (
+                <div key={`prev-fav-${item.id || idx}-${idx}`} className="w-64 shrink-0">
                   <FoodCard item={item} variant="compact" />
                 </div>
               ))}
@@ -601,8 +601,8 @@ export const Home: React.FC = () => {
           </div>
           
           <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 touch-carousel overscroll-x-contain">
-            {recommendedItems.map((item) => (
-              <div key={`trending-${item.id}`} className="w-72 shrink-0">
+            {recommendedItems.map((item, idx) => (
+              <div key={`rec-item-${item.id || idx}-${idx}`} className="w-72 shrink-0">
                 <FoodCard item={item} />
               </div>
             ))}
@@ -701,8 +701,8 @@ export const Home: React.FC = () => {
               <FoodCardSkeleton key={`skeleton-${index}`} />
             ))
           ) : (
-            filteredItems.map((item) => (
-              <FoodCard key={item.id} item={item} />
+            filteredItems.map((item, idx) => (
+              <FoodCard key={item.id ? `food-${item.id}` : `food-${idx}`} item={item} />
             ))
           )}
         </div>
