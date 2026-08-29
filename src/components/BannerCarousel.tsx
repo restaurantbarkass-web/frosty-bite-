@@ -4,6 +4,7 @@ import { Banner } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Ticket, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { usePerformanceTier } from '../context/PerformanceTierContext';
 
 interface BannerCarouselProps {
   banners: Banner[];
@@ -14,6 +15,7 @@ interface BannerCarouselProps {
 import { OptimizedImage } from './ui/OptimizedImage';
 
 export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banners, onApplyCoupon, onNavigate }) => {
+  const { reduceMotion } = usePerformanceTier();
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -27,14 +29,15 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banne
   };
 
   useEffect(() => {
-    if (isPaused || banners.length <= 1) return;
+    // Disable autoplay animations on low/battery saving tiers to optimize CPU cycles
+    if (isPaused || banners.length <= 1 || reduceMotion) return;
 
-    timeoutRef.current = setTimeout(nextSlide, 4000);
+    timeoutRef.current = setTimeout(nextSlide, 5000);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [index, isPaused, banners.length]);
+  }, [index, isPaused, banners.length, reduceMotion]);
 
   const handlers = useSwipeable({
     onSwipedLeft: nextSlide,

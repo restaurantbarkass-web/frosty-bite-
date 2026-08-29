@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
+import { usePerformanceTier } from '../../context/PerformanceTierContext';
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -59,6 +60,7 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   sizes,
   ...props
 }) => {
+  const { tier } = usePerformanceTier();
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [inView, setInView] = useState(priority);
@@ -121,13 +123,21 @@ export const OptimizedImage: React.FC<OptimizedImageProps> = React.memo(({
   let srcSetString: string | undefined = undefined;
 
   if (isUnsplash) {
-    placeholderSrc = getUnsplashUrl(src, { w: 80, q: 20, blur: 10 });
-    webpSrc = getUnsplashUrl(src, { fm: 'webp' });
-    srcSetString = `${getUnsplashUrl(src, { w: 400, q: 75 })} 400w, ${getUnsplashUrl(src, { w: 800, q: 80 })} 800w, ${getUnsplashUrl(src, { w: 1200, q: 80 })} 1200w`;
+    const qValue = tier === 'low' ? 35 : tier === 'balanced' ? 60 : 80;
+    const wValue = tier === 'low' ? 450 : tier === 'balanced' ? 800 : 1200;
+    placeholderSrc = getUnsplashUrl(src, { w: 80, q: 15, blur: tier === 'low' ? undefined : 10 });
+    webpSrc = getUnsplashUrl(src, { fm: 'webp', q: qValue, w: wValue });
+    srcSetString = tier === 'low'
+      ? `${getUnsplashUrl(src, { w: 300, q: 35 })} 300w, ${getUnsplashUrl(src, { w: 600, q: 40 })} 600w`
+      : `${getUnsplashUrl(src, { w: 400, q: 75 })} 400w, ${getUnsplashUrl(src, { w: 800, q: 80 })} 800w, ${getUnsplashUrl(src, { w: 1200, q: 80 })} 1200w`;
   } else if (isCloudinary) {
+    const qValue = tier === 'low' ? 'auto:low' : tier === 'balanced' ? 'auto:good' : 'auto';
+    const wValue = tier === 'low' ? 450 : tier === 'balanced' ? 800 : 1200;
     placeholderSrc = getCloudinaryUrl(src, { w: 80, q: 'auto:low' });
-    webpSrc = getCloudinaryUrl(src, { w: 800 });
-    srcSetString = `${getCloudinaryUrl(src, { w: 400 })} 400w, ${getCloudinaryUrl(src, { w: 800 })} 800w, ${getCloudinaryUrl(src, { w: 1200 })} 1200w`;
+    webpSrc = getCloudinaryUrl(src, { w: wValue, q: qValue });
+    srcSetString = tier === 'low'
+      ? `${getCloudinaryUrl(src, { w: 300, q: 'auto:low' })} 300w, ${getCloudinaryUrl(src, { w: 600, q: 'auto:low' })} 600w`
+      : `${getCloudinaryUrl(src, { w: 400 })} 400w, ${getCloudinaryUrl(src, { w: 800 })} 800w, ${getCloudinaryUrl(src, { w: 1200 })} 1200w`;
   }
 
   // Standard responsive image sizes

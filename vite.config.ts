@@ -53,8 +53,6 @@ export default defineConfig(({ mode }) => {
         'motion/react',
         'lucide-react',
         'canvas-confetti',
-        'react-leaflet',
-        'leaflet',
         'react-hot-toast'
       ],
     },
@@ -67,7 +65,7 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('leaflet') || id.includes('react-leaflet') || id.includes('maplibre') || id.includes('mapbox')) {
+              if (id.includes('maplibre') || id.includes('mapbox')) {
                 return 'vendor-maps';
               }
               if (id.includes('recharts') || id.includes('d3')) {

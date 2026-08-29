@@ -28,7 +28,7 @@ import { cn } from './lib/utils';
 import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PerformanceTierProvider } from './context/PerformanceTierContext';
 
 import { useAuth } from './context/AuthContext';
 import { useCart, useCartActions } from './context/CartContext';
@@ -474,7 +474,6 @@ function AppContent() {
         </a>
       )}
 
-      <PWAInstallPrompt />
       <AppUpdateScreen />
     </div>
   );
@@ -484,23 +483,25 @@ export default function App() {
   return (
     <Router>
       <ThemeProvider>
-        <AuthProvider>
-          <ConfigProvider>
-            <BootProvider>
-              <VersionProvider>
-                <GeofenceProvider>
-                  <MenuProvider>
-                    <NotificationProvider>
-                      <CartProvider>
-                        <AppContent />
-                      </CartProvider>
-                    </NotificationProvider>
-                  </MenuProvider>
-                </GeofenceProvider>
-              </VersionProvider>
-            </BootProvider>
-          </ConfigProvider>
-        </AuthProvider>
+        <PerformanceTierProvider>
+          <AuthProvider>
+            <ConfigProvider>
+              <BootProvider>
+                <VersionProvider>
+                  <GeofenceProvider>
+                    <MenuProvider>
+                      <NotificationProvider>
+                        <CartProvider>
+                          <AppContent />
+                        </CartProvider>
+                      </NotificationProvider>
+                    </MenuProvider>
+                  </GeofenceProvider>
+                </VersionProvider>
+              </BootProvider>
+            </ConfigProvider>
+          </AuthProvider>
+        </PerformanceTierProvider>
       </ThemeProvider>
     </Router>
   );

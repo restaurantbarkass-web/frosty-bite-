@@ -40,20 +40,23 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
   useEffect(() => {
     let lastScrollY = window.scrollY;
     let stopTimer: NodeJS.Timeout | null = null;
-    const threshold = 12; // Filter minor natural shakes or micro-adjustments
+    const threshold = 15; // Filter minor natural shakes or micro-adjustments
+    let ticking = false;
 
-    const handleScroll = () => {
+    const updateVisibility = () => {
       const currentScrollY = window.scrollY;
 
       // Keep entirely visible if close to the absolute top of the page
       if (currentScrollY < 40) {
         setIsVisible(true);
         if (stopTimer) clearTimeout(stopTimer);
+        ticking = false;
         return;
       }
 
       // Check threshold distance to avoid jittering
       if (Math.abs(currentScrollY - lastScrollY) < threshold) {
+        ticking = false;
         return;
       }
 
@@ -71,6 +74,15 @@ export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ on
       stopTimer = setTimeout(() => {
         setIsVisible(true);
       }, 1000);
+
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateVisibility);
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

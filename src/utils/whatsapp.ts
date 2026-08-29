@@ -236,3 +236,83 @@ export function openDeliveryWhatsApp(
   }
 }
 
+/**
+ * Builds the standard Frosty Bite WhatsApp order confirmation notification message.
+ */
+export function buildOrderConfirmationWhatsAppMessage(
+  order: {
+    id: string;
+    customer_name?: string;
+    customerName?: string;
+    total?: number;
+    total_amount?: number;
+    order_type?: 'delivery' | 'pickup';
+  },
+  trackingLink?: string
+): string {
+  const customerName = (order.customer_name || order.customerName || 'Customer').trim();
+  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const amount = order.total ?? order.total_amount ?? 0;
+  const deliveryType = order.order_type || 'delivery';
+  
+  const etaText = deliveryType === 'pickup' 
+    ? 'Your order is confirmed! You will receive a notification when your order is ready for collection.' 
+    : 'Your order is confirmed and is being prepared for delivery.';
+
+  const linkLine = trackingLink ? `\nTrack your order live here: ${trackingLink}\n` : '';
+
+  return `Hello ${customerName} 👋
+
+This is Frosty Bite Bakery. 🍰
+
+Your order #${orderNumber} has been successfully confirmed! 🎉
+
+Order Amount: ₹${amount}
+Order Type: ${deliveryType.toUpperCase()}
+
+${etaText}
+${linkLine}
+We’re baking love into your treats! Thank you for choosing Frosty Bite Bakery. 😊
+
+— Frosty Bite Bakery`;
+}
+
+/**
+ * Opens WhatsApp click-to-chat with pre-filled order confirmation message.
+ * Returns success status or error message.
+ */
+export function openOrderConfirmationWhatsApp(
+  phone: string | null | undefined,
+  order: any,
+  trackingLink?: string
+): { success: boolean; error?: string; normalizedPhone?: string } {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    return {
+      success: false,
+      error: 'No customer phone number is available or phone number is invalid.'
+    };
+  }
+
+  const message = buildOrderConfirmationWhatsAppMessage(order, trackingLink);
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${normalized}?text=${encodedMessage}`;
+
+  try {
+    const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      return {
+        success: false,
+        error: 'Unable to open WhatsApp window. Please check your browser popup blocker permissions.'
+      };
+    }
+    return { success: true, normalizedPhone: normalized };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Unable to open WhatsApp.'
+    };
+  }
+}
+
+

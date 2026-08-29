@@ -20,6 +20,7 @@ import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { showDeviceNotification } from '../../utils/messaging';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
+import { AdminConfirmationSuccessModal } from './AdminConfirmationSuccessModal';
 
 const StatusBadge = ({ order }: { order: Order }) => {
   const { status, payment_status, payment_method } = order;
@@ -105,6 +106,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [cancellingReason, setCancellingReason] = useState<string>('Out of Stock');
   const [cancelledOrderForWhatsApp, setCancelledOrderForWhatsApp] = useState<{ order: Order; reason?: string } | null>(null);
   const [deliveredOrderForWhatsApp, setDeliveredOrderForWhatsApp] = useState<Order | null>(null);
+  const [confirmedOrderForWhatsApp, setConfirmedOrderForWhatsApp] = useState<Order | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const lastOrderCountRef = useRef<number>(0);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -294,6 +296,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       }
 
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
+      if (prevOrder) {
+        const finalConfirmedOrder = { ...prevOrder, payment_status: 'paid' as const, status: 'confirmed' as const } as Order;
+        setConfirmedOrderForWhatsApp(finalConfirmedOrder);
+      }
     } catch (error: any) {
       console.error('Verify payment error:', error);
       // Rollback on failure
@@ -477,6 +483,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       if (newStatus === 'delivered' && prevOrder?.status !== 'delivered') {
         const finalDeliveredOrder = (prevOrder ? { ...prevOrder, status: 'delivered' as const } : { id, status: 'delivered' as const }) as Order;
         setDeliveredOrderForWhatsApp(finalDeliveredOrder);
+      }
+
+      if (newStatus === 'confirmed' && prevOrder?.status !== 'confirmed') {
+        const finalConfirmedOrder = (prevOrder ? { ...prevOrder, status: 'confirmed' as const, payment_status: 'paid' as const } : { id, status: 'confirmed' as const, payment_status: 'paid' as const }) as Order;
+        setConfirmedOrderForWhatsApp(finalConfirmedOrder);
       }
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
@@ -1038,6 +1049,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               Start Preparing
                             </button>
                           </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <button 
+                              onClick={() => setConfirmedOrderForWhatsApp(order)}
+                              className="w-full px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare size={12} />
+                              <span>📱 WhatsApp Confirmation</span>
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -1543,13 +1563,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
             )}
             
             {order.status === 'confirmed' && (
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <button 
                    onClick={() => updateStatus(order.id, 'preparing')}
                    className="w-full py-4 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
                 >
                   <Package size={16} />
                   Start Preparing
+                </button>
+                <button 
+                   onClick={() => setConfirmedOrderForWhatsApp(order)}
+                   className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <MessageSquare size={14} />
+                  📱 Send Confirmation via WhatsApp
                 </button>
               </div>
             )}
@@ -1629,6 +1656,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         isOpen={!!deliveredOrderForWhatsApp}
         onClose={() => setDeliveredOrderForWhatsApp(null)}
         order={deliveredOrderForWhatsApp}
+      />
+
+      {/* Admin WhatsApp Order Confirmation Success Modal */}
+      <AdminConfirmationSuccessModal
+        isOpen={!!confirmedOrderForWhatsApp}
+        onClose={() => setConfirmedOrderForWhatsApp(null)}
+        order={confirmedOrderForWhatsApp}
       />
     </div>
   );

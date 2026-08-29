@@ -206,4 +206,62 @@ vite-error-overlay {
   visibility: hidden !important;
 }
 
+/* Dynamic Performance Engine Class Styles */
+html.perf-tier-low *,
+html.perf-tier-low ::before,
+html.perf-tier-low ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Eliminate expensive backdrop-blur layers on low performance devices */
+html.perf-tier-low .backdrop-blur,
+html.perf-tier-low .backdrop-blur-sm,
+html.perf-tier-low .backdrop-blur-md,
+html.perf-tier-low .backdrop-blur-lg,
+html.perf-tier-low .backdrop-blur-xl,
+html.perf-tier-low .backdrop-blur-2xl,
+html.perf-tier-low .backdrop-blur-3xl,
+html.perf-tier-low .glass,
+html.perf-tier-low .glass-dark,
+html.perf-tier-low .glass-bakery,
+html.perf-tier-low .bakery-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: rgba(12, 12, 16, 0.98) !important;
+}
+
+/* Reduce blur values on balanced devices to optimize GPU framerates */
+html.perf-tier-balanced .backdrop-blur-xl,
+html.perf-tier-balanced .backdrop-blur-2xl,
+html.perf-tier-balanced .backdrop-blur-3xl,
+html.perf-tier-balanced .glass-dark,
+html.perf-tier-balanced .glass-bakery,
+html.perf-tier-balanced .bakery-card {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Disable expensive box-shadow rendering on low-end devices */
+html.perf-tier-low [class*="shadow-"] {
+  box-shadow: none !important;
+}
+
+/* Disable glowing static background blur graphics on low-tier devices */
+html.perf-tier-low .blur-\[120px\],
+html.perf-tier-low .blur-3xl,
+html.perf-tier-low [class*="bg-primary/10"],
+html.perf-tier-low [class*="bg-emerald-500/10"],
+html.perf-tier-low [class*="bg-teal-500/10"] {
+  display: none !important;
+}
+
+/* Offscreen lazy rendering optimization using browser layout skipping */
+.content-visibility-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 450px;
+}
+
+
 

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { usePerformanceBudget } from '../hooks/usePerformanceBudget';
+import { usePerformanceTier, PerformanceTier } from '../context/PerformanceTierContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Gauge, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, XCircle, Activity } from 'lucide-react';
+import { Gauge, ChevronUp, ChevronDown, CheckCircle, AlertTriangle, XCircle, Activity, Cpu, Database, Wifi, Zap } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export const PerformanceBudgetHUD: React.FC = () => {
   const { metrics, violations, budgets } = usePerformanceBudget();
+  const { tier, specs, manualTier, setManualTier } = usePerformanceTier();
   const [isOpen, setIsOpen] = useState(false);
 
   // Helper to get color and icon for status
@@ -102,6 +105,65 @@ export const PerformanceBudgetHUD: React.FC = () => {
               {renderMetricRow('First Contentful Paint', 'fcp', 'Visual Feedback - Target < 1.8s')}
               {renderMetricRow('Time to First Byte', 'ttfb', 'Server Response - Target < 800ms')}
               {renderMetricRow('Total Page Load', 'pageLoad', 'Window Loaded - Target < 3.5s')}
+            </div>
+
+            {/* Adaptive Device Performance Engine Panel */}
+            <div className="pt-3 border-t border-white/10 space-y-2.5 bg-white/[0.02] -mx-4 px-4 py-3 rounded-b-xl">
+              <div className="flex justify-between items-center">
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-zinc-400 flex items-center gap-1.5">
+                  <Cpu size={12} className="text-primary" />
+                  Performance Engine
+                </span>
+                <span className={cn(
+                  "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                  tier === 'high' ? "text-cyan-400 bg-cyan-400/10 border-cyan-400/20" :
+                  tier === 'balanced' ? "text-amber-400 bg-amber-400/10 border-amber-400/20" :
+                  "text-red-400 bg-red-400/10 border-red-400/20"
+                )}>
+                  {tier} Tier
+                </span>
+              </div>
+
+              {/* Specs Subgrid */}
+              <div className="grid grid-cols-2 gap-1.5 text-[8px] font-mono font-bold text-zinc-400">
+                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-md">
+                  <Database size={8} />
+                  <span>RAM: {specs.memory ? `${specs.memory}GB` : 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-md">
+                  <Cpu size={8} />
+                  <span>CPU: {specs.cores ? `${specs.cores} Cores` : 'N/A'}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-md">
+                  <Wifi size={8} />
+                  <span>NET: {specs.effectiveType ? specs.effectiveType.toUpperCase() : 'WIFI'}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-white/5 p-1 rounded-md">
+                  <Zap size={8} />
+                  <span>HZ: {specs.screenRefreshRate ? `${specs.screenRefreshRate}Hz` : '60Hz'}</span>
+                </div>
+              </div>
+
+              {/* Interactive Override Selector */}
+              <div className="flex flex-col gap-1">
+                <span className="text-[7px] text-zinc-500 uppercase tracking-widest font-bold">Manual Optimization Layer</span>
+                <div className="grid grid-cols-4 gap-1">
+                  {(['auto', 'high', 'balanced', 'low'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setManualTier(t)}
+                      className={cn(
+                        "text-[8px] font-black uppercase tracking-wider py-1.5 rounded-md border transition-all cursor-pointer",
+                        manualTier === t 
+                          ? "bg-primary border-primary text-black font-extrabold shadow-md shadow-primary/20" 
+                          : "bg-white/5 border-white/5 text-zinc-400 hover:bg-white/10"
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             
             <div className="pt-2 border-t border-white/5 flex items-center justify-between">
