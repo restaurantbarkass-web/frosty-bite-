@@ -13,6 +13,17 @@ interface LottiePlayerProps {
   fallback?: React.ReactNode;
 }
 
+// Helper to recursively unwrap any default module wrapper to get the pure Lottie JSON
+const getCleanLottieData = (data: any): any => {
+  if (!data) return null;
+  if (typeof data === 'object') {
+    if ('default' in data && data.default && typeof data.default === 'object') {
+      return getCleanLottieData(data.default);
+    }
+  }
+  return data;
+};
+
 /**
  * A reusable animation player component for Frosty Bite.
  */
@@ -27,10 +38,7 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
 }) => {
   const [animationData, setAnimationData] = useState<any>(() => {
     const initial = directAnimationData || (typeof url === 'object' ? url : null);
-    if (initial && typeof initial === 'object' && 'default' in initial) {
-      return (initial as any).default;
-    }
-    return initial;
+    return getCleanLottieData(initial);
   });
   const [error, setError] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(!directAnimationData && typeof url === 'string');
@@ -44,7 +52,7 @@ export const FrostyAnimation: React.FC<LottiePlayerProps> = ({
     }
 
     if (typeof rawData === 'object') {
-      const cleanData = (rawData && 'default' in rawData) ? (rawData as any).default : rawData;
+      const cleanData = getCleanLottieData(rawData);
       setAnimationData(cleanData);
       setLoading(false);
       setError(false);

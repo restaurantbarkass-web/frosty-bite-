@@ -7,11 +7,14 @@ import React from 'react';
 export function lazyWithRetry<T extends React.ComponentType<any>>(
   componentImport: () => Promise<{ default: T } | { [key: string]: any }>,
   namedExport?: string,
-  retriesLeft = 2,
+  maxRetries = 2,
   interval = 500
 ): React.LazyExoticComponent<T> {
   return React.lazy(() =>
     new Promise<{ default: T }>((resolve, reject) => {
+      let retriesLeft = maxRetries;
+      let currentInterval = interval;
+
       const attemptImport = () => {
         componentImport()
           .then((module: any) => {
@@ -39,10 +42,11 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
               error?.name === 'ChunkLoadError';
 
             if (retriesLeft > 0) {
+              retriesLeft--;
               setTimeout(() => {
-                lazyWithRetry(componentImport, namedExport, retriesLeft - 1, interval * 1.5);
+                currentInterval = currentInterval * 1.5;
                 attemptImport();
-              }, interval);
+              }, currentInterval);
             } else if (isChunkError && typeof window !== 'undefined') {
               // Check if we already reloaded recently
               const hasReloaded = window.sessionStorage.getItem('chunk_reload_retry');
