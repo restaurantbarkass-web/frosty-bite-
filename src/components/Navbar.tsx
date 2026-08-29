@@ -270,31 +270,32 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               );
             })}
             
-            {user ? (
-              <div className="flex items-center space-x-4">
-                <button
-                  id="cart-btn-desktop"
-                  onClick={onCartClick}
-                  className="relative p-2 text-muted hover:text-primary transition-colors focus:outline-none"
+            <div className="flex items-center space-x-4">
+              <button
+                id="cart-btn-desktop"
+                onClick={onCartClick}
+                className="relative p-2 text-muted hover:text-primary transition-colors focus:outline-none"
+              >
+                <motion.div
+                  key={`${totalItems}-${bounceKey}`}
+                  animate={{ scale: [1, 1.35, 0.9, 1.1, 1], rotate: [0, -12, 12, -6, 0] }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="flex items-center justify-center"
                 >
-                  <motion.div
-                    key={`${totalItems}-${bounceKey}`}
-                    animate={{ scale: [1, 1.35, 0.9, 1.1, 1], rotate: [0, -12, 12, -6, 0] }}
-                    transition={{ duration: 0.5, ease: "easeInOut" }}
-                    className="flex items-center justify-center"
+                  <ShoppingCart size={24} />
+                </motion.div>
+                {totalItems > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
                   >
-                    <ShoppingCart size={24} />
-                  </motion.div>
-                  {totalItems > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
-                    >
-                      {totalItems}
-                    </motion.span>
-                  )}
-                </button>
+                    {totalItems}
+                  </motion.span>
+                )}
+              </button>
+
+              {user ? (
                 <motion.button
                   whileHover={{ scale: 1.15, rotate: 8 }}
                   whileTap={{ scale: 0.85 }}
@@ -304,21 +305,21 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                 >
                   <LogOut size={20} />
                 </motion.button>
-              </div>
-            ) : (
-              <motion.div
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              >
-                <Link
-                  to="/login"
-                  className="bg-primary hover:bg-orange-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 transition-all block"
+              ) : (
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
                 >
-                  Login
-                </Link>
-              </motion.div>
-            )}
+                  <Link
+                    to="/login"
+                    className="bg-primary hover:bg-orange-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 transition-all block"
+                  >
+                    Login
+                  </Link>
+                </motion.div>
+              )}
+            </div>
           </div>
 
           {/* Mobile Menu Button - Optimized spacing */}

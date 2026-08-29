@@ -166,22 +166,10 @@ export const CartSidebar: React.FC = () => {
               
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center space-y-6 py-10">
-                  <div className="w-48 h-48 sm:w-56 sm:h-56">
+                  <div className="w-52 h-52 sm:w-60 sm:h-60">
                     <FrostyAnimation 
-                      url={LOTTIE_ANIMATIONS.CAKE}
+                      url={LOTTIE_ANIMATIONS.EMPTY_CART}
                       className="w-full h-full"
-                      fallback={
-                        <motion.div
-                          animate={{ 
-                            rotate: [0, -5, 5, -5, 0],
-                            scale: [1, 1.05, 1]
-                          }}
-                          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-full h-full flex items-center justify-center p-8 opacity-20"
-                        >
-                          <ShoppingBag className="text-primary w-full h-full" strokeWidth={1} />
-                        </motion.div>
-                      }
                     />
                   </div>
                   <div className="space-y-2">

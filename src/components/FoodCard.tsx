@@ -350,7 +350,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
                   className="absolute inset-0 flex items-center justify-center bg-emerald-500"
                 >
                   <FrostyAnimation 
-                    url={LOTTIE_ANIMATIONS.CAKE}
+                    url={LOTTIE_ANIMATIONS.SUCCESS_CHECK}
                     loop={false}
                     className="w-12 h-12"
                     fallback={

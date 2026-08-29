@@ -262,7 +262,7 @@ const ProductDetail: React.FC = () => {
     }
   }, [isLoading]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e?: React.MouseEvent) => {
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {
@@ -274,6 +274,17 @@ const ProductDetail: React.FC = () => {
       return;
     }
     if (product) {
+      const startX = e ? e.clientX : window.innerWidth / 2;
+      const startY = e ? e.clientY : window.innerHeight / 2;
+
+      window.dispatchEvent(new CustomEvent('add-to-cart-fly', {
+        detail: {
+          startX,
+          startY,
+          image: product.image
+        }
+      }));
+
       for (let i = 0; i < quantity; i++) {
         addToCart(product);
       }
