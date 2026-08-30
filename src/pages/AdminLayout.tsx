@@ -20,6 +20,7 @@ const Rewards = lazy(() => import('./admin/Rewards').then(m => ({ default: m.Rew
 const ServiceZones = lazy(() => import('./admin/ServiceZones').then(m => ({ default: m.ServiceZones })));
 const RlsDiagnostics = lazy(() => import('./admin/RlsDiagnostics').then(m => ({ default: m.RlsDiagnostics })));
 const BannerManager = lazy(() => import('../components/admin/BannerManager').then(m => ({ default: m.BannerManager })));
+const NotificationCenter = lazy(() => import('./admin/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 
 export const AdminLayout: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -60,6 +61,7 @@ export const AdminLayout: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'orders': return <Orders />;
+      case 'notifications': return <NotificationCenter />;
       case 'customers': return <Customers />;
       case 'admins': return <Admins />;
       case 'pricing': return <Pricing />;

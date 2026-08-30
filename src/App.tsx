@@ -29,6 +29,7 @@ import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 import { PerformanceTierProvider } from './context/PerformanceTierContext';
+import { NotificationPermissionBanner } from './components/NotificationPermissionBanner';
 
 import { useAuth } from './context/AuthContext';
 import { useCart, useCartActions } from './context/CartContext';
@@ -474,6 +475,7 @@ function AppContent() {
         </a>
       )}
 
+      <NotificationPermissionBanner />
       <AppUpdateScreen />
     </div>
   );

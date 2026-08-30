@@ -115,6 +115,9 @@ export const OrderTracking: React.FC = () => {
 
         if (orderError) throw orderError;
         if (orderData) {
+          try {
+            localStorage.setItem('frostybite_last_order_id', orderData.id);
+          } catch (_) {}
           setOrder(prev => {
             if (
               prev &&

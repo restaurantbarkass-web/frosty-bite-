@@ -18,7 +18,7 @@ import { ImageZoom } from '../ImageZoom';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
 import { SlideConfirmModal } from '../ui/SlideConfirmModal';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
-import { showDeviceNotification } from '../../utils/messaging';
+import { showDeviceNotification, triggerOrderStatusNotification } from '../../utils/messaging';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
 import { AdminConfirmationSuccessModal } from './AdminConfirmationSuccessModal';
@@ -444,6 +444,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         .eq('id', id);
 
       if (error) throw error;
+
+      // Dispatch Authoritative Push Notification (Supports Authenticated and Guest customers)
+      triggerOrderStatusNotification({
+        orderId: id,
+        status: newStatus,
+        customReason: reasonToUse,
+        refundAmount: order?.total
+      }).catch(err => console.warn('Push notification trigger error:', err));
 
       if (order && order.user_id !== 'guest' && order.user_id) {
         const statusMessages: Record<string, string> = {

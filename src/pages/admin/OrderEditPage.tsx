@@ -13,6 +13,7 @@ import { AdminCancellationSuccessModal } from '../../components/admin/AdminCance
 import { AdminDeliverySuccessModal } from '../../components/admin/AdminDeliverySuccessModal';
 import { normalizePhoneNumber, openCancellationWhatsApp } from '../../utils/whatsapp';
 import { formatOrderId } from '../../utils/orderUtils';
+import { triggerOrderStatusNotification } from '../../utils/messaging';
 import toast from 'react-hot-toast';
 
 interface OrderEditPageProps {
@@ -156,6 +157,17 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
       toast.success('Order details updated successfully!');
       setHasChanges(false);
+
+      // Dispatch Authoritative Push Notification
+      if (order.status !== status) {
+        triggerOrderStatusNotification({
+          orderId: order.id,
+          status: status,
+          customReason: status === 'cancelled' ? finalReason : undefined,
+          refundAmount: computedTotal,
+          deliveryEta: estimatedDeliveryTime ? String(estimatedDeliveryTime) : undefined
+        }).catch(err => console.warn('Push notification trigger error:', err));
+      }
 
       const mergedOrder = { ...order, ...updatePayload };
       if (onOrderUpdated) {

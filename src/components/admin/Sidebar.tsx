@@ -16,7 +16,8 @@ import {
   Search as SearchIcon,
   Award,
   Globe,
-  Database
+  Database,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -33,6 +34,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'notifications', label: 'Push Notifications', icon: Bell },
   { id: 'rewards', label: 'Rewards Engine', icon: Award },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'admins', label: 'Admins', icon: ShieldCheck },

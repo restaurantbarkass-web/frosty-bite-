@@ -1,9 +1,128 @@
 import express from 'express';
+import { NotificationService } from '../services/notification.service';
 import admin, { getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 
 const router = express.Router();
 
+/**
+ * Register a device / browser push token
+ */
+router.post('/register-token', async (req, res) => {
+  try {
+    const { token, userId, guestSessionId, platform, browser, deviceName, endpoint } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Missing device token' });
+    }
+
+    const result = await NotificationService.registerToken({
+      token,
+      userId,
+      guestSessionId,
+      platform,
+      browser,
+      deviceName,
+      endpoint
+    });
+
+    // Also store token in Firestore/Supabase user record if userId is provided
+    if (userId && userId !== 'guest') {
+      try {
+        const dbInstance = getAdminDb();
+        const userRef = dbInstance.collection('users').doc(userId);
+        const doc = await userRef.get();
+        let tokens: string[] = [];
+        if (doc.exists) {
+          tokens = doc.data()?.fcm_tokens || [];
+        }
+        if (!tokens.includes(token)) {
+          tokens.push(token);
+          await userRef.set({ fcm_tokens: tokens }, { merge: true });
+        }
+      } catch (_) {}
+    }
+
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[Notification Route] Error in register-token:', error);
+    return res.status(500).json({ error: error.message || 'Failed to register token' });
+  }
+});
+
+/**
+ * Unregister / deactivate a token
+ */
+router.post('/unregister-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (token) {
+      await NotificationService.unregisterToken(token);
+    }
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Authoritative Order Status Notification Trigger
+ * (Invoked whenever an order advances: confirmed, preparing, ready, out_for_delivery, delivered, cancelled, refund)
+ */
+router.post('/send-order-update', async (req, res) => {
+  try {
+    const { orderId, status, customReason, refundAmount, deliveryEta, eventVersion } = req.body;
+
+    if (!orderId || !status) {
+      return res.status(400).json({ error: 'Missing required orderId or status' });
+    }
+
+    const result = await NotificationService.sendOrderStatusNotification({
+      orderId,
+      status,
+      customReason,
+      refundAmount,
+      deliveryEta,
+      eventVersion
+    });
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('[Notification Route] Error in send-order-update:', error);
+    return res.status(500).json({ error: error.message || 'Failed to dispatch order status notification' });
+  }
+});
+
+/**
+ * Broadcast Campaign / Custom Push (Admin)
+ */
+router.post('/send-campaign', async (req, res) => {
+  try {
+    const { title, message, audience, targetUserId, deepLink, imageUrl } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    const result = await NotificationService.sendCampaign({
+      title,
+      message,
+      audience: audience || 'all',
+      targetUserId,
+      deepLink,
+      imageUrl
+    });
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('[Notification Route] Error sending campaign:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Backward-compatible endpoint for sending direct push to a user
+ */
 router.post('/send-push', async (req, res) => {
   const { userId, title, body, data } = req.body;
 
@@ -12,145 +131,162 @@ router.post('/send-push', async (req, res) => {
   }
 
   try {
-    console.log(`[Push Notification] Attempting to send push to user "${userId}": "${title}"`);
-    
-    let tokens: string[] = [];
-
-    // 1. Fetch user FCM tokens from Firestore (highly reliable, primary store)
-    try {
-      const dbInstance = getAdminDb();
-      const userDoc = await dbInstance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        const docData = userDoc.data();
-        if (docData && Array.isArray(docData.fcm_tokens)) {
-          tokens = docData.fcm_tokens.filter((t: any) => typeof t === 'string' && t.trim() !== '');
-          console.log(`[Push Notification] Found ${tokens.length} token(s) in Firestore for "${userId}"`);
-        }
-      }
-    } catch (fsError: any) {
-      console.warn('[Push Notification] Error querying user from Firestore (non-fatal):', fsError.message);
-    }
-
-    // 2. Fetch user FCM tokens from Supabase users table (as a fallback/merge, handling errors safely)
-    try {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('fcm_tokens')
-        .eq('firebase_uid', userId)
-        .maybeSingle();
-
-      if (userError) {
-        console.warn('[Push Notification] Supabase query returned warning (column may be missing):', userError.message);
-      } else if (userData && Array.isArray(userData.fcm_tokens)) {
-        const extraTokens = userData.fcm_tokens.filter(
-          (t: any) => typeof t === 'string' && t.trim() !== '' && !tokens.includes(t)
-        );
-        tokens = [...tokens, ...extraTokens];
-        console.log(`[Push Notification] Merged ${extraTokens.length} additional token(s) from Supabase for "${userId}"`);
-      }
-    } catch (sbError: any) {
-      console.warn('[Push Notification] Error querying user from Supabase (non-fatal):', sbError.message);
-    }
+    const tokens = await NotificationService.resolveTokensForTarget({ userId });
 
     if (tokens.length === 0) {
-      console.log(`[Push Notification] No FCM tokens found for user "${userId}". Skipping.`);
-      return res.json({ success: true, message: 'No registered tokens found for user' });
+      return res.json({ success: true, message: 'No registered active tokens found for user' });
     }
 
-    console.log(`[Push Notification] Found ${tokens.length} active token(s) for user "${userId}". Sending messages via FCM...`);
-    
-    // 3. Build the messages for FCM
-    const messages = tokens.map(token => ({
-      token,
-      notification: {
-        title,
-        body,
-      },
-      data: data || {},
-      webpush: {
-        headers: {
-          Urgency: 'high'
-        },
-        notification: {
-          title,
-          body,
-          icon: '/favicon.ico',
-          click_action: data?.link || '/'
-        }
-      }
-    }));
-
-    // 3. Send each message
-    const results = await Promise.allSettled(
-      messages.map(msg => admin.messaging().send(msg))
-    );
-
-    const successfulSends = results.filter(r => r.status === 'fulfilled').length;
-    const failedSends = results.filter(r => r.status === 'rejected').length;
-
-    console.log(`[Push Notification] Push summary for user "${userId}": ${successfulSends} sent successfully, ${failedSends} failed.`);
-
-    // Prune invalid or unregistered tokens
-    let tokensToKeep = [...tokens];
-    let tokensModified = false;
-
-    results.forEach((res, idx) => {
-      if (res.status === 'rejected') {
-        const error = res.reason;
-        console.warn(`[Push Notification] Error sending to token index ${idx}:`, error?.message || error);
-        
-        const errCode = error?.code || '';
-        const errMsg = error?.message || '';
-        if (
-          errCode === 'messaging/registration-token-not-registered' ||
-          errCode === 'messaging/invalid-registration-token' ||
-          errMsg.includes('registration-token-not-registered') ||
-          errMsg.includes('not-registered')
-        ) {
-          const badToken = tokens[idx];
-          tokensToKeep = tokensToKeep.filter(t => t !== badToken);
-          tokensModified = true;
-          console.log('[Push Notification] Removed expired/invalid token:', badToken);
-        }
-      }
+    const result = await NotificationService.sendCampaign({
+      title,
+      message: body,
+      audience: 'user',
+      targetUserId: userId,
+      deepLink: data?.link || '/'
     });
-
-    if (tokensModified) {
-      // 1. Clean up in Firestore
-      try {
-        const dbInstance = getAdminDb();
-        await dbInstance.collection('users').doc(userId).set({
-          fcm_tokens: tokensToKeep
-        }, { merge: true });
-        console.log(`[Push Notification] Cleaned up unregistered tokens in Firestore for user "${userId}". Current: ${tokensToKeep.length}`);
-      } catch (fsPruneErr: any) {
-        console.error('[Push Notification] Failed to update Firestore user tokens after pruning:', fsPruneErr.message);
-      }
-
-      // 2. Clean up in Supabase (as standard fallback, catch errors silently)
-      try {
-        await supabase
-          .from('users')
-          .update({
-            fcm_tokens: tokensToKeep,
-            updated_at: new Date().toISOString()
-          })
-          .eq('firebase_uid', userId);
-        console.log(`[Push Notification] Cleaned up unregistered tokens in Supabase for user "${userId}". Remaining tokens:`, tokensToKeep.length);
-      } catch (dbErr) {
-        console.warn('[Push Notification] Failed to update Supabase tokens after pruning (non-fatal):', dbErr);
-      }
-    }
 
     return res.json({
       success: true,
-      sentCount: successfulSends,
-      failedCount: failedSends
+      sentCount: result.sentCount,
+      failedCount: result.failedCount
     });
-
   } catch (error: any) {
-    console.error('[Push Notification] System error sending push:', error);
-    return res.status(500).json({ error: 'Internal server error while sending push', message: error.message });
+    console.error('[Notification Route] Error in send-push:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Track Notification Open / Deep Link Click
+ */
+router.post('/track-click', async (req, res) => {
+  try {
+    const { eventId } = req.body;
+    if (eventId) {
+      await NotificationService.trackClick(eventId);
+    }
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Trigger Zomato-Style Customer Re-Engagement Engine
+ */
+router.post('/trigger-reengagement', async (req, res) => {
+  try {
+    const { dryRun = false, forceUserId } = req.body;
+    const result = await NotificationService.processReengagement({ dryRun, forceUserId });
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[Notification Route] Error running re-engagement:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get Notification Analytics Summary
+ */
+router.get('/analytics', async (req, res) => {
+  try {
+    const analytics = await NotificationService.getAnalyticsSummary();
+    return res.json({ success: true, analytics });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get Templates
+ */
+router.get('/templates', async (req, res) => {
+  try {
+    const templates = NotificationService.getTemplates();
+    return res.json({ success: true, templates });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Update Template
+ */
+router.put('/templates/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    const updated = NotificationService.updateTemplate(type, req.body);
+    if (!updated) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    return res.json({ success: true, template: updated });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Get Notification Preferences
+ */
+router.get('/preferences', async (req, res) => {
+  try {
+    const { userId, guestSessionId } = req.query;
+    const prefs = await NotificationService.getUserPreferences(
+      userId as string,
+      guestSessionId as string
+    );
+    return res.json({ success: true, preferences: prefs });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Save Notification Preferences
+ */
+router.post('/preferences', async (req, res) => {
+  try {
+    const prefs = await NotificationService.savePreferences(req.body);
+    return res.json({ success: true, preferences: prefs });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Test Push Diagnostic Endpoint
+ */
+router.post('/test-push', async (req, res) => {
+  try {
+    const { token, title = 'Frosty Bite Test 🍰', body = 'Push notification system is working perfectly!' } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Missing token for test push' });
+    }
+
+    let sent = false;
+    try {
+      if (admin && admin.messaging) {
+        await admin.messaging().send({
+          token,
+          notification: { title, body },
+          webpush: {
+            notification: {
+              title,
+              body,
+              icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg'
+            }
+          }
+        });
+        sent = true;
+      }
+    } catch (e: any) {
+      console.warn('[Test Push] FCM direct send returned:', e.message);
+    }
+
+    return res.json({ success: true, sent, message: 'Test notification triggered successfully' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
