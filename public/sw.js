@@ -236,16 +236,23 @@ self.addEventListener('notificationclick', event => {
     return;
   }
 
+  const targetPath = (event.notification.data && (event.notification.data.link || event.notification.data.url)) || '/';
+  const targetUrl = new URL(targetPath, self.location.origin).href;
+
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url === '/' && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          if (client.url === targetUrl || client.url.endsWith(targetPath)) {
+            return client.focus();
+          } else {
+            return client.navigate(targetUrl).then(c => c ? c.focus() : null);
+          }
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow(targetUrl);
       }
     })
   );

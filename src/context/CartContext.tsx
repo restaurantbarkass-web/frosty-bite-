@@ -26,6 +26,7 @@ interface CartActionsContextType {
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
+  reorderItems: (items: any[], options?: { openCart?: boolean; replace?: boolean }) => void;
   setIsCartOpen: (open: boolean) => void;
   setAppliedCoupon: (coupon: CartStateContextType['appliedCoupon']) => void;
 }
@@ -117,6 +118,51 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     CartService.clearCart().catch(() => {});
   }, []);
 
+  const reorderItems = useCallback((items: any[], options?: { openCart?: boolean; replace?: boolean }) => {
+    if (!items || !items.length) return;
+    
+    haptic.success();
+    playPopSound();
+
+    setCart((prev) => {
+      let baseCart = options?.replace ? [] : [...prev];
+
+      items.forEach((item) => {
+        const itemId = item.id || item.food_id;
+        const quantity = item.quantity || 1;
+        const foodItem: CartItem = {
+          id: itemId,
+          name: item.name,
+          price: Number(item.price) || 0,
+          image: item.image || item.imageUrl || '',
+          description: item.description || '',
+          category: item.category || 'Bakery',
+          rating: item.rating || 5,
+          quantity: quantity,
+          stock_quantity: item.stock_quantity || 100,
+          available: true
+        };
+
+        const existingIdx = baseCart.findIndex(i => i.id === itemId);
+        if (existingIdx >= 0) {
+          const updatedQty = baseCart[existingIdx].quantity + quantity;
+          baseCart[existingIdx] = {
+            ...baseCart[existingIdx],
+            quantity: Math.min(foodItem.stock_quantity || 99, updatedQty)
+          };
+        } else {
+          baseCart.push(foodItem);
+        }
+      });
+
+      return baseCart;
+    });
+
+    if (options?.openCart !== false) {
+      setIsCartOpen(true);
+    }
+  }, []);
+
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
 
@@ -151,10 +197,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeFromCart,
       updateQuantity,
       clearCart,
+      reorderItems,
       setIsCartOpen,
       setAppliedCoupon,
     }),
-    [addToCart, removeFromCart, updateQuantity, clearCart, setAppliedCoupon]
+    [addToCart, removeFromCart, updateQuantity, clearCart, reorderItems, setIsCartOpen, setAppliedCoupon]
   );
 
   return (

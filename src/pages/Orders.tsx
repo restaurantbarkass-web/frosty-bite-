@@ -16,7 +16,7 @@ import { formatOrderId } from '../utils/orderUtils';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
-  const { addToCart } = useCart();
+  const { addToCart, reorderItems } = useCart();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,26 +188,9 @@ const Orders: React.FC = () => {
 
     if (!order.items || order.items.length === 0) return;
 
-    order.items.forEach(item => {
-      const foodItem = {
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        image: item.image,
-        description: item.description || '',
-        category: item.category || 'General',
-        rating: item.rating || 5,
-        stock_quantity: item.stock_quantity || 100,
-        available: true
-      };
-      
-      // Add multiple if quantity was > 1
-      for (let i = 0; i < (item.quantity || 1); i++) {
-        addToCart(foodItem);
-      }
-    });
+    reorderItems(order.items, { openCart: true });
 
-    toast.success('All items added to cart!', {
+    toast.success(`Added ${order.items.length} items to your cart!`, {
       icon: '🛍️',
       style: {
         borderRadius: '16px',
@@ -215,8 +198,6 @@ const Orders: React.FC = () => {
         color: '#fff',
       }
     });
-    
-    navigate('/');
   };
 
   const getStatusColor = (status: string, hasUtr?: boolean) => {

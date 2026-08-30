@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle, Bike, Cake, Calendar, Sparkles } from 'lucide-react';
+import { Package, CheckCircle, MapPin, Phone, MessageCircle, Loader2, ChefHat, Clock, X, ShoppingBag, AlertTriangle, Bike, Cake, Calendar, Sparkles, Bell } from 'lucide-react';
 import { supabase } from '../supabase';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { Order } from '../types';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
 import { ReviewForm } from '../components/ReviewForm';
+import { useNotifications } from '../context/NotificationContext';
 
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { RESTAURANT_WHATSAPP } from '../constants';
@@ -91,6 +92,7 @@ import { safeTrim, safeTrimLowerCase } from '../utils/string';
 export const OrderTracking: React.FC = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { requestPushPermission, pushPermission } = useNotifications();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -592,6 +594,27 @@ export const OrderTracking: React.FC = () => {
                   ✓ Complimentary Birthday Candles & Cutting Knife Included
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Live Delivery Push Alerts Opt-in */}
+          {order.status !== 'delivered' && pushPermission !== 'granted' && (
+            <div className="glass-dark p-6 rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/10 via-transparent to-transparent space-y-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
+                  <Bell size={16} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white">Live Push Notifications</h4>
+                  <p className="text-[10px] text-zinc-400">Get notified when rider is out for delivery</p>
+                </div>
+              </div>
+              <button
+                onClick={() => requestPushPermission()}
+                className="w-full py-2.5 px-4 rounded-xl bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-primary/20"
+              >
+                <span>Enable Delivery Alerts</span>
+              </button>
             </div>
           )}
 

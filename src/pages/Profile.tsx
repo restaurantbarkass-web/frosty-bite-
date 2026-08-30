@@ -8,12 +8,13 @@ import {
   Crown, Wallet, Briefcase, Zap, Bell, Award, Coffee, IceCream,
   Pizza, Flame, Moon, Sun, CloudRain, Shield, Camera, 
   Share2, HeartHandshake, HelpCircle, Layout, Calendar,
-  Sparkles as SparkleIcon, Instagram, Download
+  Sparkles as SparkleIcon, Instagram, Download, RotateCcw
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { StoryCard } from '../components/StoryCard';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { supabase } from '../supabase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button';
@@ -222,6 +223,7 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: {
 export const Profile: React.FC = () => {
   const { user: authUser, isGuest, openAuthModal, logout, refreshProfile } = useAuth();
   const { items: menuItems } = useMenu();
+  const { reorderItems, addToCart } = useCart();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const storyRef = useRef<HTMLDivElement>(null);
@@ -241,6 +243,81 @@ export const Profile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'personal' | 'orders' | 'wishlist' | 'rewards'>('personal');
   const { install, isStandalone, isInstallable } = usePWA();
   const [aiRec, setAiRec] = useState<{ recommendation: AiRecommendationResponse, item: FoodItem } | null>(null);
+
+  // Extract most frequently ordered favorite items for One-Tap Re-Order
+  const favoriteItems = useMemo(() => {
+    const map = new Map<string, { item: any; count: number }>();
+    recentOrders.forEach(order => {
+      (order.items || []).forEach(it => {
+        const id = it.id || it.food_id || it.name;
+        if (!id) return;
+        const existing = map.get(id);
+        if (existing) {
+          existing.count += (it.quantity || 1);
+        } else {
+          map.set(id, { item: it, count: it.quantity || 1 });
+        }
+      });
+    });
+    return Array.from(map.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map(x => x.item);
+  }, [recentOrders]);
+
+  const handleReorderOrder = (e: React.MouseEvent, order: Order) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!order.items || order.items.length === 0) return;
+    reorderItems(order.items, { openCart: true });
+    toast.success(`Added ${order.items.length} items to your cart!`, {
+      icon: '🛍️',
+      style: {
+        borderRadius: '16px',
+        background: '#18181b',
+        color: '#fff',
+        border: '1px solid rgba(255,255,255,0.1)'
+      }
+    });
+  };
+
+  const handleReorderSingleItem = (e: React.MouseEvent, item: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const foodItem: FoodItem = {
+      id: item.id || item.food_id,
+      name: item.name,
+      price: Number(item.price) || 0,
+      image: item.image || item.imageUrl || '',
+      description: item.description || '',
+      category: item.category || 'Bakery',
+      rating: item.rating || 5,
+      stock_quantity: item.stock_quantity || 100,
+      available: true
+    };
+    addToCart(foodItem);
+    toast.success(`${item.name} added to cart!`, {
+      icon: '🧁',
+      style: {
+        borderRadius: '16px',
+        background: '#18181b',
+        color: '#fff',
+      }
+    });
+  };
+
+  const handleReorderAllFavorites = () => {
+    if (!favoriteItems.length) return;
+    reorderItems(favoriteItems, { openCart: true });
+    toast.success(`Added ${favoriteItems.length} favorite items to your cart!`, {
+      icon: '⭐',
+      style: {
+        borderRadius: '16px',
+        background: '#18181b',
+        color: '#fff',
+      }
+    });
+  };
 
   const [badgeConfigs, setBadgeConfigs] = useState<BadgeConfig[]>([]);
   const [gifts, setGifts] = useState<any[]>([]);
@@ -1188,8 +1265,71 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
+            className="space-y-8"
           >
+            {/* Re-order Favorites Quick Action Section */}
+            {favoriteItems.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-dark rounded-[2.5rem] border border-amber-500/20 p-6 md:p-8 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent relative overflow-hidden"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-widest mb-1">
+                      <Sparkles size={16} className="animate-spin-slow" />
+                      <span>One-Tap Re-Order</span>
+                    </div>
+                    <h3 className="text-2xl font-black text-white tracking-tight">Re-Order Your Favorites</h3>
+                    <p className="text-zinc-400 text-xs mt-1">Pre-populate your cart in a single click with the bakery delights you love most.</p>
+                  </div>
+                  <Button
+                    onClick={handleReorderAllFavorites}
+                    variant="primary"
+                    className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20"
+                  >
+                    <RotateCcw size={16} />
+                    <span>Re-Order All Favorites ({favoriteItems.length})</span>
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 relative z-10">
+                  {favoriteItems.map((fav, i) => (
+                    <motion.div
+                      key={fav.id || fav.name || i}
+                      whileHover={{ y: -3 }}
+                      className="bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between group hover:border-amber-500/40 transition-all"
+                    >
+                      <div className="space-y-2">
+                        {fav.image && (
+                          <div className="w-full h-20 rounded-xl overflow-hidden bg-white/5">
+                            <img 
+                              src={fav.image} 
+                              alt={fav.name} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs font-black text-white line-clamp-1 group-hover:text-amber-400 transition-colors">{fav.name}</p>
+                          <p className="text-[10px] font-black text-amber-400/90 mt-0.5">₹{fav.price}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={(e) => handleReorderSingleItem(e, fav)}
+                        className="mt-3 w-full py-1.5 px-2 bg-white/10 hover:bg-amber-500 hover:text-black text-white text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <Plus size={12} />
+                        <span>Add</span>
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {recentOrders.length === 0 ? (
               <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
                 <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700 animate-pulse">
@@ -1214,26 +1354,24 @@ export const Profile: React.FC = () => {
                   initial={{ x: 30, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: idx * 0.1 }}
+                  className="glass-dark rounded-[2.5rem] border border-white/5 p-6 md:p-8 hover:border-primary/30 transition-all group overflow-hidden relative"
                 >
-                  <Link 
-                    to={`/order-tracking/${order.id}`}
-                    className="block glass-dark rounded-[2.5rem] border border-white/5 p-8 hover:border-primary/30 hover:bg-white/[0.02] transition-all group overflow-hidden relative"
-                  >
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all scale-150 rotate-12">
-                      <ShoppingBag size={120} />
-                    </div>
+                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all scale-150 rotate-12 pointer-events-none">
+                    <ShoppingBag size={120} />
+                  </div>
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-                      <div className="flex items-center gap-6">
+                  <div className="flex flex-col gap-6 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-5">
                         <div className={cn(
-                          "w-16 h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110",
+                          "w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 shrink-0",
                           getStatusColor(order.status)
                         )}>
-                          <Clock size={32} />
+                          <Clock size={28} />
                         </div>
                         <div>
-                          <div className="flex items-center gap-3">
-                            <h4 className="text-2xl font-black text-white tracking-tighter">ORDER #{formatOrderId(order.id)}</h4>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h4 className="text-xl md:text-2xl font-black text-white tracking-tighter">ORDER #{formatOrderId(order.id)}</h4>
                             <span className={cn(
                               "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/10 shadow-sm",
                               getStatusColor(order.status)
@@ -1241,25 +1379,57 @@ export const Profile: React.FC = () => {
                               {order.status.replace(/_/g, ' ')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-2">
+                          <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-2 flex-wrap">
                             <span className="flex items-center gap-1.5"><Calendar size={12} /> {formatDate(order.created_at)}</span>
                             <span className="w-1 h-1 bg-zinc-800 rounded-full" />
-                            <span>{order.items.length} SQUAD MEMBERS (ITEMS)</span>
+                            <span>{order.items.length} ITEM{order.items.length > 1 ? 'S' : ''}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between md:justify-end gap-12 border-t md:border-t-0 border-white/5 pt-6 md:pt-0">
-                        <div className="text-right">
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Payload</p>
-                          <p className="text-3xl font-black text-white tabular-nums">₹{order.total}</p>
-                        </div>
-                        <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-600 group-hover:text-primary group-hover:bg-primary/10 transition-all group-hover:translate-x-2">
-                          <ChevronRight size={28} />
+                      <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-white/5 pt-4 md:pt-0">
+                        <div className="text-left md:text-right">
+                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Total Paid</p>
+                          <p className="text-2xl md:text-3xl font-black text-white tabular-nums">₹{order.total}</p>
                         </div>
                       </div>
                     </div>
-                  </Link>
+
+                    {/* Order items preview */}
+                    {order.items && order.items.length > 0 && (
+                      <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
+                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-2">Order Summary</div>
+                        <div className="flex flex-wrap gap-2">
+                          {order.items.map((it: any, i: number) => (
+                            <div key={i} className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 flex items-center gap-2 text-xs font-bold text-zinc-300">
+                              <span className="text-amber-400 font-black">{it.quantity}x</span>
+                              <span className="text-white">{it.name}</span>
+                              <span className="text-zinc-500 text-[10px]">₹{it.price * (it.quantity || 1)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action buttons: Re-Order Favorites / Repeat Order + Track */}
+                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                      <button
+                        onClick={(e) => handleReorderOrder(e, order)}
+                        className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 transition-transform active:scale-95"
+                      >
+                        <RotateCcw size={16} />
+                        <span>Re-Order Favorites ({order.items.length} items)</span>
+                      </button>
+
+                      <Link
+                        to={`/order-tracking/${order.id}`}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-black text-xs uppercase tracking-wider border border-white/10 transition-colors"
+                      >
+                        <span>Track Status</span>
+                        <ChevronRight size={16} />
+                      </Link>
+                    </div>
+                  </div>
                 </motion.div>
               ))
             )}
