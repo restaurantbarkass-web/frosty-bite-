@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabase';
 import { showDeviceNotification } from '../utils/messaging';
+import { formatOrderId } from '../utils/orderUtils';
 
 export interface Notification {
   id: string;
@@ -95,7 +96,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             setIncomingOrder(latestOrder);
           }
           
-          toast.success(`New Order #${latestOrder.id.slice(-6).toUpperCase()} received!`, {
+          toast.success(`New Order #${formatOrderId(latestOrder.id)} received!`, {
             duration: 8000,
             icon: '🍕'
           });
@@ -114,7 +115,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           const newNotif: Notification = {
             id: `order-notif-${latestOrder.id}`,
             title: 'New Order Received! 🍕',
-            message: `${latestOrder.customer_name} placed order #${latestOrder.id.slice(-6).toUpperCase()} for ₹${latestOrder.total}`,
+            message: `${latestOrder.customer_name} placed order #${formatOrderId(latestOrder.id)} for ₹${latestOrder.total}`,
             type: 'order',
             read: false,
             created_at: new Date().toISOString(),

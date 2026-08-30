@@ -1,4 +1,5 @@
 import { RESTAURANT_WHATSAPP } from '../constants';
+import { formatOrderId } from './orderUtils';
 
 export const openWhatsAppOrder = (orderData: {
   orderId: string;
@@ -44,7 +45,7 @@ export const openWhatsAppOrder = (orderData: {
 
   const message = `🛒 *New Order Received!*
 ----------------------------
-*Order ID:* ${orderData.orderId.slice(-6).toUpperCase()}
+*Order ID:* ${formatOrderId(orderData.orderId)}
 *Name:* ${orderData.customerName}
 *Phone:* ${orderData.phone}
 *Address:* ${orderData.address}${scheduleText}${cakeSection}${notesText}
@@ -122,7 +123,7 @@ export function buildCancellationWhatsAppMessage(
   customReason?: string
 ): string {
   const customerName = (order.customer_name || order.customerName || 'Customer').trim();
-  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const orderNumber = formatOrderId(order.id);
   const amount = order.total ?? order.total_amount ?? 0;
 
   const rawReason = customReason || order.cancellation_reason;
@@ -198,7 +199,7 @@ export function buildDeliveryWhatsAppMessage(
   }
 ): string {
   const customerName = (order.customer_name || order.customerName || 'Customer').trim();
-  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const orderNumber = formatOrderId(order.id);
   const amount = order.total ?? order.total_amount ?? 0;
 
   return `Hello ${customerName} 👋
@@ -270,7 +271,7 @@ export function buildOrderConfirmationWhatsAppMessage(
   trackingLink?: string
 ): string {
   const customerName = (order.customer_name || order.customerName || 'Customer').trim();
-  const orderNumber = order.id ? (order.id.length > 8 ? order.id.slice(-6).toUpperCase() : order.id.toUpperCase()) : 'N/A';
+  const orderNumber = formatOrderId(order.id);
   const amount = order.total ?? order.total_amount ?? 0;
   const deliveryType = order.order_type || 'delivery';
   

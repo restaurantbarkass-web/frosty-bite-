@@ -7,6 +7,7 @@ import { whatsappService } from '../services/whatsappService';
 import { useNotifications } from '../context/NotificationContext';
 import { cn } from '../lib/utils';
 import toast from 'react-hot-toast';
+import { formatOrderId } from '../utils/orderUtils';
 
 interface CancelOrderModalProps {
   order: Order;
@@ -85,7 +86,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
       // 2. Add system notification
       await addNotification({
         title: 'Order Cancelled Successfully',
-        message: `Order #${order.id.slice(-6).toUpperCase()} has been cancelled. Reason: ${finalReason}.`,
+        message: `Order #${formatOrderId(order.id)} has been cancelled. Reason: ${finalReason}.`,
         type: 'order',
         user_id: userId,
         link: `/order-tracking/${order.id}`
@@ -145,7 +146,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
           <div className="p-6 md:p-8 flex items-center justify-between border-b border-white/5">
             <div>
               <span className="text-[10px] font-black tracking-widest uppercase text-primary bg-primary/10 px-3 py-1 rounded-full">
-                Order #{order.id.slice(-6).toUpperCase()}
+                Order #{formatOrderId(order.id)}
               </span>
               <h3 className="text-2xl font-black text-white italic tracking-tight uppercase mt-2">
                 {step === 1 ? "Cancel Order" : "Double Confirmation"}
@@ -300,7 +301,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                     type="button"
                     onClick={() => {
                       try {
-                        window.open(`https://wa.me/${whatsappService.PHONE_NUMBER}?text=Hi%20Frosty%20Bite!%20My%20order%20%23${order.id.slice(-6).toUpperCase()}%20needs%20cancellation%20assistance%20please.`, '_blank');
+                        window.open(`https://wa.me/${whatsappService.PHONE_NUMBER}?text=Hi%20Frosty%20Bite!%20My%20order%20%23${formatOrderId(order.id)}%20needs%20cancellation%20assistance%20please.`, '_blank');
                       } catch (e) {
                         console.error(e);
                       }

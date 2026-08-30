@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Order } from '../../types';
 import { normalizePhoneNumber, buildDeliveryWhatsAppMessage } from '../../utils/whatsapp';
+import { formatOrderId } from '../../utils/orderUtils';
 import toast from 'react-hot-toast';
 
 interface OrderDeliveryPageProps {
@@ -62,7 +63,7 @@ export const OrderDeliveryPage: React.FC<OrderDeliveryPageProps> = ({
   };
 
   const customerName = (displayOrder.customer_name || displayOrder.customerName || 'Customer').trim();
-  const orderIdShort = displayOrder.id ? (displayOrder.id.length > 8 ? displayOrder.id.slice(-6).toUpperCase() : displayOrder.id.toUpperCase()) : 'N/A';
+  const orderIdShort = formatOrderId(displayOrder.id);
   const amount = displayOrder.total ?? displayOrder.total_amount ?? 0;
 
   const normalizedPhone = normalizePhoneNumber(displayOrder.phone);

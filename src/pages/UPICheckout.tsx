@@ -28,6 +28,7 @@ import toast from 'react-hot-toast';
 import { cn, haptic } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
 import { openWhatsAppOrder } from '../utils/whatsapp';
+import { formatOrderId } from '../utils/orderUtils';
 import { useNotifications } from '../context/NotificationContext';
 
 const PAYMENT_EXPIRY_SECONDS = 600;
@@ -184,7 +185,7 @@ export const UPICheckout: React.FC = () => {
       if (user) {
         addNotification({
           title: 'Payment Submitted',
-          message: `UTR for order #${state!.orderId.slice(-6).toUpperCase()} submitted for verification.`,
+          message: `UTR for order #${formatOrderId(state!.orderId)} submitted for verification.`,
           type: 'order',
           user_id: user.uid,
           link: `/order-tracking/${state!.orderId}`
@@ -304,7 +305,7 @@ export const UPICheckout: React.FC = () => {
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Order ID</p>
-                <p className="font-black tracking-tight text-primary">#{state.orderId.slice(-6).toUpperCase()}</p>
+                <p className="font-black tracking-tight text-primary">#{formatOrderId(state.orderId)}</p>
               </div>
             </div>
 

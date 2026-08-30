@@ -8,6 +8,7 @@ import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { openWhatsAppOrder } from '../utils/whatsapp';
 import { RESTAURANT_WHATSAPP } from '../constants';
 import { useAuth } from '../context/AuthContext';
+import { formatOrderId } from '../utils/orderUtils';
 
 interface OrderItem {
   id: string;
@@ -230,7 +231,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Order Ref</p>
-                      <p className="text-xs font-black text-white uppercase tracking-tight">#{idValue?.toString().slice(-8).toUpperCase()}</p>
+                      <p className="text-xs font-black text-white uppercase tracking-tight">#{formatOrderId(idValue)}</p>
                     </div>
                  </div>
                  <div className="flex items-center gap-3">

@@ -7,6 +7,7 @@ import { Order } from '../../types';
 import { cn } from '../../lib/utils';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
+import { formatOrderId } from '../../utils/orderUtils';
 
 interface OrderActionPopupProps {
   order: Order | null;
@@ -93,7 +94,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
               </div>
               <div>
                 <h3 className="text-white font-black uppercase tracking-widest text-sm">New Order 🍰</h3>
-                <p className="text-white/80 text-[10px] font-bold"># {order.id.slice(-6).toUpperCase()}</p>
+                <p className="text-white/80 text-[10px] font-bold"># {formatOrderId(order.id)}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-black/20 px-3 py-1 rounded-full">

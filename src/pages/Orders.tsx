@@ -12,6 +12,7 @@ import { useCart } from '../context/CartContext';
 import { CancelOrderModal } from '../components/CancelOrderModal';
 import toast from 'react-hot-toast';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
+import { formatOrderId } from '../utils/orderUtils';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -323,7 +324,7 @@ const Orders: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-3">
-                            <h4 className="text-lg font-black text-white tracking-tight uppercase leading-none">Order #{order.id?.toString().slice(-6).toUpperCase() || 'UNKNOWN'}</h4>
+                            <h4 className="text-lg font-black text-white tracking-tight uppercase leading-none">Order #{formatOrderId(order.id)}</h4>
                             <span className={cn(
                               "px-2 px-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest h-5 flex items-center",
                               getStatusColor(order.status || 'pending', !!order.utr)

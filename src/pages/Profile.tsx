@@ -23,6 +23,7 @@ import { getUserWishlist } from '../services/wishlistService';
 import { RESTAURANT_WHATSAPP } from '../constants';
 import { usePWA } from '../hooks/usePWA';
 import { AiRecommendationCard } from '../AiRecommendationCard';
+import { formatOrderId } from '../utils/orderUtils';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { searchService, AiRecommendationResponse } from '../services/searchService';
 import { useMenu } from '../context/MenuContext';
@@ -1232,7 +1233,7 @@ export const Profile: React.FC = () => {
                         </div>
                         <div>
                           <div className="flex items-center gap-3">
-                            <h4 className="text-2xl font-black text-white tracking-tighter">MISSION #{order.id.slice(0, 6).toUpperCase()}</h4>
+                            <h4 className="text-2xl font-black text-white tracking-tighter">ORDER #{formatOrderId(order.id)}</h4>
                             <span className={cn(
                               "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/10 shadow-sm",
                               getStatusColor(order.status)

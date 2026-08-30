@@ -6,6 +6,7 @@ import { cn } from '../../lib/utils';
 import { supabase } from '../../supabase';
 import { useNotifications } from '../../context/NotificationContext';
 import toast from 'react-hot-toast';
+import { formatOrderId } from '../../utils/orderUtils';
 
 import { Order } from '../../types';
 
@@ -524,7 +525,7 @@ export const Orders: React.FC = () => {
                       return (
                         <tr key={order.id} className="hover:bg-white/[0.01] transition-colors group/row">
                           <td className="p-6">
-                            <div className="font-mono font-black text-white text-xs uppercase">#{order.id.slice(-6).toUpperCase()}</div>
+                            <div className="font-mono font-black text-white text-xs uppercase">#{formatOrderId(order.id)}</div>
                             <div className="text-[9px] text-zinc-500 mt-1">
                               {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
                             </div>

@@ -42,6 +42,7 @@ import { OrderConfirmation } from '../components/OrderConfirmation';
 import { RESTAURANT_LOCATION, BAKERY_ADDRESS, BAKERY_PICKUP_INSTRUCTIONS } from '../constants';
 import { calculateDistance } from '../utils/distance';
 import { openWhatsAppOrder } from '../utils/whatsapp';
+import { generateOrderId } from '../utils/orderUtils';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { appConfigService } from '../services/appConfigService';
 import { useGeofence } from '../context/GeofenceContext';
@@ -799,7 +800,7 @@ export const Checkout: React.FC = () => {
     }
 
     try {
-      const orderId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const orderId = generateOrderId();
       
       const orderItems = cart.map(item => ({
         id: item.id,
@@ -917,7 +918,7 @@ export const Checkout: React.FC = () => {
         if (user) {
           addNotification({
             title: 'Order Placed (UPI)',
-            message: `Order #${orderId.slice(-6).toUpperCase()} placed. Please complete payment.`,
+            message: `Order #${orderId} placed. Please complete payment.`,
             type: 'order',
             user_id: user.uid,
             link: `/upi-checkout/${orderId}`
@@ -961,7 +962,7 @@ export const Checkout: React.FC = () => {
         if (user) {
           addNotification({
             title: 'Order Placed (COD)',
-            message: `Order #${orderId.slice(-6).toUpperCase()} placed successfully via COD.`,
+            message: `Order #${orderId} placed successfully via COD.`,
             type: 'order',
             user_id: user.uid,
             link: '/orders'

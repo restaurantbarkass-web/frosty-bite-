@@ -2,6 +2,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Order } from '../../types';
 import { Printer, X } from 'lucide-react';
+import { formatOrderId } from '../../utils/orderUtils';
 
 interface KOTPrintProps {
   order: Order;
@@ -58,7 +59,7 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
           {/* Order Info */}
           <div className="grid grid-cols-2 gap-y-1 mb-4 text-[11px]">
             <span className="font-bold">Order ID:</span>
-            <span className="text-right">#{order.id.slice(-8).toUpperCase()}</span>
+            <span className="text-right">#{formatOrderId(order.id)}</span>
             <span className="font-bold">Date:</span>
             <span className="text-right">{format(date, 'dd/MM/yyyy')}</span>
             <span className="font-bold">Time:</span>

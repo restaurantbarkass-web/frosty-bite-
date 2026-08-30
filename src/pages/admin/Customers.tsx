@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { User, Search, Mail, Phone, Calendar, MapPin, ExternalLink, MessageCircle, X, ShoppingBag, Star, Award, Flame, ChevronDown, ChevronUp, Wallet } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
+import { formatOrderId } from '../../utils/orderUtils';
 
 interface Customer {
   id: string;
@@ -366,7 +367,7 @@ export const Customers: React.FC = () => {
                                         Order ID
                                       </span>
                                       <span className="text-sm font-mono font-black text-white">
-                                        #{order.id.slice(-8).toUpperCase()}
+                                        #{formatOrderId(order.id)}
                                       </span>
                                     </div>
                                     <div className="text-[11px] text-gray-400">

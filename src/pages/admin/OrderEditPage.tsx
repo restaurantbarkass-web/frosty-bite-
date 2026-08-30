@@ -12,6 +12,7 @@ import { SlideToConfirm } from '../../components/ui/SlideToConfirm';
 import { AdminCancellationSuccessModal } from '../../components/admin/AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from '../../components/admin/AdminDeliverySuccessModal';
 import { normalizePhoneNumber, openCancellationWhatsApp } from '../../utils/whatsapp';
+import { formatOrderId } from '../../utils/orderUtils';
 import toast from 'react-hot-toast';
 
 interface OrderEditPageProps {
@@ -101,7 +102,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
     if (phone) {
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       const formatted = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
-      const msg = encodeURIComponent(`Hello ${customerName}, updating you regarding your Frosty Bite order #${order.id.slice(0, 8)}...`);
+      const msg = encodeURIComponent(`Hello ${customerName}, updating you regarding your Frosty Bite order #${formatOrderId(order.id)}...`);
       window.open(`https://wa.me/${formatted}?text=${msg}`, '_blank');
     } else {
       toast.error('No phone number available');
@@ -204,7 +205,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                Order <span className="font-mono text-primary">#{order.id.slice(0, 8)}</span>
+                Order <span className="font-mono text-primary">#{formatOrderId(order.id)}</span>
               </h1>
               <span className={`px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider rounded-full border ${currStatusStyle.bg} ${currStatusStyle.text} ${currStatusStyle.border}`}>
                 {status.replace(/_/g, ' ')}

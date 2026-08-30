@@ -5,6 +5,7 @@ import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
 import { supabaseService } from '../../services/supabaseService';
 import { sendWhatsAppMessage } from '../../utils/whatsapp';
+import { formatOrderId } from '../../utils/orderUtils';
 import { KOTPrint } from './KOTPrint';
 import { OrderEditPage } from '../../pages/admin/OrderEditPage';
 import toast from 'react-hot-toast';
@@ -282,7 +283,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Payment Verified',
-          message: `Your payment for order #${orderId.slice(-6).toUpperCase()} has been verified.`,
+          message: `Your payment for order #${formatOrderId(orderId)} has been verified.`,
           type: 'order',
           user_id: order.user_id,
           link: `/order-tracking/${orderId}`
@@ -351,7 +352,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       if (order && order.user_id !== 'guest' && order.user_id) {
         addNotification({
           title: 'Order Rejected & Refund Initiated',
-          message: `Order #${orderId.slice(-6).toUpperCase()} rejected. If paid, refund will be processed within 24 hrs as per policy.`,
+          message: `Order #${formatOrderId(orderId)} rejected. If paid, refund will be processed within 24 hrs as per policy.`,
           type: 'order',
           user_id: order.user_id,
           link: `/order-tracking/${orderId}`
@@ -411,7 +412,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         if (order && order.user_id !== 'guest' && order.user_id) {
           addNotification({
             title: 'Order Cancelled by Admin',
-            message: `Order #${id.slice(-6).toUpperCase()} was cancelled. Reason: ${reasonToUse}`,
+            message: `Order #${formatOrderId(id)} was cancelled. Reason: ${reasonToUse}`,
             type: 'order',
             user_id: order.user_id,
             link: `/order-tracking/${id}`
@@ -729,7 +730,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-black text-rose-400 uppercase tracking-widest">Cancel Order</span>
                                 <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
-                                  #{order.id.slice(-6).toUpperCase()}
+                                  #{formatOrderId(order.id)}
                                 </span>
                               </div>
                               <p className="text-xs text-zinc-300 font-medium mt-0.5">
@@ -840,7 +841,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-red-400 uppercase tracking-widest">Delete Order</span>
                               <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
-                                #{order.id.slice(-6).toUpperCase()}
+                                #{formatOrderId(order.id)}
                               </span>
                             </div>
                             <p className="text-xs text-zinc-300 font-medium mt-0.5">
@@ -876,7 +877,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   className="group transition-colors"
                 >
                 <td className="px-8 py-6">
-                  <span className="text-sm font-bold text-white font-mono tracking-tight">{order.id.slice(-6).toUpperCase()}</span>
+                  <span className="text-sm font-bold text-white font-mono tracking-tight">{formatOrderId(order.id)}</span>
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-3">
@@ -889,7 +890,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       </span>
                       {order.phone && (
                         <button 
-                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name || order.customerName}, this is Frosty Bite regarding your order #${order.id.slice(-6).toUpperCase()}.`)}
+                          onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name || order.customerName}, this is Frosty Bite regarding your order #${formatOrderId(order.id)}.`)}
                           className="flex items-center gap-1 text-[10px] text-emerald-500 hover:text-emerald-400 font-bold"
                         >
                           <MessageCircle size={10} />
@@ -1205,7 +1206,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         <AlertCircle size={15} />
                       </div>
                       <h4 className="text-xs font-black text-white uppercase italic tracking-tight">
-                        Cancel Order #{order.id.slice(-6).toUpperCase()}
+                        Cancel Order #{formatOrderId(order.id)}
                       </h4>
                     </div>
                     <button
@@ -1321,7 +1322,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       <Trash2 size={22} />
                     </div>
                     <h4 className="text-sm font-black text-white uppercase italic tracking-tight">
-                      Delete Order #{order.id.slice(-6).toUpperCase()}?
+                      Delete Order #{formatOrderId(order.id)}?
                     </h4>
                     <p className="text-xs text-zinc-300 font-medium px-2">
                       Permanently remove order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
@@ -1352,7 +1353,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               )}
             </AnimatePresence>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-primary uppercase font-mono">#{order.id.slice(-6)}</span>
+              <span className="text-xs font-black text-primary uppercase font-mono">#{formatOrderId(order.id)}</span>
               <StatusBadge order={order} />
             </div>
             
