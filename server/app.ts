@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 
+console.log("[Vercel] server/app.ts loading...");
+
 // Initialize environment variables first thing before routes are loaded
 const envPath = path.resolve(process.cwd(), ".env");
 
@@ -12,18 +14,9 @@ if (fs.existsSync(envPath)) {
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import butlerRoutes from "./routes/butler.routes";
-import avatarRoutes from "./routes/avatar.routes";
-import authRoutes from "./routes/auth.routes";
-import configRoutes from "./routes/config.routes";
-import notificationRoutes from "./routes/notification.routes";
-import validateaddressRoutes from "./routes/validateaddress.routes";
-import reviewsRoutes from "./routes/reviews.routes";
-import searchRoutes from "./routes/search.routes";
-import v2geofencingRoutes from "./routes/v2geofencing.routes";
-import paymentRoutes from "./routes/payment.routes";
 
 const app = express();
+console.log("[Vercel] Express app created");
 
 // Trust reverse proxy (Vercel, Cloud Run, nginx) for accurate IP resolution in express-rate-limit
 app.set("trust proxy", 1);
@@ -44,7 +37,9 @@ app.use((req, res, next) => {
 // Normalize req.url path if it starts with '/api' for Vercel Serverless environment compatibility.
 // If Vercel delegates routing directly to the functions folder, this unprefixes the path so Express routes match correctly.
 app.use((req, res, next) => {
-  if (req.url.startsWith('/api/')) {
+  if (req.url.startsWith('/api/index.ts')) {
+    req.url = req.url.replace('/api/index.ts', '') || '/';
+  } else if (req.url.startsWith('/api/')) {
     req.url = req.url.slice(4);
   } else if (req.url === '/api') {
     req.url = '/';
@@ -99,6 +94,7 @@ app.use(helmet({
   crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: false
 }));
+
 app.use(cors((req: any, callback: any) => {
   const origin = req.header('Origin');
   const host = req.header('Host');
@@ -107,7 +103,6 @@ app.use(cors((req: any, callback: any) => {
   if (!origin) {
     isAllowed = true;
   } else {
-    const isProd = process.env.NODE_ENV === "production";
     if (!isProd) {
       isAllowed = true;
     } else {
@@ -152,7 +147,7 @@ app.use("/avatar", (req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Health Check
+// Lightweight Health & Ping Check Endpoints - ALWAYS AVAILABLE
 app.get(["/health", "/api/health"], (req, res) => {
   console.log("[App] Health check hit");
   res.json({ 
@@ -182,16 +177,48 @@ app.get("/migration-script", (req, res) => {
   }
 });
 
-app.use(["/butler", "/api/butler"], butlerRoutes);
-app.use(["/avatar", "/api/avatar"], avatarRoutes);
-app.use(["/auth", "/api/auth"], authRoutes);
-app.use(["/config", "/api/config"], configRoutes);
-app.use(["/notifications", "/api/notifications"], notificationRoutes);
-app.use(["/validate-address", "/api/validate-address"], validateaddressRoutes);
-app.use(["/reviews", "/api/reviews"], reviewsRoutes);
-app.use(["/search", "/api/search"], searchRoutes);
-app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], v2geofencingRoutes);
-app.use(["/payment", "/api/payment"], paymentRoutes);
+// Helper for resilient lazy loading of route modules to isolate startup crashes
+function lazyRoute(importFn: () => Promise<{ default: any }>) {
+  let routerInstance: any = null;
+  let initError: Error | null = null;
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!routerInstance && !initError) {
+        const module = await importFn();
+        routerInstance = module.default;
+      }
+      if (initError) {
+        return res.status(500).json({
+          error: "Module Initialization Error",
+          message: initError.message
+        });
+      }
+      return routerInstance(req, res, next);
+    } catch (err: any) {
+      console.error("[LazyRoute Error]", err?.message || err);
+      initError = err;
+      return res.status(500).json({
+        error: "Route Loading Error",
+        message: err?.message || "Failed to load route module"
+      });
+    }
+  };
+}
+
+// Lazy-mounted feature routes
+app.use(["/butler", "/api/butler"], lazyRoute(() => import("./routes/butler.routes")));
+app.use(["/avatar", "/api/avatar"], lazyRoute(() => import("./routes/avatar.routes")));
+app.use(["/auth", "/api/auth"], lazyRoute(() => import("./routes/auth.routes")));
+app.use(["/config", "/api/config"], lazyRoute(() => import("./routes/config.routes")));
+app.use(["/notifications", "/api/notifications"], lazyRoute(() => import("./routes/notification.routes")));
+app.use(["/validate-address", "/api/validate-address"], lazyRoute(() => import("./routes/validateaddress.routes")));
+app.use(["/reviews", "/api/reviews"], lazyRoute(() => import("./routes/reviews.routes")));
+app.use(["/search", "/api/search"], lazyRoute(() => import("./routes/search.routes")));
+app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], lazyRoute(() => import("./routes/v2geofencing.routes")));
+app.use(["/payment", "/api/payment"], lazyRoute(() => import("./routes/payment.routes")));
+
+console.log("[Vercel] routes mounted");
 
 // Direct top-level aliases for cities, pincodes, localities, service-areas, and trending
 app.get(["/cities", "/api/cities"], async (req, res) => {
