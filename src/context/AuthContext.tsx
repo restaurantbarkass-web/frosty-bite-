@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import { LoadingScreen } from '../components/LoadingScreen';
 import { ADMIN_EMAILS, getRoleFromEmail } from '../constants';
 import { supabase } from '../supabase';
 import { auth as fbAuth, logout as fbLogout } from '../firebase';
@@ -14,7 +13,7 @@ import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 import { AuthModal } from '../components/AuthModal';
 import { haptic } from '../lib/utils';
 
-type UserRole = 'customer' | 'admin';
+export type UserRole = 'customer' | 'admin';
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 export interface UnifiedUser {
@@ -70,7 +69,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Synchronous cache hydration on application bootstrap
+  // Synchronous cache hydration on application bootstrap for smooth rendering
   const initialCachedUser: UnifiedUser | null = (() => {
     try {
       const cached = localStorage.getItem('frostybite_cached_user');
@@ -81,7 +80,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return parsed;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[UnifiedAuth] Failed parsing initial cached user:', e);
+    }
     return null;
   })();
 
@@ -97,6 +98,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalConfig, setAuthModalConfig] = useState<{ title?: string; subtitle?: string }>({});
+
+  const lastSupabaseUserRef = useRef<any>(undefined);
+  const lastFirebaseUserRef = useRef<any>(undefined);
+  const syncVersionRef = useRef<number>(0);
+  const initialBootstrapDoneRef = useRef<boolean>(false);
+
+  const isVerified = useMemo(() => {
+    return !!user;
+  }, [user]);
 
   const loginAsGuest = useCallback(() => {
     const gs = GuestSessionManager.create();
@@ -118,6 +128,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
   }, []);
+
+  // Auto-close login modal if user becomes authenticated
+  useEffect(() => {
+    if (authStatus === 'authenticated' && authModalOpen) {
+      console.log('[Auth] User is authenticated; auto-closing auth modal');
+      setAuthModalOpen(false);
+    }
+  }, [authStatus, authModalOpen]);
 
   const getAuthToken = useCallback(async (): Promise<string | null> => {
     let token: string | null = null;
@@ -149,28 +167,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return token;
   }, []);
 
-  const requireAuthentication = useCallback((action?: () => void, title?: string, subtitle?: string) => {
-    if (user) {
-      if (action) action();
+  // Strict check: Never show login modal if authStatus is loading
+  const requireAuthentication = useCallback((action?: () => void, title?: string, subtitle?: string): boolean => {
+    if (authStatus === 'loading') {
+      console.log('[Auth] requireAuthentication called while loading; modal suppressed.');
+      return false;
+    }
+
+    if (authStatus === 'authenticated' && user) {
+      if (action) {
+        try {
+          action();
+        } catch (actErr) {
+          console.error('[Auth] Error executing requireAuthentication action:', actErr);
+        }
+      }
       return true;
     }
+
+    // Truly unauthenticated -> trigger modal
     openAuthModal(title, subtitle);
     return false;
-  }, [user, openAuthModal]);
+  }, [authStatus, user, openAuthModal]);
 
-  const lastSupabaseUserRef = useRef<any>(undefined);
-  const lastFirebaseUserRef = useRef<any>(undefined);
-  const syncVersionRef = useRef<number>(0);
-
-  const isVerified = useMemo(() => {
-    if (!user) return false;
-    return true;
-  }, [user]);
-
-  // Handle resolving user identity from database by email
+  // Core user identity and profile resolver
   const resolveAndSyncUser = useCallback(async (sbUserParam?: any, fbUserParam?: any) => {
     const currentVersion = ++syncVersionRef.current;
-    
+
     if (sbUserParam !== undefined) {
       lastSupabaseUserRef.current = sbUserParam;
     }
@@ -211,21 +234,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       let fallbackEmail: string | null = null;
       try {
-        fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+        const hasSession = localStorage.getItem('frostybite_has_active_session') === 'true';
+        if (hasSession) {
+          fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+          if (!fallbackEmail) {
+            const cachedStr = localStorage.getItem('frostybite_cached_user');
+            if (cachedStr) {
+              const parsed = JSON.parse(cachedStr);
+              fallbackEmail = parsed?.email || null;
+            }
+          }
+        }
       } catch (e) {
         console.warn('[UnifiedAuth] Failed to read fallbackEmail from localStorage:', e);
       }
-      
-      const hasResolvedUser = !!sbUser || !!fbUser;
-      if (!hasResolvedUser) {
-        const isSupabaseInitializing = lastSupabaseUserRef.current === undefined;
-        const isFirebaseInitializing = lastFirebaseUserRef.current === undefined;
-        if (isSupabaseInitializing || isFirebaseInitializing) {
-          return;
-        }
-      }
 
       const email = fbUser?.email || sbUser?.email || fallbackEmail;
+
+      // If no valid user or email is found anywhere
       if (!email) {
         if (currentVersion !== syncVersionRef.current) return;
         setUser(null);
@@ -235,189 +261,222 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.removeItem('frostybite_cached_user');
           localStorage.removeItem('frostybite_has_active_session');
+          localStorage.removeItem('frostybite_active_session_email');
         } catch (e) {}
+        console.log('[Auth] Status: unauthenticated, Supabase: missing, Firebase: missing, User: null');
         return;
       }
 
       const normalizedEmail = safeTrimLowerCase(email);
-      console.log(`[UnifiedAuth] Resolving identity for: ${normalizedEmail}`);
+      console.log(`[UnifiedAuth] Resolving identity for: ${normalizedEmail} (version ${currentVersion})`);
 
       const defaultName = normalizedEmail.split('@')[0];
       const displayName = fbUser?.displayName || sbUser?.user_metadata?.full_name || sbUser?.user_metadata?.name || defaultName;
       const photoURL = fbUser?.photoURL || sbUser?.user_metadata?.avatar_url || null;
       const determinedRole = getRoleFromEmail(normalizedEmail);
 
-      let dbUser = null;
+      let dbUser: any = null;
 
-      // Fetch user profile from Supabase Postgres
-      let { data: localUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', normalizedEmail)
-        .maybeSingle();
-      
-      dbUser = localUser;
-
-      if (!dbUser && fbUser?.uid) {
-        const { data: fbLoc } = await supabase
+      // 1. Fetch user profile from Supabase Postgres database
+      try {
+        const { data: localUser, error: selErr } = await supabase
           .from('users')
           .select('*')
-          .eq('firebase_uid', fbUser.uid)
+          .eq('email', normalizedEmail)
           .maybeSingle();
-        if (fbLoc) dbUser = fbLoc;
+
+        if (!selErr && localUser) {
+          dbUser = localUser;
+        }
+      } catch (err) {
+        console.warn('[UnifiedAuth] Error querying user by email:', err);
+      }
+
+      if (!dbUser && fbUser?.uid) {
+        try {
+          const { data: fbLoc } = await supabase
+            .from('users')
+            .select('*')
+            .eq('firebase_uid', fbUser.uid)
+            .maybeSingle();
+          if (fbLoc) dbUser = fbLoc;
+        } catch (err) {
+          console.warn('[UnifiedAuth] Error querying user by firebase_uid:', err);
+        }
       }
 
       if (!dbUser && sbUser?.id) {
-        const { data: sbLoc } = await supabase
-          .from('users')
-          .select('*')
-          .eq('supabase_uid', sbUser.id)
-          .maybeSingle();
-        if (sbLoc) dbUser = sbLoc;
+        try {
+          const { data: sbLoc } = await supabase
+            .from('users')
+            .select('*')
+            .eq('supabase_uid', sbUser.id)
+            .maybeSingle();
+          if (sbLoc) dbUser = sbLoc;
+        } catch (err) {
+          console.warn('[UnifiedAuth] Error querying user by supabase_uid:', err);
+        }
       }
 
+      // 2. Insert master profile if not existing
       if (!dbUser) {
-        console.log(`[UnifiedAuth] Creating master database record for ${normalizedEmail}...`);
-        const { data: insertedUser, error: insertError } = await supabase
-          .from('users')
-          .insert({
-            email: normalizedEmail,
-            name: displayName,
-            full_name: displayName,
-            avatar_url: photoURL,
-            avatar: photoURL,
-            supabase_uid: sbUser?.id || null,
-            firebase_uid: fbUser?.uid || null,
-            auth_methods: fbUser ? ['google'] : ['otp'],
-            last_login: new Date().toISOString(),
-            last_login_at: new Date().toISOString(),
-            role: determinedRole
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('[UnifiedAuth] fallback insert error:', insertError);
-        } else {
-          dbUser = insertedUser;
-        }
-      } else {
-        // Keep properties synchronized or merge them
-        const updates: any = {};
-        const methods = Array.isArray(dbUser.auth_methods) ? dbUser.auth_methods : [];
-        let updatedMethods = [...methods];
-
-        if (normalizedEmail && dbUser.email !== normalizedEmail) {
-          updates.email = normalizedEmail;
-        }
-
-        if (sbUser?.id && dbUser.supabase_uid !== sbUser.id) {
-          updates.supabase_uid = sbUser.id;
-          if (!updatedMethods.includes('otp')) updatedMethods.push('otp');
-        }
-
-        if (fbUser?.uid && dbUser.firebase_uid !== fbUser.uid) {
-          updates.firebase_uid = fbUser.uid;
-          if (!updatedMethods.includes('google')) updatedMethods.push('google');
-        }
-
-        const methodsChanged = updatedMethods.length !== methods.length || 
-                              !updatedMethods.every(m => methods.includes(m));
-        
-        if (methodsChanged) {
-          updates.auth_methods = updatedMethods;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          const { data: updatedUser, error: updateError } = await supabase
+        try {
+          console.log(`[UnifiedAuth] Creating database profile record for ${normalizedEmail}...`);
+          const { data: insertedUser, error: insertError } = await supabase
             .from('users')
-            .update(updates)
-            .eq('id', dbUser.id)
+            .insert({
+              email: normalizedEmail,
+              name: displayName,
+              full_name: displayName,
+              avatar_url: photoURL,
+              avatar: photoURL,
+              supabase_uid: sbUser?.id || null,
+              firebase_uid: fbUser?.uid || null,
+              auth_methods: fbUser ? ['google'] : ['otp'],
+              last_login: new Date().toISOString(),
+              last_login_at: new Date().toISOString(),
+              role: determinedRole
+            })
             .select()
             .single();
-          
-          if (updateError) {
-            console.error('[Auth] Failed to update user profile:', updateError);
-          } else if (updatedUser) {
-            dbUser = updatedUser;
-          }
-        }
-      }
 
-      if (dbUser) {
-        if (GuestSessionManager.isActive()) {
-          GuestSessionManager.mergeWithUser(dbUser.id);
-          setGuestState(null);
-        }
-
-        const unifiedUser: UnifiedUser = {
-          uid: dbUser.id,
-          id: dbUser.id,
-          firebase_uid: dbUser.firebase_uid || fbUser?.uid || null,
-          supabase_uid: dbUser.supabase_uid || sbUser?.id || null,
-          email: dbUser.email,
-          name: dbUser.name || dbUser.full_name || displayName,
-          displayName: dbUser.name || dbUser.full_name || displayName,
-          photoURL: dbUser.avatar_url || dbUser.avatar || photoURL,
-          avatar: dbUser.avatar || dbUser.avatar_url || photoURL,
-          avatar_url: dbUser.avatar_url || dbUser.avatar || photoURL,
-          avatarSvg: dbUser.avatarSvg || null,
-          avatarConfig: dbUser.avatar_config || null,
-          phone: dbUser.phone || null,
-          address: dbUser.address || null,
-          role: (dbUser.role || determinedRole) as UserRole,
-          badge_tier: dbUser.badge_tier || 'Foodie Starter',
-          total_orders: dbUser.total_orders || 0,
-          reward_points: dbUser.reward_points || 0,
-          lifetime_spend: dbUser.lifetime_spend || 0,
-          points: dbUser.points || 0,
-          vibe: dbUser.vibe || null,
-          title: dbUser.title || null,
-          emailVerified: true,
-          getIdToken: getAuthToken
-        };
- 
-        if (currentVersion !== syncVersionRef.current) return;
-        setUser((prev) => {
-          if (
-            prev &&
-            typeof prev.getIdToken === 'function' &&
-            prev.id === unifiedUser.id &&
-            prev.uid === unifiedUser.uid &&
-            prev.email === unifiedUser.email &&
-            prev.name === unifiedUser.name &&
-            prev.role === unifiedUser.role &&
-            prev.photoURL === unifiedUser.photoURL &&
-            prev.points === unifiedUser.points &&
-            prev.reward_points === unifiedUser.reward_points &&
-            prev.badge_tier === unifiedUser.badge_tier &&
-            prev.phone === unifiedUser.phone &&
-            prev.address === unifiedUser.address
-          ) {
-            return prev;
+          if (insertError) {
+            console.warn('[UnifiedAuth] User insert warning:', insertError.message);
+          } else if (insertedUser) {
+            dbUser = insertedUser;
           }
-          return unifiedUser;
-        });
-        setRole((prev) => (prev === unifiedUser.role ? prev : unifiedUser.role));
-        setAuthStatus('authenticated');
-        setLoading(false);
-        try {
-          localStorage.setItem('frostybite_has_active_session', 'true');
-          localStorage.setItem('frostybite_active_session_email', unifiedUser.email);
-          localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
-          CacheManager.set(CacheKeys.USER_PROFILE, unifiedUser, CacheNamespace.USER).catch(() => {});
-        } catch (e) {}
+        } catch (insErr) {
+          console.warn('[UnifiedAuth] Error inserting user record:', insErr);
+        }
       } else {
-        if (currentVersion !== syncVersionRef.current) return;
-        setUser(null);
-        setRole('customer');
-        setAuthStatus('unauthenticated');
-        setLoading(false);
+        // Sync metadata updates in background
+        try {
+          const updates: any = {};
+          const methods = Array.isArray(dbUser.auth_methods) ? dbUser.auth_methods : [];
+          let updatedMethods = [...methods];
+
+          if (normalizedEmail && dbUser.email !== normalizedEmail) {
+            updates.email = normalizedEmail;
+          }
+
+          if (sbUser?.id && dbUser.supabase_uid !== sbUser.id) {
+            updates.supabase_uid = sbUser.id;
+            if (!updatedMethods.includes('otp')) updatedMethods.push('otp');
+          }
+
+          if (fbUser?.uid && dbUser.firebase_uid !== fbUser.uid) {
+            updates.firebase_uid = fbUser.uid;
+            if (!updatedMethods.includes('google')) updatedMethods.push('google');
+          }
+
+          const methodsChanged = updatedMethods.length !== methods.length || 
+                                !updatedMethods.every(m => methods.includes(m));
+          
+          if (methodsChanged) {
+            updates.auth_methods = updatedMethods;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            try {
+              const { data: updatedUser } = await supabase
+                .from('users')
+                .update(updates)
+                .eq('id', dbUser.id)
+                .select()
+                .single();
+              if (updatedUser) {
+                dbUser = updatedUser;
+              }
+            } catch (updErr) {
+              console.warn('[UnifiedAuth] Profile sync update error:', updErr);
+            }
+          }
+        } catch (e) {
+          console.warn('[UnifiedAuth] Error preparing profile updates:', e);
+        }
       }
+
+      if (GuestSessionManager.isActive()) {
+        GuestSessionManager.mergeWithUser(dbUser?.id || sbUser?.id || fbUser?.uid || 'user');
+        setGuestState(null);
+      }
+
+      // 3. Construct Unified User Object (with safe fallback if DB fetch encountered transient error)
+      const unifiedUser: UnifiedUser = dbUser ? {
+        uid: dbUser.id,
+        id: dbUser.id,
+        firebase_uid: dbUser.firebase_uid || fbUser?.uid || null,
+        supabase_uid: dbUser.supabase_uid || sbUser?.id || null,
+        email: dbUser.email || normalizedEmail,
+        name: dbUser.name || dbUser.full_name || displayName,
+        displayName: dbUser.name || dbUser.full_name || displayName,
+        photoURL: dbUser.avatar_url || dbUser.avatar || photoURL,
+        avatar: dbUser.avatar || dbUser.avatar_url || photoURL,
+        avatar_url: dbUser.avatar_url || dbUser.avatar || photoURL,
+        avatarSvg: dbUser.avatarSvg || null,
+        avatarConfig: dbUser.avatar_config || null,
+        phone: dbUser.phone || null,
+        address: dbUser.address || null,
+        role: (dbUser.role || determinedRole) as UserRole,
+        badge_tier: dbUser.badge_tier || 'Foodie Starter',
+        total_orders: dbUser.total_orders || 0,
+        reward_points: dbUser.reward_points || 0,
+        lifetime_spend: dbUser.lifetime_spend || 0,
+        points: dbUser.points || 0,
+        vibe: dbUser.vibe || null,
+        title: dbUser.title || null,
+        emailVerified: true,
+        getIdToken: getAuthToken
+      } : {
+        uid: sbUser?.id || fbUser?.uid || `usr_${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        id: sbUser?.id || fbUser?.uid || `usr_${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        firebase_uid: fbUser?.uid || null,
+        supabase_uid: sbUser?.id || null,
+        email: normalizedEmail,
+        name: displayName,
+        displayName: displayName,
+        photoURL: photoURL,
+        avatar: photoURL,
+        avatar_url: photoURL,
+        avatarSvg: null,
+        avatarConfig: null,
+        phone: null,
+        address: null,
+        role: determinedRole as UserRole,
+        badge_tier: 'Foodie Starter',
+        total_orders: 0,
+        reward_points: 0,
+        lifetime_spend: 0,
+        points: 0,
+        vibe: null,
+        title: null,
+        emailVerified: true,
+        getIdToken: getAuthToken
+      };
+
+      // Ensure this async response is still the latest resolution version
+      if (currentVersion !== syncVersionRef.current) {
+        console.log(`[UnifiedAuth] Stale resolution version (${currentVersion} < ${syncVersionRef.current}), skipping state update.`);
+        return;
+      }
+
+      setUser(unifiedUser);
+      setRole(unifiedUser.role);
+      setAuthStatus('authenticated');
+      setLoading(false);
+
+      try {
+        localStorage.setItem('frostybite_has_active_session', 'true');
+        localStorage.setItem('frostybite_active_session_email', unifiedUser.email);
+        localStorage.setItem('frostybite_cached_user', JSON.stringify(unifiedUser));
+        CacheManager.set(CacheKeys.USER_PROFILE, unifiedUser, CacheNamespace.USER).catch(() => {});
+      } catch (e) {}
+
+      console.log(`[Auth] Status: authenticated, Supabase: ${sbUser ? 'present' : 'missing'}, Firebase: ${fbUser ? 'present' : 'missing'}, User: ${unifiedUser.email}`);
     } catch (error) {
       console.error('[UnifiedAuth] Error in resolveAndSyncUser:', error);
       if (currentVersion === syncVersionRef.current) {
-        setAuthStatus((prev) => (prev === 'loading' ? (user ? 'authenticated' : 'unauthenticated') : prev));
+        setAuthStatus((prev) => (user ? 'authenticated' : (prev === 'loading' ? 'unauthenticated' : prev)));
         setLoading(false);
       }
     } finally {
@@ -427,33 +486,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getAuthToken, user]);
 
+  // Auth lifecycle initialization and provider listeners
   useEffect(() => {
     let isMounted = true;
 
     const initAuthLifecycle = async () => {
       try {
-        // 1. Check if Firebase auth state is ready (asynchronously reads indexedDB)
-        let fbUser: any = fbAuth.currentUser;
-        if (!fbUser) {
-          if (typeof (fbAuth as any).authStateReady === 'function') {
-            try {
-              await (fbAuth as any).authStateReady();
-              fbUser = fbAuth.currentUser;
-            } catch (e) {
-              console.warn('[UnifiedAuth] authStateReady error:', e);
-            }
-          } else {
-            fbUser = await new Promise((resolve) => {
-              const unsub = fbAuth.onAuthStateChanged((u) => {
-                unsub();
-                resolve(u);
-              }, () => resolve(null));
-              setTimeout(() => resolve(null), 1500);
-            });
-          }
-        }
-
-        // 2. Check Supabase session
+        // 1. Check Supabase session
         let sbUser: any = null;
         try {
           const { data: sessionData } = await supabase.auth.getSession();
@@ -462,20 +501,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.warn('[UnifiedAuth] Supabase getSession error:', e);
         }
 
-        lastFirebaseUserRef.current = fbUser;
-        lastSupabaseUserRef.current = sbUser;
+        // 2. Check Firebase session
+        let fbUser: any = fbAuth.currentUser;
+        if (!fbUser) {
+          if (typeof (fbAuth as any).authStateReady === 'function') {
+            try {
+              await (fbAuth as any).authStateReady();
+              fbUser = fbAuth.currentUser;
+            } catch (e) {
+              console.warn('[UnifiedAuth] Firebase authStateReady error:', e);
+            }
+          } else {
+            fbUser = await new Promise((resolve) => {
+              const unsub = fbAuth.onAuthStateChanged((u) => {
+                unsub();
+                resolve(u);
+              }, () => resolve(null));
+              setTimeout(() => resolve(null), 1000);
+            });
+          }
+        }
 
-        if (fbUser || sbUser) {
+        lastSupabaseUserRef.current = sbUser;
+        lastFirebaseUserRef.current = fbUser;
+
+        console.log(`[Auth] Bootstrap check - Supabase: ${sbUser ? 'present' : 'missing'}, Firebase: ${fbUser ? 'present' : 'missing'}`);
+
+        if (sbUser || fbUser) {
           await resolveAndSyncUser(sbUser, fbUser);
+          if (isMounted) initialBootstrapDoneRef.current = true;
           return;
         }
 
-        // 3. Fallback check cached session
-        const cachedUserStr = localStorage.getItem('frostybite_cached_user');
+        // 3. Check for active session fallback in storage
         const hasSessionFlag = localStorage.getItem('frostybite_has_active_session') === 'true';
         const fallbackEmail = localStorage.getItem('frostybite_active_session_email');
+        const cachedUserStr = localStorage.getItem('frostybite_cached_user');
 
-        if (hasSessionFlag && (cachedUserStr || fallbackEmail)) {
+        if (hasSessionFlag && (fallbackEmail || cachedUserStr)) {
           let emailToSync = fallbackEmail;
           if (!emailToSync && cachedUserStr) {
             try {
@@ -483,13 +546,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (_) {}
           }
           if (emailToSync) {
+            console.log(`[Auth] Bootstrap found fallback session for: ${emailToSync}`);
             await resolveAndSyncUser(null, null);
+            if (isMounted) initialBootstrapDoneRef.current = true;
             return;
           }
         }
 
-        // 4. Truly unauthenticated session
+        // 4. No active session -> Mark unauthenticated
         if (isMounted) {
+          initialBootstrapDoneRef.current = true;
           lastSupabaseUserRef.current = null;
           lastFirebaseUserRef.current = null;
           setUser(null);
@@ -501,11 +567,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.removeItem('frostybite_has_active_session');
             localStorage.removeItem('frostybite_active_session_email');
           } catch (e) {}
+          console.log('[Auth] Auth status: unauthenticated');
         }
       } catch (err) {
         console.warn('[UnifiedAuth] Initialization error:', err);
         if (isMounted) {
-          setAuthStatus(prev => (user ? 'authenticated' : 'unauthenticated'));
+          initialBootstrapDoneRef.current = true;
+          setAuthStatus(user ? 'authenticated' : 'unauthenticated');
           setLoading(false);
         }
       }
@@ -513,21 +581,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initAuthLifecycle();
 
-    // Live listener for Supabase login events
+    // Live listener for Supabase auth events
     let unsubscribeSupabase: { unsubscribe: () => void } | null = null;
     try {
       const authRes = supabase.auth.onAuthStateChange((event, session) => {
         console.log(`[UnifiedAuth] Supabase auth event: ${event}`, session?.user?.email || 'null');
         if (event === 'SIGNED_OUT') {
           lastSupabaseUserRef.current = null;
-          setUser(null);
-          setRole('customer');
-          setAuthStatus('unauthenticated');
-          setLoading(false);
+          if (lastFirebaseUserRef.current) {
+            resolveAndSyncUser(null, lastFirebaseUserRef.current);
+          } else if (initialBootstrapDoneRef.current) {
+            const hasSession = localStorage.getItem('frostybite_has_active_session') === 'true';
+            if (!hasSession) {
+              setUser(null);
+              setRole('customer');
+              setAuthStatus('unauthenticated');
+              setLoading(false);
+            }
+          }
           return;
         }
         if (session?.user) {
-          resolveAndSyncUser(session.user, undefined);
+          lastSupabaseUserRef.current = session.user;
+          resolveAndSyncUser(session.user, lastFirebaseUserRef.current);
         }
       });
       if (authRes && authRes.data && authRes.data.subscription) {
@@ -542,8 +618,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       unsubscribeFirebase = fbAuth.onAuthStateChanged((fbUser) => {
         console.log(`[UnifiedAuth] Firebase auth event:`, fbUser?.email || 'null');
+        lastFirebaseUserRef.current = fbUser;
         if (fbUser) {
-          resolveAndSyncUser(undefined, fbUser);
+          resolveAndSyncUser(lastSupabaseUserRef.current, fbUser);
+        } else {
+          if (lastSupabaseUserRef.current) {
+            resolveAndSyncUser(lastSupabaseUserRef.current, null);
+          } else if (initialBootstrapDoneRef.current) {
+            const hasSession = localStorage.getItem('frostybite_has_active_session') === 'true';
+            if (!hasSession) {
+              setUser(null);
+              setRole('customer');
+              setAuthStatus('unauthenticated');
+              setLoading(false);
+            }
+          }
         }
       });
     } catch (err) {
@@ -565,10 +654,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Real-time synchronization for current user profile changes in Supabase
   useEffect(() => {
     if (!user?.id) return;
 
-    // Real-time synchronization for current user profile changes (such as role modifications, points, status updates)
     const userChannel = supabase
       .channel(`user_profile_realtime_sync_${user.id}`)
       .on(
@@ -589,10 +678,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       supabase.removeChannel(userChannel);
     };
-  }, [user?.id]);
+  }, [user?.id, resolveAndSyncUser]);
 
   const performLogoutCleanup = useCallback(async () => {
     haptic.medium();
+    syncVersionRef.current++;
     lastSupabaseUserRef.current = null;
     lastFirebaseUserRef.current = null;
 
@@ -615,6 +705,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('claimed_coupon');
       CacheManager.clearNamespace(CacheNamespace.USER).catch(() => {});
     } catch (e) {}
+
+    console.log('[Auth] Logged out successfully. Auth status: unauthenticated');
   }, []);
 
   const logout = useCallback(async (bypassConfirmation = false) => {
@@ -664,10 +756,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     closeAuthModal,
     requireAuthentication,
     getAuthToken
-  }), [authStatus, user, role, loading, isVerified, isGuest, guestState, authModalOpen, authModalConfig, logout, refreshProfile, resolveAndSyncUser, loginAsGuest, exitGuestMode, openAuthModal, closeAuthModal, requireAuthentication, getAuthToken]);
+  }), [
+    authStatus, 
+    user, 
+    role, 
+    loading, 
+    isVerified, 
+    isGuest, 
+    guestState, 
+    authModalOpen, 
+    authModalConfig, 
+    logout, 
+    refreshProfile, 
+    resolveAndSyncUser, 
+    loginAsGuest, 
+    exitGuestMode, 
+    openAuthModal, 
+    closeAuthModal, 
+    requireAuthentication, 
+    getAuthToken
+  ]);
 
   const handleConfirmLogout = async () => {
-    setShowLogoutModal((prev) => (prev ? false : prev));
+    setShowLogoutModal(false);
     setPendingLogout((prev) => {
       if (prev) {
         performLogoutCleanup()
@@ -688,7 +799,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleCancelLogout = () => {
-    setShowLogoutModal((prev) => (prev ? false : prev));
+    setShowLogoutModal(false);
     setPendingLogout((prev) => {
       if (prev) {
         try { prev.reject(new Error('cancelled')); } catch (e) {}
@@ -745,7 +856,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     });
                   }}
                   onSuccess={() => {
-                    setShowLogoutModal((prev) => (prev ? false : prev));
+                    setShowLogoutModal(false);
                   }}
                   autoRedirect={true}
                   redirectPath="/login"
