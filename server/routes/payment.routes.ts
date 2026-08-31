@@ -824,4 +824,113 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
   }
 });
 
+const paymentStatusLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120, // Allow up to 120 status checks per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  },
+  message: {
+    error: 'Too Many Requests',
+    message: 'Status check rate limit exceeded. Please slow down.'
+  }
+});
+
+/**
+ * GET /api/payment/status/:orderId
+ * Safe customer payment status endpoint.
+ */
+router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLimiter, async (req: Request, res: Response) => {
+  try {
+    const rawOrderId = req.params.orderId;
+    if (!rawOrderId || typeof rawOrderId !== 'string' || !rawOrderId.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'Missing orderId parameter.'
+      });
+    }
+
+    const cleanOrderId = rawOrderId.trim();
+    const withoutPrefix = cleanOrderId.replace(/^FB-/i, '');
+    const withPrefix = cleanOrderId.startsWith('FB-') ? cleanOrderId : `FB-${cleanOrderId}`;
+
+    // Query order from database safely using server service role client
+    const { data: orders, error: orderErr } = await supabase
+      .from('orders')
+      .select('id, total, status, payment_status, updated_at, user_id, payment_method')
+      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`);
+
+    if (orderErr) {
+      console.error('[PaymentStatus] Database error fetching order:', orderErr.message);
+    }
+
+    const order = orders && orders[0];
+
+    // Query active or recent payment attempt
+    const { data: attempt } = await supabase
+      .from('payment_attempts')
+      .select('id, status, expires_at, matched_at')
+      .or(`order_id.eq.${cleanOrderId},order_id.eq.${withPrefix},order_id.eq.${withoutPrefix}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!order && !attempt) {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: `Order #${cleanOrderId} not found.`
+      });
+    }
+
+    // Optional auth check for registered non-guest user orders
+    if (order && order.user_id && !order.user_id.startsWith('guest_')) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.slice(7).trim();
+        const { data: authData } = await supabase.auth.getUser(token);
+        if (authData?.user && authData.user.id !== order.user_id) {
+          return res.status(403).json({
+            success: false,
+            error: 'Forbidden',
+            message: 'You are not authorized to access this order status.'
+          });
+        }
+      }
+    }
+
+    const orderStatus = order?.status || 'pending';
+    const orderPaymentStatus = order?.payment_status || 'pending';
+    const attemptStatus = attempt?.status || 'waiting';
+
+    const isPaid = orderPaymentStatus === 'paid' || orderStatus === 'confirmed' || attemptStatus === 'matched';
+
+    return res.json({
+      success: true,
+      order_id: order?.id || cleanOrderId,
+      payment_status: isPaid ? 'paid' : orderPaymentStatus,
+      status: isPaid ? 'confirmed' : orderStatus,
+      updated_at: order?.updated_at || new Date().toISOString(),
+      verified: isPaid,
+      attempt_status: attemptStatus,
+      expires_at: attempt?.expires_at || null
+    });
+  } catch (err: any) {
+    console.error('[PaymentStatus] Unexpected error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve payment status.'
+    });
+  }
+});
+
 export default router;

@@ -70,6 +70,8 @@ export const UPICheckout: React.FC = () => {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
+  const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
 
   // UI States
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -96,7 +98,7 @@ export const UPICheckout: React.FC = () => {
     } catch (e) {}
   }, []);
 
-  // 1. Fetch Order & Restore/Create Payment Attempt
+  // 1. Fetch Order & Restore/Create Payment Attempt with Exponential Backoff Retries
   const initializePaymentSession = useCallback(async () => {
     if (!effectiveOrderId) {
       navigate('/checkout');
@@ -104,6 +106,7 @@ export const UPICheckout: React.FC = () => {
     }
 
     setPaymentState('CREATING_ATTEMPT');
+    setIsReconnecting(false);
 
     try {
       // Step A: Fetch order from database if state missing
@@ -112,38 +115,32 @@ export const UPICheckout: React.FC = () => {
         const { data: dbOrder, error: orderErr } = await supabase
           .from('orders')
           .select('*')
-          .eq('id', effectiveOrderId)
-          .single();
+          .or(`id.eq.${effectiveOrderId},id.eq.FB-${effectiveOrderId}`)
+          .maybeSingle();
 
-        if (orderErr || !dbOrder) {
-          console.error('[UPICheckout] Order load error:', orderErr);
-          toast.error('Order not found');
-          navigate('/checkout');
-          return;
+        if (dbOrder) {
+          currentOrder = {
+            orderId: dbOrder.id,
+            totalPrice: Number(dbOrder.total) || 0,
+            name: dbOrder.customer_name || 'Customer',
+            phone: dbOrder.phone || dbOrder.customer_phone || '',
+            address: dbOrder.address || dbOrder.delivery_address || '',
+            notes: dbOrder.notes || '',
+            discount: Number(dbOrder.discount) || 0,
+            delivery_charge: Number(dbOrder.delivery_charge) || 0,
+            payment_status: dbOrder.payment_status,
+            status: dbOrder.status
+          };
+          setOrderDetails(currentOrder);
         }
-
-        currentOrder = {
-          orderId: dbOrder.id,
-          totalPrice: Number(dbOrder.total) || 0,
-          name: dbOrder.customer_name || 'Customer',
-          phone: dbOrder.phone || dbOrder.customer_phone || '',
-          address: dbOrder.address || dbOrder.delivery_address || '',
-          notes: dbOrder.notes || '',
-          discount: Number(dbOrder.discount) || 0,
-          delivery_charge: Number(dbOrder.delivery_charge) || 0,
-          payment_status: dbOrder.payment_status,
-          status: dbOrder.status
-        };
-        setOrderDetails(currentOrder);
       }
 
-      // If order is ALREADY paid on server, transition directly to VERIFIED
-      if (currentOrder.payment_status === 'paid' || currentOrder.status === 'confirmed') {
+      if (currentOrder && (currentOrder.payment_status === 'paid' || currentOrder.status === 'confirmed')) {
         setPaymentState('PAYMENT_VERIFIED');
         return;
       }
 
-      // Step B: Call secure server endpoint to create or retrieve active payment attempt
+      // Step B: Call secure server endpoint with retry strategy (attempt 1: 0s, attempt 2: 2s, attempt 3: 4s)
       let authHeader: Record<string, string> = {};
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -152,49 +149,73 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
-      const response = await fetch('/api/payment/create-attempt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...authHeader
-        },
-        body: JSON.stringify({ 
-          order_id: effectiveOrderId,
-          order_details: currentOrder ? {
-            id: effectiveOrderId,
-            totalPrice: currentOrder.totalPrice,
-            total: currentOrder.totalPrice,
-            name: currentOrder.name,
-            phone: currentOrder.phone,
-            address: currentOrder.address,
-            payment_method: 'upi'
-          } : undefined
-        })
-      });
+      const payload = {
+        order_id: effectiveOrderId,
+        order_details: currentOrder ? {
+          id: effectiveOrderId,
+          totalPrice: currentOrder.totalPrice,
+          total: currentOrder.totalPrice,
+          name: currentOrder.name,
+          phone: currentOrder.phone,
+          address: currentOrder.address,
+          payment_method: 'upi'
+        } : undefined
+      };
 
-      const data = await response.json();
+      let maxAttempts = 3;
+      let delayMs = 2000;
+      let created = false;
 
-      if (!response.ok || !data.success || !data.payment_attempt) {
-        console.error('[UPICheckout] Server error creating payment attempt:', data);
-        if (response.status === 400 && data.message?.toLowerCase().includes('already paid')) {
-          setPaymentState('PAYMENT_VERIFIED');
-          return;
+      for (let attemptNum = 1; attemptNum <= maxAttempts; attemptNum++) {
+        try {
+          const response = await fetch('/api/payment/create-attempt', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...authHeader
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.success && data.payment_attempt) {
+            const attempt = data.payment_attempt;
+            setAttemptId(attempt.id);
+            const expMs = new Date(attempt.expires_at).getTime();
+            setExpiresAtMs(expMs);
+            const nowMs = Date.now();
+            const remSecs = Math.max(0, Math.floor((expMs - nowMs) / 1000));
+            setTimeLeftSeconds(remSecs);
+            setPaymentState('WAITING_FOR_PAYMENT');
+            setConsecutiveFailures(0);
+            created = true;
+            break;
+          } else if (response.status === 400 && data.message?.toLowerCase().includes('already paid')) {
+            setPaymentState('PAYMENT_VERIFIED');
+            created = true;
+            break;
+          } else if (attemptNum < maxAttempts) {
+            console.warn(`[UPICheckout] Attempt ${attemptNum} creation failed, retrying in ${delayMs}ms...`);
+            await new Promise((res) => setTimeout(res, delayMs));
+            delayMs *= 2;
+          } else {
+            console.error('[UPICheckout] Final attempt creation failed:', data);
+            toast.error(data.message || 'Unable to create payment session');
+            setPaymentState('ERROR');
+          }
+        } catch (err) {
+          console.warn(`[UPICheckout] Creation network error on attempt ${attemptNum}:`, err);
+          if (attemptNum < maxAttempts) {
+            await new Promise((res) => setTimeout(res, delayMs));
+            delayMs *= 2;
+          } else {
+            setPaymentState('ERROR');
+          }
         }
-        toast.error(data.message || 'Unable to create payment session');
-        setPaymentState('ERROR');
-        return;
       }
-
-      const attempt = data.payment_attempt;
-      setAttemptId(attempt.id);
-      const expMs = new Date(attempt.expires_at).getTime();
-      setExpiresAtMs(expMs);
-      const nowMs = Date.now();
-      const remSecs = Math.max(0, Math.floor((expMs - nowMs) / 1000));
-      setTimeLeftSeconds(remSecs);
-      setPaymentState('WAITING_FOR_PAYMENT');
     } catch (err: any) {
-      console.error('[UPICheckout] Initialization error:', err);
+      console.error('[UPICheckout] Initialization unexpected error:', err);
       setPaymentState('ERROR');
     }
   }, [effectiveOrderId, navigate, orderDetails]);
@@ -221,34 +242,83 @@ export const UPICheckout: React.FC = () => {
     return () => clearInterval(interval);
   }, [expiresAtMs, paymentState]);
 
-  // 3. Realtime Subscription & Fallback Polling Loop
+  // 3. Realtime Subscription & Resilient Fallback Polling Loop
   const checkAuthoritativeStatus = useCallback(async () => {
     if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
 
+    // Primary: Call server-side payment status endpoint
     try {
-      // Query order
+      let authHeader: Record<string, string> = {};
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          authHeader = { Authorization: `Bearer ${sessionData.session.access_token}` };
+        }
+      } catch (e) {}
+
+      const res = await fetch(`/api/payment/status/${encodeURIComponent(effectiveOrderId)}`, {
+        headers: {
+          'Accept': 'application/json',
+          ...authHeader
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setConsecutiveFailures(0);
+        setIsReconnecting(false);
+
+        if (data.verified || data.payment_status === 'paid' || data.status === 'confirmed') {
+          setPaymentState('PAYMENT_VERIFIED');
+          haptic.checkout();
+          return;
+        }
+
+        if (data.attempt_status === 'matched') {
+          setPaymentState('PAYMENT_VERIFIED');
+          haptic.checkout();
+        } else if (data.attempt_status === 'detected') {
+          setPaymentState('PAYMENT_DETECTED');
+          setTimeout(() => setPaymentState('VERIFYING'), 2000);
+        } else if (data.attempt_status === 'ambiguous') {
+          setPaymentState('PAYMENT_AMBIGUOUS');
+        } else if (data.attempt_status === 'expired') {
+          setPaymentState('PAYMENT_EXPIRED');
+        }
+        return;
+      }
+    } catch (fetchErr) {
+      console.warn('[UPICheckout] Status endpoint fetch warning:', fetchErr);
+    }
+
+    // Secondary Fallback: Query Supabase client directly
+    try {
       const { data: ord } = await supabase
         .from('orders')
         .select('payment_status, status, utr')
-        .eq('id', effectiveOrderId)
+        .or(`id.eq.${effectiveOrderId},id.eq.FB-${effectiveOrderId}`)
         .maybeSingle();
 
       if (ord && (ord.payment_status === 'paid' || ord.status === 'confirmed')) {
         setPaymentState('PAYMENT_VERIFIED');
+        setConsecutiveFailures(0);
+        setIsReconnecting(false);
         haptic.checkout();
         return;
       }
 
-      // Query payment attempts
       const { data: att } = await supabase
         .from('payment_attempts')
         .select('status, expires_at')
-        .eq('order_id', effectiveOrderId)
+        .or(`order_id.eq.${effectiveOrderId},order_id.eq.FB-${effectiveOrderId}`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (att) {
+        setConsecutiveFailures(0);
+        setIsReconnecting(false);
+
         if (att.status === 'matched') {
           setPaymentState('PAYMENT_VERIFIED');
           haptic.checkout();
@@ -260,10 +330,20 @@ export const UPICheckout: React.FC = () => {
         } else if (att.status === 'expired') {
           setPaymentState('PAYMENT_EXPIRED');
         }
+        return;
       }
     } catch (e) {
-      console.warn('[UPICheckout] Polling check error:', e);
+      console.warn('[UPICheckout] Fallback DB poll warning:', e);
     }
+
+    // Gentle failure counter (does NOT crash session or reset timer)
+    setConsecutiveFailures((prev) => {
+      const next = prev + 1;
+      if (next >= 4) {
+        setIsReconnecting(true);
+      }
+      return next;
+    });
   }, [effectiveOrderId, paymentState]);
 
   useEffect(() => {
@@ -523,6 +603,14 @@ export const UPICheckout: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Subtle Reconnecting Banner */}
+        {isReconnecting && paymentState !== 'PAYMENT_VERIFIED' && paymentState !== 'ERROR' && (
+          <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-bold animate-pulse shadow-lg text-center">
+            <Loader2 size={14} className="animate-spin text-amber-400 shrink-0" />
+            <span>Reconnecting to payment verification server...</span>
+          </div>
+        )}
 
         {/* Live Payment Verification Status Card */}
         <PaymentStatusCard
