@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   ChevronLeft, 
   Smartphone, 
@@ -6,21 +6,21 @@ import {
   ShoppingBag, 
   ShieldCheck, 
   BadgeCheck, 
-  ArrowRight, 
-  Download, 
-  MessageCircle,
-  Loader2,
-  Lock,
+  Copy,
+  Check,
   QrCode,
-  CreditCard,
   Image as ImageIcon,
   Camera,
-  Trash2
+  Trash2,
+  Loader2,
+  Lock,
+  ArrowRight,
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../supabase';
 import { supabaseService } from '../services/supabaseService';
@@ -31,13 +31,19 @@ import { openWhatsAppOrder } from '../utils/whatsapp';
 import { formatOrderId } from '../utils/orderUtils';
 import { useNotifications } from '../context/NotificationContext';
 
-const PAYMENT_EXPIRY_SECONDS = 600;
-const UPI_ID = "7735800239@ibl";
+import { PaymentStatusCard, PaymentState } from '../components/payment/PaymentStatusCard';
+import { PaymentLeaveModal } from '../components/payment/PaymentLeaveModal';
+
+const DEFAULT_UPI_ID = "7735800239@ibl";
+const DISPLAY_UPI_ID = "frostybite@upi";
 const MERCHANT_NAME = "FrostyBite";
+const PAYMENT_DURATION_MS = 6 * 60 * 1000; // 6 minutes
 
 export const UPICheckout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { orderId: paramOrderId } = useParams<{ orderId: string }>();
+
   const state = location.state as { 
     orderId: string; 
     totalPrice: number; 
@@ -52,121 +58,352 @@ export const UPICheckout: React.FC = () => {
     scrollToQR?: boolean;
   } | null;
 
+  const effectiveOrderId = state?.orderId || paramOrderId || '';
+
   const { cart, clearCart } = useCart();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
 
-  const [timeLeft, setTimeLeft] = useState(PAYMENT_EXPIRY_SECONDS);
-  const expiryTimeRef = useRef<number>(Date.now() + PAYMENT_EXPIRY_SECONDS * 1000);
+  // Core Payment State
+  const [paymentState, setPaymentState] = useState<PaymentState>('IDLE');
+  const [orderDetails, setOrderDetails] = useState<any>(state || null);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
+
+  // UI States
+  const [copiedUpi, setCopiedUpi] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showManualSection, setShowManualSection] = useState(false);
   const [utr, setUtr] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isVerifyingManual, setIsVerifyingManual] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
-  const utrInputRef = useRef<HTMLInputElement>(null);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
+  const utrInputRef = useRef<HTMLInputElement>(null);
+  const realtimeChannelRef = useRef<any>(null);
+
+  // Check prefers-reduced-motion
   useEffect(() => {
-    if (!state) {
+    try {
+      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      setReducedMotion(mediaQuery.matches);
+      const listener = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    } catch (e) {}
+  }, []);
+
+  // 1. Fetch Order & Restore/Create Payment Attempt
+  const initializePaymentSession = useCallback(async () => {
+    if (!effectiveOrderId) {
       navigate('/checkout');
       return;
     }
 
-    // Smooth scroll to QR section if requested
-    let scrollTimer: NodeJS.Timeout;
-    if (state?.scrollToQR) {
-      scrollTimer = setTimeout(() => {
-        document.getElementById('qr-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 800);
-    }
+    setPaymentState('CREATING_ATTEMPT');
 
-    const timer = setInterval(() => {
+    try {
+      // Step A: Fetch order from database if state missing
+      let currentOrder = orderDetails;
+      if (!currentOrder || !currentOrder.totalPrice) {
+        const { data: dbOrder, error: orderErr } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', effectiveOrderId)
+          .single();
+
+        if (orderErr || !dbOrder) {
+          console.error('[UPICheckout] Order load error:', orderErr);
+          toast.error('Order not found');
+          navigate('/checkout');
+          return;
+        }
+
+        currentOrder = {
+          orderId: dbOrder.id,
+          totalPrice: Number(dbOrder.total) || 0,
+          name: dbOrder.customer_name || 'Customer',
+          phone: dbOrder.phone || dbOrder.customer_phone || '',
+          address: dbOrder.address || dbOrder.delivery_address || '',
+          notes: dbOrder.notes || '',
+          discount: Number(dbOrder.discount) || 0,
+          delivery_charge: Number(dbOrder.delivery_charge) || 0,
+          payment_status: dbOrder.payment_status,
+          status: dbOrder.status
+        };
+        setOrderDetails(currentOrder);
+      }
+
+      // If order is ALREADY paid on server, transition directly to VERIFIED
+      if (currentOrder.payment_status === 'paid' || currentOrder.status === 'confirmed') {
+        setPaymentState('PAYMENT_VERIFIED');
+        return;
+      }
+
+      // Step B: Call secure server endpoint to create or retrieve active payment attempt
+      let authHeader: Record<string, string> = {};
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          authHeader = { Authorization: `Bearer ${sessionData.session.access_token}` };
+        }
+      } catch (e) {}
+
+      const response = await fetch('/api/payment/create-attempt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeader
+        },
+        body: JSON.stringify({ order_id: effectiveOrderId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.payment_attempt) {
+        console.error('[UPICheckout] Server error creating payment attempt:', data);
+        if (response.status === 400 && data.message?.toLowerCase().includes('already paid')) {
+          setPaymentState('PAYMENT_VERIFIED');
+          return;
+        }
+        toast.error(data.message || 'Unable to create payment session');
+        setPaymentState('ERROR');
+        return;
+      }
+
+      const attempt = data.payment_attempt;
+      setAttemptId(attempt.id);
+      const expMs = new Date(attempt.expires_at).getTime();
+      setExpiresAtMs(expMs);
+      const nowMs = Date.now();
+      const remSecs = Math.max(0, Math.floor((expMs - nowMs) / 1000));
+      setTimeLeftSeconds(remSecs);
+      setPaymentState('WAITING_FOR_PAYMENT');
+    } catch (err: any) {
+      console.error('[UPICheckout] Initialization error:', err);
+      setPaymentState('ERROR');
+    }
+  }, [effectiveOrderId, navigate, orderDetails]);
+
+  useEffect(() => {
+    initializePaymentSession();
+  }, [initializePaymentSession]);
+
+  // 2. Timer Countdown Effect
+  useEffect(() => {
+    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE') return;
+
+    const interval = setInterval(() => {
       const now = Date.now();
-      const remaining = Math.max(0, Math.floor((expiryTimeRef.current - now) / 1000));
-      setTimeLeft(remaining);
-      
-      if (remaining === 0) {
-        clearInterval(timer);
+      const rem = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
+      setTimeLeftSeconds(rem);
+
+      if (rem === 0) {
+        clearInterval(interval);
+        setPaymentState('PAYMENT_EXPIRED');
       }
     }, 1000);
 
+    return () => clearInterval(interval);
+  }, [expiresAtMs, paymentState]);
+
+  // 3. Realtime Subscription & Fallback Polling Loop
+  const checkAuthoritativeStatus = useCallback(async () => {
+    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
+
+    try {
+      // Query order
+      const { data: ord } = await supabase
+        .from('orders')
+        .select('payment_status, status, utr')
+        .eq('id', effectiveOrderId)
+        .maybeSingle();
+
+      if (ord && (ord.payment_status === 'paid' || ord.status === 'confirmed')) {
+        setPaymentState('PAYMENT_VERIFIED');
+        haptic.checkout();
+        return;
+      }
+
+      // Query payment attempts
+      const { data: att } = await supabase
+        .from('payment_attempts')
+        .select('status, expires_at')
+        .eq('order_id', effectiveOrderId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (att) {
+        if (att.status === 'matched') {
+          setPaymentState('PAYMENT_VERIFIED');
+          haptic.checkout();
+        } else if (att.status === 'detected') {
+          setPaymentState('PAYMENT_DETECTED');
+          setTimeout(() => setPaymentState('VERIFYING'), 2000);
+        } else if (att.status === 'ambiguous') {
+          setPaymentState('PAYMENT_AMBIGUOUS');
+        } else if (att.status === 'expired') {
+          setPaymentState('PAYMENT_EXPIRED');
+        }
+      }
+    } catch (e) {
+      console.warn('[UPICheckout] Polling check error:', e);
+    }
+  }, [effectiveOrderId, paymentState]);
+
+  useEffect(() => {
+    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
+
+    // Realtime subscription setup
+    try {
+      const channel = supabase
+        .channel(`payment_verification_${effectiveOrderId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders',
+            filter: `id=eq.${effectiveOrderId}`
+          },
+          (payload) => {
+            const newOrd = payload.new;
+            if (newOrd?.payment_status === 'paid' || newOrd?.status === 'confirmed') {
+              setPaymentState('PAYMENT_VERIFIED');
+              haptic.checkout();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'payment_attempts',
+            filter: `order_id=eq.${effectiveOrderId}`
+          },
+          (payload) => {
+            const newAtt = payload.new as any;
+            if (newAtt?.status === 'matched') {
+              setPaymentState('PAYMENT_VERIFIED');
+              haptic.checkout();
+            } else if (newAtt?.status === 'detected') {
+              setPaymentState('PAYMENT_DETECTED');
+              setTimeout(() => setPaymentState('VERIFYING'), 2000);
+            } else if (newAtt?.status === 'ambiguous') {
+              setPaymentState('PAYMENT_AMBIGUOUS');
+            }
+          }
+        )
+        .subscribe();
+
+      realtimeChannelRef.current = channel;
+    } catch (e) {
+      console.warn('[UPICheckout] Realtime subscription warning:', e);
+    }
+
+    // 2.5-second fallback polling interval
+    const pollInterval = setInterval(() => {
+      checkAuthoritativeStatus();
+    }, 2500);
+
     return () => {
-      if (scrollTimer) clearTimeout(scrollTimer);
-      clearInterval(timer);
+      clearInterval(pollInterval);
+      if (realtimeChannelRef.current) {
+        supabase.removeChannel(realtimeChannelRef.current);
+      }
     };
-  }, [state, navigate]);
-  
+  }, [effectiveOrderId, paymentState, checkAuthoritativeStatus]);
+
+  // Handle Back Navigation with Modal Guard
+  const handleBackClick = () => {
+    if (paymentState === 'WAITING_FOR_PAYMENT' || paymentState === 'PAYMENT_DETECTED' || paymentState === 'VERIFYING') {
+      setShowLeaveModal(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
+  // Copy UPI ID Action
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(DEFAULT_UPI_ID);
+    setCopiedUpi(true);
+    haptic.light();
+    toast.success('UPI ID copied to clipboard!');
+    setTimeout(() => setCopiedUpi(false), 2500);
+  };
+
+  // Open UPI App Action
+  const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
+  const upiUri = `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${totalPrice.toFixed(2)}&cu=INR`;
+
+  const handleOpenUpiApp = () => {
+    haptic.medium();
+    window.location.href = upiUri;
+  };
+
+  // Manual Screenshot Upload & Verification
   const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit for base64
+      if (file.size > 2 * 1024 * 1024) {
         toast.error('File too large. Please upload an image under 2MB.');
         return;
       }
       const reader = new FileReader();
       reader.onloadend = () => {
         setScreenshot(reader.result as string);
-        toast.success('Screenshot uploaded!');
+        toast.success('Screenshot attached!');
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleVerify = async () => {
+  const handleManualVerify = async () => {
     if (!utr || utr.length < 10) {
-      toast.error('Please enter a valid UTR number (10-12 digits)');
-      utrInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast.error('Please enter a valid 10-12 digit UTR / Reference number');
       utrInputRef.current?.focus();
       return;
     }
 
-    setIsVerifying(true);
+    setIsVerifyingManual(true);
     try {
       // Check for duplicate UTR in Supabase
-      const { data: duplicateOrders, error: dupError } = await supabase
+      const { data: duplicateOrders } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, total')
         .eq('utr', utr);
-      
+
       if (duplicateOrders && duplicateOrders.length > 0) {
-        const dupOrder = duplicateOrders[0];
-        // Only error if it's a DIFFERENT order than the current one
-        if (duplicateOrders.some((d: any) => d.id !== state!.orderId)) {
-          toast.error(`This UTR has already been used for an order of ₹${dupOrder.total}. Please check again.`);
-          setIsVerifying(false);
+        if (duplicateOrders.some((d: any) => d.id !== effectiveOrderId)) {
+          toast.error(`This UTR has already been used for order #${formatOrderId(duplicateOrders[0].id)}.`);
+          setIsVerifyingManual(false);
           return;
         }
       }
 
-      // Supabase update
-      try {
-        await supabaseService.updateData('orders', state!.orderId, {
-          utr: utr,
-          payment_screenshot: screenshot,
-          status: 'pending',
-          payment_status: 'pending_verification',
-          updated_at: new Date().toISOString()
-        });
-      } catch (supabaseError: any) {
-        console.error('Supabase order update failed:', supabaseError);
-        throw new Error('Failed to update order in Supabase');
-      }
-      
+      await supabaseService.updateData('orders', effectiveOrderId, {
+        utr: utr,
+        payment_screenshot: screenshot,
+        status: 'pending',
+        payment_status: 'pending_verification',
+        updated_at: new Date().toISOString()
+      });
+
       const orderSummary = {
-        orderId: state!.orderId,
-        customerName: state!.name,
-        phone: state!.phone,
-        address: state!.address,
+        orderId: effectiveOrderId,
+        customerName: orderDetails?.name || 'Customer',
+        phone: orderDetails?.phone || '',
+        address: orderDetails?.address || '',
         method: 'upi' as const,
-        amount: state!.totalPrice,
-        delivery_charge: state!.delivery_charge || 0,
-        discount: state!.discount || 0,
-        couponCode: state!.couponCode || null,
+        amount: totalPrice,
+        delivery_charge: orderDetails?.delivery_charge || 0,
+        discount: orderDetails?.discount || 0,
+        couponCode: orderDetails?.couponCode || null,
         utr: utr,
         items: cart.map(item => ({
           id: item.id,
@@ -175,34 +412,40 @@ export const UPICheckout: React.FC = () => {
           quantity: item.quantity,
           image: item.image
         })),
-        estimatedDelivery: state?.estimatedDelivery || 25
+        estimatedDelivery: orderDetails?.estimatedDelivery || 25
       };
 
       setConfirmedOrder(orderSummary);
       setShowConfirmation(true);
       haptic.checkout();
-      
+
       if (user) {
         addNotification({
-          title: 'Payment Submitted',
-          message: `UTR for order #${formatOrderId(state!.orderId)} submitted for verification.`,
+          title: 'Payment Reference Submitted',
+          message: `UTR #${utr} submitted for order #${formatOrderId(effectiveOrderId)}.`,
           type: 'order',
           user_id: user.uid,
-          link: `/order-tracking/${state!.orderId}`
+          link: `/order-tracking/${effectiveOrderId}`
         });
       }
 
       openWhatsAppOrder(orderSummary);
       clearCart();
-      toast.success('Payment Submitted for Verification! 🍰');
+      toast.success('Payment Reference Submitted!');
     } catch (error: any) {
-      console.error('Verification failed:', error);
-      toast.error('Verification failed. Please check UTR.');
+      console.error('Manual verification failed:', error);
+      toast.error('Submission failed. Please try again.');
     } finally {
-      setIsVerifying(false);
+      setIsVerifyingManual(false);
     }
   };
 
+  const handleViewOrder = () => {
+    clearCart();
+    navigate(user ? '/orders' : `/order-tracking/${effectiveOrderId}`);
+  };
+
+  // Order Confirmation screen if manual reference confirmed
   if (showConfirmation && confirmedOrder) {
     return (
       <OrderConfirmation 
@@ -216,325 +459,175 @@ export const UPICheckout: React.FC = () => {
     );
   }
 
-  if (!state) return null;
-
   return (
-    <div className="min-h-svh flex flex-col bg-background">
-      <AnimatePresence>
-        {isVerifying && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center space-y-12"
+    <div className="min-h-svh flex flex-col bg-background text-foreground antialiased selection:bg-primary/20">
+      {/* Leave Guard Modal */}
+      <PaymentLeaveModal
+        isOpen={showLeaveModal}
+        onStay={() => setShowLeaveModal(false)}
+        onLeave={() => {
+          setShowLeaveModal(false);
+          navigate(-1);
+        }}
+      />
+
+      {/* Main Container */}
+      <div className="flex-1 overflow-y-auto max-w-2xl mx-auto px-4 py-6 md:py-12 space-y-6 pb-36">
+        
+        {/* Navigation Bar Header */}
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={handleBackClick}
+            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-400 hover:text-white transition-all active:scale-95"
+            aria-label="Go back"
           >
-            <div className="relative">
-              <motion.div 
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  rotate: [360, 270, 180, 90, 0],
-                  borderRadius: ["20%", "50%", "20%"]
-                }}
-                transition={{ 
-                  duration: 3, 
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
-                className="w-32 h-32 bg-emerald-500/20 border-2 border-emerald-500/50"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ 
-                    scale: [0.8, 1.2, 0.8],
-                    opacity: [0.5, 1, 0.5]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <ShieldCheck size={48} className="text-emerald-500" />
-                </motion.div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <motion.h2 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="text-4xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none"
-              >
-                Verifying <br />
-                <span className="text-emerald-500 italic">Payment</span>
-              </motion.h2>
-              <motion.p 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]"
-              >
-                Validating Transaction Reference...
-              </motion.p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex-1 overflow-y-auto max-w-2xl mx-auto px-4 py-8 md:py-16 space-y-8 pb-40">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-3 bg-white/5 rounded-2xl text-zinc-400 hover:text-primary transition-colors">
-            <ChevronLeft size={24} />
+            <ChevronLeft size={22} />
           </button>
-          <div className="space-y-1">
-            <h1 className="text-3xl font-black text-white tracking-tighter italic uppercase">UPI Payment</h1>
-            <p className="text-zinc-500 font-medium text-xs uppercase tracking-widest">Complete your payment to confirm order</p>
+          
+          <div className="text-center">
+            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight italic uppercase">
+              Frosty Bite
+            </h1>
+            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1">
+              <ShieldCheck size={12} /> Secure UPI Payment
+            </p>
+          </div>
+
+          <div className="text-right">
+            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Order</p>
+            <p className="text-xs font-black text-primary font-mono">#{formatOrderId(effectiveOrderId)}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-8">
-          {/* Main Payment Card */}
-          <div className="bakery-card overflow-hidden">
-            {/* Header with Timer */}
-            <div className="bg-zinc-800 p-6 text-white flex justify-between items-center border-b border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-                  <Clock size={20} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Time Remaining</p>
-                  <p className="text-xl font-black italic tracking-tight">{formatTime(timeLeft)}</p>
-                </div>
+        {/* Prominent Payment Amount Card */}
+        <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-white/10 rounded-3xl p-6 text-center space-y-2 shadow-xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+          <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Total Amount Payable</p>
+          <div className="text-4xl md:text-5xl font-black text-white italic tracking-tight">
+            ₹{totalPrice.toFixed(2)}
+          </div>
+          {orderDetails?.discount > 0 && (
+            <div className="inline-block px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+              Includes Discount -₹{orderDetails.discount}
+            </div>
+          )}
+        </div>
+
+        {/* Live Payment Verification Status Card */}
+        <PaymentStatusCard
+          paymentState={paymentState}
+          amount={totalPrice}
+          timeLeftSeconds={timeLeftSeconds}
+          onRetry={checkAuthoritativeStatus}
+          onViewOrder={handleViewOrder}
+          onRestartPayment={() => initializePaymentSession()}
+          reducedMotion={reducedMotion}
+        />
+
+        {/* Main Payment Options (QR Code & Deep Link) */}
+        {paymentState !== 'PAYMENT_VERIFIED' && (
+          <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <div>
+                <h2 className="text-base font-black text-white italic uppercase tracking-tight flex items-center gap-2">
+                  <QrCode size={18} className="text-primary" /> Pay via Any UPI App
+                </h2>
+                <p className="text-xs text-zinc-400">Scan QR or tap to open app</p>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Order ID</p>
-                <p className="font-black tracking-tight text-primary">#{formatOrderId(state.orderId)}</p>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">UPI Auto-Verify</span>
               </div>
             </div>
 
-            <div className="p-8 space-y-8">
-              {/* QR Code Section - Replicated PhonePe Sticker Design */}
-              <div id="qr-section" className="flex flex-col items-center">
-                <div className="w-full max-w-[320px] bg-white rounded-3xl p-8 flex flex-col items-center space-y-6 shadow-2xl relative overflow-hidden">
-                  {/* Payment Info */}
-                  <div className="flex flex-col items-center space-y-1">
-                    <p className="text-zinc-600 font-black text-[10px] uppercase tracking-widest">Scan & Pay Using Any UPI App</p>
-                    <div className="flex flex-col items-center gap-1 mt-1">
-                      {state.discount && state.discount > 0 && (
-                        <div className="px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
-                          <p className="text-[9px] font-black text-primary uppercase tracking-widest">
-                            Coupon {state.couponCode} Applied: -₹{state.discount}
-                          </p>
-                        </div>
-                      )}
-                      {state.delivery_charge && state.delivery_charge > 0 && (
-                        <div className="px-3 py-1 bg-zinc-100 border border-zinc-200 rounded-full">
-                          <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest text-center">
-                            Delivery Fee: ₹{state.delivery_charge}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* QR Code */}
-                  <div className="relative group">
-                    <div className="absolute -inset-4 bg-primary/5 rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <motion.div
-                      animate={{ y: [0, -6, 0] }}
-                      transition={{ 
-                        repeat: Infinity, 
-                        duration: 3,
-                        ease: "easeInOut" 
-                      }}
-                      className="relative p-2 bg-white rounded-3xl"
-                    >
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${state.totalPrice}&cu=INR`)}`}
-                        alt="UPI QR Code"
-                        className="w-[200px] h-[200px] rounded-2xl"
-                      />
-                    </motion.div>
-                  </div>
-
-                  {/* Pay Button for Mobile */}
-                  <div className="w-full space-y-4">
-                    <a
-                      href={`upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${state.totalPrice}&cu=INR`}
-                      className="flex items-center justify-center gap-3 w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-emerald-500/20"
-                    >
-                      <Smartphone size={18} />
-                      Pay via UPI App
-                    </a>
-                    
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-tighter text-center">
-                      Scan with GPay, PhonePe, Paytm or Any UPI App
-                    </p>
-                  </div>
-
-                  <div className="text-center pt-4">
-                    <h3 className="text-lg font-black text-[#202020] uppercase tracking-tighter italic">{MERCHANT_NAME}</h3>
-                  </div>
+            {/* QR Code Section */}
+            <div id="qr-section" className="flex flex-col items-center space-y-5">
+              <div className="relative group bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center">
+                <div className="text-center mb-3">
+                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Frosty Bite Official Payee</p>
+                  <p className="text-xs font-black text-zinc-900 font-mono">{DEFAULT_UPI_ID}</p>
                 </div>
 
-                <div className="mt-6 flex flex-col items-center space-y-2">
-                  <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                    <Smartphone size={14} className="text-primary" />
-                    <span className="text-xs font-bold text-zinc-400 font-mono">{UPI_ID}</span>
-                  </div>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest max-w-[240px] text-center leading-relaxed">
-                    Scan the QR code using any UPI app like GPay, PhonePe, or Paytm
-                  </p>
-                </div>
+                <motion.div
+                  animate={reducedMotion ? {} : { y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+                  className="p-2 bg-white rounded-2xl border border-zinc-100"
+                >
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUri)}`}
+                    alt="UPI Payment QR Code"
+                    className="w-[190px] h-[190px] rounded-xl object-contain"
+                  />
+                </motion.div>
+
+                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-3">
+                  Scan with GPay, PhonePe, Paytm, or BHIM
+                </p>
               </div>
 
-              {/* Screenshot & UTR Input Section */}
-              <div id="utr-section" className="space-y-8 pt-6 border-t border-white/5">
-                {/* Screenshot Upload Row */}
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-                        <Camera size={12} className="text-primary" /> Upload Payment Screenshot
-                      </label>
-                      <button 
-                        onClick={() => document.getElementById('qr-section')?.scrollIntoView({ behavior: 'smooth' })}
-                        className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:underline"
-                      >
-                        <QrCode size={10} /> View QR Code
-                      </button>
-                    </div>
-                    <div className="flex gap-4">
-                      <label className={cn(
-                        "flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-dashed transition-all cursor-pointer group",
-                        screenshot 
-                          ? "border-emerald-500/50 bg-emerald-500/5" 
-                          : "border-white/10 bg-white/5 hover:border-primary/50 hover:bg-white/10"
-                      )}>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleScreenshotUpload}
-                        />
-                        {screenshot ? (
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-xl overflow-hidden border border-emerald-500/30 shadow-lg">
-                              <img src={screenshot} alt="Preview" className="w-full h-full object-cover" />
-                            </div>
-                            <div className="text-left">
-                              <p className="text-xs font-black text-emerald-500 uppercase tracking-tight">Screenshot Attached!</p>
-                              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest leading-none mt-1">Tap to change image</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <ImageIcon size={20} className="text-zinc-500 mb-1 group-hover:text-primary transition-colors" />
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest group-hover:text-primary transition-colors italic">Attach screenshot (Recommended)</p>
-                          </>
-                        )}
-                      </label>
-                      {screenshot && (
-                        <button 
-                          onClick={() => setScreenshot(null)}
-                          className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center shadow-lg active:scale-95"
-                          title="Remove Screenshot"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-                      <QrCode size={12} className="text-primary" /> Enter 12-Digit UTR Number
-                    </label>
-                  <div className="relative">
-                    <input
-                      ref={utrInputRef}
-                      type="text"
-                      maxLength={12}
-                      placeholder="0000 0000 0000"
-                      className="w-full bg-white/5 border-2 border-white/10 focus:border-primary focus:ring-8 focus:ring-primary/5 p-5 rounded-3xl transition-all font-black text-center text-xl tracking-[0.2em] text-white placeholder:text-zinc-800"
-                      value={utr}
-                      onChange={(e) => setUtr(e.target.value.replace(/[^0-9]/g, ''))}
-                    />
-                  </div>
-                  <p className="text-[9px] text-center text-zinc-500 font-bold uppercase tracking-widest">
-                    You'll find the UTR/Ref number in your payment confirmation
-                  </p>
-                </div>
-
+              {/* Action Buttons */}
+              <div className="w-full max-w-sm space-y-3">
                 <button
-                  onClick={handleVerify}
-                  disabled={isVerifying}
-                  className={cn(
-                    "w-full btn-premium group h-16 transition-all",
-                    isVerifying && "opacity-80 cursor-not-allowed bg-zinc-700"
-                  )}
+                  onClick={handleOpenUpiApp}
+                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/20 transition-all flex items-center justify-center gap-2.5"
                 >
-                  <div className="flex items-center justify-center gap-3">
-                    {isVerifying ? (
+                  <Smartphone size={18} />
+                  <span>Open UPI App (Pay ₹{totalPrice.toFixed(2)})</span>
+                  <ExternalLink size={14} className="opacity-70" />
+                </button>
+
+                {/* Copy UPI ID */}
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                      <Smartphone size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Merchant UPI ID</p>
+                      <p className="text-xs font-black text-white font-mono">{DEFAULT_UPI_ID}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCopyUpi}
+                    className="py-2 px-3 bg-white/10 hover:bg-white/15 active:scale-95 text-xs font-black uppercase tracking-widest text-white rounded-xl transition-all flex items-center gap-1.5"
+                  >
+                    {copiedUpi ? (
                       <>
-                        <Loader2 className="animate-spin" size={20} />
-                        <span className="font-black uppercase tracking-widest text-sm">Verifying UTR...</span>
+                        <Check size={14} className="text-emerald-400" />
+                        <span className="text-emerald-400">Copied</span>
                       </>
                     ) : (
                       <>
-                        <ShieldCheck size={20} className="group-hover:scale-110 transition-transform" />
-                        <span className="font-black uppercase tracking-widest">Verify Payment</span>
+                        <Copy size={14} />
+                        <span>Copy</span>
                       </>
                     )}
-                  </div>
-                </button>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Help/Incentive Footer */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="glass-bakery p-6 rounded-[32px] flex flex-col items-center text-center space-y-2 border border-emerald-500/10">
-              <BadgeCheck className="text-emerald-500" size={24} />
-              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none">Instant</p>
-              <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Confirmation</p>
-            </div>
-            <div className="glass-bakery p-6 rounded-[32px] flex flex-col items-center text-center space-y-2 border border-primary/10">
-              <Lock className="text-primary" size={24} />
-              <p className="text-[10px] font-black text-white uppercase tracking-widest leading-none">Secure</p>
-              <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Transactions</p>
-            </div>
-          </div>
 
-          <button 
-            onClick={() => navigate(-1)}
-            className="w-full py-4 text-zinc-500 font-black uppercase tracking-widest text-[10px] hover:text-white transition-colors"
-          >
-            Cancel Payment & Go Back
-          </button>
+          </div>
+        )}
+
+        {/* Footer Badges */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
+            <BadgeCheck className="text-emerald-400" size={20} />
+            <p className="text-[10px] font-black text-white uppercase tracking-widest">Instant Detection</p>
+            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">FrostyPay Engine</p>
+          </div>
+          <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
+            <Lock className="text-primary" size={20} />
+            <p className="text-[10px] font-black text-white uppercase tracking-widest">256-Bit Encrypted</p>
+            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Bank Grade Security</p>
+          </div>
         </div>
+
       </div>
-
-      {/* Sticky Bottom Bar for Mobile Verification */}
-      {!showConfirmation && !isVerifying && (
-        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-          <div className="max-w-md mx-auto">
-            <button
-              onClick={handleVerify}
-              disabled={isVerifying}
-              className={cn(
-                "w-full h-14 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-105 shadow-xl shadow-emerald-500/20",
-                isVerifying && "opacity-50 pointer-events-none"
-              )}
-            >
-              {isVerifying ? (
-                <Loader2 className="animate-spin" size={18} />
-              ) : (
-                <>
-                  <ShieldCheck size={18} />
-                  <span>Verify Payment</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

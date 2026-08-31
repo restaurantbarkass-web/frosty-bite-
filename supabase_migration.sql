@@ -751,6 +751,8 @@ CREATE INDEX IF NOT EXISTS idx_payment_verification_events_amount ON public.paym
 CREATE INDEX IF NOT EXISTS idx_payment_verification_events_order_id ON public.payment_verification_events (order_id);
 
 -- Payment Attempts Table (Order checkout payment sessions)
+DROP VIEW IF EXISTS public.active_payment_attempts CASCADE;
+
 CREATE TABLE IF NOT EXISTS public.payment_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id TEXT,
@@ -774,6 +776,12 @@ ALTER TABLE public.payment_attempts ADD COLUMN IF NOT EXISTS updated_at TIMESTAM
 
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status_amount ON public.payment_attempts (status, amount_paise);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON public.payment_attempts (order_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_attempts_active_waiting ON public.payment_attempts (order_id) WHERE status = 'waiting';
+
+-- Recreate active_payment_attempts view if needed
+CREATE OR REPLACE VIEW public.active_payment_attempts AS
+SELECT * FROM public.payment_attempts
+WHERE status = 'waiting' AND (expires_at IS NULL OR expires_at > now());
 
 -- Enable RLS and define server-side policies
 ALTER TABLE public.payment_verification_events ENABLE ROW LEVEL SECURITY;

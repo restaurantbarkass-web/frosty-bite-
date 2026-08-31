@@ -25,6 +25,25 @@ const paymentDeviceEventLimiter = rateLimit({
   }
 });
 
+const paymentCreateAttemptLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute window
+  max: 30, // Maximum 30 requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  },
+  message: {
+    error: 'Too Many Requests',
+    message: 'Rate limit exceeded for creating payment attempts. Please try again later.'
+  }
+});
+
 /**
  * Constant-time bearer token comparison against FROSTYPAY_DEVICE_TOKEN.
  * Note: A future version may replace this shared token with per-device asymmetric signatures or individual device credentials.
@@ -82,6 +101,222 @@ function isCodOrCashPaymentMethod(paymentMethod?: string | null): boolean {
   const normalized = paymentMethod.trim().toLowerCase().replace(/[\s_-]+/g, '');
   return ['cod', 'cash', 'cashondelivery', 'payondelivery'].includes(normalized);
 }
+
+/**
+ * POST /api/payment/create-attempt
+ * Creates or retrieves an active payment attempt for an order securely on the server side.
+ */
+router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAttemptLimiter, async (req: Request, res: Response) => {
+  try {
+    console.log('[CreatePaymentAttempt] route entered');
+
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Request body must be a valid JSON object.'
+      });
+    }
+
+    const rawOrderId = req.body.order_id || req.body.orderId;
+    if (typeof rawOrderId !== 'string' || rawOrderId.trim().length === 0) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'order_id is required.'
+      });
+    }
+
+    const cleanOrderId = rawOrderId.trim();
+
+    // Retrieve authoritative order from server-side Supabase client (bypasses RLS safely)
+    const { data: order, error: orderFetchError } = await supabase
+      .from('orders')
+      .select('id, total, status, payment_status, payment_method, user_id, email, phone')
+      .eq('id', cleanOrderId)
+      .maybeSingle();
+
+    if (orderFetchError) {
+      console.error('[CreatePaymentAttempt] Error fetching order:', orderFetchError.message);
+      return res.status(500).json({
+        error: 'Unable to create payment attempt'
+      });
+    }
+
+    if (!order) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Order not found.'
+      });
+    }
+
+    // Validation 1: Order status checks
+    const normalizedStatus = (order.status || '').trim().toLowerCase();
+    if (normalizedStatus === 'cancelled') {
+      return res.status(400).json({
+        error: 'Invalid Order State',
+        message: 'Order is cancelled.'
+      });
+    }
+    if (normalizedStatus === 'delivered') {
+      return res.status(400).json({
+        error: 'Invalid Order State',
+        message: 'Order is already delivered.'
+      });
+    }
+
+    // Validation 2: Payment status check
+    const normalizedPaymentStatus = (order.payment_status || '').trim().toLowerCase();
+    if (normalizedPaymentStatus === 'paid' || normalizedStatus === 'confirmed') {
+      return res.status(400).json({
+        error: 'Invalid Order State',
+        message: 'Order is already paid.'
+      });
+    }
+
+    // Validation 3: Payment method check (must not be COD / Cash)
+    if (isCodOrCashPaymentMethod(order.payment_method)) {
+      return res.status(400).json({
+        error: 'Invalid Payment Method',
+        message: 'Payment attempts are only allowed for online/UPI payments.'
+      });
+    }
+
+    // Validation 4: Derive authoritative amount in paise from orders.total
+    const totalAmount = Number(order.total);
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+      return res.status(400).json({
+        error: 'Invalid Order Amount',
+        message: 'Order total amount is invalid.'
+      });
+    }
+
+    const amount_paise = Math.round(totalAmount * 100);
+
+    // Authorization check: If a bearer token is present in headers, verify user matches order.user_id (if set)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      if (token && token.length > 10) {
+        try {
+          const { data: authData } = await supabase.auth.getUser(token);
+          if (authData?.user) {
+            const authUserId = authData.user.id;
+            const authEmail = authData.user.email;
+            if (order.user_id && !order.user_id.startsWith('guest_') && order.user_id !== authUserId && order.email !== authEmail) {
+              return res.status(403).json({
+                error: 'Forbidden',
+                message: 'You are not authorized to create a payment attempt for this order.'
+              });
+            }
+          }
+        } catch (authErr) {
+          console.warn('[CreatePaymentAttempt] Token verification warning:', authErr);
+        }
+      }
+    }
+
+    // Step 5: Check for existing active waiting attempt (Idempotency)
+    const nowMs = Date.now();
+    const { data: existingAttempts, error: attemptFetchError } = await supabase
+      .from('payment_attempts')
+      .select('id, order_id, amount_paise, status, expires_at, created_at')
+      .eq('order_id', cleanOrderId)
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false });
+
+    if (attemptFetchError) {
+      console.error('[CreatePaymentAttempt] Error fetching existing attempts:', attemptFetchError.message);
+    }
+
+    const activeAttempt = (existingAttempts || []).find((att) => {
+      if (!att.expires_at) return true;
+      return new Date(att.expires_at).getTime() > nowMs;
+    });
+
+    if (activeAttempt) {
+      console.log(`[CreatePaymentAttempt] Returning existing active waiting attempt ${activeAttempt.id} for order ${cleanOrderId}`);
+      return res.status(200).json({
+        success: true,
+        payment_attempt: {
+          id: activeAttempt.id,
+          order_id: activeAttempt.order_id,
+          amount_paise: Number(activeAttempt.amount_paise),
+          status: activeAttempt.status,
+          created_at: activeAttempt.created_at,
+          expires_at: activeAttempt.expires_at
+        }
+      });
+    }
+
+    // Step 6: Create fresh payment attempt (expires in 6 minutes)
+    const createdAtDate = new Date();
+    const expiresAtDate = new Date(createdAtDate.getTime() + 6 * 60 * 1000);
+
+    const newAttemptObj = {
+      order_id: cleanOrderId,
+      amount_paise,
+      status: 'waiting',
+      created_at: createdAtDate.toISOString(),
+      expires_at: expiresAtDate.toISOString()
+    };
+
+    const { data: createdAttempt, error: createError } = await supabase
+      .from('payment_attempts')
+      .insert(newAttemptObj)
+      .select('id, order_id, amount_paise, status, created_at, expires_at')
+      .single();
+
+    if (createError) {
+      console.error('[CreatePaymentAttempt] Error inserting payment attempt:', createError.message);
+
+      // Handle race condition: check again if a waiting attempt was created concurrently
+      if (createError.code === '23505' || createError.message?.includes('unique') || createError.message?.includes('duplicate')) {
+        const { data: raceAttempt } = await supabase
+          .from('payment_attempts')
+          .select('id, order_id, amount_paise, status, created_at, expires_at')
+          .eq('order_id', cleanOrderId)
+          .eq('status', 'waiting')
+          .order('created_at', { ascending: false })
+          .maybeSingle();
+
+        if (raceAttempt) {
+          return res.status(200).json({
+            success: true,
+            payment_attempt: {
+              id: raceAttempt.id,
+              order_id: raceAttempt.order_id,
+              amount_paise: Number(raceAttempt.amount_paise),
+              status: raceAttempt.status,
+              created_at: raceAttempt.created_at,
+              expires_at: raceAttempt.expires_at
+            }
+          });
+        }
+      }
+
+      return res.status(500).json({
+        error: 'Unable to create payment attempt'
+      });
+    }
+
+    console.log(`[CreatePaymentAttempt] Successfully created attempt ${createdAttempt.id} for order ${cleanOrderId}`);
+    return res.status(200).json({
+      success: true,
+      payment_attempt: {
+        id: createdAttempt.id,
+        order_id: createdAttempt.order_id,
+        amount_paise: Number(createdAttempt.amount_paise),
+        status: createdAttempt.status,
+        created_at: createdAttempt.created_at,
+        expires_at: createdAttempt.expires_at
+      }
+    });
+  } catch (err: any) {
+    console.error('[CreatePaymentAttempt] Unexpected error:', err?.message || String(err));
+    return res.status(500).json({
+      error: 'Unable to create payment attempt'
+    });
+  }
+});
 
 /**
  * POST /api/payment/device-event
