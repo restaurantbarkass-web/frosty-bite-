@@ -36,14 +36,20 @@ const fallbackReviews = [
 
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const fetchPromise = supabase
       .from('reviews')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(6);
+
+    const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'Query timeout' } }), 2500)
+    );
+
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
     
     if (error) {
-      console.warn('[Reviews API] Supabase error, returning fallback reviews:', error.message);
+      console.warn('[Reviews API] Query error/timeout, returning fallback reviews:', error.message);
       return res.json(fallbackReviews);
     }
     

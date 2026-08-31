@@ -6,11 +6,11 @@ let lastUsedCredsKey = '';
 function getTransporter() {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.SMTP_PORT || '587');
-  const user = process.env.SMTP_USER || 'frostybitebakery07@gmail.com';
-  const pass = process.env.SMTP_PASS || 'ymmy apat kkhr vepw';
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
 
   if (!user || !pass) {
-    console.warn('[EmailService] SMTP credentials are not fully configured in your environment variables. Using fallback mode.');
+    console.warn('[EmailService] SMTP credentials (SMTP_USER, SMTP_PASS) are not fully configured in your environment variables. Using fallback mode.');
     return null;
   }
 
@@ -83,7 +83,7 @@ export class EmailService {
    * Sends an OTP (Verification Code) via SMTP
    */
   static async sendOTPEmail(email: string, otp: string): Promise<boolean> {
-    const defaultUser = process.env.SMTP_USER || 'frostybitebakery07@gmail.com';
+    const defaultUser = process.env.SMTP_USER || 'noreply@frostybite.com';
     const rawFrom = process.env.SMTP_FROM || `"Frosty Bite" <${defaultUser}>`;
     const from = formatFromAddress(rawFrom);
     
@@ -219,7 +219,7 @@ export class EmailService {
    * Sends a Welcome Email via SMTP
    */
   static async sendWelcomeEmail(email: string, name?: string | null): Promise<boolean> {
-    const defaultUser = process.env.SMTP_USER || 'frostybitebakery07@gmail.com';
+    const defaultUser = process.env.SMTP_USER || 'noreply@frostybite.com';
     const rawFrom = process.env.SMTP_FROM || `"Frosty Bite" <${defaultUser}>`;
     const from = formatFromAddress(rawFrom);
     const displayName = name || email.split('@')[0];

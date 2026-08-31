@@ -6,15 +6,16 @@ async function testConnections() {
   const passwords = [
     process.env.SUPABASE_DB_PASSWORD,
     process.env.POSTGRES_PASSWORD,
-    'Restaurantbarkass@123',
-    'Frostybite@123',
-    'FrostyBite123',
-    'wilsmmashfpgrxkknmle'
   ].filter(Boolean) as string[];
 
   const hosts = [
-    'db.wilsmmashfpgrxkknmle.supabase.co'
-  ];
+    process.env.SUPABASE_DB_HOST || process.env.POSTGRES_HOST
+  ].filter(Boolean) as string[];
+
+  if (passwords.length === 0 || hosts.length === 0) {
+    console.error('SUPABASE_DB_PASSWORD/POSTGRES_PASSWORD and SUPABASE_DB_HOST/POSTGRES_HOST environment variables are required.');
+    return;
+  }
 
   for (const host of hosts) {
     for (const pw of passwords) {

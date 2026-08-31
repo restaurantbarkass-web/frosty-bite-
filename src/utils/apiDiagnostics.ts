@@ -62,7 +62,11 @@ export async function diagnosticFetch(input: RequestInfo | URL, init?: RequestIn
       const probeRes = await fetch('/api/health');
       serverReachable = probeRes.ok;
       if (probeRes.ok) {
-        healthDetails = await probeRes.json();
+        try {
+          if (probeRes.headers.get('content-type')?.includes('application/json')) {
+            healthDetails = await probeRes.json();
+          }
+        } catch (_) {}
       }
       console.log(`[API DIAGNOSTICS] 🩺 Heartbeat response status: ${probeRes.status}`, healthDetails);
     } catch (probeErr: any) {

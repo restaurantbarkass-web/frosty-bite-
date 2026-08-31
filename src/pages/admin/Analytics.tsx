@@ -300,8 +300,15 @@ export const Analytics: React.FC = () => {
               <p className="text-sm text-gray-500">Total revenue generated over time</p>
             </div>
           </div>
-          <div className="flex-1 min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+          <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+            <ResponsiveContainer 
+              width="100%" 
+              height="100%" 
+              minWidth={100} 
+              minHeight={200} 
+              initialDimension={{ width: 600, height: 350 }}
+              debounce={100}
+            >
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
                 <XAxis 
@@ -335,8 +342,15 @@ export const Analytics: React.FC = () => {
         <div className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
           <h3 className="text-2xl font-bold text-white tracking-tight mb-2">Order Distribution</h3>
           <p className="text-sm text-gray-500 mb-10">Breakdown by category</p>
-          <div className="flex-1 min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+          <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+            <ResponsiveContainer 
+              width="100%" 
+              height="100%" 
+              minWidth={100} 
+              minHeight={200} 
+              initialDimension={{ width: 400, height: 350 }}
+              debounce={100}
+            >
               <BarChart data={popularItemsData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
               <XAxis 

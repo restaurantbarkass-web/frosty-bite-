@@ -13,10 +13,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase.
-  // Using placeholders or securely populated environment variables.
+  // Using environment variables with fallback placeholders.
   await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://krfjonjkmvmohb4isfaw.supabase.co'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'),
+    url: const String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://placeholder.supabase.co'),
+    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'placeholder-anon-key'),
   );
 
   runApp(

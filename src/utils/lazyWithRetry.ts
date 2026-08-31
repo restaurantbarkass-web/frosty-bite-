@@ -8,16 +8,17 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
   componentImport: () => Promise<{ default: T } | { [key: string]: any }>,
   namedExport?: string,
   maxRetries = 2,
-  interval = 500
+  interval = 300
 ): React.LazyExoticComponent<T> {
   return React.lazy(() =>
     new Promise<{ default: T }>((resolve, reject) => {
-      let retriesLeft = maxRetries;
-      let currentInterval = interval;
-
-      const attemptImport = () => {
+      const attemptImport = (retriesLeft: number) => {
         componentImport()
           .then((module: any) => {
+            if (typeof window !== 'undefined') {
+              window.sessionStorage.removeItem('chunk_reload_timestamp');
+            }
+
             if (namedExport && module[namedExport]) {
               resolve({ default: module[namedExport] });
             } else if (module && module.default) {
@@ -25,7 +26,6 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
             } else if (module && typeof module === 'function') {
               resolve({ default: module });
             } else {
-              // Try finding the first function component export
               const keys = Object.keys(module || {});
               const compKey = keys.find((k) => typeof module[k] === 'function');
               if (compKey) {
@@ -36,36 +36,39 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
             }
           })
           .catch((error) => {
+            const errStr = String(error?.message || error || '');
             const isChunkError =
-              error?.message?.includes('Failed to fetch dynamically imported module') ||
-              error?.message?.includes('Importing a module script failed') ||
+              errStr.includes('Failed to fetch dynamically imported module') ||
+              errStr.includes('Importing a module script failed') ||
+              errStr.includes('dynamically imported') ||
+              errStr.includes('Failed to fetch') ||
               error?.name === 'ChunkLoadError';
 
-            if (retriesLeft > 0) {
-              retriesLeft--;
-              setTimeout(() => {
-                currentInterval = currentInterval * 1.5;
-                attemptImport();
-              }, currentInterval);
-            } else if (isChunkError && typeof window !== 'undefined') {
-              // Check if we already reloaded recently
-              const hasReloaded = window.sessionStorage.getItem('chunk_reload_retry');
-              if (!hasReloaded) {
-                window.sessionStorage.setItem('chunk_reload_retry', 'true');
+            if (isChunkError && typeof window !== 'undefined') {
+              const lastReloadTime = Number(window.sessionStorage.getItem('chunk_reload_timestamp') || '0');
+              const now = Date.now();
+              if (now - lastReloadTime > 5000) {
+                console.warn('[lazyWithRetry] Dynamically imported module failed to fetch. Auto-syncing bundle...', errStr);
+                window.sessionStorage.setItem('chunk_reload_timestamp', String(now));
                 window.location.reload();
-              } else {
-                window.sessionStorage.removeItem('chunk_reload_retry');
-                reject(error);
+                return;
               }
+            }
+
+            if (retriesLeft > 0) {
+              setTimeout(() => {
+                attemptImport(retriesLeft - 1);
+              }, interval);
             } else {
               reject(error);
             }
           });
       };
 
-      attemptImport();
+      attemptImport(maxRetries);
     })
   );
 }
 
 export default lazyWithRetry;
+

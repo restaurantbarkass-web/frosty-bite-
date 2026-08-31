@@ -1,18 +1,20 @@
 
+import { safeFetchJson } from '../utils/safeFetch';
+
 export const getFoodRecommendations = async (userPreferences: string) => {
   const fallback = ['Bento Cakes', 'Artisan Bread', 'Chocolate Truffle', 'Custom Pastries'];
   try {
-    const response = await fetch('/api/butler/suggestions', {
+    const res = await safeFetchJson('/api/butler/suggestions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ searchTerm: userPreferences || 'popular products', items: [] })
     });
     
-    if (!response.ok) {
+    if (!res.ok || !res.data) {
       console.warn('AI Recommendation API returned non-OK status, utilizing client fallback');
       return fallback;
     }
-    const data = await response.json();
+    const data = res.data;
     return (data.suggestions && data.suggestions.length > 0) ? data.suggestions : fallback;
   } catch (error) {
     console.warn("Failed to fetch food recommendations, using fallback:", error);
@@ -31,13 +33,13 @@ export const getRestaurantInfo = async (location: { lat: number; lng: number }) 
 
 export const getComplexMealPlan = async (dietaryGoals: string) => {
   try {
-    const response = await fetch('/api/butler/recommend', {
+    const res = await safeFetchJson('/api/butler/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: `Create a meal plan for: ${dietaryGoals}`, items: [] })
     });
-    if (!response.ok) throw new Error('Meal plan API failed');
-    const data = await response.json();
+    if (!res.ok || !res.data) throw new Error(res.error || 'Meal plan API failed');
+    const data = res.data;
     return data.butlerResponse || "I can help you craft the perfect selection of treats for your week. Please contact our concierge for a detailed plan.";
   } catch (error) {
     console.error("Failed to get meal plan:", error);

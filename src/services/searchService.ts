@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { MENU_ITEMS } from '../constants';
 import { diagnosticFetch } from '../utils/apiDiagnostics';
-
+import { safeFetchJson } from '../utils/safeFetch';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 
 // AI is now handled server-side to keep API keys secure
@@ -87,7 +87,7 @@ export const searchService = {
     try {
       const menuReference = items.map(i => ({ name: i.name, category: i.category, tags: i.tags })).slice(0, 60);
       
-      const response = await fetch('/api/butler/suggestions', {
+      const res = await safeFetchJson('/api/butler/suggestions', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -96,9 +96,8 @@ export const searchService = {
         body: JSON.stringify({ searchTerm, items: menuReference })
       });
 
-      if (!response.ok) throw new Error('AI Suggestion API failed');
-      const data = await response.json();
-      return data.suggestions || [];
+      if (!res.ok || !res.data) return [];
+      return res.data.suggestions || [];
     } catch (error) {
       console.error('AI Suggestion Error:', error);
       return [];
@@ -125,7 +124,7 @@ export const searchService = {
         is_ai_boosted: i.is_ai_boosted
       }));
 
-      const response = await fetch('/api/butler/recommend', {
+      const res = await safeFetchJson('/api/butler/recommend', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -134,23 +133,16 @@ export const searchService = {
         body: JSON.stringify({ query, items: relevantItems })
       });
 
-      if (!response.ok) {
-        let errorBody = "";
-        try {
-          errorBody = await response.text();
-        } catch (e) {
-          errorBody = "Could not read error response";
-        }
-        
-        if (response.status === 429) {
+      if (!res.ok || !res.data) {
+        if (res.status === 429) {
           console.log(`[SearchService] Butler AI matches rate-limit of 429. Silently deploying local matching backend...`);
         } else {
-          console.warn(`[SearchService] Butler API returned code ${response.status}. Deploying client matches.`);
+          console.warn(`[SearchService] Butler API returned code ${res.status}. Deploying client matches.`);
         }
         return getLocalClientRecommendation(query, activeItems);
       }
       
-      const recommendation = await response.json();
+      const recommendation = res.data;
       console.log('[Butler Rec] AI Success Payload:', recommendation);
       
       if (!recommendation || !recommendation.bestMatchId) {
@@ -176,7 +168,7 @@ export const searchService = {
     const trimmed = safeTrimLowerCase(searchTerm);
     if (!trimmed) return;
     try {
-      await diagnosticFetch('/api/search/log', {
+      await safeFetchJson('/api/search/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ searchTerm: trimmed, userId })
@@ -190,10 +182,9 @@ export const searchService = {
   async getTrendingSearches(limitCount: number = 6): Promise<string[]> {
     const fallback = ['Anniversary Cakes', 'Chocolate Truffle', 'Coffee Pastries', 'Custom Gifts', 'Cupcakes', 'Fresh Fruit Cake'];
     try {
-      const res = await diagnosticFetch(`/api/search/trending?limit=${limitCount}`);
-      if (!res.ok) return fallback.slice(0, limitCount);
-      const data = await res.json();
-      return Array.isArray(data) && data.length > 0 ? data : fallback.slice(0, limitCount);
+      const res = await safeFetchJson<string[]>(`/api/search/trending?limit=${limitCount}`, undefined, fallback);
+      if (!res.ok || !res.data) return fallback.slice(0, limitCount);
+      return Array.isArray(res.data) && res.data.length > 0 ? res.data : fallback.slice(0, limitCount);
     } catch {
       return fallback.slice(0, limitCount);
     }

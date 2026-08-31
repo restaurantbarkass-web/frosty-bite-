@@ -280,7 +280,7 @@ export const ServiceZones: React.FC = () => {
         setNewAreaDeliverable(true);
         fetchDeliveryAreas();
       } else {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({ message: 'Server returned error status ' + response.status }));
         toast.error(errData.message || 'Failed to add local area selection');
       }
     } catch (err) {
@@ -506,7 +506,7 @@ export const ServiceZones: React.FC = () => {
         setIsActive(true);
         fetchZones();
       } else {
-        const errJson = await response.json();
+        const errJson = await response.json().catch(() => ({ message: 'Server returned error status ' + response.status }));
         toast.error(errJson.message || 'Server rejected request');
       }
     } catch (err) {
@@ -657,7 +657,7 @@ export const ServiceZones: React.FC = () => {
         setNewPincodeActive(true);
         fetchPincodes();
       } else {
-        const errJson = await response.json();
+        const errJson = await response.json().catch(() => ({ message: 'Server returned error status ' + response.status }));
         toast.error(errJson.message || 'Server rejected request');
       }
     } catch (err) {

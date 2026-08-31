@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { RESTAURANT_WHATSAPP } from '../constants';
 import { toast } from 'react-hot-toast';
+import { safeFetchJson } from '../utils/safeFetch';
 
 export const Notifications: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
@@ -74,7 +75,7 @@ export const Notifications: React.FC = () => {
 
       // 2. Loop with cloud endpoint FCM proxy
       if (user) {
-        const response = await fetch('/api/notifications/send-push', {
+        const res = await safeFetchJson('/api/notifications/send-push', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -84,11 +85,11 @@ export const Notifications: React.FC = () => {
             data: { link: '/notifications' }
           })
         });
-        const data = await response.json();
-        if (data.success && data.sentCount > 0) {
+        const data = res.data;
+        if (data && data.success && data.sentCount > 0) {
           toast.success('FCM cloud dispatch complete!');
         } else {
-          console.log('[FCM Cloud Test] Service response:', data);
+          console.log('[FCM Cloud Test] Service response:', data || res.error);
         }
       }
     } catch (err) {

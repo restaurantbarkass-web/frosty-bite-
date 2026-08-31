@@ -1,9 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 async function test() {
-  const url = 'https://wilsmmashfpgrxkknmle.supabase.co';
-  // Use service role key to be able to read system tables if possible
-  const serviceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzU0NjAwMywiZXhwIjoyMDkzMTIyMDAzfQ.3Ogc0oVn7lmZ1VKNrX-M0nx9MzUSp1mVgmCf_VaMymo';
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
+  if (!url || !serviceKey) {
+    console.error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
+    return;
+  }
   const client = createClient(url, serviceKey);
 
   console.log('Testing general query to list public tables/policies...');

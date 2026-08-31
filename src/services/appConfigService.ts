@@ -287,9 +287,11 @@ export const appConfigService = {
           body: JSON.stringify({ isOrderingOpen: newStatus })
         });
         if (response.ok) {
-          const freshResponse = await response.json();
-          freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-          success = true;
+          const freshResponse = await response.json().catch(() => null);
+          if (freshResponse) {
+            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
+            success = true;
+          }
         } else {
           console.warn('[appConfigService] POST /api/config returned status:', response.status);
         }
@@ -335,9 +337,11 @@ export const appConfigService = {
           body: JSON.stringify({ pickup_only: isPickupOnly, isPickupOnly: isPickupOnly })
         });
         if (response.ok) {
-          const freshResponse = await response.json();
-          freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-          success = true;
+          const freshResponse = await response.json().catch(() => null);
+          if (freshResponse) {
+            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
+            success = true;
+          }
         } else {
           console.warn('[appConfigService] POST /api/config returned status:', response.status);
         }
@@ -392,9 +396,11 @@ export const appConfigService = {
           })
         });
         if (response.ok) {
-          const freshResponse = await response.json();
-          freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-          success = true;
+          const freshResponse = await response.json().catch(() => null);
+          if (freshResponse) {
+            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
+            success = true;
+          }
         } else {
           console.warn('[appConfigService] POST /api/config returned status:', response.status);
         }
@@ -455,9 +461,11 @@ export const appConfigService = {
           })
         });
         if (response.ok) {
-          const freshResponse = await response.json();
-          freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-          success = true;
+          const freshResponse = await response.json().catch(() => null);
+          if (freshResponse) {
+            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
+            success = true;
+          }
         } else {
           console.warn('[appConfigService] POST /api/config returned status:', response.status);
         }
@@ -486,7 +494,7 @@ export const appConfigService = {
     try {
       const response = await fetchWithRetry('/api/config');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => null);
         if (data) {
           backendConfig = data.config || data;
         }

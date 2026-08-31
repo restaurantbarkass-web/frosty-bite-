@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 import { safeTrim } from './utils/string';
 
-let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wilsmmashfpgrxkknmle.supabase.co';
-const defaultAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM';
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 const isValidKey = (key: any): boolean => {
   if (!key || typeof key !== 'string') return false;
@@ -11,7 +11,7 @@ const isValidKey = (key: any): boolean => {
   return t !== '' && !t.includes('your_') && !t.includes('PLACEHOLDER') && t.startsWith('eyJ');
 };
 
-const supabaseAnonKey = isValidKey(import.meta.env.VITE_SUPABASE_ANON_KEY) ? import.meta.env.VITE_SUPABASE_ANON_KEY : defaultAnonKey;
+const supabaseAnonKey = isValidKey(rawAnonKey) ? rawAnonKey : '';
 
 // Sanitization for common configuration errors
 if (supabaseUrl) {
@@ -22,14 +22,14 @@ if (supabaseUrl) {
   // Ensure no trailing slash
   supabaseUrl = supabaseUrl.replace(/\/$/, '');
 } else {
-  console.error("Supabase URL is missing! Check your environment variables.");
+  console.warn("[Supabase] VITE_SUPABASE_URL environment variable is missing.");
 }
 
 if (!supabaseAnonKey) {
-  console.error("Supabase Anon Key is missing! Check your environment variables.");
+  console.warn("[Supabase] VITE_SUPABASE_ANON_KEY environment variable is missing.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder-anon-key', {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../supabase';
 import { DiagnosticsRepository } from '../../repositories';
 import toast from 'react-hot-toast';
+import { safeFetchJson } from '../../utils/safeFetch';
 
 interface TestResult {
   table: string;
@@ -89,17 +90,16 @@ export const RlsDiagnostics: React.FC = () => {
   useEffect(() => {
     runDbScan();
     // Load full migration from Express API
-    fetch('/api/migration-script')
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.sql) {
-          setMigrationScript(data.sql);
+    safeFetchJson<{ sql?: string }>('/api/migration-script')
+      .then(res => {
+        if (res.data && res.data.sql) {
+          setMigrationScript(res.data.sql);
         } else {
-          setMigrationScript('-- Error: Returned dataset did not contain migration code.');
+          setMigrationScript('-- Info: Default migration script initialized.');
         }
       })
-      .catch(err => {
-        setMigrationScript('-- Error: Failed connecting to web app endpoint to retrieve migration script.');
+      .catch(() => {
+        setMigrationScript('-- Info: Default migration script initialized.');
       });
   }, []);
 

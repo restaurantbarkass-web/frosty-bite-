@@ -1,9 +1,43 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { NotificationService } from '../services/notification.service';
 import admin, { getAdminDb } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
 
 const router = express.Router();
+
+/**
+ * Authorization Guard Middleware for Protected Notification Trigger Endpoints
+ * Verifies Bearer Auth tokens or API Keys when configured.
+ */
+const requireNotificationAuth = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  const apiKey = req.headers['x-api-key'] || req.headers['x-notification-secret'];
+  const expectedSecret = process.env.NOTIFICATION_SECRET_KEY || process.env.INTERNAL_API_KEY;
+
+  // 1. If explicit API key / secret header matches environment
+  if (expectedSecret && apiKey === expectedSecret) {
+    return next();
+  }
+
+  // 2. If Bearer Token provided, verify with Supabase Auth
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split('Bearer ')[1];
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (user && !error) {
+        (req as any).user = user;
+        return next();
+      }
+    } catch (_) {}
+  }
+
+  // 3. Fallback for non-enforced development & preview sandbox environments
+  if (process.env.NODE_ENV !== 'production' || !expectedSecret) {
+    return next();
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: Protected notification trigger endpoint requires valid auth token or API key' });
+};
 
 /**
  * Register a device / browser push token
@@ -66,30 +100,108 @@ router.post('/unregister-token', async (req, res) => {
 });
 
 /**
- * Authoritative Order Status Notification Trigger
- * (Invoked whenever an order advances: confirmed, preparing, ready, out_for_delivery, delivered, cancelled, refund)
+ * Protected Order Notification Trigger Endpoint
+ * Secure, Idempotent notification dispatcher for order status changes
  */
-router.post('/send-order-update', async (req, res) => {
+router.post('/send-order-notification', requireNotificationAuth, async (req: Request, res: Response) => {
   try {
-    const { orderId, status, customReason, refundAmount, deliveryEta, eventVersion } = req.body;
+    const { orderId, status, userId, guestSessionId, customReason, refundAmount, deliveryEta, eventVersion, idempotencyKey } = req.body;
 
     if (!orderId || !status) {
-      return res.status(400).json({ error: 'Missing required orderId or status' });
+      return res.status(400).json({ error: 'Missing required parameters: orderId and status are required' });
     }
 
-    const result = await NotificationService.sendOrderStatusNotification({
+    const result = await NotificationService.sendOrderNotification({
       orderId,
       status,
+      userId,
+      guestSessionId,
       customReason,
       refundAmount,
       deliveryEta,
-      eventVersion
+      eventVersion,
+      idempotencyKey
+    });
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('[Notification Route] Error in send-order-notification:', error);
+    return res.status(500).json({ error: error.message || 'Failed to dispatch order notification' });
+  }
+});
+
+/**
+ * Authoritative Order Status Notification Trigger (Alias)
+ */
+router.post('/send-order-update', requireNotificationAuth, async (req: Request, res: Response) => {
+  try {
+    const { orderId, status, userId, guestSessionId, customReason, refundAmount, deliveryEta, eventVersion, idempotencyKey } = req.body;
+
+    if (!orderId || !status) {
+      return res.status(400).json({ error: 'Missing required parameters: orderId and status are required' });
+    }
+
+    const result = await NotificationService.sendOrderNotification({
+      orderId,
+      status,
+      userId,
+      guestSessionId,
+      customReason,
+      refundAmount,
+      deliveryEta,
+      eventVersion,
+      idempotencyKey
     });
 
     return res.json(result);
   } catch (error: any) {
     console.error('[Notification Route] Error in send-order-update:', error);
     return res.status(500).json({ error: error.message || 'Failed to dispatch order status notification' });
+  }
+});
+
+/**
+ * Queue Non-Critical Order Notification Endpoint
+ * Batches and schedules non-critical order status updates
+ */
+router.post('/queue-order-notification', requireNotificationAuth, async (req: Request, res: Response) => {
+  try {
+    const { orderId, status, userId, guestSessionId, customReason, refundAmount, deliveryEta, eventVersion, delayMs, batchKey } = req.body;
+
+    if (!orderId || !status) {
+      return res.status(400).json({ error: 'Missing required parameters: orderId and status are required' });
+    }
+
+    const result = await NotificationService.queueOrderNotification({
+      orderId,
+      status,
+      userId,
+      guestSessionId,
+      customReason,
+      refundAmount,
+      deliveryEta,
+      eventVersion,
+      delayMs,
+      batchKey
+    });
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('[Notification Route] Error in queue-order-notification:', error);
+    return res.status(500).json({ error: error.message || 'Failed to queue order notification' });
+  }
+});
+
+/**
+ * Flush all currently queued batch notifications
+ */
+router.post('/flush-queued', requireNotificationAuth, async (_req: Request, res: Response) => {
+  try {
+    const result = await NotificationService.flushQueuedNotifications();
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[Notification Route] Error flushing queued notifications:', error);
+    return res.status(500).json({ error: error.message || 'Failed to flush queued notifications' });
   }
 });
 
@@ -172,7 +284,7 @@ router.post('/track-click', async (req, res) => {
 });
 
 /**
- * Trigger Zomato-Style Customer Re-Engagement Engine
+ * Trigger Frosty-Style Customer Re-Engagement Engine
  */
 router.post('/trigger-reengagement', async (req, res) => {
   try {

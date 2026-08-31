@@ -4,9 +4,9 @@ let hf: HfInference | null = null;
 
 export function getHF() {
   if (!hf) {
-    const token = process.env.HF_TOKEN || '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';
+    const token = process.env.HF_TOKEN;
     if (!token) {
-      // Return a dummy or throw. Avatar service seems to handle missing token.
+      // Return a dummy or throw. Avatar service handles missing token.
       console.warn("HF_TOKEN missing, HuggingFace inference will be disabled.");
       return null;
     }

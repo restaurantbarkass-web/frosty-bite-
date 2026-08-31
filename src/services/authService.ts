@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { UserRepository } from '../repositories';
 import { getRoleFromEmail } from '../constants';
+import { safeFetchJson, safeResponseJson } from '../utils/safeFetch';
 
 // Deduplicated Auth Sync requester to completely prevent duplicate concurrent /api/auth/sync requests
 async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
@@ -16,17 +17,17 @@ async function fetchSyncDeduplicated(idToken: string, markVerified: boolean) {
 
   const promise = (async () => {
     try {
-      const response = await fetch('/api/auth/sync', {
+      const res = await safeFetchJson('/api/auth/sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ idToken, markVerified }),
       });
-      if (!response.ok) {
-        throw new Error(`Sync API returned status: ${response.status}`);
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || `Sync API returned status: ${res.status}`);
       }
-      return await response.json();
+      return res.data;
     } catch (err) {
       console.error('[DeduplicatedFetch] Sync API failed:', err);
       throw err;
@@ -629,7 +630,7 @@ export const authService = {
 
   // Secure client-side wrapper to reset custom password via verified OTP code
   async resetPasswordWithOTP(email: string, otp: string, newPassword: string) {
-    const response = await fetch('/api/auth/reset-password', {
+    const res = await safeFetchJson('/api/auth/reset-password', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -637,9 +638,9 @@ export const authService = {
       body: JSON.stringify({ email, otp, newPassword }),
     });
 
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Password reset failed.');
+    const data = res.data;
+    if (!res.ok || !data?.success) {
+      throw new Error(res.error || data?.error || 'Password reset failed.');
     }
     return data;
   },

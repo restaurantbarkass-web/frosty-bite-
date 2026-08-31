@@ -1,9 +1,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const firebaseProjectId = 'frostybite07';
-const firebaseDatabaseId = 'ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c';
-const key = 'AIzaSyBmfCBuc_UzCKfS1DN6OKnZPsri3MFkcdU';
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || 'frostybite07';
+const firebaseDatabaseId = process.env.FIREBASE_DATABASE_ID || 'ai-studio-5220f74d-5467-4ae2-a84f-6cf35908747c';
+const key = process.env.FIREBASE_API_KEY || '';
 
 async function run() {
   const urlDefault = `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/service_pincodes?key=${key}`;

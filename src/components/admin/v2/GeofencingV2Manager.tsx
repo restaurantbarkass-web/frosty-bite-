@@ -28,6 +28,7 @@ import { UnifiedCityModal } from './UnifiedCityModal';
 import { UnifiedPincodeModal } from './UnifiedPincodeModal';
 import { UnifiedLocalityModal } from './UnifiedLocalityModal';
 import { safeTrim, safeTrimLowerCase } from '../../../utils/string';
+import { safeFetchJson } from '../../../utils/safeFetch';
 
 export interface V2ServiceArea {
   id: string;
@@ -131,23 +132,14 @@ export const GeofencingV2Manager: React.FC = () => {
     setIsRefreshing(true);
     try {
       const [saRes, cRes, pRes, lRes] = await Promise.all([
-        fetch('/api/v2/service-area'),
-        fetch('/api/v2/cities'),
-        fetch('/api/v2/pincodes'),
-        fetch('/api/v2/localities')
+        safeFetchJson<V2ServiceArea>('/api/v2/service-area'),
+        safeFetchJson<V2City[]>('/api/v2/cities'),
+        safeFetchJson<V2Pincode[]>('/api/v2/pincodes'),
+        safeFetchJson<V2Locality[]>('/api/v2/localities')
       ]);
 
-      if (saRes.ok) {
-        const saData = await saRes.json();
-        if (saData && typeof saData.is_active === 'boolean') {
-          setServiceArea(saData);
-        } else {
-          setServiceArea({
-            id: 'sa-00000000-0000-0000-0000-000000000001',
-            name: 'Frosty Bite Odisha Service Region',
-            is_active: true
-          });
-        }
+      if (saRes.ok && saRes.data && typeof saRes.data.is_active === 'boolean') {
+        setServiceArea(saRes.data);
       } else {
         setServiceArea({
           id: 'sa-00000000-0000-0000-0000-000000000001',
@@ -156,20 +148,15 @@ export const GeofencingV2Manager: React.FC = () => {
         });
       }
 
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        if (Array.isArray(cData) && cData.length > 0) {
-          setCities(cData);
-          setExpandedCityIds((prev) => (prev.length === 0 ? [cData[0].id] : prev));
-        }
+      if (cRes.ok && Array.isArray(cRes.data) && cRes.data.length > 0) {
+        setCities(cRes.data);
+        setExpandedCityIds((prev) => (prev.length === 0 ? [cRes.data![0].id] : prev));
       }
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        setPincodes(pData);
+      if (pRes.ok && Array.isArray(pRes.data)) {
+        setPincodes(pRes.data);
       }
-      if (lRes.ok) {
-        const lData = await lRes.json();
-        setLocalities(lData);
+      if (lRes.ok && Array.isArray(lRes.data)) {
+        setLocalities(lRes.data);
       }
     } catch (err: any) {
       console.error('[GeofencingV2Manager] Failed to load V2 data:', err);
@@ -390,25 +377,23 @@ export const GeofencingV2Manager: React.FC = () => {
 
     try {
       if (editingPincode) {
-        const res = await fetch(`/api/v2/pincodes/${editingPincode.id}`, {
+        const res = await safeFetchJson(`/api/v2/pincodes/${editingPincode.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ pincode: formData.pincode, is_active: formData.is_active, boundary: formData.boundary })
         });
         if (!res.ok) {
-          const json = await res.json();
-          throw new Error(json.error || 'Failed to update pincode');
+          throw new Error(res.error || res.data?.error || 'Failed to update pincode');
         }
         toast.success(`Pincode ${formData.pincode} updated!`);
       } else {
-        const res = await fetch('/api/v2/pincodes', {
+        const res = await safeFetchJson('/api/v2/pincodes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
         if (!res.ok) {
-          const json = await res.json();
-          throw new Error(json.error || 'Failed to create pincode');
+          throw new Error(res.error || res.data?.error || 'Failed to create pincode');
         }
         toast.success(`Pincode ${formData.pincode} added!`);
       }
@@ -472,20 +457,20 @@ export const GeofencingV2Manager: React.FC = () => {
 
     try {
       if (editingLocality) {
-        const res = await fetch(`/api/v2/localities/${editingLocality.id}`, {
+        const res = await safeFetchJson(`/api/v2/localities/${editingLocality.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
-        if (!res.ok) throw new Error('Failed to update locality');
+        if (!res.ok) throw new Error(res.error || res.data?.error || 'Failed to update locality');
         toast.success(`Locality ${formData.name} updated!`);
       } else {
-        const res = await fetch('/api/v2/localities', {
+        const res = await safeFetchJson('/api/v2/localities', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData)
         });
-        if (!res.ok) throw new Error('Failed to create locality');
+        if (!res.ok) throw new Error(res.error || res.data?.error || 'Failed to create locality');
         toast.success(`Locality ${formData.name} created!`);
       }
       setIsLocalityModalOpen(false);
@@ -508,8 +493,8 @@ export const GeofencingV2Manager: React.FC = () => {
       else if (type === 'pincode') endpoint = `/api/v2/pincodes/${id}`;
       else if (type === 'locality') endpoint = `/api/v2/localities/${id}`;
 
-      const res = await fetch(endpoint, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete operation failed');
+      const res = await safeFetchJson(endpoint, { method: 'DELETE' });
+      if (!res.ok) throw new Error(res.error || res.data?.error || 'Delete operation failed');
 
       toast.success(`${title} deleted successfully.`);
       setDeleteConfirm(null);

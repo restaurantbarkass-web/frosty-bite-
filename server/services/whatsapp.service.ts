@@ -32,13 +32,13 @@ export class WhatsAppService {
     const textMessage = `Cake *Frosty Bite Bakery*\n\nYour verification code is:\n\n*${otp}*\n\nThis code expires in 5 minutes.\n\nDo not share this code with anyone.`;
 
     // 3. Resolve the configured WhatsApp server URL
-    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
+    const whatsappUrl = (process.env.OPENWA_API_URL || process.env.WHATSAPP_SERVER_URL || '').replace(/\/+$/, '');
 
     const isCloudEnv = !!process.env.K_SERVICE || process.env.NODE_ENV === 'production';
 
-    // If using local/custom WhatsApp server, we always delegate to the background polling queue
+    // If using local/custom WhatsApp server, or if URL is not configured, we delegate to the background polling queue
     // to bypass CORS and HTTPS mixed content browser blocks completely.
-    if (whatsappUrl.includes('localhost') || whatsappUrl.includes('127.0.0.1')) {
+    if (!whatsappUrl || whatsappUrl.includes('localhost') || whatsappUrl.includes('127.0.0.1')) {
       console.log(`[WhatsAppService] Queueing WhatsApp message for polling delivery and client fallback.`);
       const messageId = Math.random().toString(36).substring(2, 15);
       WhatsAppService.pendingQueue.push({

@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { requestForToken, triggerOrderStatusNotification } from '../../utils/messaging';
+import { safeFetchJson, safeResponseJson } from '../../utils/safeFetch';
 
 interface NotificationAnalytics {
   totalEvents: number;
@@ -87,15 +88,15 @@ export const NotificationCenter: React.FC = () => {
     try {
       setLoading(true);
       const [resAna, resTpl] = await Promise.all([
-        fetch('/api/notifications/analytics').then(r => r.json()),
-        fetch('/api/notifications/templates').then(r => r.json())
+        safeFetchJson('/api/notifications/analytics', undefined, { success: false, analytics: null }),
+        safeFetchJson('/api/notifications/templates', undefined, { success: false, templates: [] })
       ]);
 
-      if (resAna?.success && resAna?.analytics) {
-        setAnalytics(resAna.analytics);
+      if (resAna?.data?.success && resAna?.data?.analytics) {
+        setAnalytics(resAna.data.analytics);
       }
-      if (resTpl?.success && resTpl?.templates) {
-        setTemplates(resTpl.templates);
+      if (resTpl?.data?.success && resTpl?.data?.templates) {
+        setTemplates(resTpl.data.templates);
       }
     } catch (err) {
       console.warn('Failed to load notification analytics:', err);
@@ -118,7 +119,7 @@ export const NotificationCenter: React.FC = () => {
 
     setCampaignSending(true);
     try {
-      const res = await fetch('/api/notifications/send-campaign', {
+      const res = await safeFetchJson('/api/notifications/send-campaign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,12 +130,12 @@ export const NotificationCenter: React.FC = () => {
           deepLink: campaignDeepLink.trim() || '/'
         })
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = res.data;
+      if (data && data.success) {
         toast.success(`Campaign broadcast sent to ${data.sentCount || 0} customer devices!`, { icon: '📢' });
         fetchAnalyticsAndTemplates();
       } else {
-        toast.error(data.error || 'Failed to dispatch broadcast');
+        toast.error(res.error || data?.error || 'Failed to dispatch broadcast');
       }
     } catch (err: any) {
       toast.error(err.message || 'Network error sending campaign');
@@ -147,13 +148,13 @@ export const NotificationCenter: React.FC = () => {
   const handleTriggerReengagement = async () => {
     setReengageLoading(true);
     try {
-      const res = await fetch('/api/notifications/trigger-reengagement', {
+      const res = await safeFetchJson('/api/notifications/trigger-reengagement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dryRun: reengageDryRun })
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = res.data;
+      if (data && data.success) {
         setReengageResult(data);
         toast.success(
           reengageDryRun
@@ -163,7 +164,7 @@ export const NotificationCenter: React.FC = () => {
         );
         fetchAnalyticsAndTemplates();
       } else {
-        toast.error(data.error || 'Failed to execute re-engagement');
+        toast.error(res.error || data?.error || 'Failed to execute re-engagement');
       }
     } catch (err: any) {
       toast.error(err.message || 'Error triggering re-engagement');
@@ -182,7 +183,7 @@ export const NotificationCenter: React.FC = () => {
 
     setSimSimulating(true);
     try {
-      const res = await fetch('/api/notifications/send-order-update', {
+      const res = await safeFetchJson('/api/notifications/send-order-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -192,12 +193,12 @@ export const NotificationCenter: React.FC = () => {
           eventVersion: Date.now() // Unique version for simulator test
         })
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = res.data;
+      if (data && data.success) {
         toast.success(`Simulated order status "${simStatus}" triggered!`, { icon: '🍰' });
         fetchAnalyticsAndTemplates();
       } else {
-        toast.error(data.reason || data.error || 'Failed to simulate');
+        toast.error(res.error || data?.reason || data?.error || 'Failed to simulate');
       }
     } catch (err: any) {
       toast.error(err.message || 'Simulation error');
@@ -209,18 +210,18 @@ export const NotificationCenter: React.FC = () => {
   // Save template edit
   const handleSaveTemplate = async (type: string, payload: Partial<TemplateItem>) => {
     try {
-      const res = await fetch(`/api/notifications/templates/${type}`, {
+      const res = await safeFetchJson(`/api/notifications/templates/${type}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (data.success) {
+      const data = res.data;
+      if (data && data.success) {
         toast.success('Template updated successfully!');
         setEditingTemplate(null);
         fetchAnalyticsAndTemplates();
       } else {
-        toast.error(data.error || 'Failed to update template');
+        toast.error(res.error || data?.error || 'Failed to update template');
       }
     } catch (err: any) {
       toast.error(err.message || 'Error updating template');
@@ -245,7 +246,7 @@ export const NotificationCenter: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-black text-white tracking-tight">Notification Command Center</h1>
               <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
-                Zomato-Grade Engine
+                Frosty-Grade Engine
               </span>
             </div>
             <p className="text-gray-400 text-sm mt-1">
@@ -313,7 +314,7 @@ export const NotificationCenter: React.FC = () => {
         {[
           { id: 'overview', label: 'Live Events & Feed', icon: Zap },
           { id: 'campaigns', label: 'Broadcast Campaigns', icon: Send },
-          { id: 'reengagement', label: 'Zomato Re-Engagement', icon: Sparkles },
+          { id: 'reengagement', label: 'Frosty Re-Engagement', icon: Sparkles },
           { id: 'templates', label: 'Templates & Copy', icon: Edit3 },
           { id: 'simulator', label: 'Sandbox Simulator', icon: Play }
         ].map((tab) => {
@@ -581,7 +582,7 @@ export const NotificationCenter: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: ZOMATO-STYLE INACTIVITY RE-ENGAGEMENT ENGINE */}
+      {/* TAB 3: FROSTY-STYLE INACTIVITY RE-ENGAGEMENT ENGINE */}
       {activeSubTab === 'reengagement' && (
         <div className="space-y-8">
           <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent p-6 rounded-2xl border border-amber-500/20 flex flex-col md:flex-row md:items-center justify-between gap-6">

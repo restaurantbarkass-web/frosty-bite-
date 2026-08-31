@@ -2,8 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const url = (process.env.VITE_SUPABASE_URL || 'https://wilsmmashfpgrxkknmle.supabase.co').replace(/\/rest\/v1\/?$/, '');
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDYwMDMsImV4cCI6MjA5MzEyMjAwM30.TXi4Zbh7hCWhmCyDIbx80ognSgnSF8BMu3MWHqZ0hyM';
+const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/rest\/v1\/?$/, '');
+const anonKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!url || !anonKey) {
+  console.error('SUPABASE_URL and SUPABASE_ANON_KEY/SERVICE_ROLE_KEY environment variables are required.');
+  process.exit(1);
+}
 
 const client = createClient(url, anonKey);
 

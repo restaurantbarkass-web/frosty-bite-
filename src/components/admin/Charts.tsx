@@ -86,8 +86,15 @@ export const OrdersChart: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="flex-1 min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+        <ResponsiveContainer 
+          width="100%" 
+          height="100%" 
+          minWidth={100} 
+          minHeight={200} 
+          initialDimension={{ width: 500, height: 300 }}
+          debounce={100}
+        >
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
@@ -182,8 +189,15 @@ export const PopularItemsChart: React.FC = () => {
         <h3 className="text-xl font-bold text-white tracking-tight">Popular Items</h3>
         <p className="text-sm text-gray-500">Most sold items this month</p>
       </div>
-      <div className="flex-1 min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+        <ResponsiveContainer 
+          width="100%" 
+          height="100%" 
+          minWidth={100} 
+          minHeight={200} 
+          initialDimension={{ width: 500, height: 300 }}
+          debounce={100}
+        >
           <BarChart data={data} layout="vertical" margin={{ left: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
             <XAxis type="number" hide />
@@ -265,8 +279,15 @@ export const RevenueChart: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="flex-1 min-h-[300px]">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+        <ResponsiveContainer 
+          width="100%" 
+          height="100%" 
+          minWidth={100} 
+          minHeight={200} 
+          initialDimension={{ width: 500, height: 300 }}
+          debounce={100}
+        >
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
             <XAxis 

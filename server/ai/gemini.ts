@@ -4,7 +4,10 @@ let genAI: GoogleGenAI | null = null;
 
 export function getGenAI() {
   if (!genAI) {
-    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY || 'AIzaSyAnIXi3-5HUErmcW4VL6Og03hF9PD4wsdo';
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+    if (!key) {
+      throw new Error('GEMINI_API_KEY environment variable is required for AI operations');
+    }
     genAI = new GoogleGenAI({ 
       apiKey: key,
       httpOptions: {

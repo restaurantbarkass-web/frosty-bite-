@@ -1,6 +1,7 @@
 import { BaseRepository } from './BaseRepository';
 import { supabase } from '../supabase';
 import { CacheKeys, CacheNamespace } from '../core/cache/CacheKeys';
+import { safeFetchJson } from '../utils/safeFetch';
 
 export interface ServerServiceZone {
   id: string;

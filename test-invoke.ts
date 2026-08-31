@@ -5,8 +5,7 @@ async function testPatch() {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        // Mock a bearer token that has the correct email format to bypass local fallback isAdmin
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InJlc3RhdXJhbnRiYXJrYXNzQGdtYWlsLmNvbSJ9.signature'
+        'Authorization': `Bearer ${process.env.ADMIN_TEST_TOKEN || 'test-token'}`
       },
       body: JSON.stringify({
         is_deliverable: true

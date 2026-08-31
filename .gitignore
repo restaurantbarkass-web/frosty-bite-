@@ -1,4 +1,5 @@
 node_modules/
+dist/
 dist-ssr/
 .vite/
 .cache/
@@ -8,5 +9,12 @@ coverage/
 *.map
 .DS_Store
 *.log
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
 .env*
 !.env.example

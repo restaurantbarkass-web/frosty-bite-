@@ -37,22 +37,23 @@ import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
-const Home = lazyWithRetry(() => import('./pages/HomePage'));
-const Offers = lazyWithRetry(() => import('./pages/Offers'));
-const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+import Home from './pages/HomePage';
+import Offers from './pages/Offers';
+import Checkout from './pages/Checkout';
+import Profile from './pages/Profile';
+import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import FinishSignIn from './pages/FinishSignIn';
+import ProductDetail from './pages/ProductDetail';
+import Orders from './pages/Orders';
+import Notifications from './pages/Notifications';
+import FAQ from './pages/FAQ';
+import NotFound from './pages/NotFound';
+import CartSidebar from './components/CartSidebar';
+
 const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
 const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
 const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
-const Profile = lazyWithRetry(() => import('./pages/Profile'));
-const Login = lazyWithRetry(() => import('./pages/Login'));
-const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
-const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
-const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
-const Orders = lazyWithRetry(() => import('./pages/Orders'));
-const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
-const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
-const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
-const CartSidebar = lazyWithRetry(() => import('./components/CartSidebar'));
 const SearchOverlay = lazyWithRetry(() => import('./components/Search/SearchOverlay'));
 
 const PageLoader = () => (
@@ -104,23 +105,6 @@ function AppContent() {
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [showVerificationBanner, setShowVerificationBanner] = useState(true);
-
-  useEffect(() => {
-    // Eager background preloading of major pages for instant navigation
-    const preloadRoutes = () => {
-      import('./pages/HomePage');
-      import('./pages/Checkout');
-      import('./pages/ProductDetail');
-      import('./pages/Orders');
-      import('./pages/Profile');
-      import('./components/CartSidebar');
-    };
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(preloadRoutes);
-    } else {
-      setTimeout(preloadRoutes, 150);
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

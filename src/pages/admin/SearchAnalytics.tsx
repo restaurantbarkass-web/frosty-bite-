@@ -167,8 +167,15 @@ export const SearchAnalytics: React.FC = () => {
               Volume by Query
             </h3>
           </div>
-          <div className="h-[400px] w-full">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+          <div className="h-[400px] w-full min-h-[300px] min-w-0 relative">
+            <ResponsiveContainer 
+              width="100%" 
+              height="100%" 
+              minWidth={100} 
+              minHeight={200} 
+              initialDimension={{ width: 600, height: 400 }}
+              debounce={100}
+            >
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorSearches" x1="0" y1="0" x2="0" y2="1">

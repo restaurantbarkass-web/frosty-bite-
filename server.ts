@@ -9,18 +9,6 @@ if (fs.existsSync(".env")) {
   dotenv.config({ path: ".env" });
 }
 
-// Load .env.example to make sure any SMTP credentials or custom overrides are loaded (development only)
-if (process.env.NODE_ENV !== "production" && fs.existsSync(".env.example")) {
-  console.log("[Server] Loading .env.example configuration and applying overrides...");
-  const exampleConfig = dotenv.parse(fs.readFileSync(".env.example"));
-  for (const k in exampleConfig) {
-    // Prefer SMTP variables or any non-empty variable from .env.example if the process.env version is empty or missing
-    if (k.startsWith("SMTP_") || !process.env[k] || process.env[k] === "") {
-      process.env[k] = exampleConfig[k];
-    }
-  }
-}
-
 import baseApp from "./server/app";
 import { createPreloadMiddleware } from "./server/preloadConfig";
 import path from "path";

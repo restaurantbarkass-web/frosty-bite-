@@ -1,8 +1,14 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const url = 'https://wilsmmashfpgrxkknmle.supabase.co/rest/v1/';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpbHNtbWFzaGZwZ3J4a2tubWxlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzU0NjAwMywiZXhwIjoyMDkzMTIyMDAzfQ.3Ogc0oVn7lmZ1VKNrX-M0nx9MzUSp1mVgmCf_VaMymo';
+const baseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const url = `${baseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '')}/rest/v1/`;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!baseUrl || !serviceKey) {
+  console.error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required.');
+  process.exit(1);
+}
 
 async function parseOpenApi() {
   const res = await fetch(url, {
