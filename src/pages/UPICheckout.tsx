@@ -158,7 +158,18 @@ export const UPICheckout: React.FC = () => {
           'Content-Type': 'application/json',
           ...authHeader
         },
-        body: JSON.stringify({ order_id: effectiveOrderId })
+        body: JSON.stringify({ 
+          order_id: effectiveOrderId,
+          order_details: currentOrder ? {
+            id: effectiveOrderId,
+            totalPrice: currentOrder.totalPrice,
+            total: currentOrder.totalPrice,
+            name: currentOrder.name,
+            phone: currentOrder.phone,
+            address: currentOrder.address,
+            payment_method: 'upi'
+          } : undefined
+        })
       });
 
       const data = await response.json();
@@ -518,7 +529,7 @@ export const UPICheckout: React.FC = () => {
           paymentState={paymentState}
           amount={totalPrice}
           timeLeftSeconds={timeLeftSeconds}
-          onRetry={checkAuthoritativeStatus}
+          onRetry={paymentState === 'ERROR' ? () => initializePaymentSession() : checkAuthoritativeStatus}
           onViewOrder={handleViewOrder}
           onRestartPayment={() => initializePaymentSession()}
           reducedMotion={reducedMotion}
