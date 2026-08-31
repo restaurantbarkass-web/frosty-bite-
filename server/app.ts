@@ -153,7 +153,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Health Check
-app.get("/health", (req, res) => {
+app.get(["/health", "/api/health"], (req, res) => {
   console.log("[App] Health check hit");
   res.json({ 
     status: "ok", 
@@ -163,7 +163,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.get("/ping", (req, res) => {
+app.get(["/ping", "/api/ping"], (req, res) => {
   res.send("pong");
 });
 
