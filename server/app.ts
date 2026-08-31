@@ -25,6 +25,9 @@ import paymentRoutes from "./routes/payment.routes";
 
 const app = express();
 
+// Trust reverse proxy (Vercel, Cloud Run, nginx) for accurate IP resolution in express-rate-limit
+app.set("trust proxy", 1);
+
 
 // 1. Logging Middleware - run this first to see every request
 app.use((req, res, next) => {

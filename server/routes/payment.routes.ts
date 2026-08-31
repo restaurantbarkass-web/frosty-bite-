@@ -5,12 +5,16 @@ import { supabase } from '../lib/supabase';
 
 const router = express.Router();
 
-// Basic rate limiting to protect the device event endpoint against flooding
+// Basic rate limiting to protect the device event endpoint against flooding in serverless and proxy environments
 const paymentDeviceEventLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute window
   max: 60, // Maximum 60 requests per minute per IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: {
+    xForwardedForHeader: false,
+    default: false
+  },
   message: {
     error: 'Too Many Requests',
     message: 'Rate limit exceeded for payment device events. Please slow down.'
