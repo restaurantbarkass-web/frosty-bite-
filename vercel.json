@@ -2,11 +2,99 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api",
+      "destination": "/api/index.ts"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api/|assets/|favicon.ico|manifest.json|sw.js|images/|icons/).*)",
+      "source": "/ping",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/health",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/payment",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/payment/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/butler/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/avatar/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/config/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/notifications/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/validate-address/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/reviews/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/search/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/v2/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/geofencing/(.*)",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/cities",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/pincodes",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/localities",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/service-areas",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/trending",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/migration-script",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/debug-address",
+      "destination": "/api/index.ts"
+    },
+    {
+      "source": "/((?!api|ping|health|payment|auth|butler|avatar|config|notifications|validate-address|reviews|search|v2|geofencing|cities|pincodes|localities|service-areas|trending|migration-script|debug-address|assets|favicon.ico|manifest.json|sw.js|images|icons).*)",
       "destination": "/index.html"
     }
   ]
