@@ -21,6 +21,7 @@ import validateaddressRoutes from "./routes/validateaddress.routes";
 import reviewsRoutes from "./routes/reviews.routes";
 import searchRoutes from "./routes/search.routes";
 import v2geofencingRoutes from "./routes/v2geofencing.routes";
+import paymentRoutes from "./routes/payment.routes";
 
 const app = express();
 
@@ -187,6 +188,7 @@ app.use(["/validate-address", "/api/validate-address"], validateaddressRoutes);
 app.use(["/reviews", "/api/reviews"], reviewsRoutes);
 app.use(["/search", "/api/search"], searchRoutes);
 app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], v2geofencingRoutes);
+app.use(["/payment", "/api/payment"], paymentRoutes);
 
 // Direct top-level aliases for cities, pincodes, localities, service-areas, and trending
 app.get(["/cities", "/api/cities"], async (req, res) => {
