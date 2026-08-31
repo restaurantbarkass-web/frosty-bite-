@@ -14,7 +14,7 @@ try {
   console.warn("[Vercel] Error loading .env:", e?.message);
 }
 
-import app from "../server/app";
+import app from "../dist/app.js";
 
 console.log("[Vercel] api/index.ts loaded successfully");
 
