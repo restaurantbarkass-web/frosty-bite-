@@ -15,6 +15,20 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
 
+import butlerRouter from "./routes/butler.routes";
+import avatarRouter from "./routes/avatar.routes";
+import authRouter from "./routes/auth.routes";
+import configRouter from "./routes/config.routes";
+import notificationRouter from "./routes/notification.routes";
+import validateAddressRouter from "./routes/validateaddress.routes";
+import reviewsRouter from "./routes/reviews.routes";
+import searchRouter from "./routes/search.routes";
+import v2GeofencingRouter from "./routes/v2geofencing.routes";
+import paymentRouter from "./routes/payment.routes";
+
+import { V2GeofencingService } from "./services/v2Geofencing.service";
+import { supabase } from "./lib/supabase";
+
 const app = express();
 console.log("[Vercel] Express app created");
 
@@ -177,53 +191,23 @@ app.get("/migration-script", (req, res) => {
   }
 });
 
-// Helper for resilient lazy loading of route modules to isolate startup crashes
-function lazyRoute(importFn: () => Promise<{ default: any }>) {
-  let routerInstance: any = null;
-  let initError: Error | null = null;
-
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      if (!routerInstance && !initError) {
-        const module = await importFn();
-        routerInstance = module.default;
-      }
-      if (initError) {
-        return res.status(500).json({
-          error: "Module Initialization Error",
-          message: initError.message
-        });
-      }
-      return routerInstance(req, res, next);
-    } catch (err: any) {
-      console.error("[LazyRoute Error]", err?.message || err);
-      initError = err;
-      return res.status(500).json({
-        error: "Route Loading Error",
-        message: err?.message || "Failed to load route module"
-      });
-    }
-  };
-}
-
-// Lazy-mounted feature routes
-app.use(["/butler", "/api/butler"], lazyRoute(() => import("./routes/butler.routes")));
-app.use(["/avatar", "/api/avatar"], lazyRoute(() => import("./routes/avatar.routes")));
-app.use(["/auth", "/api/auth"], lazyRoute(() => import("./routes/auth.routes")));
-app.use(["/config", "/api/config"], lazyRoute(() => import("./routes/config.routes")));
-app.use(["/notifications", "/api/notifications"], lazyRoute(() => import("./routes/notification.routes")));
-app.use(["/validate-address", "/api/validate-address"], lazyRoute(() => import("./routes/validateaddress.routes")));
-app.use(["/reviews", "/api/reviews"], lazyRoute(() => import("./routes/reviews.routes")));
-app.use(["/search", "/api/search"], lazyRoute(() => import("./routes/search.routes")));
-app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], lazyRoute(() => import("./routes/v2geofencing.routes")));
-app.use(["/payment", "/api/payment"], lazyRoute(() => import("./routes/payment.routes")));
+// Mounted feature routes
+app.use(["/butler", "/api/butler"], butlerRouter);
+app.use(["/avatar", "/api/avatar"], avatarRouter);
+app.use(["/auth", "/api/auth"], authRouter);
+app.use(["/config", "/api/config"], configRouter);
+app.use(["/notifications", "/api/notifications"], notificationRouter);
+app.use(["/validate-address", "/api/validate-address"], validateAddressRouter);
+app.use(["/reviews", "/api/reviews"], reviewsRouter);
+app.use(["/search", "/api/search"], searchRouter);
+app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], v2GeofencingRouter);
+app.use(["/payment", "/api/payment"], paymentRouter);
 
 console.log("[Vercel] routes mounted");
 
 // Direct top-level aliases for cities, pincodes, localities, service-areas, and trending
 app.get(["/cities", "/api/cities"], async (req, res) => {
   try {
-    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
     const cities = await V2GeofencingService.getCities();
     res.json(cities);
   } catch (err: any) {
@@ -233,7 +217,6 @@ app.get(["/cities", "/api/cities"], async (req, res) => {
 
 app.get(["/pincodes", "/api/pincodes"], async (req, res) => {
   try {
-    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
     const cityId = req.query.city_id as string | undefined;
     const pincodes = await V2GeofencingService.getPincodes(cityId);
     res.json(pincodes);
@@ -244,7 +227,6 @@ app.get(["/pincodes", "/api/pincodes"], async (req, res) => {
 
 app.get(["/localities", "/api/localities"], async (req, res) => {
   try {
-    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
     const cityId = req.query.city_id as string | undefined;
     const pincodeId = req.query.pincode_id as string | undefined;
     const localities = await V2GeofencingService.getLocalities(cityId, pincodeId);
@@ -256,7 +238,6 @@ app.get(["/localities", "/api/localities"], async (req, res) => {
 
 app.get(["/service-area", "/api/service-area", "/service-areas", "/api/service-areas"], async (req, res) => {
   try {
-    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
     const area = await V2GeofencingService.getServiceArea();
     res.json(area);
   } catch (err: any) {
@@ -266,7 +247,6 @@ app.get(["/service-area", "/api/service-area", "/service-areas", "/api/service-a
 
 app.post(["/check", "/api/check", "/geofencing/check", "/api/geofencing/check"], async (req, res) => {
   try {
-    const { V2GeofencingService } = await import("./services/v2Geofencing.service");
     const { latitude, longitude } = req.body || {};
     const result = await V2GeofencingService.checkServiceability({ latitude, longitude });
     res.status(result.status).json(result.data);
@@ -286,7 +266,6 @@ app.get(["/trending", "/api/trending"], async (req, res) => {
     'Fresh Fruit Cake'
   ];
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data, error } = await supabase
       .from('search_analytics')
       .select('query')
@@ -312,11 +291,9 @@ app.get(["/trending", "/api/trending"], async (req, res) => {
 // Legacy Service Zones & Delivery Areas aliases
 app.get(["/service-zones", "/api/service-zones"], async (req, res) => {
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data, error } = await supabase.from('service_zones').select('*');
     if (error) {
       // Fallback from V2 cities if legacy table does not exist
-      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
       const cities = await V2GeofencingService.getCities();
       return res.json(cities.map(c => ({ id: c.id, city_name: c.name, latitude: 20.2961, longitude: 85.8245, radius_meters: 15000, is_active: c.is_active })));
     }
@@ -328,10 +305,8 @@ app.get(["/service-zones", "/api/service-zones"], async (req, res) => {
 
 app.get(["/service-pincodes", "/api/service-pincodes"], async (req, res) => {
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data, error } = await supabase.from('service_pincodes').select('*');
     if (error) {
-      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
       const pins = await V2GeofencingService.getPincodes();
       return res.json(pins.map(p => ({ id: p.id, pincode: p.pincode, active: p.is_active })));
     }
@@ -343,10 +318,8 @@ app.get(["/service-pincodes", "/api/service-pincodes"], async (req, res) => {
 
 app.get(["/delivery-areas", "/api/delivery-areas"], async (req, res) => {
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data, error } = await supabase.from('delivery_areas').select('*');
     if (error) {
-      const { V2GeofencingService } = await import("./services/v2Geofencing.service");
       const locs = await V2GeofencingService.getLocalities();
       return res.json(locs.map(l => ({ id: l.id, area_name: l.name, pincode: '', is_deliverable: l.is_active })));
     }
@@ -364,7 +337,6 @@ app.get("/orders/:orderId/status", async (req: Request, res: Response) => {
   }
 
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data: order, error } = await supabase
       .from("orders")
       .select("*")
@@ -402,7 +374,6 @@ app.get("/order-status/:orderId", async (req: Request, res: Response) => {
   }
 
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data: order, error } = await supabase
       .from("orders")
       .select("*")
@@ -464,7 +435,6 @@ app.get("/debug-address", async (req, res) => {
   };
 
   try {
-    const { supabase } = await import("./lib/supabase");
     const { data, error } = await supabase.from("cities").select("*").limit(2);
     if (error) {
       report.supabaseReachability.status = "failed";
