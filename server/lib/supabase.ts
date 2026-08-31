@@ -4,24 +4,23 @@ let supabaseInstance: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
-    const isValidKey = (key: any): boolean => {
-      if (!key || typeof key !== 'string') return false;
-      const t = key.trim();
-      return t !== '' && !t.includes('your_') && !t.includes('PLACEHOLDER') && t.startsWith('eyJ');
-    };
+    const supabaseUrl =
+      process.env.SUPABASE_URL ||
+      process.env.VITE_SUPABASE_URL;
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-    const supabaseServiceKey = [
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      process.env.VITE_SUPABASE_ANON_KEY
-    ].find(isValidKey);
+    const supabaseServiceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl) {
-      throw new Error('[Supabase Server] SUPABASE_URL or VITE_SUPABASE_URL environment variable is required');
+      throw new Error(
+        "[Supabase Server] SUPABASE_URL is required"
+      );
     }
 
     if (!supabaseServiceKey) {
-      throw new Error('[Supabase Server] SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_ANON_KEY environment variable is required');
+      throw new Error(
+        "[Supabase Server] SUPABASE_SERVICE_ROLE_KEY is required"
+      );
     }
 
     // Sanitize URL: @supabase/supabase-js expects the base URL.
