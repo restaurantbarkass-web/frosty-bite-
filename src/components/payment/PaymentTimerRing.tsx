@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface PaymentTimerRingProps {
@@ -21,36 +21,33 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
 
   // Progress fraction (1 at start, 0 at expiry)
   const progress = Math.min(1, Math.max(0, safeTime / totalDurationSeconds));
-  
+
   // Urgency Phase determination
-  // Phase 1: Calm (>120s)
-  // Phase 2: Warning (30s - 120s)
-  // Phase 3: Urgent (<30s)
+  // Phase 1: Calm (>120s) - Emerald
+  // Phase 2: Warning (30s - 120s) - Amber
+  // Phase 3: Urgent (<30s) - Rose with subtle pulse
   const isUrgent = safeTime <= 30;
   const isWarning = safeTime > 30 && safeTime <= 120;
-  
+
   const phaseTheme = isUrgent
     ? {
-        stroke: '#EF4444', // Rose 500
+        stroke: '#EF4444',
         text: 'text-rose-400',
-        bgGlow: 'shadow-[0_0_20px_rgba(239,68,68,0.3)]',
-        badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
-        label: 'URGENT - EXPORTING SOON'
+        bgGlow: 'shadow-[0_0_24px_rgba(239,68,68,0.35)]',
+        pulseGlow: 'bg-rose-500/10 border-rose-500/30'
       }
     : isWarning
     ? {
-        stroke: '#F59E0B', // Amber 500
+        stroke: '#F59E0B',
         text: 'text-amber-400',
-        bgGlow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]',
-        badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
-        label: 'TIME RUNNING LOW'
+        bgGlow: 'shadow-[0_0_20px_rgba(245,158,11,0.25)]',
+        pulseGlow: 'bg-amber-500/10 border-amber-500/30'
       }
     : {
-        stroke: '#10B981', // Emerald 500
+        stroke: '#10B981',
         text: 'text-emerald-400',
-        bgGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-        badgeBg: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
-        label: 'VERIFICATION ACTIVE'
+        bgGlow: 'shadow-[0_0_20px_rgba(16,185,129,0.25)]',
+        pulseGlow: 'bg-emerald-500/10 border-emerald-500/30'
       };
 
   const radius = 38;
@@ -58,12 +55,16 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
   const strokeDashoffset = circumference * (1 - progress);
 
   return (
-    <div className="flex flex-col items-center space-y-2 select-none">
-      <div className="relative w-28 h-28 flex items-center justify-center">
-        {/* Background glow ring */}
+    <div 
+      className="flex flex-col items-center select-none"
+      role="timer"
+      aria-label={`Time remaining: ${minutes} minutes and ${seconds} seconds`}
+    >
+      <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
+        {/* Ambient radial glow */}
         <div 
           className={cn(
-            "absolute inset-0 rounded-full transition-all duration-500",
+            "absolute inset-0 rounded-full transition-all duration-700 pointer-events-none",
             phaseTheme.bgGlow
           )} 
         />
@@ -74,8 +75,8 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
             cx="50"
             cy="50"
             r={radius}
-            className="stroke-zinc-800"
-            strokeWidth="6"
+            className="stroke-zinc-800/80"
+            strokeWidth="5.5"
             fill="none"
           />
           {/* Progress Path */}
@@ -84,36 +85,29 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
             cy="50"
             r={radius}
             stroke={phaseTheme.stroke}
-            strokeWidth="6"
+            strokeWidth="5.5"
             strokeLinecap="round"
             fill="none"
             strokeDasharray={circumference}
             animate={{ strokeDashoffset }}
-            transition={reducedMotion ? { duration: 0 } : { duration: 0.5, ease: 'linear' }}
+            transition={reducedMotion ? { duration: 0 } : { duration: 0.8, ease: 'easeInOut' }}
           />
         </svg>
 
         {/* Center Time Display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-            TIME LEFT
-          </p>
-          <motion.p 
-            animate={isUrgent && !reducedMotion ? { scale: [1, 1.06, 1] } : {}}
-            transition={{ duration: 1, repeat: Infinity }}
-            className={cn("text-xl font-black italic tracking-tight font-mono", phaseTheme.text)}
-            aria-live="polite"
-            aria-label={`Time remaining ${formattedTime}`}
-          >
+          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">
+            Time Left
+          </span>
+          <span className={cn(
+            "text-base sm:text-lg font-black tracking-tight font-mono leading-none transition-colors duration-300",
+            phaseTheme.text
+          )}>
             {formattedTime}
-          </motion.p>
+          </span>
         </div>
-      </div>
-
-      <div className={cn("px-2.5 py-0.5 rounded-full border text-[9px] font-black tracking-widest uppercase flex items-center gap-1.5", phaseTheme.badgeBg)}>
-        {isUrgent ? <AlertCircle size={10} className="animate-pulse" /> : <Clock size={10} />}
-        <span>{phaseTheme.label}</span>
       </div>
     </div>
   );
 };
+

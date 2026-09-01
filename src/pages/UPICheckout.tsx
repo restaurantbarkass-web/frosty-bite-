@@ -646,48 +646,49 @@ export const UPICheckout: React.FC = () => {
           onRetry={paymentState === 'ERROR' ? () => initializePaymentSession() : checkAuthoritativeStatus}
           onViewOrder={handleViewOrder}
           onRestartPayment={() => initializePaymentSession()}
+          onBackToCheckout={() => navigate('/checkout')}
           reducedMotion={reducedMotion}
         />
 
         {/* Main Payment Options (QR Code & Deep Link) */}
         {paymentState !== 'PAYMENT_VERIFIED' && (
-          <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-6 space-y-6 shadow-xl">
+          <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-5 sm:p-6 space-y-5 sm:space-y-6 shadow-xl">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
               <div>
                 <h2 className="text-base font-black text-white italic uppercase tracking-tight flex items-center gap-2">
-                  <QrCode size={18} className="text-primary" /> Pay via Any UPI App
+                  <QrCode size={18} className="text-emerald-400" /> Pay securely using any UPI app
                 </h2>
-                <p className="text-xs text-zinc-400">Scan QR or tap to open app</p>
+                <p className="text-xs text-zinc-400">Scan the QR code or tap the button below</p>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-black text-zinc-300 uppercase tracking-widest">UPI Auto-Verify</span>
+                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Auto Verify</span>
               </div>
             </div>
 
             {/* QR Code Section */}
             <div id="qr-section" className="flex flex-col items-center space-y-5">
-              <div className="relative group bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center">
+              <div className="relative group bg-white rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col items-center border border-zinc-100/20">
                 <div className="text-center mb-3">
-                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Frosty Bite Official Payee</p>
-                  <p className="text-xs font-black text-zinc-900 font-mono">{DEFAULT_UPI_ID}</p>
+                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Frosty Bite Official UPI</p>
+                  <p className="text-xs font-black text-zinc-900 font-mono tracking-tight">{DEFAULT_UPI_ID}</p>
                 </div>
 
                 <motion.div
-                  animate={reducedMotion ? {} : { y: [0, -4, 0] }}
+                  animate={reducedMotion ? {} : { y: [0, -3, 0] }}
                   transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-                  className="p-2 bg-white rounded-2xl border border-zinc-100"
+                  className="p-2 bg-white rounded-2xl border border-zinc-100 shadow-inner"
                 >
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUri)}`}
                     alt="UPI Payment QR Code"
-                    className="w-[190px] h-[190px] rounded-xl object-contain"
+                    className="w-[180px] h-[180px] sm:w-[200px] sm:h-[200px] rounded-xl object-contain"
                   />
                 </motion.div>
 
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-3">
-                  Scan with GPay, PhonePe, Paytm, or BHIM
+                  Pay securely using any UPI app.
                 </p>
               </div>
 
@@ -695,21 +696,21 @@ export const UPICheckout: React.FC = () => {
               <div className="w-full max-w-sm space-y-3">
                 <button
                   onClick={handleOpenUpiApp}
-                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/20 transition-all flex items-center justify-center gap-2.5"
+                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
                 >
                   <Smartphone size={18} />
-                  <span>Open UPI App (Pay ₹{totalPrice.toFixed(2)})</span>
+                  <span>Open UPI App</span>
                   <ExternalLink size={14} className="opacity-70" />
                 </button>
 
                 {/* Copy UPI ID */}
                 <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/10">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
                       <Smartphone size={16} />
                     </div>
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Merchant UPI ID</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">UPI ID</p>
                       <p className="text-xs font-black text-white font-mono">{DEFAULT_UPI_ID}</p>
                     </div>
                   </div>
@@ -717,6 +718,7 @@ export const UPICheckout: React.FC = () => {
                   <button
                     onClick={handleCopyUpi}
                     className="py-2 px-3 bg-white/10 hover:bg-white/15 active:scale-95 text-xs font-black uppercase tracking-widest text-white rounded-xl transition-all flex items-center gap-1.5"
+                    aria-label="Copy UPI ID"
                   >
                     {copiedUpi ? (
                       <>
@@ -734,7 +736,13 @@ export const UPICheckout: React.FC = () => {
               </div>
             </div>
 
-
+            {/* Crucial Safety Warning Notice */}
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-center gap-2.5 text-amber-300 text-xs font-medium">
+              <span className="text-base shrink-0">⚠️</span>
+              <p className="leading-snug">
+                Do not close or refresh this page while payment is processing.
+              </p>
+            </div>
           </div>
         )}
 
