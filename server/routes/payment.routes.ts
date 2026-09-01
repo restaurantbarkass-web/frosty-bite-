@@ -343,7 +343,7 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
       payment_attempt: {
         id: insertedAttempt.id,
