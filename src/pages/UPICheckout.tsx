@@ -77,7 +77,7 @@ export const UPICheckout: React.FC = () => {
   const effectiveOrderId = useMemo(() => cleanOrderIdString(rawOrderId), [rawOrderId]);
 
   const { cart, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, authStatus, loading: authLoading } = useAuth();
   const { addNotification } = useNotifications();
 
   // Core Payment State
@@ -135,36 +135,43 @@ export const UPICheckout: React.FC = () => {
       return;
     }
 
+    if (authStatus === 'loading' || authLoading) {
+      console.log('[UPICheckout] AuthContext is still loading. Suppressing payment initialization.');
+      return;
+    }
+
     setPaymentState('CREATING_ATTEMPT');
     setIsReconnecting(false);
 
     try {
-      // Step A: Fetch order from database if state missing
+      // Step A: Fetch order from database to inspect owner user_id
       let currentOrder = orderDetails;
-      if (!currentOrder || !currentOrder.totalPrice) {
-        try {
-          const { data: dbOrder } = await supabase
-            .from('orders')
-            .select('*')
-            .or(`id.ilike.${effectiveOrderId},id.ilike.FB-${effectiveOrderId}`)
-            .maybeSingle();
+      let dbOrder: any = null;
+      try {
+        const { data } = await supabase
+          .from('orders')
+          .select('id, user_id, customer_name, phone, customer_phone, address, delivery_address, notes, discount, delivery_charge, payment_status, status, total')
+          .or(`id.ilike.${effectiveOrderId},id.ilike.FB-${effectiveOrderId}`)
+          .maybeSingle();
+        dbOrder = data;
 
-          if (dbOrder) {
-            currentOrder = {
-              orderId: dbOrder.id,
-              totalPrice: Number(dbOrder.total) || 0,
-              name: dbOrder.customer_name || 'Customer',
-              phone: dbOrder.phone || dbOrder.customer_phone || '',
-              address: dbOrder.address || dbOrder.delivery_address || '',
-              notes: dbOrder.notes || '',
-              discount: Number(dbOrder.discount) || 0,
-              delivery_charge: Number(dbOrder.delivery_charge) || 0,
-              payment_status: dbOrder.payment_status,
-              status: dbOrder.status
-            };
-            setOrderDetails(currentOrder);
-          }
-        } catch (e) {}
+        if (dbOrder) {
+          currentOrder = {
+            orderId: dbOrder.id,
+            totalPrice: Number(dbOrder.total) || 0,
+            name: dbOrder.customer_name || 'Customer',
+            phone: dbOrder.phone || dbOrder.customer_phone || '',
+            address: dbOrder.address || dbOrder.delivery_address || '',
+            notes: dbOrder.notes || '',
+            discount: Number(dbOrder.discount) || 0,
+            delivery_charge: Number(dbOrder.delivery_charge) || 0,
+            payment_status: dbOrder.payment_status,
+            status: dbOrder.status
+          };
+          setOrderDetails(currentOrder);
+        }
+      } catch (e) {
+        console.warn('[UPICheckout] Error pre-fetching order details:', e);
       }
 
       if (currentOrder && (currentOrder.payment_status === 'paid' || currentOrder.status === 'confirmed')) {
@@ -172,14 +179,61 @@ export const UPICheckout: React.FC = () => {
         return;
       }
 
-      // Step B: Call secure server endpoint with retry strategy (attempt 1: 0s, attempt 2: 2s, attempt 3: 4s)
+      // Step B: Determine order type path based on database state
+      const isRegisteredOrder = !!(dbOrder && dbOrder.user_id && !dbOrder.user_id.startsWith('guest_'));
+
+      // Step C: Retrieve fresh active token and refresh if near expiry (Registered path only)
+      let sessionPresent = false;
+      let accessTokenPresent = false;
+      let safeUserId = '';
       let authHeader: Record<string, string> = {};
+
       try {
         const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData?.session?.access_token) {
-          authHeader = { Authorization: `Bearer ${sessionData.session.access_token}` };
+        let session = sessionData?.session;
+        if (session) {
+          sessionPresent = true;
+          safeUserId = session.user?.id || '';
+
+          // Validate token and check expiration
+          try {
+            const tokenParts = session.access_token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const expiresAtMs = payload.exp * 1000;
+              const bufferMs = 60 * 1000; // 1 minute buffer
+              if (expiresAtMs - Date.now() < bufferMs) {
+                console.log('[UPICheckout] Session token near expiry. Initiating proactive refresh...');
+                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+                if (!refreshError && refreshData?.session) {
+                  session = refreshData.session;
+                  console.log('[UPICheckout] Session successfully refreshed.');
+                } else {
+                  console.warn('[UPICheckout] Session refresh failed:', refreshError);
+                }
+              }
+            }
+          } catch (jwtErr) {
+            console.warn('[UPICheckout] Error parsing JWT token payload:', jwtErr);
+          }
+
+          if (session?.access_token) {
+            accessTokenPresent = true;
+            authHeader = { Authorization: `Bearer ${session.access_token}` };
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[UPICheckout] Error fetching current Supabase session:', e);
+      }
+
+      // Safe diagnostics log
+      console.log('[UPI DIAGNOSTIC LOG]', {
+        authState: authStatus,
+        sessionPresent,
+        accessTokenPresent,
+        userId: safeUserId || 'none',
+        orderId: effectiveOrderId
+      });
 
       let guestSessionId = '';
       try {
@@ -189,17 +243,36 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
+      // Separation of registered vs guest headers
       const reqHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...authHeader
+        'Content-Type': 'application/json'
       };
-      if (guestSessionId) {
-        reqHeaders['X-Guest-Session'] = guestSessionId;
+
+      if (isRegisteredOrder) {
+        if (accessTokenPresent && authHeader.Authorization) {
+          reqHeaders['Authorization'] = authHeader.Authorization;
+        } else {
+          console.warn('[UPICheckout] Registered order but no access token is available.');
+          setErrorStatus(401);
+          setErrorMessage('Authentication required for registered customer order. Please log in.');
+          setPaymentState('ERROR');
+          return;
+        }
+      } else {
+        if (guestSessionId) {
+          reqHeaders['X-Guest-Session'] = guestSessionId;
+        } else {
+          console.warn('[UPICheckout] Guest order but no guest session ID is found.');
+          setErrorStatus(400);
+          setErrorMessage('Guest session is missing or expired.');
+          setPaymentState('ERROR');
+          return;
+        }
       }
 
       const payload = {
         order_id: effectiveOrderId,
-        guest_session_id: guestSessionId || undefined,
+        guest_session_id: !isRegisteredOrder ? (guestSessionId || undefined) : undefined,
         order_details: currentOrder ? {
           id: effectiveOrderId,
           totalPrice: currentOrder.totalPrice,
@@ -277,6 +350,94 @@ export const UPICheckout: React.FC = () => {
             setErrorMessage(null);
             created = true;
             break;
+          } else if (response.status === 401 && isRegisteredOrder) {
+            console.warn('[UPICheckout] Received 401 for registered order. Refreshing token and retrying once...');
+            
+            // Retry Rule: Refresh/retrieve the current Supabase session once
+            let freshHeaders = { ...reqHeaders };
+            try {
+              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+              if (!refreshError && refreshData?.session?.access_token) {
+                freshHeaders['Authorization'] = `Bearer ${refreshData.session.access_token}`;
+                console.log('[UPICheckout] Refresh succeeded during retry path.');
+              } else {
+                console.warn('[UPICheckout] Retry path session refresh failed:', refreshError);
+                // Last ditch effort: Try current session
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData?.session?.access_token) {
+                  freshHeaders['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+                }
+              }
+            } catch (e) {
+              console.warn('[UPICheckout] Exception during retry refresh:', e);
+            }
+
+            // Retry the request ONCE with the fresh access token
+            try {
+              const retryResponse = await fetch('/api/payment/create-attempt', {
+                method: 'POST',
+                headers: freshHeaders,
+                body: JSON.stringify(payload)
+              });
+
+              const retryData = await retryResponse.json();
+
+              if (retryResponse.ok && retryData.success && retryData.payment_attempt) {
+                console.log('[UPICheckout] Retry succeeded!');
+                const attempt = retryData.payment_attempt;
+                const srvOrder = retryData.order;
+                setAttemptId(attempt.id);
+
+                const expMs = Date.parse(attempt.expires_at);
+                const nowMs = Date.now();
+                const remainingMs = expMs - nowMs;
+                const remSecs = Math.max(0, Math.ceil(remainingMs / 1000));
+
+                setExpiresAtMs(expMs);
+                setTimeLeftSeconds(remSecs);
+
+                const totalPaise = attempt.amount_paise ? Number(attempt.amount_paise) / 100 : 0;
+                const resolvedTotal = srvOrder?.total ?? totalPaise;
+                if ((!currentOrder || !currentOrder.totalPrice) && resolvedTotal > 0) {
+                  currentOrder = {
+                    orderId: srvOrder?.id || attempt.order_id || effectiveOrderId,
+                    totalPrice: resolvedTotal,
+                    name: srvOrder?.customer_name || 'Customer',
+                    phone: srvOrder?.phone || '',
+                    address: srvOrder?.address || '',
+                    payment_status: srvOrder?.payment_status || 'pending',
+                    status: srvOrder?.status || 'pending'
+                  };
+                  setOrderDetails(currentOrder);
+                }
+
+                if (remSecs <= 0 || attempt.status === 'expired') {
+                  setPaymentState('PAYMENT_EXPIRED');
+                } else {
+                  setPaymentState('WAITING_FOR_PAYMENT');
+                }
+
+                setConsecutiveFailures(0);
+                setErrorStatus(null);
+                setErrorMessage(null);
+                created = true;
+                break;
+              } else {
+                console.error('[UPICheckout] Retry failed with status:', retryResponse.status);
+                setErrorStatus(retryResponse.status);
+                setErrorMessage(retryData.message || 'Session / Auth Problem. Please sign in again.');
+                setPaymentState('ERROR');
+                created = true;
+                break;
+              }
+            } catch (retryErr: any) {
+              console.error('[UPICheckout] Retry network/unexpected error:', retryErr);
+              setErrorStatus(500);
+              setErrorMessage(retryErr.message || 'Verification failed. Please try again.');
+              setPaymentState('ERROR');
+              created = true;
+              break;
+            }
           } else if (response.status === 400) {
             const isAlreadyPaid = data.message?.toLowerCase().includes('already paid');
             if (isAlreadyPaid) {
@@ -317,7 +478,7 @@ export const UPICheckout: React.FC = () => {
       setErrorMessage(err.message || 'Unexpected initialization error.');
       setPaymentState('ERROR');
     }
-  }, [effectiveOrderId, navigate]);
+  }, [effectiveOrderId, navigate, orderDetails, authStatus, authLoading]);
 
   useEffect(() => {
     initializePaymentSession();
@@ -733,6 +894,15 @@ export const UPICheckout: React.FC = () => {
           navigate(user ? '/orders' : `/order-tracking/${confirmedOrder.orderId}`);
         }}
       />
+    );
+  }
+
+  if (authStatus === 'loading' || authLoading) {
+    return (
+      <div className="min-h-svh flex flex-col items-center justify-center bg-zinc-950 text-white p-6">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mb-4" />
+        <p className="text-sm font-black uppercase tracking-widest text-zinc-400">Restoring secure session...</p>
+      </div>
     );
   }
 
