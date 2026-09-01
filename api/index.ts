@@ -14,7 +14,9 @@ try {
   console.warn("[Vercel] Error loading .env:", e?.message);
 }
 
-import app from "../dist/app.cjs";
+import appModule from "../dist/app.cjs";
+
+const app = (appModule as any).default || appModule;
 
 console.log("[Vercel] api/index.ts loaded successfully");
 

@@ -13,6 +13,20 @@
       "last_seen_at": "2026-09-01T04:17:01.278Z",
       "created_at": "2026-09-01T04:17:01.278Z",
       "updated_at": "2026-09-01T04:17:01.278Z"
+    },
+    {
+      "id": "ae3f5ac8-599d-4139-a9d5-72319a37995b",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bEMLtMId6mFFul96scpA8DLlspOeAxET7h8F7KpAZfmcLvmuGAoNI91vLGxXSjpgeaj0wpkQewlja-CYLiBWXHAluvXQ4cuXrWu0DiWYye-GEkfLII",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T04:49:30.089Z",
+      "created_at": "2026-09-01T04:49:30.089Z",
+      "updated_at": "2026-09-01T04:49:30.089Z"
     }
   ],
   "events": [],
@@ -184,5 +198,5 @@
       "updated_at": "2026-09-01T04:16:43.057Z"
     }
   ],
-  "updated_at": "2026-09-01T04:17:01.548Z"
+  "updated_at": "2026-09-01T04:49:30.384Z"
 }
