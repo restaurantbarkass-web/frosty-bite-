@@ -6,6 +6,21 @@ import { ADMIN_EMAILS } from '../middleware/auth';
 
 const router = express.Router();
 
+// Helper function to thoroughly sanitize order IDs (strips URL encoding, trailing noise like 'in', spaces, etc.)
+export function cleanOrderIdString(rawOrderId?: string | null): string {
+  if (!rawOrderId || typeof rawOrderId !== 'string') return '';
+  let cleaned = rawOrderId.trim();
+  try {
+    cleaned = decodeURIComponent(cleaned);
+  } catch (e) {}
+  cleaned = cleaned.trim();
+  if (cleaned.includes(' ')) {
+    cleaned = cleaned.split(/\s+/)[0];
+  }
+  cleaned = cleaned.replace(/[^a-zA-Z0-9_-]+$/, '');
+  return cleaned;
+}
+
 // Rate limiting for payment device event ingestion
 const paymentDeviceEventLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -137,15 +152,14 @@ function isCodOrCashPaymentMethod(paymentMethod?: string | null): boolean {
 router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAttemptLimiter, async (req: Request, res: Response) => {
   try {
     const rawOrderId = req.body?.order_id || req.body?.orderId || req.body?.id;
+    const cleanOrderId = cleanOrderIdString(rawOrderId);
 
-    if (!rawOrderId || typeof rawOrderId !== 'string' || !rawOrderId.trim()) {
+    if (!cleanOrderId) {
       return res.status(400).json({
         error: 'Bad Request',
         message: 'order_id is required and must be a non-empty string.'
       });
     }
-
-    const cleanOrderId = rawOrderId.trim();
     if (cleanOrderId.length > 100) {
       return res.status(400).json({
         error: 'Bad Request',
@@ -843,16 +857,18 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
  */
 router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLimiter, async (req: Request, res: Response) => {
   try {
-    const rawOrderId = req.params.orderId;
-    if (!rawOrderId || typeof rawOrderId !== 'string' || !rawOrderId.trim()) {
+    const rawParam = req.params.orderId;
+    const rawOrderId = Array.isArray(rawParam) ? rawParam[0] : (rawParam as string);
+    const cleanOrderId = cleanOrderIdString(rawOrderId);
+
+    if (!cleanOrderId) {
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
-        message: 'Missing orderId parameter.'
+        message: 'Missing or invalid orderId parameter.'
       });
     }
 
-    const cleanOrderId = rawOrderId.trim();
     const withoutPrefix = cleanOrderId.replace(/^FB-/i, '');
     const withPrefix = cleanOrderId.startsWith('FB-') ? cleanOrderId : `FB-${cleanOrderId}`;
 

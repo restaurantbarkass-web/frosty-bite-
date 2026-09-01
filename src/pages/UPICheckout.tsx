@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
   ChevronLeft, 
   Smartphone, 
@@ -40,6 +40,20 @@ const DISPLAY_UPI_ID = "frostybite@upi";
 const MERCHANT_NAME = "FrostyBite";
 const PAYMENT_DURATION_MS = 6 * 60 * 1000; // 6 minutes
 
+function cleanOrderIdString(rawOrderId?: string | null): string {
+  if (!rawOrderId || typeof rawOrderId !== 'string') return '';
+  let cleaned = rawOrderId.trim();
+  try {
+    cleaned = decodeURIComponent(cleaned);
+  } catch (e) {}
+  cleaned = cleaned.trim();
+  if (cleaned.includes(' ')) {
+    cleaned = cleaned.split(/\s+/)[0];
+  }
+  cleaned = cleaned.replace(/[^a-zA-Z0-9_-]+$/, '');
+  return cleaned;
+}
+
 export const UPICheckout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,7 +73,8 @@ export const UPICheckout: React.FC = () => {
     scrollToQR?: boolean;
   } | null;
 
-  const effectiveOrderId = state?.orderId || paramOrderId || '';
+  const rawOrderId = state?.orderId || paramOrderId || '';
+  const effectiveOrderId = useMemo(() => cleanOrderIdString(rawOrderId), [rawOrderId]);
 
   const { cart, clearCart } = useCart();
   const { user } = useAuth();
