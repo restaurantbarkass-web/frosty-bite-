@@ -25,6 +25,7 @@ import { CacheManager } from '../core/cache/CacheManager';
 import { CacheNamespace, CacheKeys } from '../core/cache/CacheKeys';
 import { ReviewsSection } from '../components/ReviewsSection';
 import { VoiceAssistant } from '../components/VoiceAssistant';
+import { UNIVERSAL_LOGO_URL } from '../constants/logo';
 
 // Variants for staggered animations
 const containerVariants: any = {

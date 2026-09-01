@@ -310,7 +310,45 @@ export const PaymentAmbiguousAnimation: React.FC<{ onRetry?: () => void }> = ({ 
 };
 
 // 7. PAYMENT ERROR ANIMATION (Terminal or Serious issue)
-export const PaymentErrorAnimation: React.FC<{ onRetry?: () => void }> = ({ onRetry }) => {
+export const PaymentErrorAnimation: React.FC<{ 
+  errorStatus?: number | null; 
+  errorMessage?: string | null; 
+  onRetry?: () => void 
+}> = ({ errorStatus, errorMessage, onRetry }) => {
+  let title = "Unable to Load Session";
+  let description = errorMessage || "We're having trouble connecting to the payment server. Please try again.";
+  let badgeText = "Connection Issue";
+
+  if (errorStatus === 401) {
+    title = "Session / Auth Problem";
+    badgeText = "Error 401";
+    description = errorMessage || "Please sign in again or check your session.";
+  } else if (errorStatus === 403) {
+    title = "Order Authorization Problem";
+    badgeText = "Error 403";
+    description = errorMessage || "You are not authorized to access this payment session.";
+  } else if (errorStatus === 404) {
+    title = "Order Not Found";
+    badgeText = "Error 404";
+    description = errorMessage || "We couldn't find the specified order.";
+  } else if (errorStatus === 400) {
+    title = "Invalid Order State";
+    badgeText = "Error 400";
+    description = errorMessage || "The order is in an invalid state for payment.";
+  } else if (errorStatus === 429) {
+    title = "Rate Limited";
+    badgeText = "Error 429";
+    description = errorMessage || "Too many requests. Please wait a moment before trying again.";
+  } else if (errorStatus && errorStatus >= 500) {
+    title = "Server Problem";
+    badgeText = `Error ${errorStatus}`;
+    description = errorMessage || "We're having trouble connecting to the payment server.";
+  } else if (errorStatus === 0) {
+    title = "Network Failure";
+    badgeText = "Offline / Timeout";
+    description = errorMessage || "Network connection failed. Please check your connection and retry.";
+  }
+
   return (
     <div className="space-y-5 text-center py-2">
       <div className="relative flex items-center justify-center w-28 h-28 mx-auto">
@@ -320,21 +358,24 @@ export const PaymentErrorAnimation: React.FC<{ onRetry?: () => void }> = ({ onRe
       </div>
 
       <div className="space-y-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-black uppercase tracking-widest">
+          {badgeText}
+        </div>
         <h3 className="text-xl font-black text-white italic uppercase tracking-tight">
-          Unable to Load Session
+          {title}
         </h3>
         <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
-          We're having trouble connecting to the payment server. Please try again.
+          {description}
         </p>
       </div>
 
       {onRetry && (
         <button
           onClick={onRetry}
-          className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-black uppercase tracking-widest rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+          className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-black uppercase tracking-widest rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg"
         >
           <RefreshCw size={14} />
-          <span>Retry</span>
+          <span>Retry Connection</span>
         </button>
       )}
     </div>

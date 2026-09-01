@@ -33,6 +33,7 @@ import { useNotifications } from '../context/NotificationContext';
 
 import { PaymentStatusCard, PaymentState } from '../components/payment/PaymentStatusCard';
 import { PaymentLeaveModal } from '../components/payment/PaymentLeaveModal';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 const DEFAULT_UPI_ID = "7735800239@ibl";
 const DISPLAY_UPI_ID = "frostybite@upi";
@@ -72,6 +73,8 @@ export const UPICheckout: React.FC = () => {
   const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
   const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // UI States
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -149,8 +152,25 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
+      let guestSessionId = '';
+      try {
+        const guestState = GuestSessionManager.get();
+        if (guestState?.guestSessionId) {
+          guestSessionId = guestState.guestSessionId;
+        }
+      } catch (e) {}
+
+      const reqHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...authHeader
+      };
+      if (guestSessionId) {
+        reqHeaders['X-Guest-Session'] = guestSessionId;
+      }
+
       const payload = {
         order_id: effectiveOrderId,
+        guest_session_id: guestSessionId || undefined,
         order_details: currentOrder ? {
           id: effectiveOrderId,
           totalPrice: currentOrder.totalPrice,
@@ -170,10 +190,7 @@ export const UPICheckout: React.FC = () => {
         try {
           const response = await fetch('/api/payment/create-attempt', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...authHeader
-            },
+            headers: reqHeaders,
             body: JSON.stringify(payload)
           });
 
@@ -189,6 +206,8 @@ export const UPICheckout: React.FC = () => {
             setTimeLeftSeconds(remSecs);
             setPaymentState('WAITING_FOR_PAYMENT');
             setConsecutiveFailures(0);
+            setErrorStatus(null);
+            setErrorMessage(null);
             created = true;
             break;
           } else if (response.status === 400 && data.message?.toLowerCase().includes('already paid')) {
@@ -201,21 +220,26 @@ export const UPICheckout: React.FC = () => {
             delayMs *= 2;
           } else {
             console.error('[UPICheckout] Final attempt creation failed:', data);
-            toast.error(data.message || 'Unable to create payment session');
+            setErrorStatus(response.status);
+            setErrorMessage(data.message || 'Unable to create payment session');
             setPaymentState('ERROR');
           }
-        } catch (err) {
+        } catch (err: any) {
           console.warn(`[UPICheckout] Creation network error on attempt ${attemptNum}:`, err);
           if (attemptNum < maxAttempts) {
             await new Promise((res) => setTimeout(res, delayMs));
             delayMs *= 2;
           } else {
+            setErrorStatus(0);
+            setErrorMessage('Network connection failed. Please check your internet connection and retry.');
             setPaymentState('ERROR');
           }
         }
       }
     } catch (err: any) {
       console.error('[UPICheckout] Initialization unexpected error:', err);
+      setErrorStatus(500);
+      setErrorMessage(err.message || 'Unexpected initialization error.');
       setPaymentState('ERROR');
     }
   }, [effectiveOrderId, navigate, orderDetails]);
@@ -643,6 +667,8 @@ export const UPICheckout: React.FC = () => {
           paymentState={paymentState}
           amount={totalPrice}
           timeLeftSeconds={timeLeftSeconds}
+          errorStatus={errorStatus}
+          errorMessage={errorMessage}
           onRetry={paymentState === 'ERROR' ? () => initializePaymentSession() : checkAuthoritativeStatus}
           onViewOrder={handleViewOrder}
           onRestartPayment={() => initializePaymentSession()}

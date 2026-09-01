@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { ChefHat } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { UNIVERSAL_LOGO_URL } from '../constants/logo';
 
 interface LogoProps {
   className?: string;
@@ -11,7 +12,7 @@ interface LogoProps {
 
 export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = false }) => {
   const [imgError, setImgError] = React.useState(false);
-  const logoUrl = "/logo.svg";
+  const logoUrl = UNIVERSAL_LOGO_URL;
   const sizes = {
     sm: 'text-lg',
     md: 'text-2xl',

@@ -31,6 +31,8 @@ interface PaymentStatusCardProps {
   paymentState: PaymentState;
   amount: number;
   timeLeftSeconds: number;
+  errorStatus?: number | null;
+  errorMessage?: string | null;
   onRetry?: () => void;
   onViewOrder?: () => void;
   onRestartPayment?: () => void;
@@ -42,6 +44,8 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
   paymentState,
   amount,
   timeLeftSeconds,
+  errorStatus,
+  errorMessage,
   onRetry,
   onViewOrder,
   onRestartPayment,
@@ -188,7 +192,11 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
           )}
 
           {(paymentState === 'ERROR' || paymentState === 'TERMINAL_ERROR') && (
-            <PaymentErrorAnimation onRetry={onRetry} />
+            <PaymentErrorAnimation 
+              errorStatus={errorStatus} 
+              errorMessage={errorMessage} 
+              onRetry={onRetry} 
+            />
           )}
         </div>
 

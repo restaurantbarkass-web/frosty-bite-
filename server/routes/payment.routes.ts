@@ -224,32 +224,34 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
 
     // Step 6: Authorization Verification
     const authHeader = req.headers.authorization;
+    const guestSessionHeader = req.headers['x-guest-session'] || req.body?.guest_session_id;
     const isRegisteredOrder = !!(order.user_id && !order.user_id.startsWith('guest_'));
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
-      if (!token || token === 'null' || token === 'undefined') {
+      if (token && token !== 'null' && token !== 'undefined') {
+        const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+        if (!authErr && authData?.user) {
+          const authUser = authData.user;
+          const isUserAdmin = ADMIN_EMAILS.includes(authUser.email?.toLowerCase() || '');
+
+          if (isRegisteredOrder && !isUserAdmin && order.user_id !== authUser.id && order.email?.toLowerCase() !== authUser.email?.toLowerCase()) {
+            return res.status(403).json({
+              error: 'Forbidden',
+              message: 'You are not authorized to create a payment attempt for this order.'
+            });
+          }
+        } else if (isRegisteredOrder) {
+          return res.status(401).json({
+            error: 'Unauthorized',
+            message: 'Invalid or expired authentication token.'
+          });
+        }
+        // If guest order, ignore invalid/expired token and permit login-free checkout
+      } else if (isRegisteredOrder) {
         return res.status(401).json({
           error: 'Unauthorized',
           message: 'Invalid or missing bearer token.'
-        });
-      }
-
-      const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-      if (authErr || !authData?.user) {
-        return res.status(401).json({
-          error: 'Unauthorized',
-          message: 'Invalid or expired authentication token.'
-        });
-      }
-
-      const authUser = authData.user;
-      const isUserAdmin = ADMIN_EMAILS.includes(authUser.email?.toLowerCase() || '');
-
-      if (isRegisteredOrder && !isUserAdmin && order.user_id !== authUser.id && order.email?.toLowerCase() !== authUser.email?.toLowerCase()) {
-        return res.status(403).json({
-          error: 'Forbidden',
-          message: 'You are not authorized to create a payment attempt for this order.'
         });
       }
     } else if (isRegisteredOrder) {

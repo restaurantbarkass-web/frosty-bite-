@@ -1,3 +1,5 @@
+import { UNIVERSAL_LOGO_URL } from '../constants/logo';
+
 export interface MetadataConfig {
   title?: string;
   description?: string;
@@ -71,7 +73,7 @@ export function generateMetadata(config: MetadataConfig) {
     setMetaByProperty('og:image', config.ogImage);
   } else {
     // Fallback default placeholder if no image supplied
-    setMetaByProperty('og:image', `${window.location.origin}/logo.png`);
+    setMetaByProperty('og:image', UNIVERSAL_LOGO_URL);
   }
 
   // Set Twitter tags
@@ -81,7 +83,7 @@ export function generateMetadata(config: MetadataConfig) {
   if (config.twitterImage || config.ogImage) {
     setMetaByName('twitter:image', config.twitterImage || config.ogImage || '');
   } else {
-    setMetaByName('twitter:image', `${window.location.origin}/logo.png`);
+    setMetaByName('twitter:image', UNIVERSAL_LOGO_URL);
   }
 
   // Set Canonical link
