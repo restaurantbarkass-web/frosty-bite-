@@ -10,7 +10,8 @@ interface LogoProps {
 }
 
 export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = false }) => {
-  const logoUrl = "/logo.png";
+  const [imgError, setImgError] = React.useState(false);
+  const logoUrl = "/logo.svg";
   const sizes = {
     sm: 'text-lg',
     md: 'text-2xl',
@@ -28,17 +29,22 @@ export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = fals
       <motion.div 
         whileHover={{ rotate: [-5, 5, -5, 0], scale: 1.1 }}
         className={cn(
-          "relative flex items-center justify-center rounded-xl overflow-hidden bg-white",
+          "relative flex items-center justify-center rounded-xl overflow-hidden bg-gradient-to-br from-primary to-orange-600 text-white",
           size === 'sm' ? "w-8 h-8" : size === 'md' ? "w-10 h-10" : "w-16 h-16",
           "shadow-lg shadow-primary/20"
         )}
       >
-        <img 
-          src={logoUrl} 
-          alt="Frosty Bite" 
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-        />
+        {!imgError ? (
+          <img 
+            src={logoUrl} 
+            alt="Frosty Bite" 
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <ChefHat size={iconSizes[size]} className="text-white" />
+        )}
         
         {/* Shimmer Effect */}
         <motion.div 

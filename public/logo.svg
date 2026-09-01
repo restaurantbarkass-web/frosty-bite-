@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ea580c" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <circle cx="256" cy="256" r="200" fill="#09090b" opacity="0.15" />
+  <!-- Chef Hat / Cupcake Artisan Icon -->
+  <path d="M256 120c-35 0-64 25-70 58-20 4-36 21-36 42 0 16 10 30 24 38l12 154h140l12-154c14-8 24-22 24-38 0-21-16-38-36-42-6-33-35-58-70-58z" fill="#ffffff" />
+  <path d="M186 258h140v30H186z" fill="url(#goldGrad)" rx="6" />
+  <path d="M216 120c0-22 18-40 40-40s40 18 40 40" stroke="url(#goldGrad)" stroke-width="16" stroke-linecap="round" fill="none" />
+  <text x="256" y="420" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="64" fill="#ffffff" text-anchor="middle" letter-spacing="4">FB</text>
+</svg>
