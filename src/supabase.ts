@@ -1,35 +1,37 @@
 import { createClient } from '@supabase/supabase-js';
-
 import { safeTrim } from './utils/string';
 
-let supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const isValidKey = (key: any): boolean => {
-  if (!key || typeof key !== 'string') return false;
-  const t = safeTrim(key);
-  return t !== '' && !t.includes('your_') && !t.includes('PLACEHOLDER') && t.startsWith('eyJ');
+const isValidUrl = (url: unknown): url is string => {
+  if (!url || typeof url !== 'string') return false;
+  const t = safeTrim(url);
+  if (!t.startsWith('https://')) return false;
+  if (t.includes('placeholder.supabase.co')) return false;
+  if (import.meta.env.PROD && (t.includes('localhost') || t.includes('127.0.0.1'))) return false;
+  return true;
 };
 
-const supabaseAnonKey = isValidKey(rawAnonKey) ? rawAnonKey : '';
+const isValidKey = (key: unknown): key is string => {
+  if (!key || typeof key !== 'string') return false;
+  const t = safeTrim(key);
+  if (t === '' || t.includes('your_') || t.includes('PLACEHOLDER') || t.includes('placeholder')) return false;
+  return t.startsWith('eyJ');
+};
 
-// Sanitization for common configuration errors
-if (supabaseUrl) {
-  // Fix double https://
-  supabaseUrl = supabaseUrl.replace(/https?:\/\/https?:\/\//g, 'https://');
-  // Remove /rest/v1/ suffix
-  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/i, '');
-  // Ensure no trailing slash
-  supabaseUrl = supabaseUrl.replace(/\/$/, '');
-} else {
-  console.warn("[Supabase] VITE_SUPABASE_URL environment variable is missing.");
+if (!isValidUrl(rawUrl) || !isValidKey(rawAnonKey)) {
+  const errorMsg = '[Supabase Configuration Error] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are missing or invalid in the frontend environment. Please configure valid Supabase production credentials.';
+  console.error(errorMsg);
+  throw new Error(errorMsg);
 }
 
-if (!supabaseAnonKey) {
-  console.warn("[Supabase] VITE_SUPABASE_ANON_KEY environment variable is missing.");
-}
+let sanitizedUrl = safeTrim(rawUrl);
+sanitizedUrl = sanitizedUrl.replace(/https?:\/\/https?:\/\//g, 'https://');
+sanitizedUrl = sanitizedUrl.replace(/\/rest\/v1\/?$/i, '');
+sanitizedUrl = sanitizedUrl.replace(/\/$/, '');
 
-export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseAnonKey || 'placeholder-anon-key', {
+export const supabase = createClient(sanitizedUrl, safeTrim(rawAnonKey), {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
