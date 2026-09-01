@@ -89,6 +89,8 @@ export const supabaseService = {
             items: data.items,
             total: data.total || data.subtotal || 0,
             status: data.status || 'pending',
+            payment_method: data.payment_method || 'upi',
+            payment_status: data.payment_status || 'pending',
             address: data.address || '',
             phone: data.phone || '',
             customer_name: data.customer_name || data.name || 'Customer',
@@ -194,6 +196,7 @@ export const supabaseService = {
         console.warn('[SupabaseService] Order update failed due to schema difference, retrying basic fields...', firstError?.message);
         const minimalUpdate: any = {};
         if (payload.status) minimalUpdate.status = payload.status;
+        if (payload.payment_method) minimalUpdate.payment_method = payload.payment_method;
         if (payload.payment_status) minimalUpdate.payment_status = payload.payment_status;
         if (payload.customer_name) minimalUpdate.customer_name = payload.customer_name;
         if (payload.phone) minimalUpdate.phone = payload.phone;

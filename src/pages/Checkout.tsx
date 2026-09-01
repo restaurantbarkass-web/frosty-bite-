@@ -124,6 +124,9 @@ export const Checkout: React.FC = () => {
         if (!parsed.name && (user?.displayName || user?.email?.split('@')[0])) {
           parsed.name = user?.displayName || user?.email?.split('@')[0];
         }
+        if (!parsed.paymentMethod || (parsed.paymentMethod !== 'upi' && parsed.paymentMethod !== 'cod')) {
+          parsed.paymentMethod = 'upi';
+        }
         return parsed;
       }
     } catch (e) {}
@@ -835,6 +838,8 @@ export const Checkout: React.FC = () => {
         includeCandleKnife ? `[FREE CANDLE & KNIFE: YES]` : '',
       ].filter(Boolean).join(' ');
 
+      const selectedPaymentMethod = (formData.paymentMethod === 'cod') ? 'cod' : 'upi';
+
       const orderData = {
         id: orderId,
         user_id: user?.uid || null,
@@ -845,8 +850,8 @@ export const Checkout: React.FC = () => {
         order_type: isPickupOnly ? 'pickup' : 'delivery',
         coupon_code: appliedCoupon?.code || null,
         total: finalPrice,
-        status: formData.paymentMethod === 'upi' ? 'awaiting_payment' : 'pending',
-        payment_method: formData.paymentMethod,
+        status: selectedPaymentMethod === 'upi' ? 'awaiting_payment' : 'pending',
+        payment_method: selectedPaymentMethod,
         payment_status: 'pending',
         address: isPickupOnly 
           ? `[IN-STORE PICKUP] Bakery: ${BAKERY_ADDRESS}` 

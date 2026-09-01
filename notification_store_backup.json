@@ -27,6 +27,89 @@
       "last_seen_at": "2026-09-01T04:49:30.089Z",
       "created_at": "2026-09-01T04:49:30.089Z",
       "updated_at": "2026-09-01T04:49:30.089Z"
+    },
+    {
+      "id": "sub-1788275456047-zqxv3esj5",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bHeW-zuFF5n_-eXiIRRHCZ_UXFNPg7fa--E646PWLQkcpp8RoMZxJXqV2s_VaTmg7xG5UuPUO6e7__ts6gZjX8DqwtiOmP2b93a0MkSoqX0e7pDV4I",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:10:56.047Z",
+      "created_at": "2026-09-01T15:10:56.047Z",
+      "updated_at": "2026-09-01T15:10:56.047Z"
+    },
+    {
+      "id": "sub-1788275598433-xa8ctgd4j",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bG-Qytyzs5iaSJlQhXnt3XrbJQ0cJ5swfdsiIaI1tFZOghI10ylNKXrA2k8FkX6KnmHtRJ6WEweLr2nHToVaTvkMFw7Mzcm4ag025iqW3SNLV8E3d0",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:13:18.433Z",
+      "created_at": "2026-09-01T15:13:18.433Z",
+      "updated_at": "2026-09-01T15:13:18.433Z"
+    },
+    {
+      "id": "sub-1788275661996-sctfzf0ip",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bHOueUfqHnYGxd57fT3kak5PHfLq0zDmdQLA7gQX6ZLwXpn4GOu0vFX6C9Q5HJ9a8mLnCTfmV5AACUtTBUhmFYL8qPN8wNHG4banBSlFQxhQNR6tTY",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:14:21.996Z",
+      "created_at": "2026-09-01T15:14:21.996Z",
+      "updated_at": "2026-09-01T15:14:21.996Z"
+    },
+    {
+      "id": "sub-1788275912092-74kejpflz",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bFKe9wIdaCGjgmnzFW0-xA13S16X9RglsninNYqMyQsSN9ZAG9LSFPeyQu6ecFCy_ulmUTPWIIMVLDem_HPbGqYnA7l85DGPQAjkPJ0G49E6nM7cv4",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:18:32.092Z",
+      "created_at": "2026-09-01T15:18:32.092Z",
+      "updated_at": "2026-09-01T15:18:32.092Z"
+    },
+    {
+      "id": "sub-1788276150559-3efrp85c3",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bGyc8xAOf2ZoamNyRBGbxQ5DOgE6n2m-b8sixFEnrK4uW-Tpgv4haYCVErMrlNrFKnhyMutpAd__cuNxa3lE7PRW82ON4Zm7uX50u8_zpYmmyD4nTk",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:22:30.559Z",
+      "created_at": "2026-09-01T15:22:30.559Z",
+      "updated_at": "2026-09-01T15:22:30.559Z"
+    },
+    {
+      "id": "sub-1788276379870-lp1v5c6vl",
+      "user_id": null,
+      "guest_session_id": null,
+      "device_token": "test-token",
+      "platform": "web",
+      "browser": "Unknown",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T15:26:19.870Z",
+      "created_at": "2026-09-01T15:26:19.870Z",
+      "updated_at": "2026-09-01T15:26:19.870Z"
     }
   ],
   "events": [],
@@ -198,5 +281,5 @@
       "updated_at": "2026-09-01T04:16:43.057Z"
     }
   ],
-  "updated_at": "2026-09-01T04:49:30.384Z"
+  "updated_at": "2026-09-01T15:26:19.870Z"
 }

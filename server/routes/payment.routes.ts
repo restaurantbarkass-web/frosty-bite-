@@ -146,6 +146,23 @@ function isCodOrCashPaymentMethod(paymentMethod?: string | null): boolean {
 }
 
 /**
+ * Normalizes payment methods to identify digital / online / UPI payments.
+ */
+function isUpiOrOnlinePaymentMethod(paymentMethod?: string | null): boolean {
+  if (!paymentMethod) return false;
+  const normalized = paymentMethod.trim().toLowerCase();
+  return (
+    normalized === 'upi' ||
+    normalized === 'online' ||
+    normalized === 'upi_qr' ||
+    normalized === 'qr' ||
+    normalized === 'gpay' ||
+    normalized === 'phonepe' ||
+    normalized === 'paytm'
+  );
+}
+
+/**
  * POST /api/payment/create-attempt
  * Authoritatively creates or returns an existing active payment attempt for an order.
  */
@@ -217,10 +234,10 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    // Step 4: Strict Payment Method Check (COD protection)
-    if (isCodOrCashPaymentMethod(order.payment_method)) {
+    // Step 4: Strict Payment Method Check (COD protection) - NEVER mutate orders.payment_method
+    if (!isUpiOrOnlinePaymentMethod(order.payment_method) || isCodOrCashPaymentMethod(order.payment_method)) {
       return res.status(400).json({
-        error: 'Invalid Payment Method',
+        error: 'Invalid Order State',
         message: 'Payment attempts are only allowed for online/UPI payments.'
       });
     }
