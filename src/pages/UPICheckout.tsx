@@ -85,7 +85,7 @@ export const UPICheckout: React.FC = () => {
   const [orderDetails, setOrderDetails] = useState<any>(state || null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
   const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -265,8 +265,16 @@ export const UPICheckout: React.FC = () => {
             setErrorMessage(null);
             created = true;
             break;
-          } else if (response.status === 400 && data.message?.toLowerCase().includes('already paid')) {
-            setPaymentState('PAYMENT_VERIFIED');
+          } else if (response.status === 400) {
+            const isAlreadyPaid = data.message?.toLowerCase().includes('already paid');
+            if (isAlreadyPaid) {
+              setPaymentState('PAYMENT_VERIFIED');
+            } else {
+              console.warn('[UPICheckout] Non-retryable payment creation response (400):', data.message || data.error);
+              setErrorStatus(400);
+              setErrorMessage(data.message || 'Payment attempts are only allowed for online/UPI payments.');
+              setPaymentState('ERROR');
+            }
             created = true;
             break;
           } else if (attemptNum < maxAttempts) {
@@ -305,14 +313,12 @@ export const UPICheckout: React.FC = () => {
 
   // 2. Timer Countdown Effect (1000ms tick derived from authoritative expiresAtMs)
   useEffect(() => {
-    if (paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED' || paymentState === 'ERROR') {
+    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED' || paymentState === 'ERROR') {
       return;
     }
 
     const tick = () => {
-      const now = Date.now();
-      const targetMs = expiresAtMs || (now + 360 * 1000);
-      const remainingMs = targetMs - now;
+      const remainingMs = expiresAtMs - Date.now();
       const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
       setTimeLeftSeconds(remSecs);
 
