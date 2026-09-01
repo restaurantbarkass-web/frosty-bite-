@@ -85,7 +85,7 @@ export const UPICheckout: React.FC = () => {
   const [orderDetails, setOrderDetails] = useState<any>(state || null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
   const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -303,21 +303,24 @@ export const UPICheckout: React.FC = () => {
     initializePaymentSession();
   }, [initializePaymentSession]);
 
-  // 2. Timer Countdown Effect
+  // 2. Timer Countdown Effect (1000ms tick derived from authoritative expiresAtMs)
   useEffect(() => {
     if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED') return;
 
-    const interval = setInterval(() => {
+    const tick = () => {
       const now = Date.now();
-      const rem = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
-      setTimeLeftSeconds(rem);
+      const remainingMs = expiresAtMs - now;
+      const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
+      setTimeLeftSeconds(remSecs);
 
-      if (rem <= 0) {
-        clearInterval(interval);
+      if (remainingMs <= 0 || remSecs <= 0) {
         console.log('[UPI TIMER] Timer hit 0, setting PAYMENT_EXPIRED');
         setPaymentState('PAYMENT_EXPIRED');
       }
-    }, 1000);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
 
     return () => clearInterval(interval);
   }, [expiresAtMs, paymentState]);
@@ -375,10 +378,11 @@ export const UPICheckout: React.FC = () => {
         if (data.expires_at) {
           const expMs = Date.parse(data.expires_at);
           const nowMs = Date.now();
-          if (expMs > nowMs) {
-            setExpiresAtMs(expMs);
-            setTimeLeftSeconds(Math.max(0, Math.floor((expMs - nowMs) / 1000)));
+          if (expMs <= nowMs) {
+            setPaymentState('PAYMENT_EXPIRED');
+            return;
           }
+          setExpiresAtMs((prev) => (prev !== expMs ? expMs : prev));
         }
 
         setConsecutiveFailures(0);
@@ -453,6 +457,7 @@ export const UPICheckout: React.FC = () => {
             setPaymentState('PAYMENT_EXPIRED');
             return;
           }
+          setExpiresAtMs((prev) => (prev !== expMs ? expMs : prev));
         }
 
         if (att.status === 'matched') {
