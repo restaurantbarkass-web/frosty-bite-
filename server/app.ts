@@ -28,6 +28,7 @@ import paymentRouter from "./routes/payment.routes";
 
 import { V2GeofencingService } from "./services/v2Geofencing.service";
 import { supabase } from "./lib/supabase";
+import { requireAdmin, ADMIN_EMAILS } from "./middleware/auth";
 
 const app = express();
 console.log("[Vercel] Express app created");
@@ -176,8 +177,8 @@ app.get(["/ping", "/api/ping"], (req, res) => {
   res.send("pong");
 });
 
-// Routes
-app.get("/migration-script", (req, res) => {
+// Admin database migration utility
+app.get("/migration-script", requireAdmin, (req, res) => {
   try {
     const migrationPath = path.resolve(process.cwd(), "supabase_migration.sql");
     if (fs.existsSync(migrationPath)) {
@@ -329,27 +330,48 @@ app.get(["/delivery-areas", "/api/delivery-areas"], async (req, res) => {
   }
 });
 
-// Real-time order status endpoints
-app.get("/orders/:orderId/status", async (req: Request, res: Response) => {
-  const { orderId } = req.params;
-  if (!orderId) {
+// Real-time order status endpoints (Sanitized and authorization-checked)
+const handleOrderStatus = async (req: Request, res: Response) => {
+  const rawOrderId = req.params.orderId;
+  if (!rawOrderId || (typeof rawOrderId !== 'string' && !Array.isArray(rawOrderId))) {
     return res.status(400).json({ error: "Missing orderId parameter" });
   }
+
+  const cleanId = String(Array.isArray(rawOrderId) ? rawOrderId[0] : rawOrderId).trim();
+  const withoutPrefix = cleanId.replace(/^FB-/i, '');
+  const withPrefix = cleanId.startsWith('FB-') ? cleanId : `FB-${cleanId}`;
 
   try {
     const { data: order, error } = await supabase
       .from("orders")
-      .select("*")
-      .eq("id", orderId)
+      .select("id, status, payment_status, estimated_delivery_time, estimated_arrival, updated_at, user_id")
+      .or(`id.eq.${cleanId},id.eq.${withPrefix},id.eq.${withoutPrefix}`)
+      .limit(1)
       .maybeSingle();
 
     if (error) {
-      console.error(`[App] Error fetching status for order ${orderId}:`, error);
-      return res.status(500).json({ error: "Supabase database error", details: error.message });
+      console.error(`[App] Error fetching status for order ${cleanId}:`, error.message);
+      return res.status(500).json({ error: "Database error", message: "Failed to retrieve order status." });
     }
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
+    }
+
+    // Authorization verification for non-guest registered customer orders
+    if (order.user_id && !order.user_id.startsWith('guest_')) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.slice(7).trim();
+        const { data: authData } = await supabase.auth.getUser(token);
+        const authUser = authData?.user;
+        const isUserAdmin = ADMIN_EMAILS.includes(authUser?.email?.toLowerCase() || '');
+        if (!isUserAdmin && authUser?.id !== order.user_id) {
+          return res.status(403).json({ error: "Forbidden", message: "You are not authorized to access this order." });
+        }
+      } else {
+        return res.status(401).json({ error: "Unauthorized", message: "Authentication required to view order status." });
+      }
     }
 
     return res.json({
@@ -358,97 +380,38 @@ app.get("/orders/:orderId/status", async (req: Request, res: Response) => {
       payment_status: order.payment_status || "pending",
       estimated_delivery_time: order.estimated_delivery_time || null,
       estimated_arrival: order.estimated_arrival || null,
-      updated_at: order.updated_at,
-      order: order
+      updated_at: order.updated_at
     });
   } catch (err: any) {
-    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
-    return res.status(500).json({ error: "Internal Server Error", message: err.message });
+    console.error(`[App] Unexpected error fetching status for order ${cleanId}:`, err);
+    return res.status(500).json({ error: "Internal Server Error", message: "Failed to fetch order status." });
   }
-});
-
-app.get("/order-status/:orderId", async (req: Request, res: Response) => {
-  const { orderId } = req.params;
-  if (!orderId) {
-    return res.status(400).json({ error: "Missing orderId parameter" });
-  }
-
-  try {
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", orderId)
-      .maybeSingle();
-
-    if (error) {
-      console.error(`[App] Error fetching status for order ${orderId}:`, error);
-      return res.status(500).json({ error: "Supabase database error", details: error.message });
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-    return res.json({
-      orderId: order.id,
-      status: order.status || "pending",
-      payment_status: order.payment_status || "pending",
-      estimated_delivery_time: order.estimated_delivery_time || null,
-      estimated_arrival: order.estimated_arrival || null,
-      updated_at: order.updated_at,
-      order: order
-    });
-  } catch (err: any) {
-    console.error(`[App] Unexpected error fetching status for order ${orderId}:`, err);
-    return res.status(500).json({ error: "Internal Server Error", message: err.message });
-  }
-});
-
-// Safe mask for keys
-const maskKey = (key: any) => {
-  if (!key || typeof key !== "string") return "not-set";
-  if (key.length <= 12) return "set-but-too-short";
-  return `${key.substring(0, 6)}...${key.substring(key.length - 6)}`;
 };
 
-// Diagnostic endpoint
-app.get("/debug-address", async (req, res) => {
+app.get(["/orders/:orderId/status", "/api/orders/:orderId/status"], handleOrderStatus);
+app.get(["/order-status/:orderId", "/api/order-status/:orderId"], handleOrderStatus);
+
+// Admin-only diagnostic endpoint
+app.get(["/debug-address", "/api/debug-address"], requireAdmin, async (req, res) => {
   const report: any = {
     timestamp: new Date().toISOString(),
-    environment: {
-      NODE_ENV: process.env.NODE_ENV || "not-set",
-      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? "set" : "not-set",
-      SUPABASE_URL: process.env.SUPABASE_URL ? "set" : "not-set",
-      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? "set" : "not-set",
-      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ? "set" : "not-set",
-    },
-    variablesMasked: {
-      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || "using-fallback",
-      SUPABASE_SERVICE_ROLE_KEY: maskKey(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      VITE_SUPABASE_ANON_KEY: maskKey(process.env.VITE_SUPABASE_ANON_KEY),
-    },
-    supabaseReachability: {
-      status: "untested",
-      error: null,
-      dataSample: null,
-    }
+    environment: process.env.NODE_ENV || "development",
+    supabaseConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseReachability: "testing"
   };
 
   try {
-    const { data, error } = await supabase.from("cities").select("*").limit(2);
+    const { data, error } = await supabase.from("cities").select("id, name").limit(2);
     if (error) {
-      report.supabaseReachability.status = "failed";
-      report.supabaseReachability.error = error;
+      report.supabaseReachability = "failed";
+      report.error = error.message;
     } else {
-      report.supabaseReachability.status = "connected";
-      report.supabaseReachability.dataSample = data;
+      report.supabaseReachability = "connected";
+      report.sampleCount = data?.length || 0;
     }
   } catch (err: any) {
-    report.supabaseReachability.status = "exception";
-    report.supabaseReachability.error = {
-      message: err.message,
-      stack: err.stack,
-    };
+    report.supabaseReachability = "exception";
+    report.error = err.message;
   }
 
   res.json(report);

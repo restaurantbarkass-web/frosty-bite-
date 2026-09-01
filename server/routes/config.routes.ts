@@ -1,145 +1,11 @@
 import express from 'express';
-import admin, { getAdminDb, getAdminAuth } from '../lib/firebase-admin';
 import { supabase } from '../lib/supabase';
+import { requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
 // Resilient in-memory master backup
 let inMemoryConfig: any = null;
-
-const ADMIN_EMAILS = [
-  "restaurantbarkass@gmail.com",
-  "wasifmd924@gmail.com",
-  "sayedazainab216@gmail.com",
-  "sayedazainabali76@gmail.com"
-];
-
-function isFirebaseToken(token: string): boolean {
-  try {
-    const payload = decodeJwtPayload(token);
-    return !!(payload?.iss?.startsWith('https://securetoken.google.com/'));
-  } catch {
-    return false;
-  }
-}
-
-function decodeJwtPayload(token: string): Record<string, any> | null {
-  try {
-    const base64Url = token.split('.')[1];
-    if (!base64Url) return null;
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/').padEnd(
-      base64Url.length + (4 - (base64Url.length % 4)) % 4, '='
-    );
-    return JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Helper to safely extract email from any validly formatted JWT (Firebase or Supabase) as dynamic fallback
- */
-function getEmailFromArbitraryToken(token: string): string | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    
-    const base64Url = parts[1];
-    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    while (base64.length % 4) {
-      base64 += '=';
-    }
-    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8');
-    const payload = JSON.parse(jsonPayload);
-    
-    if (payload) {
-      if (payload.email) {
-        return payload.email;
-      }
-      if (payload.user_metadata && payload.user_metadata.email) {
-        return payload.user_metadata.email;
-      }
-      if (payload.user && payload.user.email) {
-        return payload.user.email;
-      }
-    }
-    return null;
-  } catch (err) {
-    return null;
-  }
-}
-
-/**
- * Helper to authenticate and verify user is an Admin
- */
-async function isAdmin(req: express.Request): Promise<boolean> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false;
-  }
-
-  const token = authHeader.split('Bearer ')[1];
-  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
-    return false;
-  }
-
-  let verifiedEmail: string | undefined;
-
-  // 1. Firebase Admin SDK verification (cryptographically verified)
-  if (isFirebaseToken(token)) {
-    try {
-      const adminAuth = getAdminAuth();
-      const decoded = await adminAuth.verifyIdToken(token);
-      verifiedEmail = decoded.email;
-      console.log('[ConfigRoutes] Firebase verified email:', verifiedEmail);
-    } catch (err: any) {
-      console.log('[ConfigRoutes] Firebase verification failed:', err.message);
-    }
-  }
-
-  // 2. Supabase Auth verification (cryptographically verified)
-  if (!verifiedEmail) {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (!error && user?.email) {
-        verifiedEmail = user.email;
-        console.log('[ConfigRoutes] Supabase verified email:', verifiedEmail);
-      }
-    } catch (err: any) {
-      console.log('[ConfigRoutes] Supabase exception:', err.message);
-    }
-  }
-
-  // 3. Fallback to arbitrary JWT extraction if cryptographic verification failed
-  if (!verifiedEmail) {
-    const extracted = getEmailFromArbitraryToken(token);
-    if (extracted) {
-      verifiedEmail = extracted;
-      console.log('[ConfigRoutes] Extracted email from JWT fallback payload:', verifiedEmail);
-    }
-  }
-
-  if (verifiedEmail) {
-    const normEmail = verifiedEmail.trim().toLowerCase();
-    const isMatched = ADMIN_EMAILS.includes(normEmail);
-    if (isMatched) return true;
-
-    try {
-      const { data: userRecord } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', normEmail)
-        .maybeSingle();
-      if (userRecord && userRecord.role === 'admin') {
-        return true;
-      }
-    } catch (dbErr) {
-      console.log('[ConfigRoutes] Admin role lookup error:', dbErr);
-    }
-  }
-
-  return false;
-}
 
 /**
  * GET /api/config
@@ -257,13 +123,8 @@ router.get('/', async (req, res) => {
  * POST /api/config
  * Updates configuration in Supabase and backup files.
  */
-router.post('/', async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
-    const isUserAdmin = await isAdmin(req);
-    if (!isUserAdmin) {
-      return res.status(403).json({ success: false, error: 'Forbidden', message: 'Admin permissions required to change settings' });
-    }
-
     const payload = req.body;
     console.log('[ConfigRoutes] POST request payload:', JSON.stringify(payload));
 

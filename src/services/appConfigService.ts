@@ -191,33 +191,6 @@ const fetchWithRetry = async (url: string, options?: RequestInit, retries = 3, d
   throw new Error('Fetch failed after retries');
 };
 
-const syncConfigToDatabase = async (updatedConfig: AppConfig): Promise<void> => {
-  const { supabase } = await import('../supabase');
-  const payload = {
-    value: JSON.stringify(updatedConfig),
-    updated_at: new Date().toISOString()
-  };
-
-  // Direct update on row '1' (which is permitted by Supabase RLS policies for app_settings)
-  const { error: updateErr } = await supabase
-    .from('app_settings')
-    .update(payload)
-    .eq('id', '1');
-
-  if (updateErr) {
-    console.warn('[appConfigService] Direct update error, attempting upsert fallback:', updateErr.message);
-    const { error: upsertErr } = await supabase
-      .from('app_settings')
-      .upsert({
-        id: '1',
-        ...payload
-      });
-    if (upsertErr) {
-      throw new Error(`Direct Supabase update failed: ${updateErr.message || upsertErr.message}`);
-    }
-  }
-};
-
 export const appConfigService = {
   subscribeToConfig: (callback: (config: AppConfig) => void) => {
     currentListeners.push(callback);
@@ -266,161 +239,94 @@ export const appConfigService = {
 
   toggleOrderingStatus: async (currentStatus: boolean, customToken?: string | null) => {
     const newStatus = !currentStatus;
-    const updatedConfig = {
-      ...currentConfig,
-      isOrderingOpen: newStatus,
-      updated_at: new Date().toISOString()
-    } as AppConfig;
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
 
-    try {
-      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
-      let success = false;
-      let freshConfig = updatedConfig;
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ isOrderingOpen: newStatus })
+    });
 
-      try {
-        const response = await fetchWithRetry('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ isOrderingOpen: newStatus })
-        });
-        if (response.ok) {
-          const freshResponse = await response.json().catch(() => null);
-          if (freshResponse) {
-            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-            success = true;
-          }
-        } else {
-          console.warn('[appConfigService] POST /api/config returned status:', response.status);
-        }
-      } catch (err) {
-        console.warn('[appConfigService] POST /api/config request failed:', err);
-      }
-
-      if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase update for ordering status...');
-        await syncConfigToDatabase(updatedConfig);
-        freshConfig = updatedConfig;
-      }
-
-      currentConfig = freshConfig;
-      localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
-      localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
-      currentListeners.forEach(l => l(freshConfig));
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update ordering status (HTTP ${response.status})`);
     }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || { ...currentConfig, isOrderingOpen: newStatus }) };
+
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
   },
 
   updatePickupOnlyStatus: async (isPickupOnly: boolean, customToken?: string | null) => {
-    const updatedConfig = {
-      ...currentConfig,
-      pickup_only: isPickupOnly,
-      isPickupOnly: isPickupOnly,
-      updated_at: new Date().toISOString()
-    } as AppConfig;
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
 
-    try {
-      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
-      let success = false;
-      let freshConfig = updatedConfig;
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ pickup_only: isPickupOnly, isPickupOnly: isPickupOnly })
+    });
 
-      try {
-        const response = await fetchWithRetry('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ pickup_only: isPickupOnly, isPickupOnly: isPickupOnly })
-        });
-        if (response.ok) {
-          const freshResponse = await response.json().catch(() => null);
-          if (freshResponse) {
-            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-            success = true;
-          }
-        } else {
-          console.warn('[appConfigService] POST /api/config returned status:', response.status);
-        }
-      } catch (err) {
-        console.warn('[appConfigService] POST /api/config request failed:', err);
-      }
-
-      if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase update for pickup only status...');
-        await syncConfigToDatabase(updatedConfig);
-        freshConfig = updatedConfig;
-      }
-
-      currentConfig = freshConfig;
-      localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
-      localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
-      currentListeners.forEach(l => l(freshConfig));
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update pickup status (HTTP ${response.status})`);
     }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || { ...currentConfig, pickup_only: isPickupOnly, isPickupOnly: isPickupOnly }) };
+
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
   },
 
   updateDeliveryPricing: async (pricing: { baseFee: number; perKm: number; freeKm: number; defaultDeliveryTime: number; isInstantDeliveryClosed?: boolean }, customToken?: string | null) => {
-    const updatedConfig = {
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        deliveryBaseFee: pricing.baseFee,
+        deliveryFeePerKm: pricing.perKm,
+        deliveryFreeKm: pricing.freeKm,
+        defaultDeliveryTime: pricing.defaultDeliveryTime,
+        isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update delivery pricing (HTTP ${response.status})`);
+    }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || {
       ...currentConfig,
       deliveryBaseFee: pricing.baseFee,
       deliveryFeePerKm: pricing.perKm,
       deliveryFreeKm: pricing.freeKm,
       defaultDeliveryTime: pricing.defaultDeliveryTime,
-      isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false,
-      updated_at: new Date().toISOString()
-    } as AppConfig;
+      isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false
+    }) };
 
-    try {
-      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
-      let success = false;
-      let freshConfig = updatedConfig;
-
-      try {
-        const response = await fetchWithRetry('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            deliveryBaseFee: pricing.baseFee,
-            deliveryFeePerKm: pricing.perKm,
-            deliveryFreeKm: pricing.freeKm,
-            defaultDeliveryTime: pricing.defaultDeliveryTime,
-            isInstantDeliveryClosed: pricing.isInstantDeliveryClosed ?? false
-          })
-        });
-        if (response.ok) {
-          const freshResponse = await response.json().catch(() => null);
-          if (freshResponse) {
-            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-            success = true;
-          }
-        } else {
-          console.warn('[appConfigService] POST /api/config returned status:', response.status);
-        }
-      } catch (err) {
-        console.warn('[appConfigService] POST /api/config request failed:', err);
-      }
-
-      if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase update for delivery pricing...');
-        await syncConfigToDatabase(updatedConfig);
-        freshConfig = updatedConfig;
-      }
-
-      currentConfig = freshConfig;
-      localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
-      localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
-      currentListeners.forEach(l => l(freshConfig));
-    } catch (error) {
-      throw error;
-    }
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
   },
 
   updateGeofencingSettings: async (settings: { 
@@ -430,62 +336,42 @@ export const appConfigService = {
     geofencingRadius: number; 
     geofencingZones?: string;
   }, customToken?: string | null) => {
-    const updatedConfig = {
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        geofencingEnabled: settings.geofencingEnabled,
+        geofencingLatitude: settings.geofencingLatitude,
+        geofencingLongitude: settings.geofencingLongitude,
+        geofencingRadius: settings.geofencingRadius,
+        geofencingZones: settings.geofencingZones ?? '[]'
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update geofencing settings (HTTP ${response.status})`);
+    }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || {
       ...currentConfig,
       geofencingEnabled: settings.geofencingEnabled,
       geofencingLatitude: settings.geofencingLatitude,
       geofencingLongitude: settings.geofencingLongitude,
       geofencingRadius: settings.geofencingRadius,
-      geofencingZones: settings.geofencingZones ?? '[]',
-      updated_at: new Date().toISOString()
-    } as AppConfig;
+      geofencingZones: settings.geofencingZones ?? '[]'
+    }) };
 
-    try {
-      const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
-      let success = false;
-      let freshConfig = updatedConfig;
-
-      try {
-        const response = await fetchWithRetry('/api/config', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            geofencingEnabled: settings.geofencingEnabled,
-            geofencingLatitude: settings.geofencingLatitude,
-            geofencingLongitude: settings.geofencingLongitude,
-            geofencingRadius: settings.geofencingRadius,
-            geofencingZones: settings.geofencingZones ?? '[]'
-          })
-        });
-        if (response.ok) {
-          const freshResponse = await response.json().catch(() => null);
-          if (freshResponse) {
-            freshConfig = { ...defaultParams, ...(freshResponse.config || updatedConfig) };
-            success = true;
-          }
-        } else {
-          console.warn('[appConfigService] POST /api/config returned status:', response.status);
-        }
-      } catch (err) {
-        console.warn('[appConfigService] POST /api/config request failed:', err);
-      }
-
-      if (!success) {
-        console.log('[appConfigService] Falling back to direct Supabase update for geofencing...');
-        await syncConfigToDatabase(updatedConfig);
-        freshConfig = updatedConfig;
-      }
-
-      currentConfig = freshConfig;
-      localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
-      localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
-      currentListeners.forEach(l => l(freshConfig));
-    } catch (error) {
-      throw error;
-    }
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
   },
 
   getConfig: async (): Promise<AppConfig> => {

@@ -4,6 +4,7 @@ import { UserService } from '../services/user.service';
 import { EmailService } from '../services/email.service';
 import { WhatsAppService } from '../services/whatsapp.service';
 import { OtpQueueService } from '../services/otpQueue';
+import { requireAdmin } from '../middleware/auth';
 import crypto from 'crypto';
 
 // Indian Phone Normalizer: Strip all non-digits, then if 11 digits starts with '0', strip it. If 12 digits starts with '91', strip it.
@@ -1102,8 +1103,8 @@ router.post('/verify-email-otp', async (req, res) => {
   }
 });
 
-// POST /reset-otp-limit - Reset rate limit for email or phone
-router.post('/reset-otp-limit', async (req, res) => {
+// POST /reset-otp-limit - Reset rate limit for email or phone (Admin only)
+router.post('/reset-otp-limit', requireAdmin, async (req, res) => {
   const { identifier } = req.body;
   if (!identifier) {
     return res.status(400).json({ error: 'Identifier (email or phone) is required.' });
@@ -1116,8 +1117,8 @@ router.post('/reset-otp-limit', async (req, res) => {
   }
 });
 
-// GET /otp-diagnostics - Diagnostic endpoint for real-time monitoring and abnormal traffic patterns
-router.get('/otp-diagnostics', (req, res) => {
+// GET /otp-diagnostics - Diagnostic endpoint for real-time monitoring and abnormal traffic patterns (Admin only)
+router.get('/otp-diagnostics', requireAdmin, (req, res) => {
   try {
     const diagnostics = OtpQueueService.getInstance().getDiagnostics();
     return res.json({ success: true, diagnostics });

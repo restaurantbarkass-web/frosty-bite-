@@ -2,16 +2,17 @@ import express, { Request, Response } from 'express';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../lib/supabase';
+import { ADMIN_EMAILS } from '../middleware/auth';
 
 const router = express.Router();
 
-// Basic rate limiting to protect the device event endpoint against flooding in serverless and proxy environments
+// Rate limiting for payment device event ingestion
 const paymentDeviceEventLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute window
-  max: 60, // Maximum 60 requests per minute per IP
+  windowMs: 60 * 1000,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  validate: false, // Prevent rate-limit proxy validation errors on Vercel
+  validate: false,
   keyGenerator: (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     if (typeof forwarded === 'string' && forwarded.length > 0) {
@@ -25,9 +26,10 @@ const paymentDeviceEventLimiter = rateLimit({
   }
 });
 
+// Rate limiting for creating payment attempts
 const paymentCreateAttemptLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute window
-  max: 30, // Maximum 30 requests per minute per IP
+  windowMs: 60 * 1000,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   validate: false,
@@ -44,12 +46,30 @@ const paymentCreateAttemptLimiter = rateLimit({
   }
 });
 
+// Rate limiting for customer status checks
+const paymentStatusLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  },
+  message: {
+    error: 'Too Many Requests',
+    message: 'Status check rate limit exceeded. Please slow down.'
+  }
+});
+
 /**
  * Constant-time bearer token comparison against FROSTYPAY_DEVICE_TOKEN.
- * Note: A future version may replace this shared token with per-device asymmetric signatures or individual device credentials.
  */
 function authenticateDeviceToken(req: Request, res: Response): boolean {
-  console.log('[PaymentDeviceEvent] authentication started');
   const expectedToken = process.env.FROSTYPAY_DEVICE_TOKEN;
 
   if (!expectedToken || typeof expectedToken !== 'string' || expectedToken.trim() === '') {
@@ -98,101 +118,68 @@ function authenticateDeviceToken(req: Request, res: Response): boolean {
  */
 function isCodOrCashPaymentMethod(paymentMethod?: string | null): boolean {
   if (!paymentMethod) return false;
-  const normalized = paymentMethod.trim().toLowerCase().replace(/[\s_-]+/g, '');
-  return ['cod', 'cash', 'cashondelivery', 'payondelivery'].includes(normalized);
+  const normalized = paymentMethod.trim().toLowerCase();
+  return (
+    normalized === 'cod' ||
+    normalized === 'cash' ||
+    normalized === 'cash on delivery' ||
+    normalized === 'cash_on_delivery' ||
+    normalized === 'cashondelivery' ||
+    normalized === 'pay on delivery' ||
+    normalized === 'pay_on_delivery'
+  );
 }
 
 /**
  * POST /api/payment/create-attempt
- * Creates or retrieves an active payment attempt for an order securely on the server side.
+ * Authoritatively creates or returns an existing active payment attempt for an order.
  */
 router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAttemptLimiter, async (req: Request, res: Response) => {
   try {
-    console.log('[CreatePaymentAttempt] route entered');
+    const rawOrderId = req.body?.order_id || req.body?.orderId || req.body?.id;
 
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    if (!rawOrderId || typeof rawOrderId !== 'string' || !rawOrderId.trim()) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Request body must be a valid JSON object.'
-      });
-    }
-
-    const rawOrderId = req.body.order_id || req.body.orderId;
-    if (typeof rawOrderId !== 'string' || rawOrderId.trim().length === 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'order_id is required.'
+        message: 'order_id is required and must be a non-empty string.'
       });
     }
 
     const cleanOrderId = rawOrderId.trim();
+    if (cleanOrderId.length > 100) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'order_id exceeds maximum permitted length.'
+      });
+    }
+
     const withoutPrefix = cleanOrderId.replace(/^FB-/i, '');
     const withPrefix = cleanOrderId.startsWith('FB-') ? cleanOrderId : `FB-${cleanOrderId}`;
 
-    // Retrieve authoritative order from server-side Supabase client (bypasses RLS safely)
-    let { data: orderList, error: orderFetchError } = await supabase
+    // Step 1: Authoritative Order Lookup in database ONLY (No client-side faking or upserting missing orders)
+    const { data: orders, error: orderFetchError } = await supabase
       .from('orders')
       .select('id, total, status, payment_status, payment_method, user_id, email, phone')
-      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`);
-
-    let order = orderList && orderList[0];
-
-    // Fallback: If order not found in DB but order_details is provided in req.body
-    if (!order && req.body.order_details) {
-      const details = req.body.order_details;
-      const fallbackTotal = Number(details.totalPrice || details.total || req.body.amount || 0);
-      if (fallbackTotal > 0) {
-        const newOrderObj = {
-          id: cleanOrderId,
-          total: fallbackTotal,
-          customer_name: details.name || details.customer_name || 'Customer',
-          phone: details.phone || '',
-          address: details.address || '',
-          payment_method: 'upi',
-          status: 'awaiting_payment',
-          payment_status: 'pending',
-          created_at: new Date().toISOString()
-        };
-        const { data: insertedOrder, error: insertErr } = await supabase
-          .from('orders')
-          .upsert(newOrderObj)
-          .select('id, total, status, payment_status, payment_method, user_id, email, phone')
-          .maybeSingle();
-
-        if (!insertErr && insertedOrder) {
-          order = insertedOrder;
-        } else if (insertErr) {
-          console.warn('[CreatePaymentAttempt] Server upsert fallback warning:', insertErr.message);
-        }
-      }
-    }
+      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`)
+      .limit(1);
 
     if (orderFetchError) {
       console.error('[CreatePaymentAttempt] Error fetching order:', orderFetchError.message);
+      return res.status(500).json({
+        error: 'Database Error',
+        message: 'Failed to look up order details.'
+      });
     }
 
+    const order = orders && orders[0];
     if (!order) {
-      const reqAmount = Number(req.body.amount || req.body.total || req.body.totalPrice);
-      if (!isNaN(reqAmount) && reqAmount > 0) {
-        order = {
-          id: cleanOrderId,
-          total: reqAmount,
-          status: 'awaiting_payment',
-          payment_status: 'pending',
-          payment_method: 'upi',
-          user_id: null,
-          email: null,
-          phone: null
-        };
-      } else {
-        return res.status(404).json({
-          error: 'Not Found',
-          message: `Order #${cleanOrderId} not found.`
-        });
-      }
+      return res.status(404).json({
+        error: 'Not Found',
+        message: `Order #${cleanOrderId} not found.`
+      });
     }
 
-    // Validation 1: Order status checks
+    // Step 2: Validate Order Status
     const normalizedStatus = (order.status || '').trim().toLowerCase();
     if (normalizedStatus === 'cancelled') {
       return res.status(400).json({
@@ -207,7 +194,7 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    // Validation 2: Payment status check
+    // Step 3: Validate Payment Status
     const normalizedPaymentStatus = (order.payment_status || '').trim().toLowerCase();
     if (normalizedPaymentStatus === 'paid' || normalizedStatus === 'confirmed') {
       return res.status(400).json({
@@ -216,17 +203,15 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    // Validation 3: Payment method check (if COD/Cash, automatically convert to UPI when initiating online payment attempt)
+    // Step 4: Strict Payment Method Check (COD protection)
     if (isCodOrCashPaymentMethod(order.payment_method)) {
-      console.log(`[CreatePaymentAttempt] Order #${cleanOrderId} has COD/Cash payment method. Converting to 'upi' for online payment attempt.`);
-      await supabase
-        .from('orders')
-        .update({ payment_method: 'upi' })
-        .eq('id', cleanOrderId);
-      order.payment_method = 'upi';
+      return res.status(400).json({
+        error: 'Invalid Payment Method',
+        message: 'Payment attempts are only allowed for online/UPI payments.'
+      });
     }
 
-    // Validation 4: Derive authoritative amount in paise from orders.total
+    // Step 5: Derive authoritative amount in paise strictly from order.total
     const totalAmount = Number(order.total);
     if (isNaN(totalAmount) || totalAmount <= 0) {
       return res.status(400).json({
@@ -237,40 +222,55 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
 
     const amount_paise = Math.round(totalAmount * 100);
 
-    // Authorization check: If a bearer token is present in headers, verify user matches order.user_id (if set)
+    // Step 6: Authorization Verification
     const authHeader = req.headers.authorization;
+    const isRegisteredOrder = !!(order.user_id && !order.user_id.startsWith('guest_'));
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
-      if (token && token.length > 10) {
-        try {
-          const { data: authData } = await supabase.auth.getUser(token);
-          if (authData?.user) {
-            const authUserId = authData.user.id;
-            const authEmail = authData.user.email;
-            if (order.user_id && !order.user_id.startsWith('guest_') && order.user_id !== authUserId && order.email !== authEmail) {
-              return res.status(403).json({
-                error: 'Forbidden',
-                message: 'You are not authorized to create a payment attempt for this order.'
-              });
-            }
-          }
-        } catch (authErr) {
-          console.warn('[CreatePaymentAttempt] Token verification warning:', authErr);
-        }
+      if (!token || token === 'null' || token === 'undefined') {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or missing bearer token.'
+        });
       }
+
+      const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+      if (authErr || !authData?.user) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or expired authentication token.'
+        });
+      }
+
+      const authUser = authData.user;
+      const isUserAdmin = ADMIN_EMAILS.includes(authUser.email?.toLowerCase() || '');
+
+      if (isRegisteredOrder && !isUserAdmin && order.user_id !== authUser.id && order.email?.toLowerCase() !== authUser.email?.toLowerCase()) {
+        return res.status(403).json({
+          error: 'Forbidden',
+          message: 'You are not authorized to create a payment attempt for this order.'
+        });
+      }
+    } else if (isRegisteredOrder) {
+      // Unauthenticated request attempting to create attempt for an authenticated customer's order
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required for registered customer order.'
+      });
     }
 
-    // Step 5: Check for existing active waiting attempt (Idempotency)
+    // Step 7: Idempotency Check - Active waiting attempt
     const nowMs = Date.now();
     const { data: existingAttempts, error: attemptFetchError } = await supabase
       .from('payment_attempts')
       .select('id, order_id, amount_paise, status, expires_at, created_at')
-      .eq('order_id', cleanOrderId)
+      .or(`order_id.eq.${order.id},order_id.eq.${withPrefix},order_id.eq.${withoutPrefix}`)
       .eq('status', 'waiting')
       .order('created_at', { ascending: false });
 
     if (attemptFetchError) {
-      console.error('[CreatePaymentAttempt] Error fetching existing attempts:', attemptFetchError.message);
+      console.error('[CreatePaymentAttempt] Error querying existing attempts:', attemptFetchError.message);
     }
 
     const activeAttempt = (existingAttempts || []).find((att) => {
@@ -279,7 +279,6 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
     });
 
     if (activeAttempt) {
-      console.log(`[CreatePaymentAttempt] Returning existing active waiting attempt ${activeAttempt.id} for order ${cleanOrderId}`);
       return res.status(200).json({
         success: true,
         payment_attempt: {
@@ -293,142 +292,132 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    // Step 6: Create fresh payment attempt (expires in 6 minutes)
+    // Step 8: Create fresh payment attempt (expires in 6 minutes)
     const createdAtDate = new Date();
     const expiresAtDate = new Date(createdAtDate.getTime() + 6 * 60 * 1000);
 
     const newAttemptObj = {
-      order_id: cleanOrderId,
+      order_id: order.id,
       amount_paise,
       status: 'waiting',
+      expires_at: expiresAtDate.toISOString(),
       created_at: createdAtDate.toISOString(),
-      expires_at: expiresAtDate.toISOString()
+      updated_at: createdAtDate.toISOString()
     };
 
-    const { data: createdAttempt, error: createError } = await supabase
+    const { data: insertedAttempt, error: insertError } = await supabase
       .from('payment_attempts')
       .insert(newAttemptObj)
-      .select('id, order_id, amount_paise, status, created_at, expires_at')
+      .select('id, order_id, amount_paise, status, expires_at, created_at')
       .single();
 
-    if (createError) {
-      console.error('[CreatePaymentAttempt] Error inserting payment attempt:', createError.message);
+    if (insertError) {
+      // Check if another concurrent request created the attempt
+      const { data: raceAttempt } = await supabase
+        .from('payment_attempts')
+        .select('id, order_id, amount_paise, status, expires_at, created_at')
+        .eq('order_id', order.id)
+        .eq('status', 'waiting')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      // Handle race condition: check again if a waiting attempt was created concurrently
-      if (createError.code === '23505' || createError.message?.includes('unique') || createError.message?.includes('duplicate')) {
-        const { data: raceAttempt } = await supabase
-          .from('payment_attempts')
-          .select('id, order_id, amount_paise, status, created_at, expires_at')
-          .eq('order_id', cleanOrderId)
-          .eq('status', 'waiting')
-          .order('created_at', { ascending: false })
-          .maybeSingle();
-
-        if (raceAttempt) {
-          return res.status(200).json({
-            success: true,
-            payment_attempt: {
-              id: raceAttempt.id,
-              order_id: raceAttempt.order_id,
-              amount_paise: Number(raceAttempt.amount_paise),
-              status: raceAttempt.status,
-              created_at: raceAttempt.created_at,
-              expires_at: raceAttempt.expires_at
-            }
-          });
-        }
+      if (raceAttempt) {
+        return res.status(200).json({
+          success: true,
+          payment_attempt: {
+            id: raceAttempt.id,
+            order_id: raceAttempt.order_id,
+            amount_paise: Number(raceAttempt.amount_paise),
+            status: raceAttempt.status,
+            created_at: raceAttempt.created_at,
+            expires_at: raceAttempt.expires_at
+          }
+        });
       }
 
+      console.error('[CreatePaymentAttempt] Error inserting payment attempt:', insertError.message);
       return res.status(500).json({
-        error: 'Unable to create payment attempt'
+        error: 'Database Error',
+        message: 'Failed to create payment attempt.'
       });
     }
 
-    console.log(`[CreatePaymentAttempt] Successfully created attempt ${createdAttempt.id} for order ${cleanOrderId}`);
-    return res.status(200).json({
+    return res.status(201).json({
       success: true,
       payment_attempt: {
-        id: createdAttempt.id,
-        order_id: createdAttempt.order_id,
-        amount_paise: Number(createdAttempt.amount_paise),
-        status: createdAttempt.status,
-        created_at: createdAttempt.created_at,
-        expires_at: createdAttempt.expires_at
+        id: insertedAttempt.id,
+        order_id: insertedAttempt.order_id,
+        amount_paise: Number(insertedAttempt.amount_paise),
+        status: insertedAttempt.status,
+        created_at: insertedAttempt.created_at,
+        expires_at: insertedAttempt.expires_at
       }
     });
   } catch (err: any) {
-    console.error('[CreatePaymentAttempt] Unexpected error:', err?.message || String(err));
+    console.error('[CreatePaymentAttempt] Unexpected error:', err?.message || err);
     return res.status(500).json({
-      error: 'Unable to create payment attempt'
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred while creating payment attempt.'
     });
   }
 });
 
 /**
  * POST /api/payment/device-event
- * Receives payment detection notifications from the FrostyPay Android Verifier and performs server-side matching against eligible orders.
+ * Ingests incoming Android FrostyPay payment notification detection events.
  */
 router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLimiter, async (req: Request, res: Response) => {
   try {
-    console.log('[PaymentDeviceEvent] route entered');
-
-    // Step 1: Validate Device Authentication Token
+    // Step 1: Authenticate with constant-time token comparison
     if (!authenticateDeviceToken(req, res)) {
       return;
     }
 
-    // Step 2: Validate Input Structure and Types
-    console.log('[PaymentDeviceEvent] validation started');
-    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Request body must be a valid JSON object.'
-      });
-    }
-
+    // Step 2: Validate payload fields
     const {
       amount_paise,
-      upi_reference,
-      transaction_time,
-      source_package,
-      source_type,
+      event_id,
       device_id,
-      event_id
-    } = req.body;
+      source_type,
+      upi_reference,
+      source_package,
+      transaction_time
+    } = req.body || {};
 
-    // Validate amount_paise: required integer > 0
-    if (typeof amount_paise !== 'number' || !Number.isInteger(amount_paise) || amount_paise <= 0) {
+    if (
+      amount_paise === undefined ||
+      typeof amount_paise !== 'number' ||
+      !Number.isInteger(amount_paise) ||
+      amount_paise <= 0
+    ) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'amount_paise is required and must be a positive integer.'
+        message: 'amount_paise must be a positive integer.'
       });
     }
 
-    // Validate device_id: required string <= 128
-    if (typeof device_id !== 'string' || device_id.trim().length === 0 || device_id.trim().length > 128) {
+    if (!event_id || typeof event_id !== 'string' || !event_id.trim() || event_id.trim().length > 128) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'device_id is required (string, max 128 characters).'
+        message: 'event_id is required and must be a string with maximum 128 characters.'
       });
     }
 
-    // Validate source_type: required string <= 64
-    if (typeof source_type !== 'string' || source_type.trim().length === 0 || source_type.trim().length > 64) {
+    if (!device_id || typeof device_id !== 'string' || !device_id.trim() || device_id.trim().length > 128) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'source_type is required (string, max 64 characters).'
+        message: 'device_id is required and must be a string with maximum 128 characters.'
       });
     }
 
-    // Validate event_id: required unique string <= 128
-    if (typeof event_id !== 'string' || event_id.trim().length === 0 || event_id.trim().length > 128) {
+    if (!source_type || typeof source_type !== 'string' || !source_type.trim() || source_type.trim().length > 64) {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'event_id is required (string, max 128 characters).'
+        message: 'source_type is required and must be a string with maximum 64 characters.'
       });
     }
 
-    // Validate upi_reference (optional string <= 128)
     let trimmedUpi: string | null = null;
     if (upi_reference !== undefined && upi_reference !== null) {
       if (typeof upi_reference !== 'string' || upi_reference.trim().length > 128) {
@@ -440,7 +429,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       trimmedUpi = upi_reference.trim() || null;
     }
 
-    // Validate source_package (optional string <= 256)
     let trimmedSourcePkg: string | null = null;
     if (source_package !== undefined && source_package !== null) {
       if (typeof source_package !== 'string' || source_package.trim().length > 256) {
@@ -452,7 +440,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       trimmedSourcePkg = source_package.trim() || null;
     }
 
-    // Validate transaction_time (optional valid ISO date)
     let transactionTimeIso: string = new Date().toISOString();
     if (transaction_time !== undefined && transaction_time !== null) {
       if (typeof transaction_time !== 'string') {
@@ -475,8 +462,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
     const cleanDeviceId = device_id.trim();
     const cleanSourceType = source_type.trim();
 
-    console.log('[PaymentDeviceEvent] Supabase lookup started');
-
     // Step 3: Idempotency check on event_id
     const { data: existingEvent, error: eventCheckError } = await supabase
       .from('payment_verification_events')
@@ -485,7 +470,7 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       .maybeSingle();
 
     if (eventCheckError) {
-      console.error('[PaymentDeviceEvent] Error querying payment_verification_events for event_id:', eventCheckError.message);
+      console.error('[PaymentDeviceEvent] Error querying event_id:', eventCheckError.message);
       return res.status(500).json({
         error: 'Database Error',
         message: 'Failed to verify event idempotency.'
@@ -493,7 +478,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
     }
 
     if (existingEvent) {
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         duplicate: true,
@@ -510,7 +494,7 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         .maybeSingle();
 
       if (upiCheckError) {
-        console.error('[PaymentDeviceEvent] Error querying payment_verification_events for upi_reference:', upiCheckError.message);
+        console.error('[PaymentDeviceEvent] Error querying upi_reference:', upiCheckError.message);
         return res.status(500).json({
           error: 'Database Error',
           message: 'Failed to verify UPI reference idempotency.'
@@ -518,7 +502,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       }
 
       if (existingUpi) {
-        console.log('[PaymentDeviceEvent] completed');
         return res.status(200).json({
           success: true,
           duplicate: true,
@@ -554,7 +537,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       return new Date(att.expires_at).getTime() <= now;
     });
 
-    // If no active attempts exist, check whether there were expired attempts or none at all
     if (activeAttempts.length === 0) {
       const matchReason = expiredAttempts.length > 0 ? 'verification_expired' : 'no_eligible_order';
 
@@ -571,7 +553,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         match_reason: matchReason
       });
 
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         matched: false,
@@ -579,7 +560,7 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       });
     }
 
-    // Step 6 & 7: Fetch candidate orders and perform strict monetary and status validation
+    // Step 6: Fetch candidate orders and perform strict monetary and status validation
     const candidateOrderIds = Array.from(new Set(activeAttempts.map((a) => a.order_id).filter(Boolean)));
 
     if (candidateOrderIds.length === 0) {
@@ -596,7 +577,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         match_reason: 'no_eligible_order'
       });
 
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         matched: false,
@@ -657,8 +637,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       validCandidates.push({ attempt, order });
     }
 
-    // Step 8: Evaluate Candidate Matches
-
     // Case A: No valid eligible candidate orders
     if (validCandidates.length === 0) {
       const matchReason = expiredAttempts.length > 0 ? 'verification_expired' : 'no_eligible_order';
@@ -676,7 +654,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         match_reason: matchReason
       });
 
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         matched: false,
@@ -697,11 +674,10 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         transaction_time: transactionTimeIso,
         device_id: cleanDeviceId,
         matched: false,
-        processed: false, // Mark processed=false for audit and potential manual administrative review
+        processed: false,
         match_reason: 'ambiguous_amount'
       });
 
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         matched: false,
@@ -722,7 +698,7 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         updated_at: nowIso
       })
       .eq('id', matchedCandidate.attempt.id)
-      .eq('status', 'waiting') // Concurrency guard
+      .eq('status', 'waiting')
       .select()
       .maybeSingle();
 
@@ -743,7 +719,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
         match_reason: 'attempt_already_transitioned'
       });
 
-      console.log('[PaymentDeviceEvent] completed');
       return res.status(200).json({
         success: true,
         matched: false,
@@ -804,8 +779,6 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       match_reason: 'matched_single_order'
     });
 
-    console.log('[PaymentDeviceEvent] completed');
-
     return res.status(200).json({
       success: true,
       matched: true,
@@ -814,34 +787,12 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
     });
   } catch (err: any) {
     console.error('[PaymentDeviceEvent] Error occurred:', err?.name || 'Error', err?.message || String(err));
-    if (err?.stack) {
-      console.error('[PaymentDeviceEvent] Stack trace:', err.stack);
-    }
     if (!res.headersSent) {
       return res.status(500).json({
         error: 'Internal Server Error',
         message: 'An unexpected error occurred while processing the payment device event.'
       });
     }
-  }
-});
-
-const paymentStatusLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120, // Allow up to 120 status checks per minute per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  keyGenerator: (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.length > 0) {
-      return forwarded.split(',')[0].trim();
-    }
-    return req.ip || req.socket?.remoteAddress || '127.0.0.1';
-  },
-  message: {
-    error: 'Too Many Requests',
-    message: 'Status check rate limit exceeded. Please slow down.'
   }
 });
 
@@ -864,11 +815,11 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
     const withoutPrefix = cleanOrderId.replace(/^FB-/i, '');
     const withPrefix = cleanOrderId.startsWith('FB-') ? cleanOrderId : `FB-${cleanOrderId}`;
 
-    // Query order from database safely using server service role client
     const { data: orders, error: orderErr } = await supabase
       .from('orders')
       .select('id, total, status, payment_status, updated_at, user_id, payment_method')
-      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`);
+      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`)
+      .limit(1);
 
     if (orderErr) {
       console.error('[PaymentStatus] Database error fetching order:', orderErr.message);
@@ -876,7 +827,6 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
 
     const order = orders && orders[0];
 
-    // Query active or recent payment attempt
     const { data: attempt } = await supabase
       .from('payment_attempts')
       .select('id, status, expires_at, matched_at')
@@ -893,19 +843,34 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
       });
     }
 
-    // Optional auth check for registered non-guest user orders
+    // Authorization check for registered non-guest user orders
     if (order && order.user_id && !order.user_id.startsWith('guest_')) {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7).trim();
-        const { data: authData } = await supabase.auth.getUser(token);
-        if (authData?.user && authData.user.id !== order.user_id) {
+        const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+        if (authErr || !authData?.user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Unauthorized',
+            message: 'Invalid or expired authorization token.'
+          });
+        }
+        const authUserId = authData.user.id;
+        const isUserAdmin = ADMIN_EMAILS.includes(authData.user.email?.toLowerCase() || '');
+        if (!isUserAdmin && authUserId !== order.user_id) {
           return res.status(403).json({
             success: false,
             error: 'Forbidden',
             message: 'You are not authorized to access this order status.'
           });
         }
+      } else {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Authentication required to check status of registered customer order.'
+        });
       }
     }
 

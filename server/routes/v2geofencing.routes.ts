@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { V2GeofencingService } from '../services/v2Geofencing.service';
+import { requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -15,7 +16,7 @@ router.get(['/service-area', '/service-areas', '/geofencing/service-area', '/geo
   }
 });
 
-router.patch(['/service-area', '/service-areas', '/geofencing/service-area', '/geofencing/service-areas'], async (req: Request, res: Response) => {
+router.patch(['/service-area', '/service-areas', '/geofencing/service-area', '/geofencing/service-areas'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const updated = await V2GeofencingService.updateServiceArea(req.body);
     res.json(updated);
@@ -36,7 +37,7 @@ router.get(['/cities', '/geofencing/cities'], async (req: Request, res: Response
   }
 });
 
-router.post(['/cities', '/geofencing/cities'], async (req: Request, res: Response) => {
+router.post(['/cities', '/geofencing/cities'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const { name, state, country, is_active, boundary } = req.body;
     if (!name || typeof name !== 'string' || !name.trim()) {
@@ -46,11 +47,11 @@ router.post(['/cities', '/geofencing/cities'], async (req: Request, res: Respons
     res.status(201).json(created);
   } catch (err: any) {
     console.error('Error creating city:', err);
-    res.status(400).json({ error: err.message || 'Failed to create city', details: err.stack });
+    res.status(400).json({ error: err.message || 'Failed to create city' });
   }
 });
 
-router.patch(['/cities/:id', '/geofencing/cities/:id'], async (req: Request, res: Response) => {
+router.patch(['/cities/:id', '/geofencing/cities/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updateCity(id, req.body);
@@ -60,7 +61,7 @@ router.patch(['/cities/:id', '/geofencing/cities/:id'], async (req: Request, res
   }
 });
 
-router.delete(['/cities/:id', '/geofencing/cities/:id'], async (req: Request, res: Response) => {
+router.delete(['/cities/:id', '/geofencing/cities/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deleteCity(id);
@@ -83,7 +84,7 @@ router.get(['/pincodes', '/geofencing/pincodes'], async (req: Request, res: Resp
   }
 });
 
-router.post(['/pincodes', '/geofencing/pincodes'], async (req: Request, res: Response) => {
+router.post(['/pincodes', '/geofencing/pincodes'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const { city_id, pincode, is_active, boundary } = req.body;
     if (!city_id || !pincode) {
@@ -96,17 +97,17 @@ router.post(['/pincodes', '/geofencing/pincodes'], async (req: Request, res: Res
   }
 });
 
-router.patch(['/pincodes/:id', '/geofencing/pincodes/:id'], async (req: Request, res: Response) => {
+router.patch(['/pincodes/:id', '/geofencing/pincodes/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updatePincode(id, req.body);
     res.json(updated);
   } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Failed to update pincode' });
+    res.status(400).json({ error: 'Failed to update pincode' });
   }
 });
 
-router.delete(['/pincodes/:id', '/geofencing/pincodes/:id'], async (req: Request, res: Response) => {
+router.delete(['/pincodes/:id', '/geofencing/pincodes/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deletePincode(id);
@@ -130,7 +131,7 @@ router.get(['/localities', '/geofencing/localities'], async (req: Request, res: 
   }
 });
 
-router.post(['/localities', '/geofencing/localities'], async (req: Request, res: Response) => {
+router.post(['/localities', '/geofencing/localities'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const { city_id, pincode_id, name, is_active, delivery_fee, minimum_order, estimated_delivery_minutes, boundary } = req.body;
     if (!city_id || !name) {
@@ -148,27 +149,27 @@ router.post(['/localities', '/geofencing/localities'], async (req: Request, res:
     });
     res.status(201).json(created);
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to create locality', details: err.message });
+    res.status(400).json({ error: err.message || 'Failed to create locality' });
   }
 });
 
-router.patch(['/localities/:id', '/geofencing/localities/:id'], async (req: Request, res: Response) => {
+router.patch(['/localities/:id', '/geofencing/localities/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const updated = await V2GeofencingService.updateLocality(id, req.body);
     res.json(updated);
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to update locality', details: err.message });
+    res.status(400).json({ error: 'Failed to update locality' });
   }
 });
 
-router.delete(['/localities/:id', '/geofencing/localities/:id'], async (req: Request, res: Response) => {
+router.delete(['/localities/:id', '/geofencing/localities/:id'], requireAdmin, async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     await V2GeofencingService.deleteLocality(id);
     res.json({ success: true, message: `Locality ${id} deleted` });
   } catch (err: any) {
-    res.status(400).json({ error: 'Failed to delete locality', details: err.message });
+    res.status(400).json({ error: 'Failed to delete locality' });
   }
 });
 
