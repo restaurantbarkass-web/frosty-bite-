@@ -139,20 +139,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getAuthToken = useCallback(async (): Promise<string | null> => {
     let token: string | null = null;
+    // 1. Authoritative primary: Supabase session access token for backend auth
     try {
-      const fbUser = fbAuth.currentUser;
-      if (fbUser) {
-        token = await fbUser.getIdToken();
-      }
-    } catch (fbErr) {
-      console.warn('[UnifiedAuth] getAuthToken: Firebase token retrieval failed:', fbErr);
+      const { data } = await supabase.auth.getSession();
+      token = data.session?.access_token || null;
+    } catch (sbErr) {
+      console.warn('[UnifiedAuth] getAuthToken: Supabase token retrieval failed:', sbErr);
     }
+    // 2. Secondary fallback: Firebase token
     if (!token) {
       try {
-        const { data } = await supabase.auth.getSession();
-        token = data.session?.access_token || null;
-      } catch (sbErr) {
-        console.warn('[UnifiedAuth] getAuthToken: Supabase token retrieval failed:', sbErr);
+        const fbUser = fbAuth.currentUser;
+        if (fbUser) {
+          token = await fbUser.getIdToken();
+        }
+      } catch (fbErr) {
+        console.warn('[UnifiedAuth] getAuthToken: Firebase token retrieval failed:', fbErr);
       }
     }
     if (token) {

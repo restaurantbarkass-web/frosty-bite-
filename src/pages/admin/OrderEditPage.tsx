@@ -122,21 +122,24 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
     const finalReason = cancellationReason.trim();
 
-    const updatePayload = {
+    let finalAddress = address;
+    if (orderType === 'pickup' && !finalAddress.includes('[IN-STORE PICKUP]')) {
+      finalAddress = `[IN-STORE PICKUP] ${finalAddress}`.trim();
+    }
+
+    const updatePayload: any = {
       customer_name: customerName,
-      customerName: customerName,
       phone: phone,
       email: email,
-      address: address,
+      address: finalAddress,
       notes: notes,
-      order_type: orderType,
       status: status,
       payment_status: paymentStatus,
       payment_method: paymentMethod,
-      utr: utr,
-      estimated_delivery_time: estimatedDeliveryTime,
+      utr: utr || null,
+      estimated_delivery_time: estimatedDeliveryTime ? String(estimatedDeliveryTime) : (orderType === 'pickup' ? 'Ready for pickup in 20-30 mins' : '30 mins'),
       cancellation_reason: status === 'cancelled' ? finalReason : null,
-      delivery_charge: deliveryCharge,
+      delivery_charge: orderType === 'pickup' ? 0 : deliveryCharge,
       discount: discount,
       subtotal: computedSubtotal,
       total: computedTotal,
@@ -150,10 +153,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
         await supabaseService.cancelOrder(order.id, finalReason || 'Cancelled via Order Edit Page', 'admin', 'admin');
       }
 
-      const { error } = await supabaseService.updateData('orders', order.id, updatePayload);
-      if (error) {
-        throw new Error(error.message || 'Failed to update order in database');
-      }
+      await supabaseService.updateData('orders', order.id, updatePayload);
 
       toast.success('Order details updated successfully!');
       setHasChanges(false);

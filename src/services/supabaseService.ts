@@ -155,10 +155,26 @@ export const supabaseService = {
 
   // Generic Update
   async updateData(table: string, id: string, data: any, idField: string = 'id') {
+    let payload = data;
+    if (table === 'orders' && payload && typeof payload === 'object') {
+      // Remove any virtual / non-column properties that might cause Postgres 42703 schema errors
+      const sanitized = { ...payload };
+      delete sanitized.order_type;
+      delete sanitized.customerName;
+      delete sanitized.cake_message;
+      delete sanitized.cake_occasion;
+      delete sanitized.cake_candle_knife;
+      delete sanitized.is_scheduled;
+      delete sanitized.delivery_date;
+      delete sanitized.delivery_time;
+      delete sanitized.delivery_time_slot;
+      payload = sanitized;
+    }
+
     try {
       const { data: result, error } = await supabase
         .from(table)
-        .update(data)
+        .update(payload)
         .eq(idField, id)
         .select();
       if (error) throw error;
@@ -177,8 +193,13 @@ export const supabaseService = {
       if (isSchemaError && table === 'orders') {
         console.warn('[SupabaseService] Order update failed due to schema difference, retrying basic fields...', firstError?.message);
         const minimalUpdate: any = {};
-        if (data.status) minimalUpdate.status = data.status;
-        if (data.payment_status) minimalUpdate.payment_status = data.payment_status;
+        if (payload.status) minimalUpdate.status = payload.status;
+        if (payload.payment_status) minimalUpdate.payment_status = payload.payment_status;
+        if (payload.customer_name) minimalUpdate.customer_name = payload.customer_name;
+        if (payload.phone) minimalUpdate.phone = payload.phone;
+        if (payload.address) minimalUpdate.address = payload.address;
+        if (payload.notes) minimalUpdate.notes = payload.notes;
+        if (payload.updated_at) minimalUpdate.updated_at = payload.updated_at;
 
         if (Object.keys(minimalUpdate).length > 0) {
           try {
@@ -187,14 +208,14 @@ export const supabaseService = {
               .update(minimalUpdate)
               .eq(idField, id)
               .select();
-            if (!err2) return res2 && res2[0];
+            if (!err2 && res2 && res2[0]) return res2[0];
           } catch (e) {}
         }
       }
 
       if (table === 'orders') {
         console.warn('[SupabaseService] Order update local fallback applied');
-        return data;
+        return payload;
       }
 
       throw this.handleError(firstError);
