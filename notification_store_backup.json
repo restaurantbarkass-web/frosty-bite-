@@ -1,0 +1,188 @@
+{
+  "subscriptions": [
+    {
+      "id": "128a4690-8eea-43ec-bf4a-e04382e3c756",
+      "user_id": "PaydsEljixWjJnEBNJORLozgnPD3",
+      "guest_session_id": "guest_1788076634377_95kb9w1xh",
+      "device_token": "dOz-K-ys_vyRMoXzrsegR-:APA91bHus4laVbkwcJlr-QF-GrtYygp40cPs7UDOVpTZ3Ap0a_BagG-lZQeDdJ4XGu1FO8doVSVeFKU48XIWtLRXriRXBCLE3mCpAiZHqwMuTWqj8OvM214",
+      "platform": "web",
+      "browser": "Chrome",
+      "device_name": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+      "is_active": true,
+      "permission_status": "granted",
+      "last_seen_at": "2026-09-01T04:17:01.278Z",
+      "created_at": "2026-09-01T04:17:01.278Z",
+      "updated_at": "2026-09-01T04:17:01.278Z"
+    }
+  ],
+  "events": [],
+  "preferences": [],
+  "templates": [
+    {
+      "id": "tpl-confirmed",
+      "notification_type": "order_confirmed",
+      "title_template": "Order Confirmed 🍰",
+      "body_template": "Your sweet order #{{order_id}} is confirmed! Our bakers are getting ready.",
+      "emoji": "🍰",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-preparing",
+      "notification_type": "order_preparing",
+      "title_template": "Your order is being prepared 👨‍🍳",
+      "body_template": "Our bakers are whipping up something delicious for order #{{order_id}} with love.",
+      "emoji": "👨‍🍳",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-almost-ready",
+      "notification_type": "order_almost_ready",
+      "title_template": "Almost Ready ✨",
+      "body_template": "Your order #{{order_id}} is almost ready. Just adding the finishing sweet touches…",
+      "emoji": "✨",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-ready",
+      "notification_type": "order_ready",
+      "title_template": "Your order is ready! 🎂",
+      "body_template": "Your order #{{order_id}} is packed and ready. Your sweet moment awaits!",
+      "emoji": "🎂",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-out-for-delivery",
+      "notification_type": "order_out_for_delivery",
+      "title_template": "Out for Delivery 🛵",
+      "body_template": "Your sweet surprise for order #{{order_id}} is on its way to you!",
+      "emoji": "🛵",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-near-you",
+      "notification_type": "order_near_you",
+      "title_template": "Almost there! 📍",
+      "body_template": "Rider is almost at your doorstep with order #{{order_id}}.",
+      "emoji": "📍",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-delivered",
+      "notification_type": "order_delivered",
+      "title_template": "Delivered! 🤍",
+      "body_template": "Order #{{order_id}} has arrived! We hope every bite makes you smile.",
+      "emoji": "🤍",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-cancelled",
+      "notification_type": "order_cancelled",
+      "title_template": "Order Cancelled",
+      "body_template": "Order #{{order_id}} was cancelled: {{reason}}",
+      "emoji": "❌",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-refund",
+      "notification_type": "order_refund",
+      "title_template": "Refund Initiated 💳",
+      "body_template": "Your refund for order #{{order_id}} of ₹{{amount}} has been initiated.",
+      "emoji": "💳",
+      "deep_link": "/order-tracking/{{order_id}}",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-3d",
+      "notification_type": "reengagement_3d",
+      "title_template": "Something sweet is missing… 🍰",
+      "body_template": "We think it might be you! Come taste what is freshly baked today.",
+      "emoji": "🍰",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-5d",
+      "notification_type": "reengagement_5d",
+      "title_template": "Your dessert cravings called ✨",
+      "body_template": "We answered! Explore our chef special pastries and cakes.",
+      "emoji": "✨",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-7d",
+      "notification_type": "reengagement_7d",
+      "title_template": "It has been a little while! 🎂",
+      "body_template": "Your next sweet moment is waiting. Grab your favourite slice today.",
+      "emoji": "🎂",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-10d",
+      "notification_type": "reengagement_10d",
+      "title_template": "No pressure… but your cake misses you 💕",
+      "body_template": "Treat yourself to something warm and delicious from Frosty Bite.",
+      "emoji": "💕",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-14d",
+      "notification_type": "reengagement_14d",
+      "title_template": "We haven’t seen you lately 👀",
+      "body_template": "Should we tempt you with something delicious today?",
+      "emoji": "👀",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    },
+    {
+      "id": "tpl-reengage-21d",
+      "notification_type": "reengagement_21d",
+      "title_template": "New cravings unlocked! 🍓",
+      "body_template": "Come see what is fresh in our bakery ovens this week.",
+      "emoji": "🍓",
+      "deep_link": "/",
+      "is_active": true,
+      "created_at": "2026-09-01T04:16:43.057Z",
+      "updated_at": "2026-09-01T04:16:43.057Z"
+    }
+  ],
+  "updated_at": "2026-09-01T04:17:01.548Z"
+}
