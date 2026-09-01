@@ -108,6 +108,7 @@ export const UPICheckout: React.FC = () => {
   // Synchronized refs to avoid stale closures and prevent timer/polling teardowns on re-renders
   const expiresAtMsRef = useRef<number | null>(expiresAtMs);
   const paymentStateRef = useRef<PaymentState>(paymentState);
+  const orderDetailsRef = useRef<any>(orderDetails);
 
   useEffect(() => {
     expiresAtMsRef.current = expiresAtMs;
@@ -116,6 +117,10 @@ export const UPICheckout: React.FC = () => {
   useEffect(() => {
     paymentStateRef.current = paymentState;
   }, [paymentState]);
+
+  useEffect(() => {
+    orderDetailsRef.current = orderDetails;
+  }, [orderDetails]);
 
   // Check prefers-reduced-motion
   useEffect(() => {
@@ -145,7 +150,7 @@ export const UPICheckout: React.FC = () => {
 
     try {
       // Step A: Fetch order from database to inspect owner user_id
-      let currentOrder = orderDetails;
+      let currentOrder = orderDetailsRef.current;
       let dbOrder: any = null;
       try {
         const { data } = await supabase
@@ -443,7 +448,7 @@ export const UPICheckout: React.FC = () => {
       setErrorMessage(err.message || 'Unexpected initialization error.');
       setPaymentState('ERROR');
     }
-  }, [effectiveOrderId, navigate, orderDetails, authStatus, authLoading]);
+  }, [effectiveOrderId, navigate, authStatus, authLoading]);
 
   useEffect(() => {
     initializePaymentSession();
