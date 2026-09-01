@@ -77,7 +77,7 @@ export const UPICheckout: React.FC = () => {
   const effectiveOrderId = useMemo(() => cleanOrderIdString(rawOrderId), [rawOrderId]);
 
   const { cart, clearCart } = useCart();
-  const { user, authStatus, loading: authLoading, openAuthModal } = useAuth();
+  const { user, authStatus, loading: authLoading, openAuthModal, getAuthToken } = useAuth();
   const { addNotification } = useNotifications();
 
   // Core Payment State
@@ -182,48 +182,20 @@ export const UPICheckout: React.FC = () => {
       // Step B: Determine order type path based on database state
       const isRegisteredOrder = !!(dbOrder && dbOrder.user_id && !dbOrder.user_id.startsWith('guest_'));
 
-      // Step C: Retrieve fresh active token and refresh if near expiry (Registered path only)
-      let sessionPresent = false;
+      // Step C: Retrieve fresh active token (Supabase or Firebase) via unified AuthContext
+      let sessionPresent = authStatus === 'authenticated';
       let accessTokenPresent = false;
-      let safeUserId = '';
+      let safeUserId = user?.uid || '';
       let authHeader: Record<string, string> = {};
 
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        let session = sessionData?.session;
-        if (session) {
-          sessionPresent = true;
-          safeUserId = session.user?.id || '';
-
-          // Validate token and check expiration
-          try {
-            const tokenParts = session.access_token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              const expiresAtMs = payload.exp * 1000;
-              const bufferMs = 60 * 1000; // 1 minute buffer
-              if (expiresAtMs - Date.now() < bufferMs) {
-                console.log('[UPICheckout] Session token near expiry. Initiating proactive refresh...');
-                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-                if (!refreshError && refreshData?.session) {
-                  session = refreshData.session;
-                  console.log('[UPICheckout] Session successfully refreshed.');
-                } else {
-                  console.warn('[UPICheckout] Session refresh failed:', refreshError);
-                }
-              }
-            }
-          } catch (jwtErr) {
-            console.warn('[UPICheckout] Error parsing JWT token payload:', jwtErr);
-          }
-
-          if (session?.access_token) {
-            accessTokenPresent = true;
-            authHeader = { Authorization: `Bearer ${session.access_token}` };
-          }
+        const token = await getAuthToken();
+        if (token) {
+          accessTokenPresent = true;
+          authHeader = { Authorization: `Bearer ${token}` };
         }
       } catch (e) {
-        console.warn('[UPICheckout] Error fetching current Supabase session:', e);
+        console.warn('[UPICheckout] Error fetching current unified auth token:', e);
       }
 
       // Safe diagnostics log
@@ -351,25 +323,18 @@ export const UPICheckout: React.FC = () => {
             created = true;
             break;
           } else if (response.status === 401 && isRegisteredOrder) {
-            console.warn('[UPICheckout] Received 401 for registered order. Refreshing token and retrying once...');
+            console.warn('[UPICheckout] Received 401 for registered order. Fetching fresh token and retrying once...');
             
-            // Retry Rule: Refresh/retrieve the current Supabase session once
+            // Retry Rule: Retrieve a fresh token using getAuthToken
             let freshHeaders = { ...reqHeaders };
             try {
-              const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-              if (!refreshError && refreshData?.session?.access_token) {
-                freshHeaders['Authorization'] = `Bearer ${refreshData.session.access_token}`;
-                console.log('[UPICheckout] Refresh succeeded during retry path.');
-              } else {
-                console.warn('[UPICheckout] Retry path session refresh failed:', refreshError);
-                // Last ditch effort: Try current session
-                const { data: sessionData } = await supabase.auth.getSession();
-                if (sessionData?.session?.access_token) {
-                  freshHeaders['Authorization'] = `Bearer ${sessionData.session.access_token}`;
-                }
+              const freshToken = await getAuthToken();
+              if (freshToken) {
+                freshHeaders['Authorization'] = `Bearer ${freshToken}`;
+                console.log('[UPICheckout] Retrieved fresh token during retry path.');
               }
             } catch (e) {
-              console.warn('[UPICheckout] Exception during retry refresh:', e);
+              console.warn('[UPICheckout] Exception during retry token fetch:', e);
             }
 
             // Retry the request ONCE with the fresh access token
@@ -539,9 +504,9 @@ export const UPICheckout: React.FC = () => {
     try {
       let authHeader: Record<string, string> = {};
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (sessionData?.session?.access_token) {
-          authHeader = { Authorization: `Bearer ${sessionData.session.access_token}` };
+        const token = await getAuthToken();
+        if (token) {
+          authHeader = { Authorization: `Bearer ${token}` };
         }
       } catch (e) {}
 
