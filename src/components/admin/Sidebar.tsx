@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UNIVERSAL_LOGO_URL } from '../../constants/logo';
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -97,9 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src="/logo.png" 
+              src={UNIVERSAL_LOGO_URL} 
               alt="Frosty Bite Logo" 
-              className={cn("h-10 w-auto object-contain transition-all duration-300 rounded-lg", isCollapsed && "lg:h-8")}
+              className={cn("h-10 w-10 object-cover transition-all duration-300 rounded-lg", isCollapsed && "lg:h-8 lg:w-8")}
               referrerPolicy="no-referrer"
             />
             {(!isCollapsed || isOpen) && (

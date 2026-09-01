@@ -1,4 +1,5 @@
 import React from 'react';
+import { UNIVERSAL_LOGO_URL } from '../../constants/logo';
 import { format } from 'date-fns';
 import { Order } from '../../types';
 import { Printer, X } from 'lucide-react';
@@ -43,9 +44,9 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
           {/* Header */}
           <div className="text-center border-b border-dashed border-black pb-4 mb-4">
             <img 
-              src="/logo.png" 
+              src={UNIVERSAL_LOGO_URL} 
               alt="Frosty Bite Logo" 
-              className="h-16 w-auto mx-auto mb-2 object-contain grayscale brightness-0"
+              className="h-16 w-16 mx-auto mb-2 object-contain grayscale brightness-0 rounded-full"
               referrerPolicy="no-referrer"
             />
             <p className="text-xs font-bold">Artisan Bakery & Frozen Treats</p>

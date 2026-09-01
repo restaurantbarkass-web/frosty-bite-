@@ -432,9 +432,10 @@ export const Home: React.FC = () => {
               <div className="absolute -inset-1 bg-gradient-to-r from-primary via-white to-primary rounded-full blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-gradient-x" />
               <div className="relative w-56 h-56 bg-zinc-950 backdrop-blur-3xl rounded-full flex items-center justify-center border-2 border-white/10 shadow-[0_0_80px_rgba(249,115,22,0.25)] p-0 overflow-hidden outline outline-1 outline-white/5 outline-offset-8">
                 <img 
-                  src="/logo.svg" 
+                  src={UNIVERSAL_LOGO_URL} 
                   alt="Frosty Bite" 
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 p-4"
+                  className="w-full h-full object-cover rounded-full transition-transform duration-700 group-hover:scale-110"
+                  referrerPolicy="no-referrer"
                 />
               </div>
             </div>

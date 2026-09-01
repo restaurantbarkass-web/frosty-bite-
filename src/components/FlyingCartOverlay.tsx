@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { UNIVERSAL_LOGO_URL } from '../constants/logo';
 
 interface Particle {
   id: string;
@@ -31,7 +32,7 @@ export const FlyingCartOverlay: React.FC = () => {
         ...prev,
         {
           id,
-          image: image || '/logo.png',
+          image: image || UNIVERSAL_LOGO_URL,
           startX,
           startY,
           endX,
