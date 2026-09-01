@@ -251,12 +251,15 @@ export const authService = {
       const uniqueUrls = new Set<string>();
       uniqueUrls.add(configuredUrl);
       
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
       const defaults = [
         'https://openwa-backend-production-97f8.up.railway.app',
-        'http://127.0.0.1:3001',
-        'http://localhost:3001',
-        'http://127.0.0.1:3002',
-        'http://localhost:3002'
+        ...(isHttps ? [] : [
+          'http://127.0.0.1:3001',
+          'http://localhost:3001',
+          'http://127.0.0.1:3002',
+          'http://localhost:3002'
+        ])
       ];
       for (const d of defaults) {
         uniqueUrls.add(d);
@@ -383,12 +386,15 @@ export const authService = {
       const uniqueUrls = new Set<string>();
       uniqueUrls.add(configuredUrl);
       
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
       const defaults = [
         'https://openwa-backend-production-97f8.up.railway.app',
-        'http://127.0.0.1:3001',
-        'http://localhost:3001',
-        'http://127.0.0.1:3002',
-        'http://localhost:3002'
+        ...(isHttps ? [] : [
+          'http://127.0.0.1:3001',
+          'http://localhost:3001',
+          'http://127.0.0.1:3002',
+          'http://localhost:3002'
+        ])
       ];
       for (const d of defaults) {
         uniqueUrls.add(d);
