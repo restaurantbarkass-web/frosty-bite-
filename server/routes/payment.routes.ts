@@ -216,12 +216,14 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       });
     }
 
-    // Validation 3: Payment method check (must not be COD / Cash)
+    // Validation 3: Payment method check (if COD/Cash, automatically convert to UPI when initiating online payment attempt)
     if (isCodOrCashPaymentMethod(order.payment_method)) {
-      return res.status(400).json({
-        error: 'Invalid Payment Method',
-        message: 'Payment attempts are only allowed for online/UPI payments.'
-      });
+      console.log(`[CreatePaymentAttempt] Order #${cleanOrderId} has COD/Cash payment method. Converting to 'upi' for online payment attempt.`);
+      await supabase
+        .from('orders')
+        .update({ payment_method: 'upi' })
+        .eq('id', cleanOrderId);
+      order.payment_method = 'upi';
     }
 
     // Validation 4: Derive authoritative amount in paise from orders.total
