@@ -949,7 +949,11 @@ export const UPICheckout: React.FC = () => {
         />
 
         {/* Main Payment Options (QR Code & Deep Link) */}
-        {paymentState !== 'PAYMENT_VERIFIED' && (
+        {(paymentState === 'WAITING_FOR_PAYMENT' ||
+          paymentState === 'PAYMENT_DETECTED' ||
+          paymentState === 'VERIFYING' ||
+          paymentState === 'PAYMENT_AMBIGUOUS' ||
+          paymentState === 'PAYMENT_NOT_MATCHED') && (
           <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-5 sm:p-6 space-y-5 sm:space-y-6 shadow-xl">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
