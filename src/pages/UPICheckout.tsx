@@ -105,6 +105,18 @@ export const UPICheckout: React.FC = () => {
   const utrInputRef = useRef<HTMLInputElement>(null);
   const realtimeChannelRef = useRef<any>(null);
 
+  // Synchronized refs to avoid stale closures and prevent timer/polling teardowns on re-renders
+  const expiresAtMsRef = useRef<number | null>(expiresAtMs);
+  const paymentStateRef = useRef<PaymentState>(paymentState);
+
+  useEffect(() => {
+    expiresAtMsRef.current = expiresAtMs;
+  }, [expiresAtMs]);
+
+  useEffect(() => {
+    paymentStateRef.current = paymentState;
+  }, [paymentState]);
+
   // Check prefers-reduced-motion
   useEffect(() => {
     try {
@@ -221,7 +233,7 @@ export const UPICheckout: React.FC = () => {
             const expMs = Date.parse(attempt.expires_at);
             const nowMs = Date.now();
             const remainingMs = expMs - nowMs;
-            const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
+            const remSecs = Math.max(0, Math.ceil(remainingMs / 1000));
 
             console.log('[UPI DIAGNOSTIC] attempt loaded:', {
               attempt_id: attempt.id,
@@ -313,17 +325,38 @@ export const UPICheckout: React.FC = () => {
 
   // 2. Timer Countdown Effect (1000ms tick derived from authoritative expiresAtMs)
   useEffect(() => {
-    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED' || paymentState === 'ERROR') {
-      return;
-    }
+    if (!expiresAtMs) return;
 
     const tick = () => {
-      const remainingMs = expiresAtMs - Date.now();
-      const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
-      setTimeLeftSeconds(remSecs);
+      const targetMs = expiresAtMsRef.current;
+      const currentState = paymentStateRef.current;
 
-      if (remainingMs <= 0 || remSecs <= 0) {
+      if (
+        !targetMs ||
+        currentState === 'PAYMENT_VERIFIED' ||
+        currentState === 'IDLE' ||
+        currentState === 'PAYMENT_EXPIRED' ||
+        currentState === 'ERROR'
+      ) {
+        return;
+      }
+
+      const nowMs = Date.now();
+      const remainingMs = targetMs - nowMs;
+      const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+      console.log('[TIMER]', {
+        expiresAtMs: targetMs,
+        nowMs,
+        remainingMs,
+        remainingSeconds
+      });
+
+      setTimeLeftSeconds(remainingSeconds);
+
+      if (remainingMs <= 0 || remainingSeconds <= 0) {
         console.log('[UPI TIMER] Timer hit 0, setting PAYMENT_EXPIRED');
+        setTimeLeftSeconds(0);
         setPaymentState('PAYMENT_EXPIRED');
       }
     };
@@ -332,11 +365,12 @@ export const UPICheckout: React.FC = () => {
     const interval = setInterval(tick, 1000);
 
     return () => clearInterval(interval);
-  }, [expiresAtMs, paymentState]);
+  }, [expiresAtMs]);
 
   // 3. Realtime Subscription & Resilient Fallback Polling Loop
   const checkAuthoritativeStatus = useCallback(async () => {
-    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'PAYMENT_EXPIRED') return;
+    const currentState = paymentStateRef.current;
+    if (!effectiveOrderId || currentState === 'PAYMENT_VERIFIED' || currentState === 'PAYMENT_EXPIRED') return;
 
     console.log('[UPI STATUS] request started');
 
@@ -411,7 +445,7 @@ export const UPICheckout: React.FC = () => {
         } else if (data.attempt_status === 'expired') {
           setPaymentState('PAYMENT_EXPIRED');
         } else if (data.attempt_status === 'waiting') {
-          if (paymentState !== 'WAITING_FOR_PAYMENT' && paymentState !== 'PAYMENT_DETECTED' && paymentState !== 'VERIFYING') {
+          if (currentState !== 'WAITING_FOR_PAYMENT' && currentState !== 'PAYMENT_DETECTED' && currentState !== 'VERIFYING') {
             setPaymentState('WAITING_FOR_PAYMENT');
           }
         }
@@ -496,10 +530,10 @@ export const UPICheckout: React.FC = () => {
       }
       return next;
     });
-  }, [effectiveOrderId, paymentState]);
+  }, [effectiveOrderId]);
 
   useEffect(() => {
-    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
+    if (!effectiveOrderId || paymentStateRef.current === 'PAYMENT_VERIFIED') return;
 
     // Realtime subscription setup
     try {
@@ -560,7 +594,7 @@ export const UPICheckout: React.FC = () => {
         supabase.removeChannel(realtimeChannelRef.current);
       }
     };
-  }, [effectiveOrderId, paymentState, checkAuthoritativeStatus]);
+  }, [effectiveOrderId, checkAuthoritativeStatus]);
 
   // Handle Back Navigation with Modal Guard
   const handleBackClick = () => {
