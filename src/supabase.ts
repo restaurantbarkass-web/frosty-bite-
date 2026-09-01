@@ -1,15 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { safeTrim } from './utils/string';
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL;
-const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const rawUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const rawAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 const isValidUrl = (url: unknown): url is string => {
   if (!url || typeof url !== 'string') return false;
   const t = safeTrim(url);
-  if (!t.startsWith('https://')) return false;
+  if (!t.startsWith('https://') && !t.startsWith('http://')) return false;
   if (t.includes('placeholder.supabase.co')) return false;
-  if (import.meta.env.PROD && (t.includes('localhost') || t.includes('127.0.0.1'))) return false;
   return true;
 };
 
@@ -20,18 +19,20 @@ const isValidKey = (key: unknown): key is string => {
   return t.startsWith('eyJ');
 };
 
-if (!isValidUrl(rawUrl) || !isValidKey(rawAnonKey)) {
-  const errorMsg = '[Supabase Configuration Error] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are missing or invalid in the frontend environment. Please configure valid Supabase production credentials.';
-  console.error(errorMsg);
-  throw new Error(errorMsg);
+export const isSupabaseConfigured = isValidUrl(rawUrl) && isValidKey(rawAnonKey);
+
+let supabaseUrl = isSupabaseConfigured ? safeTrim(rawUrl) : 'https://unconfigured.supabase.co';
+let supabaseAnonKey = isSupabaseConfigured ? safeTrim(rawAnonKey) : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.unconfigured';
+
+if (!isSupabaseConfigured) {
+  console.warn('[Supabase] VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are missing or invalid. Running in unconfigured client mode.');
+} else {
+  supabaseUrl = supabaseUrl.replace(/https?:\/\/https?:\/\//g, 'https://');
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/i, '');
+  supabaseUrl = supabaseUrl.replace(/\/$/, '');
 }
 
-let sanitizedUrl = safeTrim(rawUrl);
-sanitizedUrl = sanitizedUrl.replace(/https?:\/\/https?:\/\//g, 'https://');
-sanitizedUrl = sanitizedUrl.replace(/\/rest\/v1\/?$/i, '');
-sanitizedUrl = sanitizedUrl.replace(/\/$/, '');
-
-export const supabase = createClient(sanitizedUrl, safeTrim(rawAnonKey), {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

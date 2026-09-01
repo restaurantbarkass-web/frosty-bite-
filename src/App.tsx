@@ -30,6 +30,7 @@ import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
 import { Logo } from './components/Logo';
 import { PerformanceTierProvider } from './context/PerformanceTierContext';
 import { NotificationPermissionBanner } from './components/NotificationPermissionBanner';
+import { isSupabaseConfigured } from './supabase';
 
 import { useAuth } from './context/AuthContext';
 import { useCart, useCartActions } from './context/CartContext';
@@ -289,6 +290,13 @@ function AppContent() {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {!isSupabaseConfigured && (
+        <div className="bg-red-600 text-white px-4 py-3 text-center text-xs font-bold uppercase tracking-wider relative z-[110] flex items-center justify-center gap-2">
+          <ShieldAlert size={16} />
+          <span>[Supabase Warning] VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not configured. Please set them in Vercel environment variables and redeploy.</span>
         </div>
       )}
 
