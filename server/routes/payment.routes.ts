@@ -258,39 +258,101 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
     const guestSessionHeader = req.headers['x-guest-session'] || req.body?.guest_session_id;
     const isRegisteredOrder = !!(order.user_id && !order.user_id.startsWith('guest_'));
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.slice(7).trim();
-      if (token && token !== 'null' && token !== 'undefined') {
-        const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-        if (!authErr && authData?.user) {
-          const authUser = authData.user;
-          const isUserAdmin = ADMIN_EMAILS.includes(authUser.email?.toLowerCase() || '');
+    if (isRegisteredOrder) {
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Authentication required for registered customer order.'
+        });
+      }
 
-          if (isRegisteredOrder && !isUserAdmin && order.user_id !== authUser.id && order.email?.toLowerCase() !== authUser.email?.toLowerCase()) {
-            return res.status(403).json({
-              error: 'Forbidden',
-              message: 'You are not authorized to create a payment attempt for this order.'
-            });
-          }
-        } else if (isRegisteredOrder) {
-          return res.status(401).json({
-            error: 'Unauthorized',
-            message: 'Invalid or expired authentication token.'
-          });
-        }
-        // If guest order, ignore invalid/expired token and permit login-free checkout
-      } else if (isRegisteredOrder) {
+      const token = authHeader.slice(7).trim();
+      if (!token || token === 'null' || token === 'undefined') {
         return res.status(401).json({
           error: 'Unauthorized',
           message: 'Invalid or missing bearer token.'
         });
       }
-    } else if (isRegisteredOrder) {
-      // Unauthenticated request attempting to create attempt for an authenticated customer's order
-      return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Authentication required for registered customer order.'
-      });
+
+      let authEmail: string | null = null;
+      let authUserUid: string | null = null;
+      let isTokenValid = false;
+
+      // A. Try Supabase Auth verification
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+        if (!authErr && authData?.user) {
+          authEmail = authData.user.email?.toLowerCase() || null;
+          authUserUid = authData.user.id;
+          isTokenValid = true;
+        }
+      } catch (sbErr) {
+        console.warn('[PaymentRoutes] Supabase user check failed:', sbErr);
+      }
+
+      // B. Try Firebase ID Token parsing fallback
+      if (!isTokenValid) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payloadJson = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+            const payload = JSON.parse(payloadJson);
+            if (payload.email) {
+              authEmail = payload.email.toLowerCase();
+              authUserUid = payload.sub || payload.uid || payload.user_id || null;
+              isTokenValid = true;
+            }
+          }
+        } catch (jwtErr) {
+          console.warn('[PaymentRoutes] Firebase JWT fallback parse failed:', jwtErr);
+        }
+      }
+
+      if (!isTokenValid || !authEmail) {
+        return res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or expired authentication token.'
+        });
+      }
+
+      const isUserAdmin = ADMIN_EMAILS.includes(authEmail);
+
+      if (!isUserAdmin) {
+        // Fetch the order owner's profile to see if firebase_uid, supabase_uid, or email matches the authenticated token
+        let isMatch = false;
+        if (order.user_id) {
+          const { data: ownerProfile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', order.user_id)
+            .maybeSingle();
+
+          if (ownerProfile) {
+            const ownerEmail = ownerProfile.email?.toLowerCase();
+            const ownerSbUid = ownerProfile.supabase_uid;
+            const ownerFbUid = ownerProfile.firebase_uid;
+
+            if (
+              (authUserUid && (authUserUid === ownerSbUid || authUserUid === ownerFbUid || authUserUid === ownerProfile.id)) ||
+              (authEmail && (authEmail === ownerEmail || authEmail === order.email?.toLowerCase()))
+            ) {
+              isMatch = true;
+            }
+          }
+        }
+
+        // Fallback email comparison directly with order email if user profile not found or doesn't match
+        if (!isMatch && order.email && authEmail === order.email.toLowerCase()) {
+          isMatch = true;
+        }
+
+        if (!isMatch) {
+          return res.status(403).json({
+            error: 'Forbidden',
+            message: 'You are not authorized to create a payment attempt for this order.'
+          });
+        }
+      }
     }
 
     // Step 7: Idempotency Check - Active waiting attempt
@@ -922,22 +984,84 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.slice(7).trim();
-        const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-        if (authErr || !authData?.user) {
+        let authEmail: string | null = null;
+        let authUserUid: string | null = null;
+        let isTokenValid = false;
+
+        // A. Try Supabase Auth verification
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.getUser(token);
+          if (!authErr && authData?.user) {
+            authEmail = authData.user.email?.toLowerCase() || null;
+            authUserUid = authData.user.id;
+            isTokenValid = true;
+          }
+        } catch (sbErr) {
+          console.warn('[PaymentRoutes] Supabase user check failed in check-status:', sbErr);
+        }
+
+        // B. Try Firebase ID Token parsing fallback
+        if (!isTokenValid) {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payloadJson = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+              const payload = JSON.parse(payloadJson);
+              if (payload.email) {
+                authEmail = payload.email.toLowerCase();
+                authUserUid = payload.sub || payload.uid || payload.user_id || null;
+                isTokenValid = true;
+              }
+            }
+          } catch (jwtErr) {
+            console.warn('[PaymentRoutes] Firebase JWT fallback parse failed in check-status:', jwtErr);
+          }
+        }
+
+        if (!isTokenValid || !authEmail) {
           return res.status(401).json({
             success: false,
             error: 'Unauthorized',
-            message: 'Invalid or expired authorization token.'
+            message: 'Invalid or expired authentication token.'
           });
         }
-        const authUserId = authData.user.id;
-        const isUserAdmin = ADMIN_EMAILS.includes(authData.user.email?.toLowerCase() || '');
-        if (!isUserAdmin && authUserId !== order.user_id) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden',
-            message: 'You are not authorized to access this order status.'
-          });
+
+        const isUserAdmin = ADMIN_EMAILS.includes(authEmail);
+
+        if (!isUserAdmin) {
+          let isMatch = false;
+          if (order.user_id) {
+            const { data: ownerProfile } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', order.user_id)
+              .maybeSingle();
+
+            if (ownerProfile) {
+              const ownerEmail = ownerProfile.email?.toLowerCase();
+              const ownerSbUid = ownerProfile.supabase_uid;
+              const ownerFbUid = ownerProfile.firebase_uid;
+
+              if (
+                (authUserUid && (authUserUid === ownerSbUid || authUserUid === ownerFbUid || authUserUid === ownerProfile.id)) ||
+                (authEmail && (authEmail === ownerEmail || authEmail === order.email?.toLowerCase()))
+              ) {
+                isMatch = true;
+              }
+            }
+          }
+
+          if (!isMatch && order.email && authEmail === order.email.toLowerCase()) {
+            isMatch = true;
+          }
+
+          if (!isMatch) {
+            return res.status(403).json({
+              success: false,
+              error: 'Forbidden',
+              message: 'You are not authorized to check status for this order.'
+            });
+          }
         }
       } else {
         return res.status(401).json({
