@@ -10,7 +10,8 @@ import {
   HelpCircle,
   Smartphone,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  LogIn
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -313,8 +314,9 @@ export const PaymentAmbiguousAnimation: React.FC<{ onRetry?: () => void }> = ({ 
 export const PaymentErrorAnimation: React.FC<{ 
   errorStatus?: number | null; 
   errorMessage?: string | null; 
-  onRetry?: () => void 
-}> = ({ errorStatus, errorMessage, onRetry }) => {
+  onRetry?: () => void;
+  onLogin?: () => void;
+}> = ({ errorStatus, errorMessage, onRetry, onLogin }) => {
   let title = "Unable to Load Session";
   let description = errorMessage || "We're having trouble connecting to the payment server. Please try again.";
   let badgeText = "Connection Issue";
@@ -349,6 +351,8 @@ export const PaymentErrorAnimation: React.FC<{
     description = errorMessage || "Network connection failed. Please check your connection and retry.";
   }
 
+  const isAuthProblem = errorStatus === 401 || errorStatus === 403;
+
   return (
     <div className="space-y-5 text-center py-2">
       <div className="relative flex items-center justify-center w-28 h-28 mx-auto">
@@ -369,15 +373,27 @@ export const PaymentErrorAnimation: React.FC<{
         </p>
       </div>
 
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-black uppercase tracking-widest rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg"
-        >
-          <RefreshCw size={14} />
-          <span>Retry Connection</span>
-        </button>
-      )}
+      <div className="space-y-3 pt-2">
+        {isAuthProblem && onLogin && (
+          <button
+            onClick={onLogin}
+            className="w-full py-4 px-4 bg-emerald-500 hover:bg-emerald-600 text-black font-black uppercase tracking-widest rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg font-mono"
+          >
+            <LogIn size={15} />
+            <span>Sign In / Log In to Pay</span>
+          </button>
+        )}
+
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="w-full py-3.5 px-4 bg-white/10 hover:bg-white/15 text-white font-black uppercase tracking-widest rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+          >
+            <RefreshCw size={14} />
+            <span>{isAuthProblem ? "Retry Connection" : "Retry Connection"}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

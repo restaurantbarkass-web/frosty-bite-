@@ -38,6 +38,7 @@ interface PaymentStatusCardProps {
   onRestartPayment?: () => void;
   onBackToCheckout?: () => void;
   reducedMotion?: boolean;
+  onLogin?: () => void;
 }
 
 export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
@@ -50,7 +51,8 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
   onViewOrder,
   onRestartPayment,
   onBackToCheckout,
-  reducedMotion = false
+  reducedMotion = false,
+  onLogin
 }) => {
   return (
     <div className="bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 sm:space-y-6 text-center overflow-hidden relative">
@@ -196,6 +198,7 @@ export const PaymentStatusCard: React.FC<PaymentStatusCardProps> = ({
               errorStatus={errorStatus} 
               errorMessage={errorMessage} 
               onRetry={onRetry} 
+              onLogin={onLogin}
             />
           )}
         </div>

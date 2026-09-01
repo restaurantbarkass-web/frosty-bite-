@@ -77,7 +77,7 @@ export const UPICheckout: React.FC = () => {
   const effectiveOrderId = useMemo(() => cleanOrderIdString(rawOrderId), [rawOrderId]);
 
   const { cart, clearCart } = useCart();
-  const { user, authStatus, loading: authLoading } = useAuth();
+  const { user, authStatus, loading: authLoading, openAuthModal } = useAuth();
   const { addNotification } = useNotifications();
 
   // Core Payment State
@@ -980,6 +980,7 @@ export const UPICheckout: React.FC = () => {
           onRestartPayment={() => initializePaymentSession()}
           onBackToCheckout={() => navigate('/checkout')}
           reducedMotion={reducedMotion}
+          onLogin={() => openAuthModal('Sign In to Pay', 'Authentication is required to complete payment for this registered customer order.')}
         />
 
         {/* Main Payment Options (QR Code & Deep Link) */}
