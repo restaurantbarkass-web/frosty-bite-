@@ -85,7 +85,7 @@ export const UPICheckout: React.FC = () => {
   const [orderDetails, setOrderDetails] = useState<any>(state || null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(0);
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(360);
   const [consecutiveFailures, setConsecutiveFailures] = useState<number>(0);
   const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -305,11 +305,14 @@ export const UPICheckout: React.FC = () => {
 
   // 2. Timer Countdown Effect (1000ms tick derived from authoritative expiresAtMs)
   useEffect(() => {
-    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED') return;
+    if (paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED' || paymentState === 'ERROR') {
+      return;
+    }
 
     const tick = () => {
       const now = Date.now();
-      const remainingMs = expiresAtMs - now;
+      const targetMs = expiresAtMs || (now + 360 * 1000);
+      const remainingMs = targetMs - now;
       const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
       setTimeLeftSeconds(remSecs);
 
