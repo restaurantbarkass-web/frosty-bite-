@@ -160,7 +160,7 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
     const { data: orders, error: orderFetchError } = await supabase
       .from('orders')
       .select('id, total, status, payment_status, payment_method, user_id, email, phone')
-      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`)
+      .or(`id.ilike.${cleanOrderId},id.ilike.${withPrefix},id.ilike.${withoutPrefix}`)
       .limit(1);
 
     if (orderFetchError) {
@@ -290,8 +290,29 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
           status: activeAttempt.status,
           created_at: activeAttempt.created_at,
           expires_at: activeAttempt.expires_at
+        },
+        order: {
+          id: order.id,
+          total: Number(order.total),
+          status: order.status,
+          payment_status: order.payment_status,
+          user_id: order.user_id,
+          email: order.email,
+          phone: order.phone
         }
       });
+    }
+
+    // Mark any stale waiting attempts as expired in DB so unique constraint does not block new attempt creation
+    const expiredAttemptIds = (existingAttempts || [])
+      .filter((att) => att.expires_at && new Date(att.expires_at).getTime() <= nowMs)
+      .map((att) => att.id);
+
+    if (expiredAttemptIds.length > 0) {
+      await supabase
+        .from('payment_attempts')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .in('id', expiredAttemptIds);
     }
 
     // Step 8: Create fresh payment attempt (expires in 6 minutes)
@@ -318,13 +339,13 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
       const { data: raceAttempt } = await supabase
         .from('payment_attempts')
         .select('id, order_id, amount_paise, status, expires_at, created_at')
-        .eq('order_id', order.id)
+        .or(`order_id.ilike.${cleanOrderId},order_id.ilike.${withPrefix},order_id.ilike.${withoutPrefix}`)
         .eq('status', 'waiting')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (raceAttempt) {
+      if (raceAttempt && raceAttempt.expires_at && new Date(raceAttempt.expires_at).getTime() > Date.now()) {
         return res.status(200).json({
           success: true,
           payment_attempt: {
@@ -334,6 +355,15 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
             status: raceAttempt.status,
             created_at: raceAttempt.created_at,
             expires_at: raceAttempt.expires_at
+          },
+          order: {
+            id: order.id,
+            total: Number(order.total),
+            status: order.status,
+            payment_status: order.payment_status,
+            user_id: order.user_id,
+            email: order.email,
+            phone: order.phone
           }
         });
       }
@@ -354,6 +384,15 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
         status: insertedAttempt.status,
         created_at: insertedAttempt.created_at,
         expires_at: insertedAttempt.expires_at
+      },
+      order: {
+        id: order.id,
+        total: Number(order.total),
+        status: order.status,
+        payment_status: order.payment_status,
+        user_id: order.user_id,
+        email: order.email,
+        phone: order.phone
       }
     });
   } catch (err: any) {
@@ -820,7 +859,7 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
     const { data: orders, error: orderErr } = await supabase
       .from('orders')
       .select('id, total, status, payment_status, updated_at, user_id, payment_method')
-      .or(`id.eq.${cleanOrderId},id.eq.${withPrefix},id.eq.${withoutPrefix}`)
+      .or(`id.ilike.${cleanOrderId},id.ilike.${withPrefix},id.ilike.${withoutPrefix}`)
       .limit(1);
 
     if (orderErr) {
@@ -831,8 +870,8 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
 
     const { data: attempt } = await supabase
       .from('payment_attempts')
-      .select('id, status, expires_at, matched_at')
-      .or(`order_id.eq.${cleanOrderId},order_id.eq.${withPrefix},order_id.eq.${withoutPrefix}`)
+      .select('id, status, expires_at, matched_at, amount_paise')
+      .or(`order_id.ilike.${cleanOrderId},order_id.ilike.${withPrefix},order_id.ilike.${withoutPrefix}`)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -878,13 +917,26 @@ router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLi
 
     const orderStatus = order?.status || 'pending';
     const orderPaymentStatus = order?.payment_status || 'pending';
-    const attemptStatus = attempt?.status || 'waiting';
+    let attemptStatus = attempt?.status || 'waiting';
+
+    if (attemptStatus === 'waiting' && attempt?.expires_at) {
+      if (new Date(attempt.expires_at).getTime() <= Date.now()) {
+        attemptStatus = 'expired';
+        supabase
+          .from('payment_attempts')
+          .update({ status: 'expired', updated_at: new Date().toISOString() })
+          .eq('id', attempt.id)
+          .then(() => {})
+          .catch(() => {});
+      }
+    }
 
     const isPaid = orderPaymentStatus === 'paid' || orderStatus === 'confirmed' || attemptStatus === 'matched';
 
     return res.json({
       success: true,
       order_id: order?.id || cleanOrderId,
+      total: order ? Number(order.total) : (attempt?.amount_paise ? Number(attempt.amount_paise) / 100 : 0),
       payment_status: isPaid ? 'paid' : orderPaymentStatus,
       status: isPaid ? 'confirmed' : orderStatus,
       updated_at: order?.updated_at || new Date().toISOString(),

@@ -115,27 +115,29 @@ export const UPICheckout: React.FC = () => {
       // Step A: Fetch order from database if state missing
       let currentOrder = orderDetails;
       if (!currentOrder || !currentOrder.totalPrice) {
-        const { data: dbOrder, error: orderErr } = await supabase
-          .from('orders')
-          .select('*')
-          .or(`id.eq.${effectiveOrderId},id.eq.FB-${effectiveOrderId}`)
-          .maybeSingle();
+        try {
+          const { data: dbOrder } = await supabase
+            .from('orders')
+            .select('*')
+            .or(`id.ilike.${effectiveOrderId},id.ilike.FB-${effectiveOrderId}`)
+            .maybeSingle();
 
-        if (dbOrder) {
-          currentOrder = {
-            orderId: dbOrder.id,
-            totalPrice: Number(dbOrder.total) || 0,
-            name: dbOrder.customer_name || 'Customer',
-            phone: dbOrder.phone || dbOrder.customer_phone || '',
-            address: dbOrder.address || dbOrder.delivery_address || '',
-            notes: dbOrder.notes || '',
-            discount: Number(dbOrder.discount) || 0,
-            delivery_charge: Number(dbOrder.delivery_charge) || 0,
-            payment_status: dbOrder.payment_status,
-            status: dbOrder.status
-          };
-          setOrderDetails(currentOrder);
-        }
+          if (dbOrder) {
+            currentOrder = {
+              orderId: dbOrder.id,
+              totalPrice: Number(dbOrder.total) || 0,
+              name: dbOrder.customer_name || 'Customer',
+              phone: dbOrder.phone || dbOrder.customer_phone || '',
+              address: dbOrder.address || dbOrder.delivery_address || '',
+              notes: dbOrder.notes || '',
+              discount: Number(dbOrder.discount) || 0,
+              delivery_charge: Number(dbOrder.delivery_charge) || 0,
+              payment_status: dbOrder.payment_status,
+              status: dbOrder.status
+            };
+            setOrderDetails(currentOrder);
+          }
+        } catch (e) {}
       }
 
       if (currentOrder && (currentOrder.payment_status === 'paid' || currentOrder.status === 'confirmed')) {
@@ -198,13 +200,51 @@ export const UPICheckout: React.FC = () => {
 
           if (response.ok && data.success && data.payment_attempt) {
             const attempt = data.payment_attempt;
+            const srvOrder = data.order;
             setAttemptId(attempt.id);
-            const expMs = new Date(attempt.expires_at).getTime();
-            setExpiresAtMs(expMs);
+
+            const expMs = Date.parse(attempt.expires_at);
             const nowMs = Date.now();
-            const remSecs = Math.max(0, Math.floor((expMs - nowMs) / 1000));
+            const remainingMs = expMs - nowMs;
+            const remSecs = Math.max(0, Math.floor(remainingMs / 1000));
+
+            console.log('[UPI DIAGNOSTIC] attempt loaded:', {
+              attempt_id: attempt.id,
+              status: attempt.status,
+              created_at: attempt.created_at,
+              expires_at: attempt.expires_at,
+              nowMs,
+              expiresAtMs: expMs,
+              remainingMs,
+              remSecs
+            });
+
+            setExpiresAtMs(expMs);
             setTimeLeftSeconds(remSecs);
-            setPaymentState('WAITING_FOR_PAYMENT');
+
+            // Populate orderDetails from server order payload if client DB query returned empty
+            const totalPaise = attempt.amount_paise ? Number(attempt.amount_paise) / 100 : 0;
+            const resolvedTotal = srvOrder?.total ?? totalPaise;
+            if ((!currentOrder || !currentOrder.totalPrice) && resolvedTotal > 0) {
+              currentOrder = {
+                orderId: srvOrder?.id || attempt.order_id || effectiveOrderId,
+                totalPrice: resolvedTotal,
+                name: srvOrder?.customer_name || 'Customer',
+                phone: srvOrder?.phone || '',
+                address: srvOrder?.address || '',
+                payment_status: srvOrder?.payment_status || 'pending',
+                status: srvOrder?.status || 'pending'
+              };
+              setOrderDetails(currentOrder);
+            }
+
+            if (remSecs <= 0 || attempt.status === 'expired') {
+              console.warn('[UPI DIAGNOSTIC] attempt is expired, transition to PAYMENT_EXPIRED');
+              setPaymentState('PAYMENT_EXPIRED');
+            } else {
+              setPaymentState('WAITING_FOR_PAYMENT');
+            }
+
             setConsecutiveFailures(0);
             setErrorStatus(null);
             setErrorMessage(null);
@@ -242,7 +282,7 @@ export const UPICheckout: React.FC = () => {
       setErrorMessage(err.message || 'Unexpected initialization error.');
       setPaymentState('ERROR');
     }
-  }, [effectiveOrderId, navigate, orderDetails]);
+  }, [effectiveOrderId, navigate]);
 
   useEffect(() => {
     initializePaymentSession();
@@ -250,15 +290,16 @@ export const UPICheckout: React.FC = () => {
 
   // 2. Timer Countdown Effect
   useEffect(() => {
-    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE') return;
+    if (!expiresAtMs || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'IDLE' || paymentState === 'PAYMENT_EXPIRED') return;
 
     const interval = setInterval(() => {
       const now = Date.now();
       const rem = Math.max(0, Math.floor((expiresAtMs - now) / 1000));
       setTimeLeftSeconds(rem);
 
-      if (rem === 0) {
+      if (rem <= 0) {
         clearInterval(interval);
+        console.log('[UPI TIMER] Timer hit 0, setting PAYMENT_EXPIRED');
         setPaymentState('PAYMENT_EXPIRED');
       }
     }, 1000);
@@ -268,7 +309,7 @@ export const UPICheckout: React.FC = () => {
 
   // 3. Realtime Subscription & Resilient Fallback Polling Loop
   const checkAuthoritativeStatus = useCallback(async () => {
-    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
+    if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED' || paymentState === 'PAYMENT_EXPIRED') return;
 
     console.log('[UPI STATUS] request started');
 
@@ -306,6 +347,25 @@ export const UPICheckout: React.FC = () => {
         const isVerified = Boolean(data.verified || data.payment_status === 'paid' || data.status === 'confirmed' || data.attempt_status === 'matched');
         console.log(`[UPI STATUS] verified=${isVerified}`);
 
+        if (data.total && (!orderDetails || !orderDetails.totalPrice)) {
+          setOrderDetails((prev: any) => ({
+            ...prev,
+            orderId: data.order_id || effectiveOrderId,
+            totalPrice: Number(data.total),
+            payment_status: data.payment_status,
+            status: data.status
+          }));
+        }
+
+        if (data.expires_at) {
+          const expMs = Date.parse(data.expires_at);
+          const nowMs = Date.now();
+          if (expMs > nowMs) {
+            setExpiresAtMs(expMs);
+            setTimeLeftSeconds(Math.max(0, Math.floor((expMs - nowMs) / 1000)));
+          }
+        }
+
         setConsecutiveFailures(0);
         setIsReconnecting(false);
 
@@ -322,6 +382,10 @@ export const UPICheckout: React.FC = () => {
           setPaymentState('PAYMENT_AMBIGUOUS');
         } else if (data.attempt_status === 'expired') {
           setPaymentState('PAYMENT_EXPIRED');
+        } else if (data.attempt_status === 'waiting') {
+          if (paymentState !== 'WAITING_FOR_PAYMENT' && paymentState !== 'PAYMENT_DETECTED' && paymentState !== 'VERIFYING') {
+            setPaymentState('WAITING_FOR_PAYMENT');
+          }
         }
         return;
       }
@@ -343,7 +407,7 @@ export const UPICheckout: React.FC = () => {
       const { data: ord } = await supabase
         .from('orders')
         .select('payment_status, status, utr')
-        .or(`id.eq.${effectiveOrderId},id.eq.FB-${effectiveOrderId}`)
+        .or(`id.ilike.${effectiveOrderId},id.ilike.FB-${effectiveOrderId}`)
         .maybeSingle();
 
       if (ord && (ord.payment_status === 'paid' || ord.status === 'confirmed')) {
@@ -358,7 +422,7 @@ export const UPICheckout: React.FC = () => {
       const { data: att } = await supabase
         .from('payment_attempts')
         .select('status, expires_at')
-        .or(`order_id.eq.${effectiveOrderId},order_id.eq.FB-${effectiveOrderId}`)
+        .or(`order_id.ilike.${effectiveOrderId},order_id.ilike.FB-${effectiveOrderId}`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -366,6 +430,15 @@ export const UPICheckout: React.FC = () => {
       if (att) {
         setConsecutiveFailures(0);
         setIsReconnecting(false);
+
+        if (att.expires_at) {
+          const expMs = Date.parse(att.expires_at);
+          const nowMs = Date.now();
+          if (expMs <= nowMs || att.status === 'expired') {
+            setPaymentState('PAYMENT_EXPIRED');
+            return;
+          }
+        }
 
         if (att.status === 'matched') {
           console.log('[UPI STATUS] verified=true (fallback attempt)');
