@@ -43,7 +43,7 @@ export const KOTPrint: React.FC<KOTPrintProps> = ({ order, onClose }) => {
           {/* Header */}
           <div className="text-center border-b border-dashed border-black pb-4 mb-4">
             <img 
-              src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
+              src="/logo.png" 
               alt="Frosty Bite Logo" 
               className="h-16 w-auto mx-auto mb-2 object-contain grayscale brightness-0"
               referrerPolicy="no-referrer"

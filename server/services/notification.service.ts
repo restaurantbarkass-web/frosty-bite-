@@ -654,7 +654,7 @@ export class NotificationService {
       return { sentCount: 0, failedCount: 0, badTokens: [] };
     }
 
-    const { title, body, deepLink, icon = 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg', badge = icon, tag, data = {}, priority = 'high' } = payload;
+    const { title, body, deepLink, icon = '/logo.png', badge = icon, tag, data = {}, priority = 'high' } = payload;
 
     let sentCount = 0;
     let failedCount = 0;
@@ -1243,7 +1243,7 @@ export class NotificationService {
       title,
       body: message,
       deepLink,
-      icon: imageUrl || 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg',
+      icon: imageUrl || '/logo.png',
       tag: `campaign_${Date.now()}`,
       priority: 'normal',
       data: {

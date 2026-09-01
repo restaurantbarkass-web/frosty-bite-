@@ -133,7 +133,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
           showDeviceNotification('New Order Received! 🍕', {
             body: `${latestOrder.customer_name} placed order #${formatOrderId(latestOrder.id)} for ₹${latestOrder.total}`,
-            icon: 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg',
+            icon: '/logo.png',
             tag: `admin_order_${latestOrder.id}`,
             data: {
               link: `/admin/orders?id=${latestOrder.id}`,
@@ -202,7 +202,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         if (prevStatus && prevStatus !== newStatus) {
           let title = '';
           let message = '';
-          let icon = 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg';
+          let icon = '/logo.png';
           let toastIcon = '📦';
 
           const formattedId = formatOrderId(updatedOrder.id);

@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg" 
+              src="/logo.png" 
               alt="Frosty Bite Logo" 
               className={cn("h-10 w-auto object-contain transition-all duration-300 rounded-lg", isCollapsed && "lg:h-8")}
               referrerPolicy="no-referrer"

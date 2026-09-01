@@ -31,7 +31,7 @@ export const FlyingCartOverlay: React.FC = () => {
         ...prev,
         {
           id,
-          image: image || 'https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg',
+          image: image || '/logo.png',
           startX,
           startY,
           endX,

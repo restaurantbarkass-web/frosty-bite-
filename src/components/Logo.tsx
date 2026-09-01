@@ -10,7 +10,7 @@ interface LogoProps {
 }
 
 export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = false }) => {
-  const logoUrl = "https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg";
+  const logoUrl = "/logo.png";
   const sizes = {
     sm: 'text-lg',
     md: 'text-2xl',

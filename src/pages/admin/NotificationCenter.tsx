@@ -546,7 +546,7 @@ export const NotificationCenter: React.FC = () => {
               <div className="mt-6 bg-[#27272a]/90 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-lg">
                 <div className="flex items-start gap-3">
                   <img
-                    src="https://www.image2url.com/r2/default/images/1777019214731-c0a6a9d6-c6fc-4e3b-bf96-479ff2919cbf.jpeg"
+                    src="/logo.png"
                     alt="Frosty Bite"
                     className="w-10 h-10 rounded-xl object-contain bg-black shrink-0 border border-white/10"
                     referrerPolicy="no-referrer"
