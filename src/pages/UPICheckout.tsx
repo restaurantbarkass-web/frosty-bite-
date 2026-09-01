@@ -246,6 +246,8 @@ export const UPICheckout: React.FC = () => {
   const checkAuthoritativeStatus = useCallback(async () => {
     if (!effectiveOrderId || paymentState === 'PAYMENT_VERIFIED') return;
 
+    console.log('[UPI STATUS] request started');
+
     // Primary: Call server-side payment status endpoint
     try {
       let authHeader: Record<string, string> = {};
@@ -263,21 +265,33 @@ export const UPICheckout: React.FC = () => {
         }
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      console.log(`[UPI STATUS] response ${res.status}`);
+
+      if (res.ok || res.status === 304) {
+        let data: any = {};
+        if (res.status !== 304) {
+          try {
+            data = await res.json();
+          } catch (e) {
+            data = {};
+          }
+        } else {
+          data = { verified: false, payment_status: 'pending' };
+        }
+
+        const isVerified = Boolean(data.verified || data.payment_status === 'paid' || data.status === 'confirmed' || data.attempt_status === 'matched');
+        console.log(`[UPI STATUS] verified=${isVerified}`);
+
         setConsecutiveFailures(0);
         setIsReconnecting(false);
 
-        if (data.verified || data.payment_status === 'paid' || data.status === 'confirmed') {
+        if (isVerified) {
           setPaymentState('PAYMENT_VERIFIED');
           haptic.checkout();
           return;
         }
 
-        if (data.attempt_status === 'matched') {
-          setPaymentState('PAYMENT_VERIFIED');
-          haptic.checkout();
-        } else if (data.attempt_status === 'detected') {
+        if (data.attempt_status === 'detected') {
           setPaymentState('PAYMENT_DETECTED');
           setTimeout(() => setPaymentState('VERIFYING'), 2000);
         } else if (data.attempt_status === 'ambiguous') {
@@ -287,8 +301,17 @@ export const UPICheckout: React.FC = () => {
         }
         return;
       }
+
+      // Handle HTTP error codes without breaking payment UI
+      if (res.status === 401 || res.status === 403) {
+        console.warn('[UPI STATUS] authorization issue:', res.status);
+      } else if (res.status === 404) {
+        console.warn('[UPI STATUS] order not found:', effectiveOrderId);
+      } else if (res.status === 429 || res.status >= 500) {
+        console.warn('[UPI STATUS] temporary server/rate issue:', res.status);
+      }
     } catch (fetchErr) {
-      console.warn('[UPICheckout] Status endpoint fetch warning:', fetchErr);
+      console.warn('[UPI STATUS] temporary failure:', fetchErr);
     }
 
     // Secondary Fallback: Query Supabase client directly
@@ -300,6 +323,7 @@ export const UPICheckout: React.FC = () => {
         .maybeSingle();
 
       if (ord && (ord.payment_status === 'paid' || ord.status === 'confirmed')) {
+        console.log('[UPI STATUS] verified=true (fallback db)');
         setPaymentState('PAYMENT_VERIFIED');
         setConsecutiveFailures(0);
         setIsReconnecting(false);
@@ -320,6 +344,7 @@ export const UPICheckout: React.FC = () => {
         setIsReconnecting(false);
 
         if (att.status === 'matched') {
+          console.log('[UPI STATUS] verified=true (fallback attempt)');
           setPaymentState('PAYMENT_VERIFIED');
           haptic.checkout();
         } else if (att.status === 'detected') {
@@ -333,13 +358,14 @@ export const UPICheckout: React.FC = () => {
         return;
       }
     } catch (e) {
-      console.warn('[UPICheckout] Fallback DB poll warning:', e);
+      console.warn('[UPI STATUS] fallback DB poll warning:', e);
     }
 
-    // Gentle failure counter (does NOT crash session or reset timer)
+    // Gentle failure counter (does NOT crash session, does NOT reset timer, does NOT show full error card)
+    console.log('[UPI STATUS] retrying');
     setConsecutiveFailures((prev) => {
       const next = prev + 1;
-      if (next >= 4) {
+      if (next >= 2) {
         setIsReconnecting(true);
       }
       return next;
