@@ -102,8 +102,32 @@ export const UPICheckout: React.FC = () => {
   const [confirmedOrder, setConfirmedOrder] = useState<any>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
 
+  // Diagnostic & Fallback tracking states
+  const [showFallbackNotice, setShowFallbackNotice] = useState(false);
+  const [launchTime, setLaunchTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [pageVisibility, setPageVisibility] = useState<string>(document.visibilityState);
+  const [diagnosticLaunchMethod, setDiagnosticLaunchMethod] = useState<string>('None yet');
+
   const utrInputRef = useRef<HTMLInputElement>(null);
   const realtimeChannelRef = useRef<any>(null);
+
+  // Tracks time elapsed since component load
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Syncs page visibility state dynamically
+  useEffect(() => {
+    const updateVisibility = () => {
+      setPageVisibility(document.visibilityState);
+    };
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
 
   // Synchronized refs to avoid stale closures and prevent timer/polling teardowns on re-renders
   const expiresAtMsRef = useRef<number | null>(expiresAtMs);
@@ -738,6 +762,36 @@ export const UPICheckout: React.FC = () => {
     };
   }, [effectiveOrderId, checkAuthoritativeStatus]);
 
+  // Resilient focus & visibility observer that refreshes transaction status without mutating local state
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('[UPI_BROWSER_RETURN] Browser became visible. Authoritative polling triggered.');
+        checkAuthoritativeStatus();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('[UPI_BROWSER_RETURN] Browser window refocused. Authoritative polling triggered.');
+      checkAuthoritativeStatus();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [checkAuthoritativeStatus]);
+
+  // Log QR availability when waiting for payment
+  useEffect(() => {
+    if (paymentState === 'WAITING_FOR_PAYMENT') {
+      console.log('[QR_AVAILABLE] Authoritative payment QR is fully loaded, rendered, and active.');
+    }
+  }, [paymentState]);
+
   // Handle Back Navigation with Modal Guard
   const handleBackClick = () => {
     if (paymentState === 'WAITING_FOR_PAYMENT' || paymentState === 'PAYMENT_DETECTED' || paymentState === 'VERIFYING') {
@@ -760,33 +814,93 @@ export const UPICheckout: React.FC = () => {
   const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
   const upiUri = `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=${totalPrice.toFixed(2)}&cu=INR&tn=${encodeURIComponent(effectiveOrderId)}`;
 
-  const handleOpenUpiApp = () => {
-    haptic.medium();
+  // Developer Diagnostics Launcher
+  const handleLaunchTestUri = (variant: 'A' | 'B' | 'C' | 'INTENT') => {
+    let testUri = '';
+    const paVal = DEFAULT_UPI_ID;
+    const pnVal = "Frosty Bite";
     
-    // Safely log the constructed UPI URI for debugging/development, masking the exact VPA handle
-    const maskedUri = upiUri.replace(/pa=[^&]+/, `pa=***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`);
-    console.log('[UPI INTENT] Initiating UPI payment. URI:', maskedUri);
+    if (variant === 'A') {
+      testUri = `upi://pay?pa=${paVal}&pn=${encodeURIComponent(pnVal)}&am=1.00&cu=INR`;
+    } else if (variant === 'B' || variant === 'INTENT') {
+      testUri = `upi://pay?pa=${paVal}&pn=${encodeURIComponent(pnVal)}&am=1.00&cu=INR&tn=TEST`;
+    } else {
+      // Variant C (Real URI)
+      testUri = upiUri;
+    }
+
+    const paMasked = `***@${paVal.split('@')[1] || 'upi'}`;
+    const scheme = 'upi://pay';
+    const amVal = variant === 'C' ? totalPrice.toFixed(2) : '1.00';
+    const tnVal = (variant === 'C') ? effectiveOrderId : (variant === 'A' ? '' : 'TEST');
+    const fullUriMasked = `${scheme}?pa=${paMasked}&pn=${encodeURIComponent(pnVal)}&am=${amVal}&cu=INR${tnVal ? `&tn=${encodeURIComponent(tnVal)}` : ''}`;
+
+    console.log(`[UPI DEV TEST ${variant}] Sanitized URI:`, {
+      scheme,
+      paMasked,
+      pn: pnVal,
+      am: amVal,
+      cu: 'INR',
+      tn: tnVal,
+      fullUriMasked
+    });
 
     try {
-      window.location.href = upiUri;
-      
-      // Gracefully detect if the UPI deep link failed to focus away or handle the intent
-      const checkStartTime = Date.now();
-      const checkFocusBack = () => {
-        if (Date.now() - checkStartTime < 3000) {
-          if (!document.hidden) {
-            setTimeout(checkFocusBack, 250);
-          }
-        } else {
-          // Document was never hidden, showing the fallback notification to guide user
-          toast.error("Unable to start payment in this app. Please scan the QR code or try another UPI app.", {
-            duration: 6000
-          });
-        }
-      };
-      setTimeout(checkFocusBack, 1000);
+      window.location.href = testUri;
+      toast.success(`Launched Test ${variant}!`);
     } catch (err) {
-      console.error('[UPI INTENT] Error dispatching intent URI:', err);
+      console.error(`[UPI DEV TEST ${variant}] Error:`, err);
+      toast.error(`Failed to launch Test ${variant}`);
+    }
+  };
+
+  const handleOpenUpiApp = () => {
+    haptic.medium();
+    setDiagnosticLaunchMethod('window.location.href');
+    setLaunchTime(Date.now());
+    
+    // Log intent attempt
+    console.log('[UPI_INTENT_ATTEMPT] User triggered UPI App launcher. Payload preview:', {
+      orderId: effectiveOrderId,
+      amount: totalPrice.toFixed(2),
+      vpaMasked: `***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`
+    });
+
+    const scheme = 'upi://pay';
+    const paMasked = `***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`;
+    const pnVal = "Frosty Bite";
+    const amVal = totalPrice.toFixed(2);
+    const cuVal = "INR";
+    const tnVal = effectiveOrderId;
+    const fullUriMasked = `${scheme}?pa=${paMasked}&pn=${encodeURIComponent(pnVal)}&am=${amVal}&cu=${cuVal}&tn=${encodeURIComponent(tnVal)}`;
+
+    // Log intent dispatched
+    console.log('[UPI_INTENT_DISPATCHED] Redirecting browser to UPI protocol scheme:', {
+      scheme,
+      paMasked,
+      pn: pnVal,
+      am: amVal,
+      cu: cuVal,
+      tn: tnVal,
+      fullUriMasked
+    });
+
+    try {
+      // Execute launch via window.location.href
+      window.location.href = upiUri;
+
+      // Start a 3-second gentle timeout to show the UI fallback notice
+      setTimeout(() => {
+        // Safe check to verify we are still waiting for payment
+        if (paymentStateRef.current === 'WAITING_FOR_PAYMENT') {
+          console.log('[UPI_LAUNCHER_FALLBACK] 3-second launcher timeout triggered. Activating visual QR/UPI helper banner on screen.');
+          setShowFallbackNotice(true);
+        }
+      }, 3000);
+
+    } catch (err) {
+      console.error('[UPI_LAUNCHER_FALLBACK] Programmatic redirection failed immediately:', err);
+      setShowFallbackNotice(true);
       toast.error("Unable to start payment in this app. Please scan the QR code or try another UPI app.", {
         duration: 6000
       });
@@ -1015,9 +1129,12 @@ export const UPICheckout: React.FC = () => {
 
             {/* QR Code Section */}
             <div id="qr-section" className="flex flex-col items-center space-y-5">
-              <div className="relative group bg-white rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col items-center border border-zinc-100/20">
+              <div className="relative group bg-white rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col items-center border border-zinc-100/20 w-full max-w-sm">
                 <div className="text-center mb-3">
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Frosty Bite Official UPI</p>
+                  <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-1 text-center bg-zinc-100 py-1.5 px-3 rounded-xl border border-zinc-200">
+                    Scan QR with any UPI app
+                  </h3>
+                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-2">Frosty Bite Official UPI</p>
                   <p className="text-xs font-black text-zinc-900 font-mono tracking-tight">{DEFAULT_UPI_ID}</p>
                 </div>
 
@@ -1034,7 +1151,7 @@ export const UPICheckout: React.FC = () => {
                 </motion.div>
 
                 <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-3">
-                  Pay securely using any UPI app.
+                  Scan to pay ₹{totalPrice.toFixed(2)}
                 </p>
               </div>
 
@@ -1048,6 +1165,14 @@ export const UPICheckout: React.FC = () => {
                   <span>Open UPI App</span>
                   <ExternalLink size={14} className="opacity-70" />
                 </button>
+
+                {showFallbackNotice && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-1.5 shadow-md">
+                    <p className="font-black uppercase tracking-wider text-[10px] text-amber-400">⚠️ App Switch Notice</p>
+                    <p className="font-semibold text-amber-300">Unable to start payment in this app.</p>
+                    <p className="text-zinc-300 font-medium">Please scan the QR code above or copy the UPI ID below to pay from any UPI app manually.</p>
+                  </div>
+                )}
 
                 {/* Copy UPI ID */}
                 <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/10">
@@ -1103,6 +1228,181 @@ export const UPICheckout: React.FC = () => {
             <Lock className="text-primary" size={20} />
             <p className="text-[10px] font-black text-white uppercase tracking-widest">256-Bit Encrypted</p>
             <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Bank Grade Security</p>
+          </div>
+        </div>
+
+        {/* DEV-ONLY Diagnostic Controls */}
+        <div className="mt-4 p-5 bg-zinc-950 border border-red-500/25 rounded-3xl space-y-5">
+          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
+            <span className="text-sm">🔧</span>
+            <h3 className="text-xs font-black uppercase tracking-widest text-red-400">
+              [DEV ONLY] UPI Intent Diagnostic Tools
+            </h3>
+          </div>
+          
+          <p className="text-[10px] text-zinc-400 leading-relaxed">
+            Investigate deep-link app-switching and custom scheme handlers. Test programmatic launchers vs direct anchor links to bypass browser restrictions.
+          </p>
+
+          {/* Section: Live Diagnostic Metadata Grid */}
+          <div className="p-3 bg-zinc-900 rounded-2xl border border-white/5 space-y-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-red-400 block mb-1">
+              Active Session Metadata
+            </span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono leading-tight">
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Launch Method</p>
+                <p className="text-zinc-200 mt-0.5">{diagnosticLaunchMethod}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">App Environment</p>
+                <p className="text-zinc-200 mt-0.5">
+                  {window.matchMedia('(display-mode: standalone)').matches ? "Standalone PWA" : "Normal Browser"}
+                </p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">URI Scheme</p>
+                <p className="text-emerald-400 mt-0.5">upi://pay</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Masked Payee VPA</p>
+                <p className="text-zinc-200 mt-0.5">{`***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Reference (tn)</p>
+                <p className="text-zinc-200 mt-0.5">{effectiveOrderId}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Amount (am)</p>
+                <p className="text-zinc-200 mt-0.5">₹{totalPrice.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Elapsed Time</p>
+                <p className="text-zinc-200 mt-0.5">{elapsedSeconds}s</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Visibility State</p>
+                <p className="text-amber-400 mt-0.5">{pageVisibility}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">Last Attempt Timestamp</p>
+                <p className="text-zinc-200 mt-0.5">
+                  {launchTime ? new Date(launchTime).toLocaleTimeString() : 'Not triggered yet'}
+                </p>
+              </div>
+              <div className="col-span-2 border-t border-white/5 pt-2 mt-1">
+                <p className="text-zinc-500 uppercase text-[8px] font-bold">User Agent (Browser)</p>
+                <p className="text-zinc-300 text-[9px] mt-0.5 break-all leading-normal">{navigator.userAgent}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Programmatic JavaScript buttons */}
+          <div className="space-y-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block">
+              Method 1: Programmatic JS (window.location.href)
+            </span>
+            <div className="grid grid-cols-1 gap-2.5">
+              <button
+                onClick={() => {
+                  setDiagnosticLaunchMethod('Programmatic JS (Test)');
+                  setLaunchTime(Date.now());
+                  handleLaunchTestUri('INTENT');
+                }}
+                className="w-full py-2.5 px-4 bg-red-950/40 hover:bg-red-900/50 text-red-200 border border-red-500/20 hover:border-red-500/40 font-bold uppercase tracking-widest text-[10px] rounded-xl transition-all"
+              >
+                Test UPI Intent (Minimal 1.00 INR + tn=TEST)
+              </button>
+
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Programmatic JS (Test A)');
+                    setLaunchTime(Date.now());
+                    handleLaunchTestUri('A');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
+                >
+                  TEST A (No tn)
+                </button>
+                <button
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Programmatic JS (Test B)');
+                    setLaunchTime(Date.now());
+                    handleLaunchTestUri('B');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
+                >
+                  TEST B (tn=TEST)
+                </button>
+                <button
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Programmatic JS (Test C)');
+                    setLaunchTime(Date.now());
+                    handleLaunchTestUri('C');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
+                >
+                  TEST C (Real)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: HTML Anchor links for direct comparison */}
+          <div className="space-y-2 pt-2.5 border-t border-white/5">
+            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block">
+              Method 2: HTML Anchor Comparison (Direct Anchor click)
+            </span>
+            <div className="grid grid-cols-1 gap-2.5">
+              <a
+                href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR&tn=TEST`}
+                onClick={() => {
+                  setDiagnosticLaunchMethod('Direct HTML Anchor (Test Intent)');
+                  setLaunchTime(Date.now());
+                  console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor Test click triggered.');
+                }}
+                className="w-full py-2.5 px-4 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-200 border border-emerald-500/20 hover:border-emerald-500/40 font-bold uppercase tracking-widest text-[10px] rounded-xl block text-center transition-all"
+              >
+                Anchor: Test UPI Intent (1.00 INR + tn=TEST)
+              </a>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <a
+                  href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR`}
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor A)');
+                    setLaunchTime(Date.now());
+                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor A click triggered.');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
+                >
+                  Anchor A (No tn)
+                </a>
+                <a
+                  href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR&tn=TEST`}
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor B)');
+                    setLaunchTime(Date.now());
+                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor B click triggered.');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
+                >
+                  Anchor B (tn=TEST)
+                </a>
+                <a
+                  href={upiUri}
+                  onClick={() => {
+                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor C - Real)');
+                    setLaunchTime(Date.now());
+                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor C click triggered.');
+                  }}
+                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
+                >
+                  Anchor C (Real)
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
