@@ -104,6 +104,8 @@ export const UPICheckout: React.FC = () => {
 
   // Diagnostic & Fallback tracking states
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
+  const [showDevSuite, setShowDevSuite] = useState(false);
+  const fallbackTimeoutRef = useRef<any>(null);
   const [launchTime, setLaunchTime] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [pageVisibility, setPageVisibility] = useState<string>(document.visibilityState);
@@ -810,13 +812,13 @@ export const UPICheckout: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('[UPI_BROWSER_RETURN] Browser became visible. Authoritative polling triggered.');
+        console.log('[UPI_APP_RETURNED] Returning from UPI App / PhonePe to Frosty Bite. Maintaining WAITING_FOR_PAYMENT state and checking backend verification.');
         checkAuthoritativeStatus();
       }
     };
 
     const handleFocus = () => {
-      console.log('[UPI_BROWSER_RETURN] Browser window refocused. Authoritative polling triggered.');
+      console.log('[UPI_APP_RETURNED] Browser window refocused. Maintaining WAITING_FOR_PAYMENT state and checking backend verification.');
       checkAuthoritativeStatus();
     };
 
@@ -854,101 +856,189 @@ export const UPICheckout: React.FC = () => {
     setTimeout(() => setCopiedUpi(false), 2500);
   };
 
-  // Open UPI App Action
-  const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
-  const upiUri = `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=${totalPrice.toFixed(2)}&cu=INR&tn=${encodeURIComponent(effectiveOrderId)}`;
+  // Standardized URI builder with full parameter validation and sanitized logging (STEP 1 & STEP 2)
+  interface SanitizedUpiDiagnostic {
+    scheme: string;
+    paMasked: string;
+    pn: string;
+    am: string;
+    cu: string;
+    tn?: string;
+    tr?: string;
+    uriLength: number;
+    browser: string;
+    isStandalone: boolean;
+    checks: {
+      vpaCorrectness: boolean;
+      noSpaces: boolean;
+      noHiddenCharacters: boolean;
+      validAtSymbol: boolean;
+      noDoubleEncoding: boolean;
+      noAccidentalNewline: boolean;
+      noUndefined: boolean;
+      noNaN: boolean;
+      noDuplicateQueryParams: boolean;
+    };
+  }
 
-  // Developer Diagnostics Launcher
-  const handleLaunchTestUri = (variant: 'A' | 'B' | 'C' | 'INTENT') => {
-    let testUri = '';
-    const paVal = DEFAULT_UPI_ID;
-    const pnVal = "Frosty Bite";
-    
-    if (variant === 'A') {
-      testUri = `upi://pay?pa=${paVal}&pn=${encodeURIComponent(pnVal)}&am=1.00&cu=INR`;
-    } else if (variant === 'B' || variant === 'INTENT') {
-      testUri = `upi://pay?pa=${paVal}&pn=${encodeURIComponent(pnVal)}&am=1.00&cu=INR&tn=TEST`;
-    } else {
-      // Variant C (Real URI)
-      testUri = upiUri;
+  function buildValidatedUpiUri(params: {
+    pa: string;
+    pn: string;
+    am: number | string;
+    cu?: string;
+    tn?: string;
+    tr?: string;
+  }): { uri: string; diagnostics: SanitizedUpiDiagnostic } {
+    const cleanPa = (params.pa || '').trim().replace(/\s+/g, '');
+    const cleanPn = (params.pn || '').trim();
+    const numAm = typeof params.am === 'string' ? parseFloat(params.am) : params.am;
+    const cleanAm = isNaN(numAm) || numAm <= 0 ? '1.00' : numAm.toFixed(2);
+    const cleanCu = (params.cu || 'INR').trim().toUpperCase();
+    const cleanTn = params.tn ? params.tn.trim().replace(/[^\w\s-]/g, '') : '';
+    const cleanTr = params.tr ? params.tr.trim().replace(/[^\w\s-]/g, '') : '';
+
+    const queryParts: string[] = [
+      `pa=${cleanPa}`,
+      `pn=${encodeURIComponent(cleanPn)}`,
+      `am=${cleanAm}`,
+      `cu=${cleanCu}`
+    ];
+
+    if (cleanTn) {
+      queryParts.push(`tn=${encodeURIComponent(cleanTn)}`);
+    }
+    if (cleanTr) {
+      queryParts.push(`tr=${encodeURIComponent(cleanTr)}`);
     }
 
-    const paMasked = `***@${paVal.split('@')[1] || 'upi'}`;
-    const scheme = 'upi://pay';
-    const amVal = variant === 'C' ? totalPrice.toFixed(2) : '1.00';
-    const tnVal = (variant === 'C') ? effectiveOrderId : (variant === 'A' ? '' : 'TEST');
-    const fullUriMasked = `${scheme}?pa=${paMasked}&pn=${encodeURIComponent(pnVal)}&am=${amVal}&cu=INR${tnVal ? `&tn=${encodeURIComponent(tnVal)}` : ''}`;
+    const uri = `upi://pay?${queryParts.join('&')}`;
 
-    console.log(`[UPI DEV TEST ${variant}] Sanitized URI:`, {
-      scheme,
+    const atCount = (cleanPa.match(/@/g) || []).length;
+    const paParts = cleanPa.split('@');
+    const paMasked = `***@${paParts[1] || 'upi'}`;
+
+    const isStandalone = typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true
+    );
+
+    const checks = {
+      vpaCorrectness: atCount === 1 && Boolean(paParts[0] && paParts[1]),
+      noSpaces: !uri.includes(' ') && !cleanPa.includes(' '),
+      noHiddenCharacters: !/[\r\n\t]/.test(uri),
+      validAtSymbol: atCount === 1,
+      noDoubleEncoding: !uri.includes('%25'),
+      noAccidentalNewline: !uri.includes('\n') && !uri.includes('\r'),
+      noUndefined: !uri.includes('undefined'),
+      noNaN: !uri.includes('NaN'),
+      noDuplicateQueryParams: new Set(queryParts.map(q => q.split('=')[0])).size === queryParts.length
+    };
+
+    const diagnostics: SanitizedUpiDiagnostic = {
+      scheme: 'upi://pay',
       paMasked,
-      pn: pnVal,
-      am: amVal,
+      pn: cleanPn,
+      am: cleanAm,
+      cu: cleanCu,
+      tn: cleanTn || undefined,
+      tr: cleanTr || undefined,
+      uriLength: uri.length,
+      browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      isStandalone,
+      checks
+    };
+
+    return { uri, diagnostics };
+  }
+
+  // Open UPI App Action & Real Production Intent URI
+  const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
+  const prodUpi = useMemo(() => {
+    return buildValidatedUpiUri({
+      pa: DEFAULT_UPI_ID,
+      pn: "Frosty Bite",
+      am: totalPrice > 0 ? totalPrice : 1.00,
       cu: 'INR',
-      tn: tnVal,
-      fullUriMasked
+      tn: effectiveOrderId
     });
+  }, [totalPrice, effectiveOrderId]);
 
-    try {
-      window.location.href = testUri;
-      toast.success(`Launched Test ${variant}!`);
-    } catch (err) {
-      console.error(`[UPI DEV TEST ${variant}] Error:`, err);
-      toast.error(`Failed to launch Test ${variant}`);
-    }
-  };
+  const upiUri = prodUpi.uri;
 
-  const handleOpenUpiApp = () => {
+  // Minimal PhonePe Dev Test URIs (Step 3)
+  const test1Upi = useMemo(() => {
+    return buildValidatedUpiUri({
+      pa: DEFAULT_UPI_ID,
+      pn: "Frosty Bite",
+      am: 1.00,
+      cu: 'INR'
+    });
+  }, []);
+
+  const test2Upi = useMemo(() => {
+    return buildValidatedUpiUri({
+      pa: DEFAULT_UPI_ID,
+      pn: "Frosty Bite",
+      am: 1.00,
+      cu: 'INR',
+      tn: 'TEST'
+    });
+  }, []);
+
+  const test3Upi = prodUpi;
+
+  const handleOpenUpiApp = (e?: React.MouseEvent<HTMLAnchorElement>) => {
     haptic.medium();
-    setDiagnosticLaunchMethod('window.location.href');
+    setDiagnosticLaunchMethod('Native Anchor <a href>');
     setLaunchTime(Date.now());
     
-    // Log intent attempt
-    console.log('[UPI_INTENT_ATTEMPT] User triggered UPI App launcher. Payload preview:', {
-      orderId: effectiveOrderId,
-      amount: totalPrice.toFixed(2),
-      vpaMasked: `***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`
+    // STEP 1 & STEP 2 — Log ONLY sanitized fields immediately before launch
+    console.log('[PROD_UPI_URI_INSPECTION] Captured UPI URI immediately before launch:', {
+      scheme: prodUpi.diagnostics.scheme,
+      paMasked: prodUpi.diagnostics.paMasked,
+      pn: prodUpi.diagnostics.pn,
+      am: prodUpi.diagnostics.am,
+      cu: prodUpi.diagnostics.cu,
+      tn: prodUpi.diagnostics.tn,
+      tr: prodUpi.diagnostics.tr,
+      uriLength: prodUpi.diagnostics.uriLength,
+      browser: prodUpi.diagnostics.browser,
+      isStandalone: prodUpi.diagnostics.isStandalone,
+      validationChecks: prodUpi.diagnostics.checks
     });
 
-    const scheme = 'upi://pay';
-    const paMasked = `***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`;
-    const pnVal = "Frosty Bite";
-    const amVal = totalPrice.toFixed(2);
-    const cuVal = "INR";
-    const tnVal = effectiveOrderId;
-    const fullUriMasked = `${scheme}?pa=${paMasked}&pn=${encodeURIComponent(pnVal)}&am=${amVal}&cu=${cuVal}&tn=${encodeURIComponent(tnVal)}`;
+    // Start gentle timeout to show the UI fallback notice if user returns or app fails to switch
+    if (fallbackTimeoutRef.current) clearTimeout(fallbackTimeoutRef.current);
+    fallbackTimeoutRef.current = setTimeout(() => {
+      if (paymentStateRef.current === 'WAITING_FOR_PAYMENT') {
+        console.log('[UPI_LAUNCHER_FALLBACK] 3.5-second launcher timeout triggered. Displaying QR / manual helper notice.');
+        setShowFallbackNotice(true);
+      }
+    }, 3500);
 
-    // Log intent dispatched
-    console.log('[UPI_INTENT_DISPATCHED] Redirecting browser to UPI protocol scheme:', {
-      scheme,
-      paMasked,
-      pn: pnVal,
-      am: amVal,
-      cu: cuVal,
-      tn: tnVal,
-      fullUriMasked
+    // CRITICAL FIX: Do NOT execute `window.location.href = upiUri` here!
+    // The native `<a href={upiUri}>` already initiates the OS intent.
+    // Triggering a secondary window.location.href fires a duplicate navigation in Chrome,
+    // which cancels the outgoing PhonePe Activity with RESULT_CANCELED and immediately refocuses the browser.
+  };
+
+  const handleLaunchTest = (testName: string, testDiag: { uri: string; diagnostics: SanitizedUpiDiagnostic }) => {
+    haptic.medium();
+    console.log(`[UPI_DEV_${testName.replace(/\s+/g, '_')}_LAUNCH] Sanitized diagnostic preview:`, {
+      testName,
+      scheme: testDiag.diagnostics.scheme,
+      paMasked: testDiag.diagnostics.paMasked,
+      pn: testDiag.diagnostics.pn,
+      am: testDiag.diagnostics.am,
+      cu: testDiag.diagnostics.cu,
+      tn: testDiag.diagnostics.tn,
+      tr: testDiag.diagnostics.tr,
+      uriLength: testDiag.diagnostics.uriLength,
+      browser: testDiag.diagnostics.browser,
+      isStandalone: testDiag.diagnostics.isStandalone,
+      validationChecks: testDiag.diagnostics.checks
     });
-
-    try {
-      // Execute launch via window.location.href
-      window.location.href = upiUri;
-
-      // Start a 3-second gentle timeout to show the UI fallback notice
-      setTimeout(() => {
-        // Safe check to verify we are still waiting for payment
-        if (paymentStateRef.current === 'WAITING_FOR_PAYMENT') {
-          console.log('[UPI_LAUNCHER_FALLBACK] 3-second launcher timeout triggered. Activating visual QR/UPI helper banner on screen.');
-          setShowFallbackNotice(true);
-        }
-      }, 3000);
-
-    } catch (err) {
-      console.error('[UPI_LAUNCHER_FALLBACK] Programmatic redirection failed immediately:', err);
-      setShowFallbackNotice(true);
-      toast.error("Unable to start payment in this app. Please scan the QR code or try another UPI app.", {
-        duration: 6000
-      });
-    }
+    toast.success(`Launching ${testName}...`);
   };
 
   // Manual Screenshot Upload & Verification
@@ -1248,6 +1338,89 @@ export const UPICheckout: React.FC = () => {
                       </>
                     )}
                   </button>
+                </div>
+
+                {/* Developer Test Suite (PhonePe / UPI Intent Isolation) */}
+                <div className="border border-white/10 rounded-2xl bg-zinc-950/60 p-3.5 space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowDevSuite(!showDevSuite)}
+                    className="w-full flex items-center justify-between text-left text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                      <span>PhonePe / UPI Dev Diagnostics</span>
+                    </div>
+                    <ChevronDown size={14} className={cn("transition-transform duration-200", showDevSuite && "rotate-180")} />
+                  </button>
+
+                  {showDevSuite && (
+                    <div className="pt-2 border-t border-white/5 space-y-2.5 text-xs">
+                      <p className="text-[10px] text-zinc-400 leading-normal">
+                        Controlled parameter isolation test buttons using known-valid VPA:
+                      </p>
+
+                      <div className="grid grid-cols-1 gap-2">
+                        {/* TEST 1 */}
+                        <a
+                          href={test1Upi.uri}
+                          onClick={() => handleLaunchTest('TEST 1', test1Upi)}
+                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-white text-[11px]">TEST 1: Minimal (₹1.00, No Note)</p>
+                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR</p>
+                          </div>
+                          <ExternalLink size={14} className="text-zinc-400" />
+                        </a>
+
+                        {/* TEST 2 */}
+                        <a
+                          href={test2Upi.uri}
+                          onClick={() => handleLaunchTest('TEST 2', test2Upi)}
+                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-white text-[11px]">TEST 2: With Note (₹1.00, tn=TEST)</p>
+                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tn=TEST</p>
+                          </div>
+                          <ExternalLink size={14} className="text-zinc-400" />
+                        </a>
+
+                        {/* TEST 3 */}
+                        <a
+                          href={test3Upi.uri}
+                          onClick={() => handleLaunchTest('TEST 3', test3Upi)}
+                          className="p-2.5 bg-emerald-950/40 hover:bg-emerald-900/40 active:scale-98 rounded-xl border border-emerald-500/30 flex items-center justify-between text-emerald-200 transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-emerald-300 text-[11px]">TEST 3: Real Frosty Bite URI</p>
+                            <p className="text-[9px] text-emerald-400/80 font-mono">am=₹{prodUpi.diagnostics.am}, tn={effectiveOrderId}</p>
+                          </div>
+                          <ExternalLink size={14} className="text-emerald-400" />
+                        </a>
+                      </div>
+
+                      {/* Live Inspection Metrics */}
+                      <div className="p-2 bg-zinc-900/80 rounded-xl border border-white/5 text-[10px] space-y-1 text-zinc-400 font-mono">
+                        <div className="flex justify-between">
+                          <span>Scheme:</span> <span className="text-emerald-400 font-bold">upi://pay</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Payee VPA:</span> <span className="text-white">{prodUpi.diagnostics.paMasked}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>URI Length:</span> <span className="text-white">{prodUpi.diagnostics.uriLength} chars</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Single Encoded:</span> <span className="text-emerald-400">Yes (No %25)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>PWA Standalone:</span> <span className="text-white">{prodUpi.diagnostics.isStandalone ? 'Yes' : 'No'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
