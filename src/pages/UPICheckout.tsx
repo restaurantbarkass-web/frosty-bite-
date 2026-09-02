@@ -334,18 +334,18 @@ export const UPICheckout: React.FC = () => {
             setExpiresAtMs(expMs);
             setTimeLeftSeconds(remSecs);
 
-            // Populate orderDetails from server order payload if client DB query returned empty
+            // Authoritative amount synchronization: always use database attempt/order total
             const totalPaise = attempt.amount_paise ? Number(attempt.amount_paise) / 100 : 0;
             const resolvedTotal = srvOrder?.total ?? totalPaise;
-            if ((!currentOrder || !currentOrder.totalPrice) && resolvedTotal > 0) {
+            if (resolvedTotal > 0) {
               currentOrder = {
                 orderId: srvOrder?.id || attempt.order_id || effectiveOrderId,
                 totalPrice: resolvedTotal,
-                name: srvOrder?.customer_name || 'Customer',
-                phone: srvOrder?.phone || '',
-                address: srvOrder?.address || '',
-                payment_status: srvOrder?.payment_status || 'pending',
-                status: srvOrder?.status || 'pending'
+                name: srvOrder?.customer_name || currentOrder?.name || 'Customer',
+                phone: srvOrder?.phone || currentOrder?.phone || '',
+                address: srvOrder?.address || currentOrder?.address || '',
+                payment_status: srvOrder?.payment_status || currentOrder?.payment_status || 'pending',
+                status: srvOrder?.status || currentOrder?.status || 'pending'
               };
               setOrderDetails(currentOrder);
             }
@@ -403,15 +403,15 @@ export const UPICheckout: React.FC = () => {
 
                 const totalPaise = attempt.amount_paise ? Number(attempt.amount_paise) / 100 : 0;
                 const resolvedTotal = srvOrder?.total ?? totalPaise;
-                if ((!currentOrder || !currentOrder.totalPrice) && resolvedTotal > 0) {
+                if (resolvedTotal > 0) {
                   currentOrder = {
                     orderId: srvOrder?.id || attempt.order_id || effectiveOrderId,
                     totalPrice: resolvedTotal,
-                    name: srvOrder?.customer_name || 'Customer',
-                    phone: srvOrder?.phone || '',
-                    address: srvOrder?.address || '',
-                    payment_status: srvOrder?.payment_status || 'pending',
-                    status: srvOrder?.status || 'pending'
+                    name: srvOrder?.customer_name || currentOrder?.name || 'Customer',
+                    phone: srvOrder?.phone || currentOrder?.phone || '',
+                    address: srvOrder?.address || currentOrder?.address || '',
+                    payment_status: srvOrder?.payment_status || currentOrder?.payment_status || 'pending',
+                    status: srvOrder?.status || currentOrder?.status || 'pending'
                   };
                   setOrderDetails(currentOrder);
                 }
@@ -1201,14 +1201,15 @@ export const UPICheckout: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="w-full max-w-sm space-y-3">
-                <button
+                <a
+                  href={upiUri}
                   onClick={handleOpenUpiApp}
-                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 select-none cursor-pointer text-center"
                 >
                   <Smartphone size={18} />
                   <span>Open UPI App</span>
                   <ExternalLink size={14} className="opacity-70" />
-                </button>
+                </a>
 
                 {showFallbackNotice && (
                   <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-1.5 shadow-md">

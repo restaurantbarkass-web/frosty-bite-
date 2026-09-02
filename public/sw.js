@@ -24,12 +24,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Skip caching for Vite dev-server internals (dev-only, safe to keep for prod too)
+  // Skip caching for Vite dev-server internals and payment endpoints (status, attempts, verification)
   if (
     event.request.url.includes('/node_modules/') ||
     event.request.url.includes('/@vite/') ||
     event.request.url.includes('/src/') ||
-    event.request.url.includes('.hot-update')
+    event.request.url.includes('.hot-update') ||
+    event.request.url.includes('/api/payment')
   ) {
     return;
   }

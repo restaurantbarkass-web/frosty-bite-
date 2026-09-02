@@ -795,3 +795,8 @@ CREATE POLICY "Service Role Manage Payment Attempts" ON public.payment_attempts 
 
 
 
+
+-- Add Unique Constraint to prevent multiple active waiting attempts for a single order
+CREATE UNIQUE INDEX IF NOT EXISTS idx_single_waiting_attempt 
+ON public.payment_attempts (order_id) 
+WHERE status = 'waiting';
