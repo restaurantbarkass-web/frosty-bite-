@@ -704,7 +704,11 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       return res.status(200).json({
         success: true,
         matched: false,
-        reason: matchReason
+        reason: matchReason,
+        diagnostics: {
+          CandidateCount: 0,
+          AmbiguousReason: matchReason
+        }
       });
     }
 
@@ -728,7 +732,11 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       return res.status(200).json({
         success: true,
         matched: false,
-        reason: 'no_eligible_order'
+        reason: 'no_eligible_order',
+        diagnostics: {
+          CandidateCount: 0,
+          AmbiguousReason: 'no_eligible_order'
+        }
       });
     }
 
@@ -805,13 +813,19 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       return res.status(200).json({
         success: true,
         matched: false,
-        reason: matchReason
+        reason: matchReason,
+        diagnostics: {
+          CandidateCount: 0,
+          AmbiguousReason: matchReason
+        }
       });
     }
 
     // Case B: Ambiguous amount — more than one eligible order has the exact same waiting amount
-    if (validCandidates.length > 1) {
-      console.warn(`[PaymentDeviceEvent] Ambiguous payment amount ${amount_paise} paise matched ${validCandidates.length} orders. Halting automated assignment.`);
+    const uniqueOrderIds = new Set(validCandidates.map((c) => c.order.id));
+
+    if (uniqueOrderIds.size > 1) {
+      console.warn(`[PaymentDeviceEvent] Ambiguous payment amount ${amount_paise} paise matched ${uniqueOrderIds.size} different orders. Halting automated assignment.`);
 
       await supabase.from('payment_verification_events').insert({
         event_id: cleanEventId,
@@ -829,12 +843,17 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       return res.status(200).json({
         success: true,
         matched: false,
-        reason: 'ambiguous_amount'
+        reason: 'ambiguous_amount',
+        diagnostics: {
+          CandidateCount: validCandidates.length,
+          CandidateOrderIdsMasked: Array.from(uniqueOrderIds).map(id => '***' + id.slice(-4)),
+          AmbiguousReason: 'multiple_orders_same_amount'
+        }
       });
     }
 
-    // Case C: Unique unambiguous match
-    const matchedCandidate = validCandidates[0];
+    // Case C: Unique unambiguous match (or multiple attempts for the SAME order)
+    const matchedCandidate = validCandidates[0]; // Pick the most recent attempt if multiple exist for the same order
     const nowIso = new Date().toISOString();
 
     // Atomic status transition from 'waiting' -> 'matched' on the payment attempt
@@ -931,7 +950,12 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       success: true,
       matched: true,
       order_id: matchedCandidate.order.id,
-      status: 'paid'
+      status: 'paid',
+      diagnostics: {
+        CandidateCount: validCandidates.length,
+        SelectedAttempt: matchedCandidate.attempt.id,
+        AmbiguousReason: 'none'
+      }
     });
   } catch (err: any) {
     console.error('[PaymentDeviceEvent] Error occurred:', err?.name || 'Error', err?.message || String(err));
