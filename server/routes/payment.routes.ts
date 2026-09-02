@@ -98,6 +98,7 @@ function authenticateDeviceToken(req: Request, res: Response): boolean {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
+    console.warn('[PaymentDeviceEvent] Unauthorized: missing or invalid authorization header prefix. Received:', authHeader ? 'Present (Invalid format)' : 'None');
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Missing or invalid authorization header.'
@@ -107,6 +108,7 @@ function authenticateDeviceToken(req: Request, res: Response): boolean {
 
   const providedToken = authHeader.slice(7).trim();
   if (!providedToken) {
+    console.warn('[PaymentDeviceEvent] Unauthorized: missing device token in Bearer header');
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Missing device token.'
@@ -118,6 +120,7 @@ function authenticateDeviceToken(req: Request, res: Response): boolean {
   const expectedBuf = Buffer.from(expectedToken.trim());
 
   if (providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
+    console.warn('[PaymentDeviceEvent] Unauthorized: timing check or length mismatch. Provided length:', providedBuf.length, 'Expected length:', expectedBuf.length);
     res.status(401).json({
       error: 'Unauthorized',
       message: 'Invalid device token.'
@@ -125,6 +128,7 @@ function authenticateDeviceToken(req: Request, res: Response): boolean {
     return false;
   }
 
+  console.log('[PaymentDeviceEvent] Client request successfully authenticated via expected FROSTYPAY_DEVICE_TOKEN');
   return true;
 }
 
@@ -518,6 +522,16 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       source_package,
       transaction_time
     } = req.body || {};
+
+    console.log('[PaymentDeviceEvent] Ingest request validated. Body fields present:', {
+      amount_paise,
+      eventId: event_id,
+      deviceId: device_id,
+      sourceType: source_type,
+      upiRefMasked: upi_reference ? '***' + String(upi_reference).slice(-4) : undefined,
+      sourcePackage: source_package,
+      transactionTime: transaction_time
+    });
 
     if (
       amount_paise === undefined ||
@@ -936,6 +950,11 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
  */
 router.get(['/status/:orderId', '/api/payment/status/:orderId'], paymentStatusLimiter, async (req: Request, res: Response) => {
   try {
+    // Set explicit headers to completely bypass caching proxies and browser caching
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     const rawParam = req.params.orderId;
     const rawOrderId = Array.isArray(rawParam) ? rawParam[0] : (rawParam as string);
     const cleanOrderId = cleanOrderIdString(rawOrderId);

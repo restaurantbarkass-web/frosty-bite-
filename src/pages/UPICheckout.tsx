@@ -550,29 +550,49 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
-      const res = await fetch(`/api/payment/status/${encodeURIComponent(effectiveOrderId)}`, {
+      const res = await fetch(`/api/payment/status/${encodeURIComponent(effectiveOrderId)}?t=${Date.now()}`, {
+        cache: 'no-store',
         headers: {
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
           ...authHeader
         }
       });
 
       console.log(`[UPI STATUS] response ${res.status}`);
 
-      if (res.ok || res.status === 304) {
+      // Race-condition prevention: Check dynamic ref before mutating React state
+      if ((paymentStateRef.current as string) === 'PAYMENT_VERIFIED') {
+        console.log('[UPI STATUS] Payment is already verified. Ignoring subsequent response processing.');
+        return;
+      }
+
+      if (res.status === 304) {
+        console.log('[UPI STATUS] Received 304 Not Modified. Skipping state mutations to prevent overwrites.');
+        return;
+      }
+
+      if (res.ok) {
         let data: any = {};
-        if (res.status !== 304) {
-          try {
-            data = await res.json();
-          } catch (e) {
-            data = {};
-          }
-        } else {
-          data = { verified: false, payment_status: 'pending' };
+        try {
+          data = await res.json();
+        } catch (e) {
+          data = {};
         }
 
-        const isVerified = Boolean(data.verified || data.payment_status === 'paid' || data.status === 'confirmed' || data.attempt_status === 'matched');
-        console.log(`[UPI STATUS] verified=${isVerified}`);
+        // Explicit structured field check as per security specification
+        const isVerified = Boolean(
+          data.success === true &&
+          (
+            data.verified === true ||
+            data.attempt_status === 'matched' ||
+            data.payment_status === 'paid' ||
+            data.status === 'confirmed'
+          )
+        );
+        console.log(`[UPI STATUS] verified=${isVerified}`, data);
 
         if (data.total && (!orderDetails || !orderDetails.totalPrice)) {
           setOrderDetails((prev: any) => ({
@@ -605,7 +625,11 @@ export const UPICheckout: React.FC = () => {
 
         if (data.attempt_status === 'detected') {
           setPaymentState('PAYMENT_DETECTED');
-          setTimeout(() => setPaymentState('VERIFYING'), 2000);
+          setTimeout(() => {
+            if (paymentStateRef.current === 'PAYMENT_DETECTED') {
+              setPaymentState('VERIFYING');
+            }
+          }, 2000);
         } else if (data.attempt_status === 'ambiguous') {
           setPaymentState('PAYMENT_AMBIGUOUS');
         } else if (data.attempt_status === 'expired') {
@@ -632,11 +656,19 @@ export const UPICheckout: React.FC = () => {
 
     // Secondary Fallback: Query Supabase client directly
     try {
+      if ((paymentStateRef.current as string) === 'PAYMENT_VERIFIED') {
+        return;
+      }
+
       const { data: ord } = await supabase
         .from('orders')
         .select('payment_status, status, utr')
         .or(`id.ilike.${effectiveOrderId},id.ilike.FB-${effectiveOrderId}`)
         .maybeSingle();
+
+      if ((paymentStateRef.current as string) === 'PAYMENT_VERIFIED') {
+        return;
+      }
 
       if (ord && (ord.payment_status === 'paid' || ord.status === 'confirmed')) {
         console.log('[UPI STATUS] verified=true (fallback db)');
@@ -655,6 +687,10 @@ export const UPICheckout: React.FC = () => {
         .limit(1)
         .maybeSingle();
 
+      if ((paymentStateRef.current as string) === 'PAYMENT_VERIFIED') {
+        return;
+      }
+
       if (att) {
         setConsecutiveFailures(0);
         setIsReconnecting(false);
@@ -669,13 +705,21 @@ export const UPICheckout: React.FC = () => {
           setExpiresAtMs((prev) => (prev !== expMs ? expMs : prev));
         }
 
+        if ((paymentStateRef.current as string) === 'PAYMENT_VERIFIED') {
+          return;
+        }
+
         if (att.status === 'matched') {
           console.log('[UPI STATUS] verified=true (fallback attempt)');
           setPaymentState('PAYMENT_VERIFIED');
           haptic.checkout();
         } else if (att.status === 'detected') {
           setPaymentState('PAYMENT_DETECTED');
-          setTimeout(() => setPaymentState('VERIFYING'), 2000);
+          setTimeout(() => {
+            if (paymentStateRef.current === 'PAYMENT_DETECTED') {
+              setPaymentState('VERIFYING');
+            }
+          }, 2000);
         } else if (att.status === 'ambiguous') {
           setPaymentState('PAYMENT_AMBIGUOUS');
         } else if (att.status === 'expired') {
@@ -1231,180 +1275,7 @@ export const UPICheckout: React.FC = () => {
           </div>
         </div>
 
-        {/* DEV-ONLY Diagnostic Controls */}
-        <div className="mt-4 p-5 bg-zinc-950 border border-red-500/25 rounded-3xl space-y-5">
-          <div className="flex items-center gap-2 border-b border-white/5 pb-2">
-            <span className="text-sm">🔧</span>
-            <h3 className="text-xs font-black uppercase tracking-widest text-red-400">
-              [DEV ONLY] UPI Intent Diagnostic Tools
-            </h3>
-          </div>
-          
-          <p className="text-[10px] text-zinc-400 leading-relaxed">
-            Investigate deep-link app-switching and custom scheme handlers. Test programmatic launchers vs direct anchor links to bypass browser restrictions.
-          </p>
 
-          {/* Section: Live Diagnostic Metadata Grid */}
-          <div className="p-3 bg-zinc-900 rounded-2xl border border-white/5 space-y-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-red-400 block mb-1">
-              Active Session Metadata
-            </span>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono leading-tight">
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Launch Method</p>
-                <p className="text-zinc-200 mt-0.5">{diagnosticLaunchMethod}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">App Environment</p>
-                <p className="text-zinc-200 mt-0.5">
-                  {window.matchMedia('(display-mode: standalone)').matches ? "Standalone PWA" : "Normal Browser"}
-                </p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">URI Scheme</p>
-                <p className="text-emerald-400 mt-0.5">upi://pay</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Masked Payee VPA</p>
-                <p className="text-zinc-200 mt-0.5">{`***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Reference (tn)</p>
-                <p className="text-zinc-200 mt-0.5">{effectiveOrderId}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Amount (am)</p>
-                <p className="text-zinc-200 mt-0.5">₹{totalPrice.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Elapsed Time</p>
-                <p className="text-zinc-200 mt-0.5">{elapsedSeconds}s</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Visibility State</p>
-                <p className="text-amber-400 mt-0.5">{pageVisibility}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">Last Attempt Timestamp</p>
-                <p className="text-zinc-200 mt-0.5">
-                  {launchTime ? new Date(launchTime).toLocaleTimeString() : 'Not triggered yet'}
-                </p>
-              </div>
-              <div className="col-span-2 border-t border-white/5 pt-2 mt-1">
-                <p className="text-zinc-500 uppercase text-[8px] font-bold">User Agent (Browser)</p>
-                <p className="text-zinc-300 text-[9px] mt-0.5 break-all leading-normal">{navigator.userAgent}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 1: Programmatic JavaScript buttons */}
-          <div className="space-y-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block">
-              Method 1: Programmatic JS (window.location.href)
-            </span>
-            <div className="grid grid-cols-1 gap-2.5">
-              <button
-                onClick={() => {
-                  setDiagnosticLaunchMethod('Programmatic JS (Test)');
-                  setLaunchTime(Date.now());
-                  handleLaunchTestUri('INTENT');
-                }}
-                className="w-full py-2.5 px-4 bg-red-950/40 hover:bg-red-900/50 text-red-200 border border-red-500/20 hover:border-red-500/40 font-bold uppercase tracking-widest text-[10px] rounded-xl transition-all"
-              >
-                Test UPI Intent (Minimal 1.00 INR + tn=TEST)
-              </button>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Programmatic JS (Test A)');
-                    setLaunchTime(Date.now());
-                    handleLaunchTestUri('A');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
-                >
-                  TEST A (No tn)
-                </button>
-                <button
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Programmatic JS (Test B)');
-                    setLaunchTime(Date.now());
-                    handleLaunchTestUri('B');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
-                >
-                  TEST B (tn=TEST)
-                </button>
-                <button
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Programmatic JS (Test C)');
-                    setLaunchTime(Date.now());
-                    handleLaunchTestUri('C');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 transition-all"
-                >
-                  TEST C (Real)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: HTML Anchor links for direct comparison */}
-          <div className="space-y-2 pt-2.5 border-t border-white/5">
-            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block">
-              Method 2: HTML Anchor Comparison (Direct Anchor click)
-            </span>
-            <div className="grid grid-cols-1 gap-2.5">
-              <a
-                href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR&tn=TEST`}
-                onClick={() => {
-                  setDiagnosticLaunchMethod('Direct HTML Anchor (Test Intent)');
-                  setLaunchTime(Date.now());
-                  console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor Test click triggered.');
-                }}
-                className="w-full py-2.5 px-4 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-200 border border-emerald-500/20 hover:border-emerald-500/40 font-bold uppercase tracking-widest text-[10px] rounded-xl block text-center transition-all"
-              >
-                Anchor: Test UPI Intent (1.00 INR + tn=TEST)
-              </a>
-
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <a
-                  href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR`}
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor A)');
-                    setLaunchTime(Date.now());
-                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor A click triggered.');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
-                >
-                  Anchor A (No tn)
-                </a>
-                <a
-                  href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=1.00&cu=INR&tn=TEST`}
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor B)');
-                    setLaunchTime(Date.now());
-                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor B click triggered.');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
-                >
-                  Anchor B (tn=TEST)
-                </a>
-                <a
-                  href={upiUri}
-                  onClick={() => {
-                    setDiagnosticLaunchMethod('Direct HTML Anchor (Anchor C - Real)');
-                    setLaunchTime(Date.now());
-                    console.log('[UPI_INTENT_ATTEMPT] Direct HTML Anchor C click triggered.');
-                  }}
-                  className="py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold uppercase tracking-widest text-[9px] rounded-lg border border-white/5 block transition-all"
-                >
-                  Anchor C (Real)
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>
