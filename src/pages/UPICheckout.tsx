@@ -758,11 +758,39 @@ export const UPICheckout: React.FC = () => {
 
   // Open UPI App Action
   const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
-  const upiUri = `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${totalPrice.toFixed(2)}&cu=INR`;
+  const upiUri = `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent("Frosty Bite")}&am=${totalPrice.toFixed(2)}&cu=INR&tn=${encodeURIComponent(effectiveOrderId)}`;
 
   const handleOpenUpiApp = () => {
     haptic.medium();
-    window.location.href = upiUri;
+    
+    // Safely log the constructed UPI URI for debugging/development, masking the exact VPA handle
+    const maskedUri = upiUri.replace(/pa=[^&]+/, `pa=***@${DEFAULT_UPI_ID.split('@')[1] || 'upi'}`);
+    console.log('[UPI INTENT] Initiating UPI payment. URI:', maskedUri);
+
+    try {
+      window.location.href = upiUri;
+      
+      // Gracefully detect if the UPI deep link failed to focus away or handle the intent
+      const checkStartTime = Date.now();
+      const checkFocusBack = () => {
+        if (Date.now() - checkStartTime < 3000) {
+          if (!document.hidden) {
+            setTimeout(checkFocusBack, 250);
+          }
+        } else {
+          // Document was never hidden, showing the fallback notification to guide user
+          toast.error("Unable to start payment in this app. Please scan the QR code or try another UPI app.", {
+            duration: 6000
+          });
+        }
+      };
+      setTimeout(checkFocusBack, 1000);
+    } catch (err) {
+      console.error('[UPI INTENT] Error dispatching intent URI:', err);
+      toast.error("Unable to start payment in this app. Please scan the QR code or try another UPI app.", {
+        duration: 6000
+      });
+    }
   };
 
   // Manual Screenshot Upload & Verification
