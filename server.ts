@@ -3,6 +3,11 @@ import dotenv from "dotenv";
 import fs from "fs";
 import http from "http";
 
+// Ensure SUPABASE_URL is available to the server runtime from VITE_SUPABASE_URL if missing
+if (!process.env.SUPABASE_URL && process.env.VITE_SUPABASE_URL) {
+  process.env.SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+}
+
 // Load .env if it exists
 if (fs.existsSync(".env")) {
   console.log("[Server] Loading .env configuration...");

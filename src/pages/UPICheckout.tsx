@@ -193,6 +193,17 @@ export const UPICheckout: React.FC = () => {
       let safeUserId = user?.uid || '';
       let authHeader: Record<string, string> = {};
 
+      if (isRegisteredOrder) {
+        try {
+          console.log('[UPICheckout] Registered order: Obtaining current valid Supabase session...');
+          const { AuthManager } = await import('../core/auth/AuthManager');
+          await AuthManager.restoreSession();
+          await AuthManager.refreshSession();
+        } catch (sessionErr) {
+          console.warn('[UPICheckout] Failed to restore/refresh Supabase session:', sessionErr);
+        }
+      }
+
       try {
         const token = await getAuthToken();
         if (token) {

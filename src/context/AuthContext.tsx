@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UnifiedUser | null>(initialCachedUser);
   const [role, setRole] = useState<UserRole | null>(initialCachedUser?.role || null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>(initialCachedUser ? 'authenticated' : 'loading');
-  const [loading, setLoading] = useState<boolean>(!initialCachedUser);
+  const [loading, setLoading] = useState<boolean>(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingLogout, setPendingLogout] = useState<{ resolve: () => void; reject: (err: any) => void } | null>(null);
 
