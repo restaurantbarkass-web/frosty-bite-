@@ -151,14 +151,11 @@ const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${q
 const decodedFromQr = decodeURIComponent(qrUrl.split('data=')[1]);
 assert(decodedFromQr === prodTest.uri, 'QR Consistency: Dynamic QR encodes the exact same URI as Intent launcher');
 
-// Verify UPICheckout.tsx has isolation test buttons and attemptTr logic
+// Verify UPICheckout.tsx has clean customer UI and attemptTr logic
 const checkoutPath = path.resolve(process.cwd(), 'src/pages/UPICheckout.tsx');
 const checkoutContent = fs.readFileSync(checkoutPath, 'utf8');
 
-assert(checkoutContent.includes('TEST A (pa+pn+am+cu)'), 'UI: TEST A button rendered');
-assert(checkoutContent.includes('TEST B (pa+pn+am+cu+tn)'), 'UI: TEST B button rendered');
-assert(checkoutContent.includes('TEST C (pa+pn+am+cu+tr)'), 'UI: TEST C button rendered');
-assert(checkoutContent.includes('TEST D (pa+pn+am+cu+tr+tn)'), 'UI: TEST D button rendered');
+assert(!checkoutContent.includes('TEST A (pa+pn+am+cu)'), 'UI: Temporary test buttons removed from customer checkout UI');
 assert(checkoutContent.includes('tr: attemptTr || undefined'), 'Logic: prodUpi uses authoritative attemptTr');
 
 // Verify payment.routes.ts returns transaction_reference

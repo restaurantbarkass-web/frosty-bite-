@@ -121,8 +121,8 @@ assert(
   'Step 12: Checkout displays exact fallback guidance while preserving QR code'
 );
 
-// Dev Diagnostics Panel presence
-assert(checkoutContent.includes('PhonePe / UPI Dev Diagnostics'), 'Step 3: Dev Diagnostics test suite panel rendered in UI');
+// Dev Diagnostics Panel removal check
+assert(!checkoutContent.includes('PhonePe / UPI Dev Diagnostics'), 'Step 3: Dev Diagnostics test suite panel removed from customer UI');
 
 console.log('\n===================================================================');
 console.log(`TOTAL TESTS: ${passed + failed} | PASSED: ${passed} | FAILED: ${failed}`);

@@ -15,8 +15,7 @@ import {
   Loader2,
   Lock,
   ArrowRight,
-  ExternalLink,
-  ChevronDown
+  ExternalLink
 } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -104,7 +103,6 @@ export const UPICheckout: React.FC = () => {
 
   // Diagnostic & Fallback tracking states
   const [showFallbackNotice, setShowFallbackNotice] = useState(false);
-  const [showDevSuite, setShowDevSuite] = useState(false);
   const fallbackTimeoutRef = useRef<any>(null);
   const [launchTime, setLaunchTime] = useState<number | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -977,52 +975,6 @@ export const UPICheckout: React.FC = () => {
 
   const upiUri = prodUpi.uri;
 
-  // Controlled parameter isolation tests (Step 8: Tests A, B, C, D)
-  const testAUpi = useMemo(() => {
-    return buildValidatedUpiUri({
-      pa: DEFAULT_UPI_ID,
-      pn: "Frosty Bite",
-      am: 1.00,
-      cu: 'INR'
-    });
-  }, []);
-
-  const testBUpi = useMemo(() => {
-    return buildValidatedUpiUri({
-      pa: DEFAULT_UPI_ID,
-      pn: "Frosty Bite",
-      am: 1.00,
-      cu: 'INR',
-      tn: 'TEST'
-    });
-  }, []);
-
-  const testCUpi = useMemo(() => {
-    return buildValidatedUpiUri({
-      pa: DEFAULT_UPI_ID,
-      pn: "Frosty Bite",
-      am: 1.00,
-      cu: 'INR',
-      tr: attemptTr || 'FBTEST0000000000000000000000001'
-    });
-  }, [attemptTr]);
-
-  const testDUpi = useMemo(() => {
-    return buildValidatedUpiUri({
-      pa: DEFAULT_UPI_ID,
-      pn: "Frosty Bite",
-      am: 1.00,
-      cu: 'INR',
-      tr: attemptTr || 'FBTEST0000000000000000000000001',
-      tn: 'TEST'
-    });
-  }, [attemptTr]);
-
-  // Backward-compatible aliases
-  const test1Upi = testAUpi;
-  const test2Upi = testBUpi;
-  const test3Upi = prodUpi;
-
   const handleOpenUpiApp = (e?: React.MouseEvent<HTMLAnchorElement>) => {
     haptic.medium();
     setDiagnosticLaunchMethod('Native Anchor <a href>');
@@ -1056,25 +1008,6 @@ export const UPICheckout: React.FC = () => {
     // The native `<a href={upiUri}>` already initiates the OS intent.
     // Triggering a secondary window.location.href fires a duplicate navigation in Chrome,
     // which cancels the outgoing PhonePe Activity with RESULT_CANCELED and immediately refocuses the browser.
-  };
-
-  const handleLaunchTest = (testName: string, testDiag: { uri: string; diagnostics: SanitizedUpiDiagnostic }) => {
-    haptic.medium();
-    console.log(`[UPI_DEV_${testName.replace(/\s+/g, '_')}_LAUNCH] Sanitized diagnostic preview:`, {
-      testName,
-      scheme: testDiag.diagnostics.scheme,
-      paMasked: testDiag.diagnostics.paMasked,
-      pn: testDiag.diagnostics.pn,
-      am: testDiag.diagnostics.am,
-      cu: testDiag.diagnostics.cu,
-      tn: testDiag.diagnostics.tn,
-      tr: testDiag.diagnostics.tr,
-      uriLength: testDiag.diagnostics.uriLength,
-      browser: testDiag.diagnostics.browser,
-      isStandalone: testDiag.diagnostics.isStandalone,
-      validationChecks: testDiag.diagnostics.checks
-    });
-    toast.success(`Launching ${testName}...`);
   };
 
   // Manual Screenshot Upload & Verification
@@ -1338,10 +1271,24 @@ export const UPICheckout: React.FC = () => {
                 </a>
 
                 {showFallbackNotice && (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-1.5 shadow-md">
-                    <p className="font-black uppercase tracking-wider text-[10px] text-amber-400">⚠️ App Switch Notice</p>
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-2 shadow-md">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-amber-400 font-bold">⚠️</span>
+                      <p className="font-black uppercase tracking-wider text-[10px] text-amber-400">UPI App Launch & Compatibility Notice</p>
+                    </div>
                     <p className="font-semibold text-amber-300">Unable to start payment in this app.</p>
                     <p className="text-zinc-300 font-medium">Please scan the QR code above or copy the UPI ID below to pay from any UPI app manually.</p>
+                    
+                    <div className="pt-2 border-t border-amber-500/20 space-y-1 text-zinc-300 font-medium text-[11px]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90">3 Quick Ways to Complete Your Order:</p>
+                      <p><strong className="text-white">1. Dynamic QR:</strong> Scan the QR code above with any UPI app (GPay, PhonePe, Paytm, BHIM, CRED, or Bank app).</p>
+                      <p><strong className="text-white">2. Copy UPI ID:</strong> Copy <span className="font-mono text-emerald-400 font-bold">{DEFAULT_UPI_ID}</span> and transfer ₹{totalPrice.toFixed(2)} directly from your UPI app.</p>
+                      <p><strong className="text-white">3. Another Installed UPI App:</strong> Tap "Open UPI App" again and select a different UPI application from your device app chooser.</p>
+                    </div>
+                    
+                    <p className="text-[10px] text-zinc-400 italic pt-1 border-t border-amber-500/20">
+                      Payment verification continues automatically in real-time via FrostyPay soundbox & device alerts.
+                    </p>
                   </div>
                 )}
 
@@ -1374,115 +1321,6 @@ export const UPICheckout: React.FC = () => {
                       </>
                     )}
                   </button>
-                </div>
-
-                {/* Developer Test Suite (PhonePe / UPI Intent Isolation) */}
-                <div className="border border-white/10 rounded-2xl bg-zinc-950/60 p-3.5 space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowDevSuite(!showDevSuite)}
-                    className="w-full flex items-center justify-between text-left text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-white transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                      <span>PhonePe / UPI Dev Diagnostics</span>
-                    </div>
-                    <ChevronDown size={14} className={cn("transition-transform duration-200", showDevSuite && "rotate-180")} />
-                  </button>
-
-                  {showDevSuite && (
-                    <div className="pt-2 border-t border-white/5 space-y-2.5 text-xs">
-                      <p className="text-[10px] text-zinc-400 leading-normal">
-                        Controlled parameter isolation test buttons using known-valid VPA:
-                      </p>
-
-                      <div className="grid grid-cols-1 gap-2">
-                        {/* TEST A */}
-                        <a
-                          href={testAUpi.uri}
-                          onClick={() => handleLaunchTest('TEST A (pa+pn+am+cu)', testAUpi)}
-                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
-                        >
-                          <div>
-                            <p className="font-bold text-white text-[11px]">TEST A: Minimal (₹1.00)</p>
-                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR</p>
-                          </div>
-                          <ExternalLink size={14} className="text-zinc-400" />
-                        </a>
-
-                        {/* TEST B */}
-                        <a
-                          href={testBUpi.uri}
-                          onClick={() => handleLaunchTest('TEST B (pa+pn+am+cu+tn)', testBUpi)}
-                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
-                        >
-                          <div>
-                            <p className="font-bold text-white text-[11px]">TEST B: With Note (₹1.00, tn=TEST)</p>
-                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tn=TEST</p>
-                          </div>
-                          <ExternalLink size={14} className="text-zinc-400" />
-                        </a>
-
-                        {/* TEST C */}
-                        <a
-                          href={testCUpi.uri}
-                          onClick={() => handleLaunchTest('TEST C (pa+pn+am+cu+tr)', testCUpi)}
-                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
-                        >
-                          <div>
-                            <p className="font-bold text-white text-[11px]">TEST C: With Ref (₹1.00, tr)</p>
-                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tr={testCUpi.diagnostics.tr ? `${testCUpi.diagnostics.tr.slice(0, 10)}...` : 'pending'}</p>
-                          </div>
-                          <ExternalLink size={14} className="text-zinc-400" />
-                        </a>
-
-                        {/* TEST D */}
-                        <a
-                          href={testDUpi.uri}
-                          onClick={() => handleLaunchTest('TEST D (pa+pn+am+cu+tr+tn)', testDUpi)}
-                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
-                        >
-                          <div>
-                            <p className="font-bold text-white text-[11px]">TEST D: Ref + Note (₹1.00, tr+tn)</p>
-                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tr + tn=TEST</p>
-                          </div>
-                          <ExternalLink size={14} className="text-zinc-400" />
-                        </a>
-
-                        {/* PROD URI */}
-                        <a
-                          href={prodUpi.uri}
-                          onClick={() => handleLaunchTest('PROD FROSTY BITE URI', prodUpi)}
-                          className="p-2.5 bg-emerald-950/40 hover:bg-emerald-900/40 active:scale-98 rounded-xl border border-emerald-500/30 flex items-center justify-between text-emerald-200 transition-all text-left"
-                        >
-                          <div>
-                            <p className="font-bold text-emerald-300 text-[11px]">PROD: Frosty Bite Order URI</p>
-                            <p className="text-[9px] text-emerald-400/80 font-mono">am=₹{prodUpi.diagnostics.am}, tr={prodUpi.diagnostics.tr ? `${prodUpi.diagnostics.tr.slice(0, 10)}...` : 'pending'}, tn={effectiveOrderId}</p>
-                          </div>
-                          <ExternalLink size={14} className="text-emerald-400" />
-                        </a>
-                      </div>
-
-                      {/* Live Inspection Metrics */}
-                      <div className="p-2 bg-zinc-900/80 rounded-xl border border-white/5 text-[10px] space-y-1 text-zinc-400 font-mono">
-                        <div className="flex justify-between">
-                          <span>Scheme:</span> <span className="text-emerald-400 font-bold">upi://pay</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Payee VPA:</span> <span className="text-white">{prodUpi.diagnostics.paMasked}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>URI Length:</span> <span className="text-white">{prodUpi.diagnostics.uriLength} chars</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Single Encoded:</span> <span className="text-emerald-400">Yes (No %25)</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>PWA Standalone:</span> <span className="text-white">{prodUpi.diagnostics.isStandalone ? 'Yes' : 'No'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
