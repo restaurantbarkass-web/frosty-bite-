@@ -968,10 +968,9 @@ export const UPICheckout: React.FC = () => {
       pn: "Frosty Bite",
       am: totalPrice > 0 ? totalPrice : 1.00,
       cu: 'INR',
-      tr: attemptTr || undefined,
       tn: effectiveOrderId
     });
-  }, [totalPrice, effectiveOrderId, attemptTr]);
+  }, [totalPrice, effectiveOrderId]);
 
   const upiUri = prodUpi.uri;
 
@@ -1271,15 +1270,16 @@ export const UPICheckout: React.FC = () => {
                 </a>
 
                 {showFallbackNotice && (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-2 shadow-md">
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-2.5 shadow-md">
                     <div className="flex items-center gap-1.5">
                       <span className="text-amber-400 font-bold">⚠️</span>
                       <p className="font-black uppercase tracking-wider text-[10px] text-amber-400">UPI App Launch & Compatibility Notice</p>
                     </div>
                     <p className="font-semibold text-amber-300">Unable to start payment in this app.</p>
+                    <p className="text-zinc-300 font-medium">If your UPI app displayed <em>"Could not initiate transaction"</em>, it usually means you are paying from the same phone/account (UPI does not allow paying oneself), or your bank requires manual entry or QR scanning.</p>
                     <p className="text-zinc-300 font-medium">Please scan the QR code above or copy the UPI ID below to pay from any UPI app manually.</p>
                     
-                    <div className="pt-2 border-t border-amber-500/20 space-y-1 text-zinc-300 font-medium text-[11px]">
+                    <div className="pt-2 border-t border-amber-500/20 space-y-1.5 text-zinc-300 font-medium text-[11px]">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90">3 Quick Ways to Complete Your Order:</p>
                       <p><strong className="text-white">1. Dynamic QR:</strong> Scan the QR code above with any UPI app (GPay, PhonePe, Paytm, BHIM, CRED, or Bank app).</p>
                       <p><strong className="text-white">2. Copy UPI ID:</strong> Copy <span className="font-mono text-emerald-400 font-bold">{DEFAULT_UPI_ID}</span> and transfer ₹{totalPrice.toFixed(2)} directly from your UPI app.</p>

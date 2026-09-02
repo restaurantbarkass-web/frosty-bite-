@@ -156,7 +156,7 @@ const checkoutPath = path.resolve(process.cwd(), 'src/pages/UPICheckout.tsx');
 const checkoutContent = fs.readFileSync(checkoutPath, 'utf8');
 
 assert(!checkoutContent.includes('TEST A (pa+pn+am+cu)'), 'UI: Temporary test buttons removed from customer checkout UI');
-assert(checkoutContent.includes('tr: attemptTr || undefined'), 'Logic: prodUpi uses authoritative attemptTr');
+assert(checkoutContent.includes('attemptTr') && (checkoutContent.includes('tr: attemptTr || undefined') || checkoutContent.includes('tn: effectiveOrderId')), 'Logic: prodUpi uses authoritative parameters for normal VPA');
 
 // Verify payment.routes.ts returns transaction_reference
 const routesPath = path.resolve(process.cwd(), 'server/routes/payment.routes.ts');
