@@ -386,7 +386,8 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
           amount_paise: Number(activeAttempt.amount_paise),
           status: activeAttempt.status,
           created_at: activeAttempt.created_at,
-          expires_at: activeAttempt.expires_at
+          expires_at: activeAttempt.expires_at,
+          transaction_reference: (activeAttempt.id || '').replace(/-/g, '').slice(0, 35)
         },
         order: {
           id: order.id,
@@ -451,7 +452,8 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
             amount_paise: Number(raceAttempt.amount_paise),
             status: raceAttempt.status,
             created_at: raceAttempt.created_at,
-            expires_at: raceAttempt.expires_at
+            expires_at: raceAttempt.expires_at,
+            transaction_reference: (raceAttempt.id || '').replace(/-/g, '').slice(0, 35)
           },
           order: {
             id: order.id,
@@ -480,7 +482,8 @@ router.post(['/create-attempt', '/api/payment/create-attempt'], paymentCreateAtt
         amount_paise: Number(insertedAttempt.amount_paise),
         status: insertedAttempt.status,
         created_at: insertedAttempt.created_at,
-        expires_at: insertedAttempt.expires_at
+        expires_at: insertedAttempt.expires_at,
+        transaction_reference: (insertedAttempt.id || '').replace(/-/g, '').slice(0, 35)
       },
       order: {
         id: order.id,

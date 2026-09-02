@@ -315,7 +315,8 @@ export const UPICheckout: React.FC = () => {
           if (response.ok && data.success && data.payment_attempt) {
             const attempt = data.payment_attempt;
             const srvOrder = data.order;
-            setAttemptId(attempt.id);
+            const authoritativeTr = attempt.transaction_reference || (attempt.id ? attempt.id.replace(/-/g, '').slice(0, 35) : '');
+            setAttemptId(authoritativeTr || attempt.id);
 
             const expMs = Date.parse(attempt.expires_at);
             const nowMs = Date.now();
@@ -393,7 +394,8 @@ export const UPICheckout: React.FC = () => {
                 console.log('[UPICheckout] Retry succeeded!');
                 const attempt = retryData.payment_attempt;
                 const srvOrder = retryData.order;
-                setAttemptId(attempt.id);
+                const authoritativeTr = attempt.transaction_reference || (attempt.id ? attempt.id.replace(/-/g, '').slice(0, 35) : '');
+                setAttemptId(authoritativeTr || attempt.id);
 
                 const expMs = Date.parse(attempt.expires_at);
                 const nowMs = Date.now();
@@ -895,7 +897,8 @@ export const UPICheckout: React.FC = () => {
     const cleanAm = isNaN(numAm) || numAm <= 0 ? '1.00' : numAm.toFixed(2);
     const cleanCu = (params.cu || 'INR').trim().toUpperCase();
     const cleanTn = params.tn ? params.tn.trim().replace(/[^\w\s-]/g, '') : '';
-    const cleanTr = params.tr ? params.tr.trim().replace(/[^\w\s-]/g, '') : '';
+    // Format tr: strictly alphanumeric [a-zA-Z0-9], no special characters, max 35 chars as per NPCI specification
+    const cleanTr = params.tr ? params.tr.trim().replace(/[^a-zA-Z0-9]/g, '').slice(0, 35) : '';
 
     const queryParts: string[] = [
       `pa=${cleanPa}`,
@@ -904,11 +907,11 @@ export const UPICheckout: React.FC = () => {
       `cu=${cleanCu}`
     ];
 
-    if (cleanTn) {
-      queryParts.push(`tn=${encodeURIComponent(cleanTn)}`);
-    }
     if (cleanTr) {
       queryParts.push(`tr=${encodeURIComponent(cleanTr)}`);
+    }
+    if (cleanTn) {
+      queryParts.push(`tn=${encodeURIComponent(cleanTn)}`);
     }
 
     const uri = `upi://pay?${queryParts.join('&')}`;
@@ -953,20 +956,29 @@ export const UPICheckout: React.FC = () => {
 
   // Open UPI App Action & Real Production Intent URI
   const totalPrice = orderDetails?.totalPrice || orderDetails?.total || 0;
+
+  // Format authoritative payment attempt transaction reference (tr)
+  // NPCI requires tr to be strictly alphanumeric [a-zA-Z0-9] and max 35 characters
+  const attemptTr = useMemo(() => {
+    if (!attemptId) return '';
+    return attemptId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 35);
+  }, [attemptId]);
+
   const prodUpi = useMemo(() => {
     return buildValidatedUpiUri({
       pa: DEFAULT_UPI_ID,
       pn: "Frosty Bite",
       am: totalPrice > 0 ? totalPrice : 1.00,
       cu: 'INR',
+      tr: attemptTr || undefined,
       tn: effectiveOrderId
     });
-  }, [totalPrice, effectiveOrderId]);
+  }, [totalPrice, effectiveOrderId, attemptTr]);
 
   const upiUri = prodUpi.uri;
 
-  // Minimal PhonePe Dev Test URIs (Step 3)
-  const test1Upi = useMemo(() => {
+  // Controlled parameter isolation tests (Step 8: Tests A, B, C, D)
+  const testAUpi = useMemo(() => {
     return buildValidatedUpiUri({
       pa: DEFAULT_UPI_ID,
       pn: "Frosty Bite",
@@ -975,7 +987,7 @@ export const UPICheckout: React.FC = () => {
     });
   }, []);
 
-  const test2Upi = useMemo(() => {
+  const testBUpi = useMemo(() => {
     return buildValidatedUpiUri({
       pa: DEFAULT_UPI_ID,
       pn: "Frosty Bite",
@@ -985,6 +997,30 @@ export const UPICheckout: React.FC = () => {
     });
   }, []);
 
+  const testCUpi = useMemo(() => {
+    return buildValidatedUpiUri({
+      pa: DEFAULT_UPI_ID,
+      pn: "Frosty Bite",
+      am: 1.00,
+      cu: 'INR',
+      tr: attemptTr || 'FBTEST0000000000000000000000001'
+    });
+  }, [attemptTr]);
+
+  const testDUpi = useMemo(() => {
+    return buildValidatedUpiUri({
+      pa: DEFAULT_UPI_ID,
+      pn: "Frosty Bite",
+      am: 1.00,
+      cu: 'INR',
+      tr: attemptTr || 'FBTEST0000000000000000000000001',
+      tn: 'TEST'
+    });
+  }, [attemptTr]);
+
+  // Backward-compatible aliases
+  const test1Upi = testAUpi;
+  const test2Upi = testBUpi;
   const test3Upi = prodUpi;
 
   const handleOpenUpiApp = (e?: React.MouseEvent<HTMLAnchorElement>) => {
@@ -1361,41 +1397,67 @@ export const UPICheckout: React.FC = () => {
                       </p>
 
                       <div className="grid grid-cols-1 gap-2">
-                        {/* TEST 1 */}
+                        {/* TEST A */}
                         <a
-                          href={test1Upi.uri}
-                          onClick={() => handleLaunchTest('TEST 1', test1Upi)}
+                          href={testAUpi.uri}
+                          onClick={() => handleLaunchTest('TEST A (pa+pn+am+cu)', testAUpi)}
                           className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
                         >
                           <div>
-                            <p className="font-bold text-white text-[11px]">TEST 1: Minimal (₹1.00, No Note)</p>
+                            <p className="font-bold text-white text-[11px]">TEST A: Minimal (₹1.00)</p>
                             <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR</p>
                           </div>
                           <ExternalLink size={14} className="text-zinc-400" />
                         </a>
 
-                        {/* TEST 2 */}
+                        {/* TEST B */}
                         <a
-                          href={test2Upi.uri}
-                          onClick={() => handleLaunchTest('TEST 2', test2Upi)}
+                          href={testBUpi.uri}
+                          onClick={() => handleLaunchTest('TEST B (pa+pn+am+cu+tn)', testBUpi)}
                           className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
                         >
                           <div>
-                            <p className="font-bold text-white text-[11px]">TEST 2: With Note (₹1.00, tn=TEST)</p>
+                            <p className="font-bold text-white text-[11px]">TEST B: With Note (₹1.00, tn=TEST)</p>
                             <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tn=TEST</p>
                           </div>
                           <ExternalLink size={14} className="text-zinc-400" />
                         </a>
 
-                        {/* TEST 3 */}
+                        {/* TEST C */}
                         <a
-                          href={test3Upi.uri}
-                          onClick={() => handleLaunchTest('TEST 3', test3Upi)}
+                          href={testCUpi.uri}
+                          onClick={() => handleLaunchTest('TEST C (pa+pn+am+cu+tr)', testCUpi)}
+                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-white text-[11px]">TEST C: With Ref (₹1.00, tr)</p>
+                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tr={testCUpi.diagnostics.tr ? `${testCUpi.diagnostics.tr.slice(0, 10)}...` : 'pending'}</p>
+                          </div>
+                          <ExternalLink size={14} className="text-zinc-400" />
+                        </a>
+
+                        {/* TEST D */}
+                        <a
+                          href={testDUpi.uri}
+                          onClick={() => handleLaunchTest('TEST D (pa+pn+am+cu+tr+tn)', testDUpi)}
+                          className="p-2.5 bg-zinc-900 hover:bg-zinc-800 active:scale-98 rounded-xl border border-white/10 flex items-center justify-between text-zinc-200 transition-all text-left"
+                        >
+                          <div>
+                            <p className="font-bold text-white text-[11px]">TEST D: Ref + Note (₹1.00, tr+tn)</p>
+                            <p className="text-[9px] text-zinc-400 font-mono">pa + pn + am=1.00 + cu=INR + tr + tn=TEST</p>
+                          </div>
+                          <ExternalLink size={14} className="text-zinc-400" />
+                        </a>
+
+                        {/* PROD URI */}
+                        <a
+                          href={prodUpi.uri}
+                          onClick={() => handleLaunchTest('PROD FROSTY BITE URI', prodUpi)}
                           className="p-2.5 bg-emerald-950/40 hover:bg-emerald-900/40 active:scale-98 rounded-xl border border-emerald-500/30 flex items-center justify-between text-emerald-200 transition-all text-left"
                         >
                           <div>
-                            <p className="font-bold text-emerald-300 text-[11px]">TEST 3: Real Frosty Bite URI</p>
-                            <p className="text-[9px] text-emerald-400/80 font-mono">am=₹{prodUpi.diagnostics.am}, tn={effectiveOrderId}</p>
+                            <p className="font-bold text-emerald-300 text-[11px]">PROD: Frosty Bite Order URI</p>
+                            <p className="text-[9px] text-emerald-400/80 font-mono">am=₹{prodUpi.diagnostics.am}, tr={prodUpi.diagnostics.tr ? `${prodUpi.diagnostics.tr.slice(0, 10)}...` : 'pending'}, tn={effectiveOrderId}</p>
                           </div>
                           <ExternalLink size={14} className="text-emerald-400" />
                         </a>
