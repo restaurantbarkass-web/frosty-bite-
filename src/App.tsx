@@ -56,6 +56,7 @@ const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
 const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
 const AdminLayout = lazyWithRetry(() => import('./pages/AdminLayout'));
 const SearchOverlay = lazyWithRetry(() => import('./components/Search/SearchOverlay'));
+const FeedbackPage = lazyWithRetry(() => import('./pages/FeedbackPage'));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -253,10 +254,11 @@ function AppContent() {
   const isProductPage = location.pathname.startsWith('/product/');
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isCheckoutPage = location.pathname === '/checkout';
+  const isFeedbackPage = location.pathname.startsWith('/feedback');
   
-  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage;
-  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage;
-  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage;
+  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage && !isFeedbackPage;
+  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage && !isFeedbackPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage || isFeedbackPage;
 
   const { bootState } = useBoot();
 
@@ -383,6 +385,9 @@ function AppContent() {
                   </LocalErrorBoundary>
                 } />
                 <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
+                <Route path="/track/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
+                <Route path="/feedback" element={<LocalErrorBoundary fallbackName="Feedback Page"><FeedbackPage /></LocalErrorBoundary>} />
+                <Route path="/feedback/:orderId" element={<LocalErrorBoundary fallbackName="Feedback Page"><FeedbackPage /></LocalErrorBoundary>} />
                 <Route path="/admin/*" element={
                   <ProtectedRoute allowedRoles={['admin']} autoLogout={true} requireVerification={true}>
                     <LocalErrorBoundary fallbackName="Admin Control Panel">

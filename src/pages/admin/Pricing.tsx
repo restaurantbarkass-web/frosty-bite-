@@ -22,13 +22,13 @@ import {
 import { useConfig } from '../../context/ConfigContext';
 import { InputField } from '../../components/InputField';
 import { SetBakeryLocationModal } from '../../components/admin/SetBakeryLocationModal';
-import { getResolvedBakeryLocation } from '../../utils/whatsapp';
+import { getResolvedBakeryLocation, isValidHttpsUrl } from '../../utils/whatsapp';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
 export const Pricing: React.FC = () => {
   const { user, getAuthToken } = useAuth();
-  const { config, updateDeliveryPricing, updateGeofencingSettings, updatePickupOnlyStatus, isLoading: configLoading } = useConfig();
+  const { config, updateDeliveryPricing, updateGeofencingSettings, updatePickupOnlyStatus, updateCustomerLinks, isLoading: configLoading } = useConfig();
   const [baseFee, setBaseFee] = useState(20);
   const [perKm, setPerKm] = useState(8);
   const [freeKm, setFreeKm] = useState(5);
@@ -38,6 +38,11 @@ export const Pricing: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showBakeryLocationModal, setShowBakeryLocationModal] = useState(false);
+
+  // Customer Links states
+  const [feedbackUrlInput, setFeedbackUrlInput] = useState('');
+  const [websiteUrlInput, setWebsiteUrlInput] = useState('https://frostybite.in');
+  const [isSavingLinks, setIsSavingLinks] = useState(false);
 
   // Geofencing states
   const [geofencingEnabled, setGeofencingEnabled] = useState(true);
@@ -64,6 +69,9 @@ export const Pricing: React.FC = () => {
       setDefaultDeliveryTime(config.defaultDeliveryTime ?? 25);
       setIsInstantDeliveryClosed(config.isInstantDeliveryClosed ?? false);
       setIsPickupOnly(Boolean(config.pickup_only ?? config.isPickupOnly ?? false));
+
+      setFeedbackUrlInput(config.feedbackUrl ?? '');
+      setWebsiteUrlInput(config.websiteUrl ?? 'https://frostybite.in');
 
       setGeofencingEnabled(config.geofencingEnabled ?? true);
       setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
@@ -103,6 +111,33 @@ export const Pricing: React.FC = () => {
       toast.error('Failed to update pricing');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveCustomerLinks = async () => {
+    setIsSavingLinks(true);
+    try {
+      if (feedbackUrlInput.trim() && !isValidHttpsUrl(feedbackUrlInput.trim())) {
+        toast.error('Feedback URL must start with https:// and be a valid URL.');
+        setIsSavingLinks(false);
+        return;
+      }
+      if (websiteUrlInput.trim() && !isValidHttpsUrl(websiteUrlInput.trim())) {
+        toast.error('Website URL must start with https:// and be a valid URL.');
+        setIsSavingLinks(false);
+        return;
+      }
+
+      const token = await getAuthToken();
+      await updateCustomerLinks({
+        feedbackUrl: feedbackUrlInput.trim(),
+        websiteUrl: websiteUrlInput.trim()
+      }, token);
+      toast.success('Customer links updated successfully!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update customer links');
+    } finally {
+      setIsSavingLinks(false);
     }
   };
 
@@ -359,6 +394,105 @@ export const Pricing: React.FC = () => {
               </motion.div>
             );
           })()}
+
+          {/* Customer Links (Feedback & Website URLs) for WhatsApp Notifications */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.08 }}
+            className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
+                  <Globe size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">Customer Notification Links</h2>
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">
+                    Feedback URL &amp; Website Link for WhatsApp Messages
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Feedback Submission URL */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="customer-feedback-url-input" className="text-xs font-bold text-gray-300">
+                    Feedback Submission URL
+                  </label>
+                  {feedbackUrlInput && isValidHttpsUrl(feedbackUrlInput) && (
+                    <a
+                      href={feedbackUrlInput}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <ExternalLink size={12} /> Test Link
+                    </a>
+                  )}
+                </div>
+                <input
+                  id="customer-feedback-url-input"
+                  type="url"
+                  value={feedbackUrlInput}
+                  onChange={(e) => setFeedbackUrlInput(e.target.value)}
+                  placeholder="e.g. https://frostybite.in/feedback"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-all font-mono"
+                />
+                <p className="text-[11px] text-zinc-400">
+                  Included in "Order Collected" WhatsApp notifications so customers can submit 1–5 star reviews. Must start with <code className="text-amber-400 font-mono">https://</code>.
+                </p>
+              </div>
+
+              {/* Frosty Bite Website URL */}
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="customer-website-url-input" className="text-xs font-bold text-gray-300">
+                    Frosty Bite Website URL
+                  </label>
+                  {websiteUrlInput && isValidHttpsUrl(websiteUrlInput) && (
+                    <a
+                      href={websiteUrlInput}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <ExternalLink size={12} /> Test Link
+                    </a>
+                  )}
+                </div>
+                <input
+                  id="customer-website-url-input"
+                  type="url"
+                  value={websiteUrlInput}
+                  onChange={(e) => setWebsiteUrlInput(e.target.value)}
+                  placeholder="https://frostybite.in"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-all font-mono"
+                />
+                <p className="text-[11px] text-zinc-400">
+                  Included in customer notifications so users can re-visit your storefront. Must start with <code className="text-amber-400 font-mono">https://</code>.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                id="btn-save-customer-links"
+                onClick={handleSaveCustomerLinks}
+                disabled={isSavingLinks}
+                className="w-full mt-2 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50 text-black font-extrabold text-xs uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+              >
+                {isSavingLinks ? (
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Save size={16} />
+                )}
+                <span>{isSavingLinks ? 'Saving Links…' : 'Save Customer Links'}</span>
+              </button>
+            </div>
+          </motion.div>
 
           {/* Luxury Geofencing Controls */}
           <motion.div 

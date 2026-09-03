@@ -18,7 +18,8 @@ import {
   Award,
   Globe,
   Database,
-  Bell
+  Bell,
+  MessageSquareHeart
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -38,6 +39,7 @@ const menuItems = [
   { id: 'notifications', label: 'Push Notifications', icon: Bell },
   { id: 'rewards', label: 'Rewards Engine', icon: Award },
   { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'feedback', label: 'Customer Feedback', icon: MessageSquareHeart },
   { id: 'admins', label: 'Admins', icon: ShieldCheck },
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
   { id: 'coupons', label: 'Coupons', icon: Tag },

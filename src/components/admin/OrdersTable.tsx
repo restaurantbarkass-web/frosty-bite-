@@ -24,6 +24,7 @@ import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
 import { AdminConfirmationSuccessModal } from './AdminConfirmationSuccessModal';
 import { AdminReadyPickupSuccessModal } from './AdminReadyPickupSuccessModal';
+import { AdminCollectedSuccessModal } from './AdminCollectedSuccessModal';
 
 const StatusBadge = ({ order, isPickupOnlyActive }: { order: Order; isPickupOnlyActive?: boolean }) => {
   const { status, payment_status, payment_method } = order;
@@ -123,6 +124,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [cancellingReason, setCancellingReason] = useState<string>('Out of Stock');
   const [cancelledOrderForWhatsApp, setCancelledOrderForWhatsApp] = useState<{ order: Order; reason?: string } | null>(null);
   const [deliveredOrderForWhatsApp, setDeliveredOrderForWhatsApp] = useState<Order | null>(null);
+  const [collectedOrderForWhatsApp, setCollectedOrderForWhatsApp] = useState<Order | null>(null);
   const [confirmedOrderForWhatsApp, setConfirmedOrderForWhatsApp] = useState<Order | null>(null);
   const [readyPickupOrderForWhatsApp, setReadyPickupOrderForWhatsApp] = useState<Order | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
@@ -512,7 +514,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
       if (newStatus === 'delivered' && prevOrder?.status !== 'delivered') {
         const finalDeliveredOrder = (prevOrder ? { ...prevOrder, status: 'delivered' as const } : { id, status: 'delivered' as const }) as Order;
-        setDeliveredOrderForWhatsApp(finalDeliveredOrder);
+        const orderToCheck = prevOrder || order;
+        if (isOrderPickup(orderToCheck)) {
+          setCollectedOrderForWhatsApp(finalDeliveredOrder);
+        } else {
+          setDeliveredOrderForWhatsApp(finalDeliveredOrder);
+        }
       }
 
       if (newStatus === 'confirmed' && prevOrder?.status !== 'confirmed') {
@@ -1187,13 +1194,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
                       {order.status === 'delivered' && (
                         <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => setDeliveredOrderForWhatsApp(order)}
-                            className="w-full px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                          >
-                            <MessageSquare size={12} />
-                            <span>📱 WhatsApp Confirmation</span>
-                          </button>
+                          {isOrderPickup(order) ? (
+                            <button 
+                              id={`btn-collected-whatsapp-${order.id}`}
+                              onClick={() => setCollectedOrderForWhatsApp(order)}
+                              className="w-full px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare size={12} />
+                              <span>📱 Collection WhatsApp</span>
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => setDeliveredOrderForWhatsApp(order)}
+                              className="w-full px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <MessageSquare size={12} />
+                              <span>📱 WhatsApp Confirmation</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1774,13 +1792,24 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
             {order.status === 'delivered' && (
               <div className="pt-2">
-                <button 
-                  onClick={() => setDeliveredOrderForWhatsApp(order)}
-                  className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
-                >
-                  <MessageSquare size={14} />
-                  📱 Send Delivery Confirmation
-                </button>
+                {isOrderPickup(order) ? (
+                  <button 
+                    id={`mobile-btn-collected-whatsapp-${order.id}`}
+                    onClick={() => setCollectedOrderForWhatsApp(order)}
+                    className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  >
+                    <MessageSquare size={14} />
+                    <span>📱 Send Collection Confirmation</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setDeliveredOrderForWhatsApp(order)}
+                    className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  >
+                    <MessageSquare size={14} />
+                    📱 Send Delivery Confirmation
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1837,6 +1866,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         isOpen={!!readyPickupOrderForWhatsApp}
         onClose={() => setReadyPickupOrderForWhatsApp(null)}
         order={readyPickupOrderForWhatsApp}
+      />
+
+      {/* Admin WhatsApp Order Collected Success Modal (Pickup Orders Only) */}
+      <AdminCollectedSuccessModal
+        isOpen={!!collectedOrderForWhatsApp}
+        onClose={() => setCollectedOrderForWhatsApp(null)}
+        order={collectedOrderForWhatsApp}
       />
     </div>
   );

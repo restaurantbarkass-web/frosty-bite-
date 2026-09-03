@@ -716,10 +716,8 @@ export const Home: React.FC = () => {
       </div>
 
       {/* Reviews Section */}
-      <div id="reviews" className="mb-20 content-visibility-section">
-        <React.Suspense fallback={null}>
-          <ReviewsSection />
-        </React.Suspense>
+      <div id="reviews" className="mb-16">
+        <ReviewsSection />
       </div>
 
       {/* SEO Content Section */}

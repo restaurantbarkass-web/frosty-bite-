@@ -137,6 +137,8 @@ export interface AppConfig {
   bakeryMapUrl?: string;
   bakeryLocationConfirmed?: boolean;
   bakeryLocationUpdatedAt?: string;
+  feedbackUrl?: string;
+  websiteUrl?: string;
   [key: string]: any;
 }
 

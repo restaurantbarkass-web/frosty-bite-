@@ -597,6 +597,113 @@ export function openReadyForPickupWhatsApp(
   }
 }
 
+/**
+ * Validates whether a URL is a valid, secure web URL (HTTPS/HTTP).
+ * Rejects unsafe schemes like javascript:, data:, file:, or undefined/null literals.
+ */
+export function isValidHttpsUrl(urlString?: string | null): boolean {
+  if (!urlString || typeof urlString !== 'string') return false;
+  const trimmed = urlString.trim();
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null' || trimmed.toLowerCase() === 'invalid url') {
+    return false;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
+/**
+ * Sanitizes customer URL. Returns clean URL string if valid, or null if missing or unsafe.
+ */
+export function sanitizeCustomerUrl(urlString?: string | null): string | null {
+  if (!isValidHttpsUrl(urlString)) return null;
+  return urlString!.trim();
+}
 
+/**
+ * Builds the official Frosty Bite Order Collected WhatsApp Notification Message for pickup orders.
+ * Follows the exact specification:
+ * - Customer greeting & thank you
+ * - Order number confirmation
+ * - Optional feedback link (omitted if missing or invalid)
+ * - Optional website link (omitted if missing or invalid)
+ * - Frosty Bite signoff
+ */
+export function buildOrderCollectedWhatsAppMessage(
+  order: {
+    id: string;
+    customer_name?: string;
+    customerName?: string;
+  },
+  feedbackUrl?: string | null,
+  websiteUrl?: string | null
+): string {
+  const rawName = order.customer_name || order.customerName || 'Customer';
+  const customerName = typeof rawName === 'string' && rawName.trim() ? rawName.trim() : 'Customer';
+  const orderNumber = formatOrderId(order.id);
 
+  const cleanFeedback = sanitizeCustomerUrl(feedbackUrl);
+  const cleanWebsite = sanitizeCustomerUrl(websiteUrl);
+
+  const sections: string[] = [
+    `Hello ${customerName} 👋`,
+    `Thank you for choosing Frosty Bite Bakery! 🍰`,
+    `Your order #${orderNumber} has been successfully collected. 🎉`,
+    `We hope you loved your order! ❤️`
+  ];
+
+  if (cleanFeedback) {
+    sections.push(`⭐ We’d love your feedback:\n${cleanFeedback}`);
+  }
+
+  if (cleanWebsite) {
+    sections.push(`🌐 Visit Frosty Bite:\n${cleanWebsite}`);
+  }
+
+  sections.push(`Thank you for supporting Frosty Bite Bakery! 😊`);
+  sections.push(`— Frosty Bite Bakery`);
+
+  return sections.join('\n\n');
+}
+
+/**
+ * Opens WhatsApp click-to-chat with pre-filled Order Collected message.
+ * Returns status, normalized phone, and generated URL.
+ */
+export function openOrderCollectedWhatsApp(
+  phone: string | null | undefined,
+  order: any,
+  feedbackUrl?: string | null,
+  websiteUrl?: string | null
+): { success: boolean; error?: string; normalizedPhone?: string; url?: string } {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    return {
+      success: false,
+      error: 'No customer phone number is available or phone number is invalid.'
+    };
+  }
+
+  const message = buildOrderCollectedWhatsAppMessage(order, feedbackUrl, websiteUrl);
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${normalized}?text=${encodedMessage}`;
+
+  try {
+    const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      return {
+        success: false,
+        error: 'Unable to open WhatsApp window. Please check your browser popup blocker permissions.'
+      };
+    }
+    return { success: true, normalizedPhone: normalized, url: whatsappUrl };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Unable to open WhatsApp.'
+    };
+  }
+}

@@ -21,7 +21,9 @@ const defaultParams: AppConfig = {
   bakeryLatitude: 20.4625,
   bakeryLongitude: 85.8828,
   bakeryMapUrl: "https://www.google.com/maps/search/?api=1&query=20.4625,85.8828",
-  bakeryLocationConfirmed: true
+  bakeryLocationConfirmed: true,
+  feedbackUrl: "",
+  websiteUrl: "https://frostybite.in"
 };
 
 let currentConfig: AppConfig = (() => {
@@ -415,6 +417,39 @@ export const appConfigService = {
       bakeryMapUrl: location.bakeryMapUrl ?? currentConfig.bakeryMapUrl,
       bakeryLocationConfirmed: true,
       bakeryLocationUpdatedAt: new Date().toISOString()
+    }) };
+
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
+  },
+
+  updateCustomerLinks: async (links: { feedbackUrl?: string; websiteUrl?: string }, customToken?: string | null) => {
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        feedbackUrl: links.feedbackUrl !== undefined ? links.feedbackUrl.trim() : (currentConfig.feedbackUrl || ''),
+        websiteUrl: links.websiteUrl !== undefined ? links.websiteUrl.trim() : (currentConfig.websiteUrl || '')
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update customer links (HTTP ${response.status})`);
+    }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || {
+      ...currentConfig,
+      feedbackUrl: links.feedbackUrl !== undefined ? links.feedbackUrl.trim() : currentConfig.feedbackUrl,
+      websiteUrl: links.websiteUrl !== undefined ? links.websiteUrl.trim() : currentConfig.websiteUrl
     }) };
 
     currentConfig = freshConfig;

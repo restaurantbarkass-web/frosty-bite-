@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
 import { Order, CartItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus, AlertCircle, ShieldAlert } from 'lucide-react';
+import { ShoppingBag, ChevronRight, Clock, MapPin, RotateCcw, Plus, AlertCircle, ShieldAlert, Star } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { FrostyAnimation } from '../components/LottiePlayer';
@@ -478,13 +478,23 @@ const Orders: React.FC = () => {
                         </div>
 
                         <div className="flex gap-2">
-                          <button
-                            onClick={(e) => handleReorderAll(e, order)}
-                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-                          >
-                            <RotateCcw size={12} />
-                            Repeat Order
-                          </button>
+                          {order.status === 'delivered' ? (
+                            <Link
+                              to={`/feedback/${order.id}`}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-3 bg-amber-500/10 text-amber-400 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-amber-500/20 hover:bg-amber-500/20 transition-all shadow-sm"
+                            >
+                              <Star size={12} className="fill-amber-400" />
+                              Leave Feedback
+                            </Link>
+                          ) : (
+                            <button
+                              onClick={(e) => handleReorderAll(e, order)}
+                              className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+                            >
+                              <RotateCcw size={12} />
+                              Repeat Order
+                            </button>
+                          )}
                           <Link
                             to={`/order-tracking/${order.id}`}
                             className="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] border border-white/5 hover:bg-white/10 transition-all"

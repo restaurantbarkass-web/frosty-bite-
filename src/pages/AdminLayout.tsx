@@ -13,6 +13,7 @@ const Menu = lazy(() => import('./admin/Menu').then(m => ({ default: m.Menu })))
 const Analytics = lazy(() => import('./admin/Analytics').then(m => ({ default: m.Analytics })));
 const Coupons = lazy(() => import('./admin/Coupons').then(m => ({ default: m.Coupons })));
 const Customers = lazy(() => import('./admin/Customers').then(m => ({ default: m.Customers })));
+const FeedbackManagement = lazy(() => import('./admin/FeedbackManagement').then(m => ({ default: m.FeedbackManagement })));
 const Admins = lazy(() => import('./admin/Admins').then(m => ({ default: m.Admins })));
 const Pricing = lazy(() => import('./admin/Pricing').then(m => ({ default: m.Pricing })));
 const SearchAnalytics = lazy(() => import('./admin/SearchAnalytics').then(m => ({ default: m.SearchAnalytics })));
@@ -63,6 +64,7 @@ export const AdminLayout: React.FC = () => {
       case 'orders': return <Orders />;
       case 'notifications': return <NotificationCenter />;
       case 'customers': return <Customers />;
+      case 'feedback': return <FeedbackManagement />;
       case 'admins': return <Admins />;
       case 'pricing': return <Pricing />;
       case 'menu': return <Menu />;

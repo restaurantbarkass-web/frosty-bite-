@@ -9,6 +9,7 @@ interface ConfigContextType {
   updateDeliveryPricing: (pricing: any, customToken?: string | null) => Promise<void>;
   updateGeofencingSettings: (settings: any, customToken?: string | null) => Promise<void>;
   updateBakeryLocation: (location: BakeryLocation, customToken?: string | null) => Promise<void>;
+  updateCustomerLinks: (links: { feedbackUrl?: string; websiteUrl?: string }, customToken?: string | null) => Promise<void>;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -53,6 +54,10 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await appConfigService.updateBakeryLocation(location, customToken);
   }, []);
 
+  const updateCustomerLinks = useCallback(async (links: { feedbackUrl?: string; websiteUrl?: string }, customToken?: string | null) => {
+    await appConfigService.updateCustomerLinks(links, customToken);
+  }, []);
+
   const value = useMemo(() => ({
     config,
     isLoading,
@@ -60,8 +65,9 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     updatePickupOnlyStatus,
     updateDeliveryPricing,
     updateGeofencingSettings,
-    updateBakeryLocation
-  }), [config, isLoading, toggleOrderingStatus, updatePickupOnlyStatus, updateDeliveryPricing, updateGeofencingSettings, updateBakeryLocation]);
+    updateBakeryLocation,
+    updateCustomerLinks
+  }), [config, isLoading, toggleOrderingStatus, updatePickupOnlyStatus, updateDeliveryPricing, updateGeofencingSettings, updateBakeryLocation, updateCustomerLinks]);
 
   return (
     <ConfigContext.Provider value={value}>
