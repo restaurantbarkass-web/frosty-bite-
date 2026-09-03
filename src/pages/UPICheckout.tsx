@@ -92,7 +92,6 @@ export const UPICheckout: React.FC = () => {
 
   // UI States
   const [copiedUpi, setCopiedUpi] = useState(false);
-  const [copiedRawUri, setCopiedRawUri] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showManualSection, setShowManualSection] = useState(false);
   const [utr, setUtr] = useState('');
@@ -857,15 +856,6 @@ export const UPICheckout: React.FC = () => {
     setTimeout(() => setCopiedUpi(false), 2500);
   };
 
-  // Copy Raw UPI URI Action (DEV-ONLY inspection control)
-  const handleCopyRawUri = () => {
-    navigator.clipboard.writeText(upiUri);
-    setCopiedRawUri(true);
-    haptic.light();
-    toast.success('Raw UPI URI copied to clipboard!');
-    setTimeout(() => setCopiedRawUri(false), 2500);
-  };
-
   // Standardized URI builder with full parameter validation and sanitized logging (STEP 1 & STEP 2)
   interface SanitizedUpiDiagnostic {
     scheme: string;
@@ -1331,51 +1321,6 @@ export const UPICheckout: React.FC = () => {
                       </>
                     )}
                   </button>
-                </div>
-
-                {/* DEV-ONLY: Raw UPI URI Inspector & Static Minimal Test Links */}
-                <div className="pt-1 space-y-2 border-t border-white/5">
-                  <div className="flex items-center justify-between p-2.5 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                    <div className="truncate mr-2">
-                      <span className="text-[9px] font-mono text-zinc-400 block">DEV: Raw URI Inspector</span>
-                      <span className="text-[10px] font-mono text-zinc-300 truncate block max-w-[210px]">{upiUri}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyRawUri}
-                      className="shrink-0 py-1.5 px-2.5 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-[10px] font-mono font-bold text-zinc-200 rounded-lg transition-all flex items-center gap-1 border border-zinc-700"
-                      aria-label="Copy Raw UPI URI"
-                    >
-                      {copiedRawUri ? (
-                        <>
-                          <Check size={12} className="text-emerald-400" />
-                          <span className="text-emerald-400">Copied URI</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={12} />
-                          <span>Copy Raw URI</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 text-[9px] font-mono">
-                    <a
-                      href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=Frosty%20Bite&am=1.00&cu=INR`}
-                      className="p-1.5 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-lg text-center border border-zinc-800/80 transition-colors truncate"
-                      title="Static Minimal URI: pa + pn + am + cu"
-                    >
-                      Minimal URI (₹1)
-                    </a>
-                    <a
-                      href={`upi://pay?pa=${DEFAULT_UPI_ID}&pn=Frosty%20Bite&am=1.00&cu=INR&tn=TEST`}
-                      className="p-1.5 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded-lg text-center border border-zinc-800/80 transition-colors truncate"
-                      title="URI with Note: pa + pn + am + cu + tn"
-                    >
-                      URI with tn (TEST)
-                    </a>
-                  </div>
                 </div>
               </div>
             </div>

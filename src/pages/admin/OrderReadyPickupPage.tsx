@@ -20,12 +20,22 @@ import {
   MapPin, 
   CreditCard,
   Edit3,
-  ShoppingBag
+  ShoppingBag,
+  Settings,
+  Navigation
 } from 'lucide-react';
 import { Order } from '../../types';
-import { normalizePhoneNumber, buildReadyForPickupWhatsAppMessage } from '../../utils/whatsapp';
+import { 
+  normalizePhoneNumber, 
+  buildReadyForPickupWhatsAppMessage, 
+  getResolvedBakeryLocation,
+  getBakeryMapUrl,
+  isPickupOrder
+} from '../../utils/whatsapp';
 import { formatOrderId } from '../../utils/orderUtils';
-import { BAKERY_ADDRESS } from '../../constants';
+import { BAKERY_ADDRESS, RESTAURANT_LOCATION } from '../../constants';
+import { useConfig } from '../../context/ConfigContext';
+import { SetBakeryLocationModal } from '../../components/admin/SetBakeryLocationModal';
 import toast from 'react-hot-toast';
 
 interface OrderReadyPickupPageProps {
@@ -39,10 +49,12 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
   onBack,
   isStandalonePage = false
 }) => {
+  const { config } = useConfig();
   const [copiedMessage, setCopiedMessage] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [hasOpenedWhatsApp, setHasOpenedWhatsApp] = useState(false);
   const [isEditingMessage, setIsEditingMessage] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   // Fallback default order if none provided
   const displayOrder: Order = order || {
@@ -66,6 +78,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
     ]
   };
 
+  const isActuallyPickup = isPickupOrder(displayOrder);
   const customerName = (displayOrder.customer_name || displayOrder.customerName || 'Customer').trim();
   const orderIdShort = formatOrderId(displayOrder.id);
   const amount = displayOrder.total ?? displayOrder.total_amount ?? 0;
@@ -73,12 +86,17 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
   const normalizedPhone = normalizePhoneNumber(displayOrder.phone);
   const hasValidPhone = Boolean(normalizedPhone);
 
-  const defaultMessage = buildReadyForPickupWhatsAppMessage(displayOrder);
+  // Dynamic Bakery Location Resolution
+  const resolvedBakery = getResolvedBakeryLocation(config);
+  const isLocationConfigured = resolvedBakery.isValidLocation;
+  const bakeryMapUrl = resolvedBakery.bakeryMapUrl;
+
+  const defaultMessage = buildReadyForPickupWhatsAppMessage(displayOrder, resolvedBakery);
   const [customMessage, setCustomMessage] = useState(defaultMessage);
 
   useEffect(() => {
-    setCustomMessage(buildReadyForPickupWhatsAppMessage(displayOrder));
-  }, [displayOrder]);
+    setCustomMessage(buildReadyForPickupWhatsAppMessage(displayOrder, resolvedBakery));
+  }, [displayOrder, config]);
 
   const handleOpenWhatsApp = () => {
     if (!hasValidPhone || !normalizedPhone) {
@@ -101,10 +119,10 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
           }
         });
       } else {
-        toast.error('Unable to open WhatsApp. Please check popup blocker.');
+        toast.error('Unable to open WhatsApp window. Please check your browser popup blocker.');
       }
     } catch (err: any) {
-      toast.error('Unable to open WhatsApp. Please contact customer manually.');
+      toast.error('Unable to open WhatsApp.');
     }
   };
 
@@ -123,9 +141,6 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
       setTimeout(() => setCopiedPhone(false), 3000);
     }
   };
-
-  const pickupLocation = displayOrder.address || displayOrder.delivery_address || BAKERY_ADDRESS;
-  const cleanPickupLocation = pickupLocation ? pickupLocation.replace(/^\[IN-STORE PICKUP\]\s*(Bakery:\s*)?/i, '').trim() : BAKERY_ADDRESS;
 
   return (
     <div id="order-ready-pickup-view" className={`min-h-screen bg-[#070709] text-white selection:bg-amber-500/30 font-sans p-4 sm:p-6 lg:p-8 relative overflow-x-hidden ${isStandalonePage ? 'pt-6' : ''}`}>
@@ -170,6 +185,16 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
+            <button
+              id="btn-open-set-bakery-location-header"
+              type="button"
+              onClick={() => setShowLocationModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <MapPin size={14} />
+              <span>Configure Bakery Location</span>
+            </button>
+
             {onBack && (
               <button
                 id="btn-done-pickup-modal"
@@ -182,6 +207,88 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
             )}
           </div>
         </div>
+
+        {/* Non-Pickup Order Safeguard Banner */}
+        {!isActuallyPickup && (
+          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-between gap-3 text-rose-300">
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+              <span>Note: This order is marked as Delivery. Ready for Pickup notification is strictly designed for in-store pickup orders.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Bakery Location Status Banner */}
+        {!isLocationConfigured ? (
+          <div id="missing-bakery-location-warning" className="p-5 bg-amber-500/10 border border-amber-500/40 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-amber-400">⚠️ Bakery pickup location is not fully configured.</h4>
+                <p className="text-xs text-zinc-300 mt-0.5">
+                  Set the bakery location to automatically include Google Maps directions in the WhatsApp notification.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                id="btn-set-bakery-location-warning"
+                type="button"
+                onClick={() => setShowLocationModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all"
+              >
+                <MapPin size={14} />
+                <span>Set Bakery Location</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div id="bakery-location-info-card" className="p-4 sm:p-5 bg-white/[0.02] border border-amber-500/20 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                <MapPin size={18} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
+                    Official Pickup Location
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-400">
+                    ({resolvedBakery.bakeryLatitude}, {resolvedBakery.bakeryLongitude})
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-white truncate">{resolvedBakery.bakeryName} — {resolvedBakery.bakeryAddress}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {bakeryMapUrl && (
+                <a
+                  href={bakeryMapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-400 text-xs font-bold flex items-center gap-1.5 transition-all"
+                >
+                  <Navigation size={13} />
+                  <span>Test Directions Link</span>
+                </a>
+              )}
+
+              <button
+                id="btn-edit-bakery-location-banner"
+                type="button"
+                onClick={() => setShowLocationModal(true)}
+                className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Settings size={13} />
+                <span>Update Location</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Main 2-Column Dashboard Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -274,7 +381,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                     <span>⚠️ No customer phone number is available.</span>
                   </div>
                   <p className="text-xs text-amber-300/80 leading-relaxed">
-                    WhatsApp notification cannot be sent. Please contact the customer manually when they arrive at the counter.
+                    WhatsApp notification cannot be opened directly. Please contact the customer manually when they arrive at the counter.
                   </p>
                 </div>
               )}
@@ -378,9 +485,21 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                     <MapPin size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pickup Location</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pickup Location</p>
+                      <button
+                        type="button"
+                        onClick={() => setShowLocationModal(true)}
+                        className="text-[10px] text-amber-400 font-bold hover:underline"
+                      >
+                        Change
+                      </button>
+                    </div>
                     <p className="text-xs font-semibold text-zinc-200 leading-relaxed mt-0.5">
-                      {cleanPickupLocation}
+                      {resolvedBakery.bakeryName}
+                    </p>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      {resolvedBakery.bakeryAddress}
                     </p>
                   </div>
                 </div>
@@ -448,6 +567,13 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
         </div>
 
       </div>
+
+      {/* Set Bakery Location Modal */}
+      <SetBakeryLocationModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+      />
     </div>
   );
 };
+

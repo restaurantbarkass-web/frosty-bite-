@@ -420,6 +420,31 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                 </div>
               )}
 
+              {/* Ready for Pickup WhatsApp Action (Pickup Orders Only) */}
+              {(status === 'out_for_delivery' || status === 'ready') && orderType === 'pickup' && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                        <ShoppingBag size={14} />
+                        Order Ready for Pickup
+                      </p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Notify customer with official bakery pickup location and map directions via WhatsApp.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowReadyPickupWhatsAppModal(true)}
+                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20 shrink-0"
+                    >
+                      <MessageSquare size={14} />
+                      <span>📱 Send Ready for Pickup WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Delivery WhatsApp Action if Delivered */}
               {status === 'delivered' && (
                 <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">

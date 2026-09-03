@@ -1,6 +1,6 @@
-import { AppConfig } from '../types';
+import { AppConfig, BakeryLocation } from '../types';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
-export type { AppConfig };
+export type { AppConfig, BakeryLocation };
 
 const defaultParams: AppConfig = { 
   isOrderingOpen: true,
@@ -15,7 +15,13 @@ const defaultParams: AppConfig = {
   geofencingLongitude: 85.8828,
   geofencingRadius: 12,
   geofencingZones: '[]',
-  isInstantDeliveryClosed: false
+  isInstantDeliveryClosed: false,
+  bakeryName: "Frosty Bite Bakery",
+  bakeryAddress: "Frosty Bite Bakery, Main Road, Buxi Bazaar, Cuttack, Odisha - 753001",
+  bakeryLatitude: 20.4625,
+  bakeryLongitude: 85.8828,
+  bakeryMapUrl: "https://www.google.com/maps/search/?api=1&query=20.4625,85.8828",
+  bakeryLocationConfirmed: true
 };
 
 let currentConfig: AppConfig = (() => {
@@ -366,6 +372,49 @@ export const appConfigService = {
       geofencingLongitude: settings.geofencingLongitude,
       geofencingRadius: settings.geofencingRadius,
       geofencingZones: settings.geofencingZones ?? '[]'
+    }) };
+
+    currentConfig = freshConfig;
+    localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
+    localStorage.setItem('admin_config_cache', JSON.stringify(freshConfig));
+    currentListeners.forEach(l => l(freshConfig));
+  },
+
+  updateBakeryLocation: async (location: BakeryLocation, customToken?: string | null) => {
+    const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    const response = await fetchWithRetry('/api/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({
+        bakeryName: location.bakeryName,
+        bakeryAddress: location.bakeryAddress,
+        bakeryLatitude: location.bakeryLatitude,
+        bakeryLongitude: location.bakeryLongitude,
+        bakeryMapUrl: location.bakeryMapUrl,
+        bakeryLocationConfirmed: true,
+        bakeryLocationUpdatedAt: new Date().toISOString()
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error(errData?.message || `Failed to update bakery location (HTTP ${response.status})`);
+    }
+
+    const freshResponse = await response.json().catch(() => null);
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || {
+      ...currentConfig,
+      bakeryName: location.bakeryName ?? currentConfig.bakeryName,
+      bakeryAddress: location.bakeryAddress ?? currentConfig.bakeryAddress,
+      bakeryLatitude: location.bakeryLatitude ?? currentConfig.bakeryLatitude,
+      bakeryLongitude: location.bakeryLongitude ?? currentConfig.bakeryLongitude,
+      bakeryMapUrl: location.bakeryMapUrl ?? currentConfig.bakeryMapUrl,
+      bakeryLocationConfirmed: true,
+      bakeryLocationUpdatedAt: new Date().toISOString()
     }) };
 
     currentConfig = freshConfig;

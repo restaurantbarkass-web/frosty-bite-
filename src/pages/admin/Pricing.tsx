@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Truck, Save, Info, MapPin, IndianRupee, Clock, Navigation, Plus, Trash2, ShieldAlert, Globe, Sparkles } from 'lucide-react';
+import { 
+  Truck, 
+  Save, 
+  Info, 
+  MapPin, 
+  IndianRupee, 
+  Clock, 
+  Navigation, 
+  Plus, 
+  Trash2, 
+  ShieldAlert, 
+  Globe, 
+  Sparkles, 
+  Building2, 
+  ExternalLink, 
+  CheckCircle2, 
+  Settings,
+  ShoppingBag
+} from 'lucide-react';
 import { useConfig } from '../../context/ConfigContext';
 import { InputField } from '../../components/InputField';
+import { SetBakeryLocationModal } from '../../components/admin/SetBakeryLocationModal';
+import { getResolvedBakeryLocation } from '../../utils/whatsapp';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 
@@ -17,6 +37,7 @@ export const Pricing: React.FC = () => {
   const [isPickupOnly, setIsPickupOnly] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showBakeryLocationModal, setShowBakeryLocationModal] = useState(false);
 
   // Geofencing states
   const [geofencingEnabled, setGeofencingEnabled] = useState(true);
@@ -25,6 +46,7 @@ export const Pricing: React.FC = () => {
   const [geofencingRadius, setGeofencingRadius] = useState(12);
   const [zones, setZones] = useState<any[]>([]);
   const [isSavingGeo, setIsSavingGeo] = useState(false);
+
 
   // New zone entry fields
   const [newZoneName, setNewZoneName] = useState('');
@@ -272,6 +294,71 @@ export const Pricing: React.FC = () => {
               {isSaving ? 'Saving...' : 'Save Pricing'}
             </button>
           </motion.div>
+
+          {/* Bakery Pickup Location & WhatsApp Source Settings */}
+          {(() => {
+            const resolvedBakery = getResolvedBakeryLocation(config);
+            return (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 }}
+                className="bg-white/5 border border-amber-500/20 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
+                      <Building2 size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-white">Bakery Pickup Location</h2>
+                      <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-medium">Customer Pickup &amp; WhatsApp Notification Source</p>
+                    </div>
+                  </div>
+
+                  <button
+                    id="btn-edit-bakery-pickup-location"
+                    type="button"
+                    onClick={() => setShowBakeryLocationModal(true)}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20 shrink-0"
+                  >
+                    <MapPin size={14} />
+                    <span>Set Bakery Location</span>
+                  </button>
+                </div>
+
+                <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle2 size={15} /> Active Pickup Location
+                    </span>
+                    <span className="text-[11px] font-mono text-zinc-400">
+                      {resolvedBakery.bakeryLatitude}, {resolvedBakery.bakeryLongitude}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-bold text-white">{resolvedBakery.bakeryName}</p>
+                    <p className="text-xs text-zinc-300 mt-0.5">{resolvedBakery.bakeryAddress}</p>
+                  </div>
+
+                  {resolvedBakery.bakeryMapUrl && (
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-500">Directions URL for WhatsApp</span>
+                      <a
+                        href={resolvedBakery.bakeryMapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <ExternalLink size={12} /> Test Google Maps Link
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })()}
 
           {/* Luxury Geofencing Controls */}
           <motion.div 
@@ -566,6 +653,13 @@ export const Pricing: React.FC = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Set Bakery Location Modal */}
+      <SetBakeryLocationModal
+        isOpen={showBakeryLocationModal}
+        onClose={() => setShowBakeryLocationModal(false)}
+      />
     </div>
   );
 };
+

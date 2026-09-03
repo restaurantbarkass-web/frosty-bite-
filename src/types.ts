@@ -116,10 +116,27 @@ export interface BannerClick {
   user_id?: string;
 }
 
+export interface BakeryLocation {
+  bakeryName?: string;
+  bakeryAddress?: string;
+  bakeryLatitude?: number;
+  bakeryLongitude?: number;
+  bakeryMapUrl?: string;
+  bakeryLocationConfirmed?: boolean;
+  bakeryLocationUpdatedAt?: string;
+}
+
 export interface AppConfig {
   isOrderingOpen: boolean;
   pickup_only?: boolean;
   isPickupOnly?: boolean;
+  bakeryName?: string;
+  bakeryAddress?: string;
+  bakeryLatitude?: number;
+  bakeryLongitude?: number;
+  bakeryMapUrl?: string;
+  bakeryLocationConfirmed?: boolean;
+  bakeryLocationUpdatedAt?: string;
   [key: string]: any;
 }
 

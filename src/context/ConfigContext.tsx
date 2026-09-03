@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { appConfigService, AppConfig } from '../services/appConfigService';
+import { appConfigService, AppConfig, BakeryLocation } from '../services/appConfigService';
 
 interface ConfigContextType {
   config: AppConfig | null;
@@ -8,6 +8,7 @@ interface ConfigContextType {
   updatePickupOnlyStatus: (isPickupOnly: boolean, customToken?: string | null) => Promise<void>;
   updateDeliveryPricing: (pricing: any, customToken?: string | null) => Promise<void>;
   updateGeofencingSettings: (settings: any, customToken?: string | null) => Promise<void>;
+  updateBakeryLocation: (location: BakeryLocation, customToken?: string | null) => Promise<void>;
 }
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -48,14 +49,19 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await appConfigService.updateGeofencingSettings(settings, customToken);
   }, []);
 
+  const updateBakeryLocation = useCallback(async (location: BakeryLocation, customToken?: string | null) => {
+    await appConfigService.updateBakeryLocation(location, customToken);
+  }, []);
+
   const value = useMemo(() => ({
     config,
     isLoading,
     toggleOrderingStatus,
     updatePickupOnlyStatus,
     updateDeliveryPricing,
-    updateGeofencingSettings
-  }), [config, isLoading, toggleOrderingStatus, updatePickupOnlyStatus, updateDeliveryPricing, updateGeofencingSettings]);
+    updateGeofencingSettings,
+    updateBakeryLocation
+  }), [config, isLoading, toggleOrderingStatus, updatePickupOnlyStatus, updateDeliveryPricing, updateGeofencingSettings, updateBakeryLocation]);
 
   return (
     <ConfigContext.Provider value={value}>
@@ -69,3 +75,4 @@ export const useConfig = () => {
   if (!context) throw new Error('useConfig must be used within a ConfigProvider');
   return context;
 };
+
