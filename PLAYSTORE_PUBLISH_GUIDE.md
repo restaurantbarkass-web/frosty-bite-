@@ -28,7 +28,7 @@ Your Frosty Bite application is **fully optimized and prepared** for the Google 
 > We have successfully restored the root gradle configurations (`build.gradle.kts`, `settings.gradle.kts`, and `gradle.properties`) linking to your native Android app directory located under `/app`. This codebase is written in modern **Kotlin Jetpack Compose** and includes styled UI layouts for the storefront, detailed screens, profile logs, and tracker interfaces!
 
 ### 🛠️ Execution Steps:
-1. **Export Code**: Open the AI Studio settings menu at the top-right and click **Export as ZIP** or **Push to GitHub** to run the repository on your local computer.
+1. **Export Code**: Export the repository as a ZIP archive or clone directly from GitHub to run on your local computer.
 2. **Open in Android Studio**:
    - Launch Google's official **Android Studio** (Koala or newer).
    - Select **Open an existing project** and navigate to your extracted root directory.

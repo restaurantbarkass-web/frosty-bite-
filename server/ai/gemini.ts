@@ -12,7 +12,7 @@ export function getGenAI() {
       apiKey: key,
       httpOptions: {
         headers: {
-          'User-Agent': 'aistudio-build',
+          'User-Agent': 'frosty-bite-app',
         }
       }
     });

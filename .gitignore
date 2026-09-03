@@ -23,3 +23,5 @@ coverage/
 .idea/
 local.properties
 *.iml
+*.keystore
+*.jks

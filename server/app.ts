@@ -98,7 +98,7 @@ app.use(helmet({
       ]
     }
   },
-  frameguard: false, // Must be false to support the AI Studio iframe preview environment safely
+  frameguard: false, // Must be false to support iframe preview environments safely
   hsts: isProd ? {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
