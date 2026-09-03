@@ -1,4 +1,4 @@
-import { RESTAURANT_WHATSAPP } from '../constants';
+import { RESTAURANT_WHATSAPP, BAKERY_ADDRESS } from '../constants';
 import { formatOrderId } from './orderUtils';
 
 export const openWhatsAppOrder = (orderData: {
@@ -334,5 +334,135 @@ export function openOrderConfirmationWhatsApp(
     };
   }
 }
+
+/**
+ * Determines whether an order is explicitly a pickup order based on actual application schema.
+ */
+export function isPickupOrder(order: { order_type?: string; type?: string; fulfillmentType?: string } | null | undefined): boolean {
+  if (!order) return false;
+  const t = (order.order_type || (order as any).type || (order as any).fulfillmentType || '').toString().toLowerCase().trim();
+  return t === 'pickup' || t === 'self_pickup' || t === 'store_pickup' || t === 'takeaway' || t === 'collection';
+}
+
+/**
+ * Builds the standard Frosty Bite WhatsApp order ready-for-pickup notification message.
+ * Adheres strictly to the pickup-ready format:
+ * - Ready for pickup announcement
+ * - Order reference number
+ * - Real configured pickup location (if available)
+ * - Scheduled pickup time (if available, never invented)
+ * - Clear pickup instructions
+ * - No internal cake/staff notes
+ */
+export function buildReadyForPickupWhatsAppMessage(order: {
+  id: string;
+  customer_name?: string;
+  customerName?: string;
+  order_type?: string;
+  type?: string;
+  address?: string;
+  delivery_address?: string;
+  delivery_date?: string;
+  delivery_time?: string;
+  estimated_delivery_time?: string | number;
+  items?: Array<{ name: string; quantity: number }>;
+}): string {
+  const customerName = (order.customer_name || order.customerName || 'Customer').trim();
+  const rawOrderId = formatOrderId(order.id);
+  const orderNumber = rawOrderId.startsWith('#') ? rawOrderId : `#${rawOrderId}`;
+
+  // Pickup location: Use real configured bakery address or stored pickup location
+  let pickupLocationText = '';
+  const rawLoc = order.address || order.delivery_address || BAKERY_ADDRESS;
+  if (rawLoc && typeof rawLoc === 'string') {
+    const cleanLoc = rawLoc.replace(/^\[IN-STORE PICKUP\]\s*(Bakery:\s*)?/i, '').trim();
+    if (cleanLoc) {
+      pickupLocationText = `📍 Pickup from: ${cleanLoc}`;
+    }
+  }
+
+  // Pickup schedule: Include only when real date/time exists, never invent fake schedule
+  let pickupTimeText = '';
+  if (order.delivery_date || order.delivery_time) {
+    const parts = [];
+    if (order.delivery_date) parts.push(order.delivery_date);
+    if (order.delivery_time) parts.push(order.delivery_time);
+    pickupTimeText = `🕒 Pickup time: ${parts.join(', ')}`;
+  } else if (order.estimated_delivery_time && typeof order.estimated_delivery_time === 'string' && order.estimated_delivery_time.trim()) {
+    // Only if it looks like a formatted time or slot (e.g. "Today, 6:30 PM")
+    pickupTimeText = `🕒 Pickup time: ${order.estimated_delivery_time.trim()}`;
+  }
+
+  // Optional concise items summary (reliable item data only, no internal cake/baker instructions)
+  let itemsSection = '';
+  if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+    const itemsList = order.items
+      .filter(item => item && item.name)
+      .map(item => `${item.quantity || 1} × ${item.name}`)
+      .join('\n');
+    if (itemsList) {
+      itemsSection = `\n🛍️ Items in your order:\n${itemsList}\n`;
+    }
+  }
+
+  const lines = [
+    `Hello ${customerName} 👋`,
+    ``,
+    `This is Frosty Bite Bakery. 🍰`,
+    ``,
+    `Great news! Your order ${orderNumber} is ready for pickup! 🎉`,
+    ``,
+    `🛍️ Your order is packed and ready for collection.`,
+    itemsSection ? itemsSection.trim() : null,
+    pickupLocationText || null,
+    pickupTimeText || null,
+    ``,
+    `Please mention your order number ${orderNumber} when collecting your order.`,
+    ``,
+    `Thank you for choosing Frosty Bite Bakery! ❤️`,
+    ``,
+    `— Frosty Bite Bakery`
+  ].filter(line => line !== null);
+
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * Opens WhatsApp click-to-chat with pre-filled ready-for-pickup message.
+ * Returns success status or error message.
+ */
+export function openReadyForPickupWhatsApp(
+  phone: string | null | undefined,
+  order: any
+): { success: boolean; error?: string; normalizedPhone?: string; url?: string } {
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized) {
+    return {
+      success: false,
+      error: 'No customer phone number is available or phone number is invalid.'
+    };
+  }
+
+  const message = buildReadyForPickupWhatsAppMessage(order);
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${normalized}?text=${encodedMessage}`;
+
+  try {
+    const win = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      return {
+        success: false,
+        error: 'Unable to open WhatsApp window. Please check your browser popup blocker permissions.'
+      };
+    }
+    return { success: true, normalizedPhone: normalized, url: whatsappUrl };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Unable to open WhatsApp.'
+    };
+  }
+}
+
 
 

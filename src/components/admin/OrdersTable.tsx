@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, MessageSquare, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, MessageSquare, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
 import { supabaseService } from '../../services/supabaseService';
-import { sendWhatsAppMessage } from '../../utils/whatsapp';
+import { sendWhatsAppMessage, isPickupOrder } from '../../utils/whatsapp';
 import { formatOrderId } from '../../utils/orderUtils';
 import { KOTPrint } from './KOTPrint';
 import { OrderEditPage } from '../../pages/admin/OrderEditPage';
 import toast from 'react-hot-toast';
 import { useNotifications } from '../../context/NotificationContext';
+import { useConfig } from '../../context/ConfigContext';
 import { rewardsService } from '../../services/rewardsService';
 import { emailService } from '../../services/emailService';
 
@@ -22,15 +23,27 @@ import { showDeviceNotification, triggerOrderStatusNotification } from '../../ut
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
 import { AdminConfirmationSuccessModal } from './AdminConfirmationSuccessModal';
+import { AdminReadyPickupSuccessModal } from './AdminReadyPickupSuccessModal';
 
-const StatusBadge = ({ order }: { order: Order }) => {
+const StatusBadge = ({ order, isPickupOnlyActive }: { order: Order; isPickupOnlyActive?: boolean }) => {
   const { status, payment_status, payment_method } = order;
+  const isPickup = isPickupOnlyActive || isPickupOrder(order);
   
   if ((payment_method === 'upi' || payment_method === 'online') && order.utr && payment_status !== 'paid') {
     return (
       <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-500 border-amber-500/20">
         <Clock size={14} />
         {payment_status === 'pending_verification' ? 'Awaiting Verification' : 'Awaiting Payment'}
+      </div>
+    );
+  }
+
+  // Handle Pickup Ready status badge
+  if (isPickup && (status === 'out_for_delivery' || (status as string) === 'ready')) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-sm">
+        <ShoppingBag size={14} />
+        Ready for Pickup
       </div>
     );
   }
@@ -42,6 +55,7 @@ const StatusBadge = ({ order }: { order: Order }) => {
     'assigned': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
     'preparing': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
     'out_for_delivery': 'bg-purple-500/10 text-purple-500 border-purple-500/20 shadow-sm',
+    'ready': 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-sm',
     'delivered': 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30 shadow-sm',
     'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20 shadow-sm',
   };
@@ -52,6 +66,7 @@ const StatusBadge = ({ order }: { order: Order }) => {
     'confirmed': <CheckCircle2 size={14} />,
     'preparing': <Package size={14} />,
     'out_for_delivery': <Truck size={14} />,
+    'ready': <ShoppingBag size={14} />,
     'delivered': <CheckCircle2 size={14} />,
     'cancelled': <X size={14} />,
   };
@@ -62,6 +77,7 @@ const StatusBadge = ({ order }: { order: Order }) => {
     'confirmed': 'Confirmed (Paid)',
     'preparing': 'Preparing',
     'out_for_delivery': 'Out for Delivery',
+    'ready': 'Ready for Pickup',
     'delivered': 'Delivered',
     'cancelled': 'Cancelled',
   };
@@ -108,6 +124,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const [cancelledOrderForWhatsApp, setCancelledOrderForWhatsApp] = useState<{ order: Order; reason?: string } | null>(null);
   const [deliveredOrderForWhatsApp, setDeliveredOrderForWhatsApp] = useState<Order | null>(null);
   const [confirmedOrderForWhatsApp, setConfirmedOrderForWhatsApp] = useState<Order | null>(null);
+  const [readyPickupOrderForWhatsApp, setReadyPickupOrderForWhatsApp] = useState<Order | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const lastOrderCountRef = useRef<number>(0);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
@@ -115,6 +132,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const hasInitializedRef = useRef(false);
 
   const { addNotification } = useNotifications();
+  const { config } = useConfig();
+  const isPickupOnlyActive = Boolean(config?.pickup_only ?? config?.isPickupOnly ?? false);
+  const isOrderPickup = (order: Order) => isPickupOnlyActive || isPickupOrder(order);
+
   const loading = externalLoading !== undefined ? externalLoading : internalLoading;
 
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -497,6 +518,15 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       if (newStatus === 'confirmed' && prevOrder?.status !== 'confirmed') {
         const finalConfirmedOrder = (prevOrder ? { ...prevOrder, status: 'confirmed' as const, payment_status: 'paid' as const } : { id, status: 'confirmed' as const, payment_status: 'paid' as const }) as Order;
         setConfirmedOrderForWhatsApp(finalConfirmedOrder);
+      }
+
+      // ONLY for Pickup orders when marked as Ready (out_for_delivery or ready)
+      if ((newStatus === 'out_for_delivery' || newStatus === 'ready') && prevOrder?.status !== 'out_for_delivery' && (prevOrder?.status as string) !== 'ready') {
+        const orderToCheck = prevOrder || order;
+        if (isOrderPickup(orderToCheck)) {
+          const finalReadyOrder = (prevOrder ? { ...prevOrder, status: 'out_for_delivery' as const } : { id, status: 'out_for_delivery' as const }) as Order;
+          setReadyPickupOrderForWhatsApp(finalReadyOrder);
+        }
       }
 
       toast.success(`Order ${newStatus === 'confirmed' ? 'Accepted' : newStatus}`, { id: loadingToast });
@@ -968,10 +998,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   </div>
                 </td>
                 <td className="px-8 py-6">
-                  <StatusBadge order={order} />
+                  <StatusBadge order={order} isPickupOnlyActive={isPickupOnlyActive} />
                 </td>
                 <td className="px-8 py-6">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Self Delivery</span>
+                  {isOrderPickup(order) ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                      <ShoppingBag size={12} />
+                      Bakery Pickup
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black uppercase tracking-wider">
+                      <Truck size={12} />
+                      Home Delivery
+                    </span>
+                  )}
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-3">
@@ -1052,11 +1092,22 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => updateStatus(order.id, 'preparing')}
-                              className="flex-1 px-4 py-2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2"
+                              className="flex-1 px-3 py-2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-1.5"
                             >
                               <Package size={12} />
                               Start Preparing
                             </button>
+                            {isOrderPickup(order) && (
+                              <button 
+                                id={`btn-quick-ready-${order.id}`}
+                                onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                                className="flex-1 px-3 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer font-extrabold"
+                                title="Mark Ready for Pickup directly"
+                              >
+                                <ShoppingBag size={12} />
+                                Mark Ready
+                              </button>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <button 
@@ -1072,24 +1123,65 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
                       {order.status === 'preparing' && (
                         <div className="flex flex-col gap-2">
-                          <button 
-                            onClick={() => updateStatus(order.id, 'out_for_delivery')}
-                            className="flex-1 px-4 py-2 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-purple-600 transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
-                          >
-                            <Truck size={12} />
-                            Dispatch Order
-                          </button>
+                          {isOrderPickup(order) ? (
+                            <button 
+                              id={`btn-ready-pickup-${order.id}`}
+                              onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                              className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <ShoppingBag size={12} />
+                              Mark Ready for Pickup
+                            </button>
+                          ) : (
+                            <button 
+                              id={`btn-dispatch-${order.id}`}
+                              onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                              className="flex-1 px-4 py-2 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-purple-600 transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
+                            >
+                              <Truck size={12} />
+                              Dispatch Order
+                            </button>
+                          )}
                         </div>
                       )}
 
-                      {order.status === 'out_for_delivery' && (
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => updateStatus(order.id, 'delivered')}
-                            className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
-                          >
-                            Mark Delivered
-                          </button>
+                      {(order.status === 'out_for_delivery' || (order.status as string) === 'ready') && (
+                        <div className="flex flex-col gap-2">
+                          {isOrderPickup(order) ? (
+                            <>
+                              <button 
+                                id={`btn-mark-collected-${order.id}`}
+                                onClick={() => updateStatus(order.id, 'delivered')}
+                                className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <CheckCircle2 size={12} />
+                                Mark Collected
+                              </button>
+                              
+                              {order.phone ? (
+                                <button 
+                                  id={`btn-pickup-whatsapp-${order.id}`}
+                                  onClick={() => setReadyPickupOrderForWhatsApp(order)}
+                                  className="w-full px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <MessageSquare size={12} />
+                                  <span>📱 WhatsApp Notification</span>
+                                </button>
+                              ) : (
+                                <span className="text-[9px] text-amber-400/70 font-semibold text-center italic">
+                                  ⚠️ No phone available
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <button 
+                              id={`btn-mark-delivered-${order.id}`}
+                              onClick={() => updateStatus(order.id, 'delivered')}
+                              className="w-full px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                            >
+                              Mark Delivered
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -1156,8 +1248,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                 { id: 'pending', label: 'Pending' },
                                 { id: 'confirmed', label: 'Confirmed' },
                                 { id: 'preparing', label: 'Preparing' },
-                                { id: 'out_for_delivery', label: 'Out for Delivery' },
-                                { id: 'delivered', label: 'Delivered' },
+                                { id: 'out_for_delivery', label: isOrderPickup(order) ? 'Ready for Pickup' : 'Out for Delivery' },
+                                { id: 'delivered', label: isOrderPickup(order) ? 'Collected / Delivered' : 'Delivered' },
                                 { id: 'cancelled', label: 'Cancelled' }
                               ].map((s) => {
                                 return (
@@ -1361,8 +1453,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               )}
             </AnimatePresence>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-primary uppercase font-mono">#{formatOrderId(order.id)}</span>
-              <StatusBadge order={order} />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black text-primary uppercase font-mono">#{formatOrderId(order.id)}</span>
+                {isOrderPickup(order) ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-wider">
+                    <ShoppingBag size={10} />
+                    Pickup
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-400 text-[9px] font-black uppercase tracking-wider">
+                    <Truck size={10} />
+                    Delivery
+                  </span>
+                )}
+              </div>
+              <StatusBadge order={order} isPickupOnlyActive={isPickupOnlyActive} />
             </div>
             
             <div className="flex items-center gap-3">
@@ -1476,8 +1581,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: 'preparing', label: 'Preparing', color: 'bg-blue-500' },
-                      { id: 'out_for_delivery', label: 'Dispatch', color: 'bg-purple-500' },
-                      { id: 'delivered', label: 'Delivered', color: 'bg-emerald-500' },
+                      { id: 'out_for_delivery', label: isOrderPickup(order) ? 'Ready for Pickup' : 'Dispatch', color: isOrderPickup(order) ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black' : 'bg-purple-500' },
+                      { id: 'delivered', label: isOrderPickup(order) ? 'Collected' : 'Delivered', color: 'bg-emerald-500' },
                       { id: 'cancelled', label: 'Cancel', color: 'bg-red-500' }
                     ].map((s) => {
                       return (
@@ -1573,13 +1678,25 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
             
             {order.status === 'confirmed' && (
               <div className="pt-2 space-y-2">
-                <button 
-                   onClick={() => updateStatus(order.id, 'preparing')}
-                   className="w-full py-4 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                >
-                  <Package size={16} />
-                  Start Preparing
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                     onClick={() => updateStatus(order.id, 'preparing')}
+                     className="flex-1 py-4 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <Package size={16} />
+                    Start Preparing
+                  </button>
+                  {isOrderPickup(order) && (
+                    <button 
+                      id={`mobile-btn-quick-ready-${order.id}`}
+                      onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                      className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer font-extrabold"
+                    >
+                      <ShoppingBag size={16} />
+                      Mark Ready
+                    </button>
+                  )}
+                </div>
                 <button 
                    onClick={() => setConfirmedOrderForWhatsApp(order)}
                    className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
@@ -1592,25 +1709,66 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
             {order.status === 'preparing' && (
               <div className="pt-2">
-                <button 
-                  onClick={() => updateStatus(order.id, 'out_for_delivery')}
-                  className="w-full py-4 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
-                >
-                  <Truck size={16} />
-                  Dispatch Order
-                </button>
+                {isOrderPickup(order) ? (
+                  <button 
+                    id={`mobile-btn-ready-pickup-${order.id}`}
+                    onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                    className="w-full min-h-[44px] py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+                  >
+                    <ShoppingBag size={16} />
+                    Mark Ready for Pickup
+                  </button>
+                ) : (
+                  <button 
+                    id={`mobile-btn-dispatch-${order.id}`}
+                    onClick={() => updateStatus(order.id, 'out_for_delivery')}
+                    className="w-full min-h-[44px] py-4 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Truck size={16} />
+                    Dispatch Order
+                  </button>
+                )}
               </div>
             )}
 
-            {order.status === 'out_for_delivery' && (
-              <div className="pt-2">
-                <button 
-                  onClick={() => updateStatus(order.id, 'delivered')}
-                  className="w-full py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <CheckCircle2 size={16} />
-                  Mark Delivered
-                </button>
+            {(order.status === 'out_for_delivery' || (order.status as string) === 'ready') && (
+              <div className="pt-2 space-y-2">
+                {isOrderPickup(order) ? (
+                  <>
+                    <button 
+                      id={`mobile-btn-mark-collected-${order.id}`}
+                      onClick={() => updateStatus(order.id, 'delivered')}
+                      className="w-full min-h-[44px] py-3.5 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <CheckCircle2 size={16} />
+                      Mark Collected / Delivered
+                    </button>
+
+                    {order.phone ? (
+                      <button 
+                        id={`mobile-btn-pickup-whatsapp-${order.id}`}
+                        onClick={() => setReadyPickupOrderForWhatsApp(order)}
+                        className="w-full min-h-[44px] py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                      >
+                        <MessageSquare size={14} />
+                        📱 Notify Customer on WhatsApp
+                      </button>
+                    ) : (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center text-amber-300/80 text-[11px] font-medium">
+                        ⚠️ No customer phone number available.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button 
+                    id={`mobile-btn-mark-delivered-${order.id}`}
+                    onClick={() => updateStatus(order.id, 'delivered')}
+                    className="w-full min-h-[44px] py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <CheckCircle2 size={16} />
+                    Mark Delivered
+                  </button>
+                )}
               </div>
             )}
 
@@ -1672,6 +1830,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         isOpen={!!confirmedOrderForWhatsApp}
         onClose={() => setConfirmedOrderForWhatsApp(null)}
         order={confirmedOrderForWhatsApp}
+      />
+
+      {/* Admin WhatsApp Ready for Pickup Success Modal */}
+      <AdminReadyPickupSuccessModal
+        isOpen={!!readyPickupOrderForWhatsApp}
+        onClose={() => setReadyPickupOrderForWhatsApp(null)}
+        order={readyPickupOrderForWhatsApp}
       />
     </div>
   );

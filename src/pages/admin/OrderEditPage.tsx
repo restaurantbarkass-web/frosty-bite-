@@ -11,7 +11,8 @@ import { supabaseService } from '../../services/supabaseService';
 import { SlideToConfirm } from '../../components/ui/SlideToConfirm';
 import { AdminCancellationSuccessModal } from '../../components/admin/AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from '../../components/admin/AdminDeliverySuccessModal';
-import { normalizePhoneNumber, openCancellationWhatsApp } from '../../utils/whatsapp';
+import { AdminReadyPickupSuccessModal } from '../../components/admin/AdminReadyPickupSuccessModal';
+import { normalizePhoneNumber, openCancellationWhatsApp, isPickupOrder } from '../../utils/whatsapp';
 import { formatOrderId } from '../../utils/orderUtils';
 import { triggerOrderStatusNotification } from '../../utils/messaging';
 import toast from 'react-hot-toast';
@@ -47,6 +48,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
   const [cancellationReason, setCancellationReason] = useState(order.cancellation_reason || '');
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showDeliveryWhatsAppModal, setShowDeliveryWhatsAppModal] = useState(false);
+  const [showReadyPickupWhatsAppModal, setShowReadyPickupWhatsAppModal] = useState(false);
 
   // Financial fields
   const [deliveryCharge, setDeliveryCharge] = useState<number>(order.delivery_charge ?? 0);
@@ -178,6 +180,8 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
         setShowWhatsAppModal(true);
       } else if (order.status !== 'delivered' && status === 'delivered') {
         setShowDeliveryWhatsAppModal(true);
+      } else if (orderType === 'pickup' && (order.status !== 'out_for_delivery' && (order.status as string) !== 'ready') && (status === 'out_for_delivery' || (status as string) === 'ready')) {
+        setShowReadyPickupWhatsAppModal(true);
       }
     } catch (err: any) {
       console.error('Error updating order:', err);
@@ -328,7 +332,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   { key: 'pending', label: 'Pending', icon: Clock },
                   { key: 'confirmed', label: 'Confirmed', icon: CheckCircle2 },
                   { key: 'preparing', label: 'Baking', icon: Sparkles },
-                  { key: 'out_for_delivery', label: orderType === 'pickup' ? 'Ready Pickup' : 'Dispatched', icon: Truck },
+                  { key: 'out_for_delivery', label: orderType === 'pickup' ? 'Ready Pickup' : 'Dispatched', icon: orderType === 'pickup' ? ShoppingBag : Truck },
                   { key: 'delivered', label: 'Delivered', icon: Check },
                   { key: 'cancelled', label: 'Cancelled', icon: XCircle },
                 ].map((st) => {
@@ -351,6 +355,41 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   );
                 })}
               </div>
+
+              {/* Ready for Pickup WhatsApp Action Banner (Pickup Orders Only) */}
+              {orderType === 'pickup' && (status === 'out_for_delivery' || (status as string) === 'ready') && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                        <ShoppingBag size={14} />
+                        ✓ Order Ready for Pickup
+                      </p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">
+                        Customer: {customerName} • Order #{formatOrderId(order.id)}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                        Send the "Ready for Pickup" notification directly to the customer via WhatsApp.
+                      </p>
+                    </div>
+
+                    {phone ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowReadyPickupWhatsAppModal(true)}
+                        className="min-h-[44px] px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20 shrink-0 active:scale-95"
+                      >
+                        <MessageSquare size={16} className="fill-current text-black" />
+                        <span>📱 Notify Customer on WhatsApp</span>
+                      </button>
+                    ) : (
+                      <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl px-3.5 py-2 text-center text-amber-300 text-xs font-bold">
+                        ⚠️ No customer phone number available.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Cancellation Reason if Cancelled */}
               {status === 'cancelled' && (
@@ -806,6 +845,24 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           total: computedTotal,
           total_amount: computedTotal,
           status: 'delivered',
+          items: items
+        }}
+      />
+
+      {/* WhatsApp Ready for Pickup Success Modal */}
+      <AdminReadyPickupSuccessModal
+        isOpen={showReadyPickupWhatsAppModal}
+        onClose={() => setShowReadyPickupWhatsAppModal(false)}
+        order={{
+          ...order,
+          customer_name: customerName,
+          customerName: customerName,
+          phone: phone,
+          address: address,
+          total: computedTotal,
+          total_amount: computedTotal,
+          status: 'out_for_delivery',
+          order_type: orderType,
           items: items
         }}
       />

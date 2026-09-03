@@ -1,5 +1,6 @@
 console.log("[Vercel] api/index.ts loading...");
 
+// @ts-ignore
 import appModule from "../dist/app.cjs";
 
 const app = (appModule as any).default || appModule;

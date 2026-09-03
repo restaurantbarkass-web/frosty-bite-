@@ -32,7 +32,7 @@ export interface Order {
   email?: string;
   items: any[];
   total: number;
-  status: 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  status: 'awaiting_payment' | 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'ready' | 'delivered' | 'cancelled';
   order_type?: 'delivery' | 'pickup';
   delivery_location?: {
     lat: number;
@@ -41,6 +41,7 @@ export interface Order {
   created_at?: string;
   updated_at?: string;
   address: string;
+  delivery_address?: string;
   phone: string;
   notes?: string;
   payment_method?: 'cash' | 'online' | 'upi' | 'cod';
