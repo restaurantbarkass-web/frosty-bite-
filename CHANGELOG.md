@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.11] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `12`
+- **Release Details**:
+* 8791160 feat: modernize admin dashboard styling with brand palette and add bakery categories
+
+
 ## [1.10] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `11`
 - **Release Details**:
