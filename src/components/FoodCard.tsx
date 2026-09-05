@@ -340,9 +340,9 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
         )}
 
         <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-1.5 text-orange-700 text-[10px] font-bold uppercase tracking-wider bg-orange-50/90 py-1 px-2.5 rounded-lg w-fit border border-orange-200/80">
-            <Zap size={11} className="fill-orange-500 text-orange-500" />
-            <span>
+          <div className="flex items-center gap-1.5 text-orange-700 text-[10px] font-bold uppercase tracking-wider bg-orange-50/90 py-1 px-2.5 rounded-lg w-fit border border-orange-200/80 max-w-full">
+            <Zap size={11} className="fill-orange-500 text-orange-500 shrink-0" />
+            <span className="truncate">
               Delivers in {item.estimated_delivery_time_unit === 'days' 
                 ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
                 : `${item.estimated_delivery_time || 30} Mins`}

@@ -68,6 +68,8 @@
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
     overscroll-behavior-y: auto;
+    max-width: 100%;
+    overflow-x: hidden;
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -76,6 +78,13 @@
     -moz-osx-font-smoothing: grayscale;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
   }
   /* Native-feeling kinetic momentum scrolling on mobile devices */
   .overflow-y-auto, .overflow-y-scroll {
@@ -222,14 +231,22 @@ html.perf-tier-low .backdrop-blur-md,
 html.perf-tier-low .backdrop-blur-lg,
 html.perf-tier-low .backdrop-blur-xl,
 html.perf-tier-low .backdrop-blur-2xl,
-html.perf-tier-low .backdrop-blur-3xl,
-html.perf-tier-low .glass,
-html.perf-tier-low .glass-dark,
-html.perf-tier-low .glass-bakery,
-html.perf-tier-low .bakery-card {
+html.perf-tier-low .backdrop-blur-3xl {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.perf-tier-low .glass-dark {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   background-color: rgba(12, 12, 16, 0.98) !important;
+}
+
+html.perf-tier-low .glass,
+html.perf-tier-low .glass-bakery {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: #FAF8F5 !important;
 }
 
 /* Reduce blur values on balanced devices to optimize GPU framerates */

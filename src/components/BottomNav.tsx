@@ -182,8 +182,9 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
         duration: 0.35, 
         ease: [0.22, 1, 0.36, 1] 
       }}
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/98 backdrop-blur-xl border-t border-stone-200/90 rounded-t-[24px] shadow-[0_-10px_30px_rgba(0,0,0,0.06),0_-1px_3px_rgba(0,0,0,0.03)]"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-stone-200/90 rounded-t-[24px] shadow-[0_-10px_30px_rgba(0,0,0,0.06),0_-1px_3px_rgba(0,0,0,0.03)]"
       style={{
+        backgroundColor: '#ffffff',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))'
       }}
     >
