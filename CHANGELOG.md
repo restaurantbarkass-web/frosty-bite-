@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `9`
+- **Release Details**:
+* 7c4ab07 feat: enhance loading screens, order skeletons, and bottom navigation interactions
+
+
 ## [1.7] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `8`
 - **Release Details**:
