@@ -79,10 +79,18 @@ const CATEGORY_METADATA: Record<string, CategoryVisualMeta> = {
     bgColor: 'bg-white',
     borderColor: 'border-stone-200/90',
   },
+  'Brownies': {
+    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&q=80&w=800',
+    emoji: '🍫',
+    badge: 'Fudgy & Rich',
+    description: 'Decadent Belgian chocolate fudge brownies and walnut sizzlers.',
+    bgColor: 'bg-white',
+    borderColor: 'border-stone-200/90',
+  },
   'Desserts': {
     image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&q=80&w=800',
     emoji: '🍨',
-    description: 'Cheesecakes, puddings, brownies & dessert jars.',
+    description: 'Cheesecakes, puddings, dessert jars & sweet delights.',
     bgColor: 'bg-white',
     borderColor: 'border-stone-200/90',
   },
@@ -166,7 +174,7 @@ export const CategoriesPage: React.FC = () => {
   const computedCategories = useMemo(() => {
     if (!items || items.length === 0) {
       const filtered = (rawCategories || []).filter(c => c && c.toLowerCase() !== 'all');
-      return filtered.length > 0 ? filtered : ['Cakes', 'Pastries', 'Breads', 'Cookies', 'Beverages'];
+      return filtered.length > 0 ? filtered : ['Cakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
     }
 
     const uniqueCats = Array.from(

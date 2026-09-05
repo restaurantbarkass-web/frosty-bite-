@@ -100,7 +100,7 @@ export const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#050505] text-white font-sans selection:bg-orange-500/30 selection:text-orange-500 overflow-x-hidden">
+    <div className="flex min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E76A54]/20 selection:text-[#E76A54] overflow-x-hidden">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -110,7 +110,7 @@ export const AdminLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 min-h-svh h-screen overflow-hidden">
         <Navbar onMenuClick={() => setIsSidebarOpen(true)} />
         <main 
-          className="flex-1 p-4 sm:p-8 overflow-y-auto custom-scrollbar pb-[calc(2rem+env(safe-area-inset-bottom))]"
+          className="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar pb-[calc(2rem+env(safe-area-inset-bottom))]"
           data-lenis-prevent
         >
           <AnimatePresence mode="wait">

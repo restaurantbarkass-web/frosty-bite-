@@ -20,9 +20,9 @@ import { Order } from '../../types';
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#1a1a1a] border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
-        <p className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">{label}</p>
-        <p className="text-white text-lg font-bold">
+      <div className="bg-white border border-stone-200 p-4 rounded-2xl shadow-xl">
+        <p className="text-stone-500 text-xs font-bold mb-1 uppercase tracking-wider">{label}</p>
+        <p className="text-stone-900 text-lg font-bold">
           ₹{payload[0].value.toLocaleString()}
         </p>
       </div>
@@ -128,8 +128,11 @@ export const Analytics: React.FC = () => {
   const popularItemsData = [
     { name: 'Cakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cake'))).length },
     { name: 'Pastries', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('pastry') || i.name?.toLowerCase().includes('croissant'))).length },
+    { name: 'Cupcakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cupcake'))).length },
+    { name: 'Brownies', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('brownie'))).length },
     { name: 'Breads', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('bread') || i.name?.toLowerCase().includes('loaf'))).length },
     { name: 'Cookies', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cookie'))).length },
+    { name: 'Beverages', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('beverage') || i.name?.toLowerCase().includes('coffee') || i.name?.toLowerCase().includes('chocolate'))).length },
   ];
 
   const exportToCSV = () => {
@@ -174,28 +177,28 @@ export const Analytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-20 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold animate-pulse">Loading analytics...</p>
+      <div className="bg-white border border-stone-200/80 rounded-3xl p-12 sm:p-20 flex flex-col items-center justify-center gap-4 shadow-xs">
+        <div className="w-12 h-12 border-4 border-[#E76A54]/20 border-t-[#E76A54] rounded-full animate-spin" />
+        <p className="text-stone-500 font-bold animate-pulse text-sm">Loading analytics...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 sm:space-y-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">Advanced Analytics</h1>
-          <p className="text-gray-500 font-medium">Deep dive into your restaurant's performance metrics.</p>
+          <h1 className="text-2xl sm:text-4xl font-black text-stone-900 tracking-tight mb-1 sm:mb-2">Advanced Analytics</h1>
+          <p className="text-stone-500 font-medium text-sm">Deep dive into your bakery's performance metrics.</p>
         </div>
-        <div className="flex items-center gap-4 relative">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 relative">
+          <div className="relative w-full sm:w-auto">
             <button 
               onClick={() => setShowDatePicker(!showDatePicker)}
-              className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 px-4 sm:px-6 py-3 bg-white border border-stone-200 rounded-2xl text-stone-800 font-bold hover:bg-stone-50 transition-all text-sm shadow-xs"
             >
-              <Calendar size={20} className="text-orange-500" />
-              {startDate || endDate ? `${startDate || '...'} to ${endDate || '...'}` : 'Select Date Range'}
+              <Calendar size={18} className="text-[#E76A54]" />
+              <span className="truncate">{startDate || endDate ? `${startDate || '...'} to ${endDate || '...'}` : 'Select Date Range'}</span>
             </button>
             
             <AnimatePresence>
@@ -204,37 +207,37 @@ export const Analytics: React.FC = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute top-full right-0 mt-4 p-6 bg-[#1a1a1a] border border-white/10 rounded-3xl shadow-2xl z-[100] min-w-[300px] backdrop-blur-xl"
+                  className="absolute top-full left-0 sm:left-auto sm:right-0 mt-3 p-5 sm:p-6 bg-white border border-stone-200 rounded-3xl shadow-2xl z-[100] w-full sm:min-w-[300px]"
                 >
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Start Date</label>
+                      <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Start Date</label>
                       <input 
                         type="date" 
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-orange-500/50"
+                        className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 text-stone-900 focus:outline-none focus:border-[#E76A54]"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">End Date</label>
+                      <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">End Date</label>
                       <input 
                         type="date" 
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-orange-500/50"
+                        className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 text-stone-900 focus:outline-none focus:border-[#E76A54]"
                       />
                     </div>
                     <div className="flex gap-2 pt-2">
                       <button 
                         onClick={() => { setStartDate(''); setEndDate(''); setShowDatePicker(false); }}
-                        className="flex-1 py-2 rounded-xl bg-white/5 text-gray-400 text-xs font-bold hover:bg-white/10"
+                        className="flex-1 py-2.5 rounded-xl bg-stone-100 text-stone-600 text-xs font-bold hover:bg-stone-200 transition-colors"
                       >
                         Reset
                       </button>
                       <button 
                         onClick={() => setShowDatePicker(false)}
-                        className="flex-1 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold hover:bg-orange-600"
+                        className="flex-1 py-2.5 rounded-xl bg-[#E76A54] text-white text-xs font-bold hover:bg-[#d95c46] transition-colors"
                       >
                         Apply
                       </button>
@@ -247,22 +250,22 @@ export const Analytics: React.FC = () => {
 
           <button 
             onClick={exportToCSV}
-            className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-white border border-stone-200 rounded-2xl text-stone-800 font-bold hover:bg-stone-50 transition-all text-sm shadow-xs"
           >
-            <Download size={20} className="text-gray-400" />
-            Export CSV
+            <Download size={18} className="text-stone-500" />
+            <span>Export CSV</span>
           </button>
           <button 
             onClick={generatePDFReport}
-            className="flex items-center gap-3 px-8 py-3 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-8 py-3 bg-[#E76A54] text-white rounded-2xl font-bold shadow-md shadow-orange-500/15 hover:bg-[#d95c46] transition-all text-sm"
           >
-            <FileText size={20} />
-            Download PDF
+            <FileText size={18} />
+            <span>Print PDF</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
         {[
           { title: 'Total Revenue', value: `₹${totalRevenue.toLocaleString()}`, trend: 12.5, icon: DollarSign, color: 'emerald' },
           { title: 'Total Orders', value: totalOrders.toString(), trend: 8.2, icon: TrendingUp, color: 'blue' },
@@ -270,37 +273,36 @@ export const Analytics: React.FC = () => {
         ].map((stat) => (
           <motion.div 
             key={stat.title}
-            whileHover={{ y: -5 }}
-            className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-8 relative overflow-hidden group"
+            whileHover={{ y: -3 }}
+            className="bg-white border border-stone-200/80 rounded-[28px] p-6 sm:p-8 relative overflow-hidden group shadow-xs"
           >
-            <div className={`absolute top-0 right-0 w-32 h-32 bg-${stat.color}-500/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-125 transition-transform`} />
             <div className="relative z-10">
-              <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-500 border border-${stat.color}-500/20 mb-6`}>
-                <stat.icon size={28} />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FAF8F5] border border-stone-200 flex items-center justify-center text-[#E76A54] mb-5">
+                <stat.icon size={26} />
               </div>
-              <p className="text-gray-500 text-sm font-bold uppercase tracking-widest mb-2">{stat.title}</p>
-              <h4 className="text-3xl font-black text-white mb-4">{stat.value}</h4>
+              <p className="text-stone-500 text-xs font-bold uppercase tracking-widest mb-1.5">{stat.title}</p>
+              <h4 className="text-2xl sm:text-3xl font-black text-stone-900 mb-3">{stat.value}</h4>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 text-xs font-bold">
-                  <TrendingUp size={14} />
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold">
+                  <TrendingUp size={13} />
                   +100%
                 </div>
-                <span className="text-xs text-gray-600 font-medium">vs previous period</span>
+                <span className="text-xs text-stone-400 font-medium">vs previous period</span>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
-          <div className="flex items-center justify-between mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        <div className="lg:col-span-2 bg-white border border-stone-200/80 rounded-[28px] p-6 sm:p-10 h-[420px] sm:h-[500px] flex flex-col shadow-xs">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
-              <h3 className="text-2xl font-bold text-white tracking-tight">Revenue Growth</h3>
-              <p className="text-sm text-gray-500">Total revenue generated over time</p>
+              <h3 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">Revenue Growth</h3>
+              <p className="text-xs sm:text-sm text-stone-500">Total revenue generated over time</p>
             </div>
           </div>
-          <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+          <div className="flex-1 w-full min-h-[260px] min-w-0 relative">
             <ResponsiveContainer 
               width="100%" 
               height="100%" 
@@ -310,39 +312,39 @@ export const Analytics: React.FC = () => {
               debounce={100}
             >
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+                  tick={{ fill: '#78716c', fontSize: 12, fontWeight: 500 }}
                   dy={10}
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+                  tick={{ fill: '#78716c', fontSize: 12, fontWeight: 500 }}
                   tickFormatter={(value) => `₹${value/1000}k`}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Line 
                   type="monotone" 
                   dataKey="revenue" 
-                  stroke="#7dd3fc" 
-                  strokeWidth={4}
-                  dot={{ fill: '#7dd3fc', strokeWidth: 2, r: 4, stroke: '#111' }}
-                  activeDot={{ r: 6, strokeWidth: 0 }}
-                  animationDuration={2000}
+                  stroke="#E76A54" 
+                  strokeWidth={3}
+                  dot={{ fill: '#E76A54', strokeWidth: 2, r: 4, stroke: '#ffffff' }}
+                  activeDot={{ r: 6, strokeWidth: 0, fill: '#d95c46' }}
+                  animationDuration={1500}
                 />
               </LineChart>
             </ResponsiveContainer>
           </div>
-      </div>
+        </div>
 
-        <div className="bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-[32px] p-10 h-[500px] flex flex-col">
-          <h3 className="text-2xl font-bold text-white tracking-tight mb-2">Order Distribution</h3>
-          <p className="text-sm text-gray-500 mb-10">Breakdown by category</p>
-          <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+        <div className="bg-white border border-stone-200/80 rounded-[28px] p-6 sm:p-10 h-[420px] sm:h-[500px] flex flex-col shadow-xs">
+          <h3 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight mb-1 sm:mb-2">Order Distribution</h3>
+          <p className="text-xs sm:text-sm text-stone-500 mb-6 sm:mb-8">Breakdown by category</p>
+          <div className="flex-1 w-full min-h-[260px] min-w-0 relative">
             <ResponsiveContainer 
               width="100%" 
               height="100%" 
@@ -352,25 +354,25 @@ export const Analytics: React.FC = () => {
               debounce={100}
             >
               <BarChart data={popularItemsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#666', fontSize: 10, fontWeight: 500 }}
-                dy={10}
-              />
-              <YAxis hide />
-              <Tooltip cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="sales" radius={[10, 10, 0, 0]} barSize={40}>
-                {popularItemsData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#f97316' : '#3b82f6'} fillOpacity={0.8} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#78716c', fontSize: 11, fontWeight: 500 }}
+                  dy={10}
+                />
+                <YAxis hide />
+                <Tooltip cursor={{ fill: 'rgba(231, 106, 84, 0.05)' }} />
+                <Bar dataKey="sales" radius={[8, 8, 0, 0]} barSize={36}>
+                  {popularItemsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#E76A54' : '#EAB308'} fillOpacity={0.9} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

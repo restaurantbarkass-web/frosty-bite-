@@ -18,9 +18,9 @@ import { supabase } from '../../supabase';
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-[#1a1a1a] border border-white/10 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
-        <p className="text-gray-400 text-xs font-bold mb-1 uppercase tracking-wider">{label}</p>
-        <p className="text-white text-lg font-bold">
+      <div className="bg-white border border-stone-200 p-3.5 rounded-2xl shadow-xl">
+        <p className="text-stone-400 text-xs font-bold mb-1 uppercase tracking-wider">{label}</p>
+        <p className="text-stone-900 text-lg font-black">
           {payload[0].name === 'revenue' ? `₹${payload[0].value.toLocaleString()}` : `${payload[0].value} orders`}
         </p>
       </div>
@@ -73,20 +73,20 @@ export const OrdersChart: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px] flex flex-col">
-      <div className="flex items-center justify-between mb-8">
+    <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-8 h-[380px] sm:h-[400px] flex flex-col shadow-xs">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h3 className="text-xl font-bold text-white tracking-tight">Orders Over Time</h3>
-          <p className="text-sm text-gray-500">Weekly performance overview</p>
+          <h3 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight">Orders Over Time</h3>
+          <p className="text-xs sm:text-sm text-stone-500">Weekly performance overview</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-500" />
-            <span className="text-xs text-gray-400 font-medium">Orders</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#E76A54]" />
+            <span className="text-xs text-stone-500 font-medium">Orders</span>
           </div>
         </div>
       </div>
-      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+      <div className="flex-1 w-full min-h-[250px] min-w-0 relative">
         <ResponsiveContainer 
           width="100%" 
           height="100%" 
@@ -98,29 +98,29 @@ export const OrdersChart: React.FC = () => {
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#E76A54" stopOpacity={0.25}/>
+                <stop offset="95%" stopColor="#E76A54" stopOpacity={0}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
             <XAxis 
               dataKey="name" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              tick={{ fill: '#78716c', fontSize: 11, fontWeight: 500 }}
               dy={10}
             />
             <YAxis 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              tick={{ fill: '#78716c', fontSize: 11, fontWeight: 500 }}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area 
               type="monotone" 
               dataKey="orders" 
-              stroke="#f97316" 
-              strokeWidth={4}
+              stroke="#E76A54" 
+              strokeWidth={3}
               fillOpacity={1} 
               fill="url(#colorOrders)" 
               animationDuration={2000}
@@ -184,12 +184,12 @@ export const PopularItemsChart: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px] flex flex-col">
-      <div className="mb-8">
-        <h3 className="text-xl font-bold text-white tracking-tight">Popular Items</h3>
-        <p className="text-sm text-gray-500">Most sold items this month</p>
+    <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-8 h-[380px] sm:h-[400px] flex flex-col shadow-xs">
+      <div className="mb-6 sm:mb-8">
+        <h3 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight">Popular Items</h3>
+        <p className="text-xs sm:text-sm text-stone-500">Most sold items this month</p>
       </div>
-      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+      <div className="flex-1 w-full min-h-[250px] min-w-0 relative">
         <ResponsiveContainer 
           width="100%" 
           height="100%" 
@@ -198,21 +198,21 @@ export const PopularItemsChart: React.FC = () => {
           initialDimension={{ width: 500, height: 300 }}
           debounce={100}
         >
-          <BarChart data={data} layout="vertical" margin={{ left: 40 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" horizontal={false} />
+          <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
             <XAxis type="number" hide />
             <YAxis 
               dataKey="name" 
               type="category" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#fff', fontSize: 12, fontWeight: 600 }}
+              tick={{ fill: '#44403c', fontSize: 11, fontWeight: 600 }}
               width={100}
             />
-            <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
-            <Bar dataKey="sales" radius={[0, 10, 10, 0]} barSize={32} animationDuration={1500}>
+            <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} content={<CustomTooltip />} />
+            <Bar dataKey="sales" radius={[0, 10, 10, 0]} barSize={28} animationDuration={1500}>
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} fillOpacity={0.8} />
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} fillOpacity={0.9} />
               ))}
             </Bar>
           </BarChart>
@@ -266,20 +266,20 @@ export const RevenueChart: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-8 h-[400px] flex flex-col">
-      <div className="flex items-center justify-between mb-8">
+    <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-8 h-[380px] sm:h-[400px] flex flex-col shadow-xs">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h3 className="text-xl font-bold text-white tracking-tight">Revenue Analysis</h3>
-          <p className="text-sm text-gray-500">Earnings from daily cakes & bakes</p>
+          <h3 className="text-lg sm:text-xl font-bold text-stone-900 tracking-tight">Revenue Analysis</h3>
+          <p className="text-xs sm:text-sm text-stone-500">Earnings from daily cakes & bakes</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-primary" />
-            <span className="text-xs text-gray-400 font-medium">Revenue (₹)</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-[#E76A54]" />
+            <span className="text-xs text-stone-500 font-medium">Revenue (₹)</span>
           </div>
         </div>
       </div>
-      <div className="flex-1 w-full min-h-[300px] min-w-0 relative">
+      <div className="flex-1 w-full min-h-[250px] min-w-0 relative">
         <ResponsiveContainer 
           width="100%" 
           height="100%" 
@@ -289,27 +289,27 @@ export const RevenueChart: React.FC = () => {
           debounce={100}
         >
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
             <XAxis 
               dataKey="name" 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              tick={{ fill: '#78716c', fontSize: 11, fontWeight: 500 }}
               dy={10}
             />
             <YAxis 
               axisLine={false} 
               tickLine={false} 
-              tick={{ fill: '#666', fontSize: 12, fontWeight: 500 }}
+              tick={{ fill: '#78716c', fontSize: 11, fontWeight: 500 }}
               tickFormatter={(value) => `₹${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}`}
             />
             <Tooltip content={<CustomTooltip />} />
             <Line 
               type="monotone" 
               dataKey="revenue" 
-              stroke="#f97316" 
-              strokeWidth={4}
-              dot={{ fill: '#f97316', strokeWidth: 2, r: 4, stroke: '#111' }}
+              stroke="#E76A54" 
+              strokeWidth={3.5}
+              dot={{ fill: '#E76A54', strokeWidth: 2, r: 4, stroke: '#ffffff' }}
               activeDot={{ r: 6, strokeWidth: 0 }}
               animationDuration={2000}
             />

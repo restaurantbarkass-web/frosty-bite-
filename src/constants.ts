@@ -20,7 +20,7 @@ export const getRoleFromEmail = (email: string | null): UserRole => {
   return 'customer';
 };
 
-export const CATEGORIES = ['Cakes', 'Pastries', 'Breads', 'Cookies', 'Beverages'];
+export const CATEGORIES = ['Cakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
 
 export const MENU_ITEMS: FoodItem[] = [
   {
@@ -100,6 +100,30 @@ export const MENU_ITEMS: FoodItem[] = [
     category: 'Cakes',
     tags: ['bento', 'chocolate', 'truffle', 'best-seller'],
     stock_quantity: 20,
+    available: true
+  },
+  {
+    id: '8',
+    name: 'Vanilla Bean Swirl Cupcake',
+    description: 'Fluffy Madagascar vanilla sponge topped with silky buttercream swirl and pearl sprinkles.',
+    price: 110,
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1587668178277-295251f900ce?auto=format&fit=crop&q=80&w=800',
+    category: 'Cupcakes',
+    tags: ['cupcake', 'vanilla', 'sweet'],
+    stock_quantity: 30,
+    available: true
+  },
+  {
+    id: '9',
+    name: 'Belgian Fudge Walnut Brownie',
+    description: 'Rich, fudgy double chocolate brownie loaded with toasted California walnuts.',
+    price: 160,
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&q=80&w=800',
+    category: 'Brownies',
+    tags: ['brownie', 'fudge', 'walnut', 'best-seller'],
+    stock_quantity: 35,
     available: true
   }
 ];

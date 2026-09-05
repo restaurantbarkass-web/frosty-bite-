@@ -196,48 +196,43 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-8 sm:space-y-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">Dashboard Overview</h1>
-          <p className="text-gray-500 font-medium">Welcome back, Admin! Here's what's happening today.</p>
+          <h1 className="text-2xl sm:text-4xl font-black text-stone-900 tracking-tight mb-1">Dashboard Overview</h1>
+          <p className="text-stone-500 text-sm font-medium">Welcome back, Admin! Here's what's happening today.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
           {config && (
             <button 
               onClick={handleToggleOrdering}
               disabled={isToggling}
-              className={`flex items-center gap-3 px-4 sm:px-6 py-3 rounded-2xl font-bold transition-all relative overflow-hidden group flex-1 sm:flex-none ${
+              className={`flex items-center justify-center gap-2.5 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-bold transition-all relative overflow-hidden group flex-1 sm:flex-none border text-sm shadow-xs ${
                 config.isOrderingOpen 
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/20' 
-                  : 'bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20'
+                  ? 'bg-emerald-50 border-emerald-300/80 text-emerald-800 hover:bg-emerald-100' 
+                  : 'bg-rose-50 border-rose-300/80 text-rose-800 hover:bg-rose-100'
               }`}
             >
-              {/* Glow Effect */}
-              <div className={`absolute inset-0 opacity-20 blur-xl transition-all group-hover:opacity-40 ${
-                config.isOrderingOpen ? 'bg-emerald-500' : 'bg-red-500'
-              }`} />
-              
               {isToggling ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
-                config.isOrderingOpen ? <CheckCircle2 size={20} /> : <XCircle size={20} />
+                config.isOrderingOpen ? <CheckCircle2 size={18} className="text-emerald-600" /> : <XCircle size={18} className="text-rose-600" />
               )}
               
-              <span className="relative z-10 text-sm sm:text-base">
-                {config.isOrderingOpen ? 'Open' : 'Closed'}
+              <span className="font-bold">
+                {config.isOrderingOpen ? 'Store Open' : 'Store Closed'}
               </span>
             </button>
           )}
           <button 
             onClick={exportRecentOrders}
-            className="p-3 bg-white/5 border border-white/10 rounded-2xl text-white font-bold hover:bg-white/10 transition-all flex-1 sm:flex-none flex items-center justify-center gap-2"
+            className="p-2.5 sm:p-3 bg-white border border-stone-200/90 rounded-2xl text-stone-700 font-bold hover:bg-stone-50 transition-all flex-1 sm:flex-none flex items-center justify-center gap-2 shadow-xs"
             title="Download Report"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span className="sm:hidden text-xs">Report</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="text-stone-500"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span className="text-xs font-semibold">Report</span>
           </button>
-          <button className="flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 hover:bg-accent transition-all flex-1 sm:flex-none text-sm">
+          <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-[#E76A54] text-white rounded-2xl font-bold shadow-md shadow-orange-500/25 hover:bg-[#d95d48] transition-all flex-1 sm:flex-none text-xs sm:text-sm">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse hidden sm:block" />
             Live
           </button>
@@ -248,38 +243,38 @@ export const Dashboard: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden"
+        className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-7 space-y-6 relative overflow-hidden shadow-xs"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500">
-              <Store size={24} />
+            <div className="p-3 bg-amber-50 rounded-2xl text-amber-700 border border-amber-200/60">
+              <Store size={22} />
             </div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Order Settings</h2>
-              <p className="text-xs text-gray-400 font-medium">Manage ordering status and fulfillment modes in real time</p>
+              <h2 className="text-lg sm:text-2xl font-black text-stone-900 tracking-tight">Order Settings</h2>
+              <p className="text-xs text-stone-500 font-medium">Manage ordering status and fulfillment modes in real time</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
               config?.isOrderingOpen 
-                ? (isPickupOnly ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30') 
-                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                ? (isPickupOnly ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-emerald-50 text-emerald-800 border border-emerald-200') 
+                : 'bg-rose-50 text-rose-800 border border-rose-200'
             }`}>
               {!config?.isOrderingOpen ? 'Store Closed' : (isPickupOnly ? 'Pickup Only Active' : 'Store Open (Delivery & Pickup)')}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Order Open / Close Toggle */}
-          <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 bg-stone-50/70 rounded-2xl border border-stone-200/80 flex items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Power size={18} className={config?.isOrderingOpen ? 'text-emerald-400' : 'text-red-400'} />
-                <span className="font-bold text-white text-base">Order Status</span>
+                <Power size={18} className={config?.isOrderingOpen ? 'text-emerald-600' : 'text-rose-600'} />
+                <span className="font-bold text-stone-900 text-sm sm:text-base">Order Status</span>
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
+              <p className="text-xs text-stone-500 leading-relaxed">
                 {config?.isOrderingOpen ? 'Store is accepting orders.' : 'Store is closed. Online orders are disabled.'}
               </p>
             </div>
@@ -289,7 +284,7 @@ export const Dashboard: React.FC = () => {
                 onClick={handleToggleOrdering}
                 disabled={isToggling}
                 className={`relative w-14 h-8 rounded-full p-1 transition-all duration-300 outline-none shrink-0 ${
-                  config.isOrderingOpen ? 'bg-emerald-500' : 'bg-white/10'
+                  config.isOrderingOpen ? 'bg-emerald-600' : 'bg-stone-300'
                 }`}
               >
                 <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 transform flex items-center justify-center ${
@@ -304,14 +299,14 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Pickup Only Toggle */}
-          <div className="p-5 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 bg-stone-50/70 rounded-2xl border border-stone-200/80 flex items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <ShoppingBag size={18} className={isPickupOnly ? 'text-amber-400' : 'text-gray-400'} />
-                <span className="font-bold text-white text-base">Pickup Only</span>
+                <ShoppingBag size={18} className={isPickupOnly ? 'text-amber-600' : 'text-stone-400'} />
+                <span className="font-bold text-stone-900 text-sm sm:text-base">Pickup Only</span>
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
-                When enabled, customers can place orders online but must collect them from the bakery. Home delivery will be disabled.
+              <p className="text-xs text-stone-500 leading-relaxed max-w-sm">
+                When enabled, customers can place orders online but must collect them from the bakery.
               </p>
             </div>
             <button 
@@ -319,7 +314,7 @@ export const Dashboard: React.FC = () => {
               onClick={handleTogglePickupOnly}
               disabled={isTogglingPickup}
               className={`relative w-14 h-8 rounded-full p-1 transition-all duration-300 outline-none shrink-0 ${
-                isPickupOnly ? 'bg-amber-500' : 'bg-white/10'
+                isPickupOnly ? 'bg-amber-500' : 'bg-stone-300'
               }`}
             >
               <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 transform flex items-center justify-center ${
@@ -337,26 +332,26 @@ export const Dashboard: React.FC = () => {
       <DashboardCards />
 
       {supabaseError && (
-        <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl mb-8">
+        <div className="p-5 sm:p-6 bg-rose-50 border border-rose-200 rounded-3xl mb-8">
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-red-500/20 rounded-2xl text-red-500">
-              <XCircle size={24} />
+            <div className="p-3 bg-rose-100 rounded-2xl text-rose-600">
+              <XCircle size={22} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-2">Configuration Error</h3>
-              <p className="text-gray-400 font-medium leading-relaxed">{supabaseError}</p>
-              <div className="mt-4 flex gap-3">
+              <h3 className="text-lg font-bold text-rose-900 mb-1">Configuration Error</h3>
+              <p className="text-rose-700 font-medium text-sm leading-relaxed">{supabaseError}</p>
+              <div className="mt-3 flex gap-3">
                 <a 
                   href="https://supabase.com/dashboard/project/_/editor" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="px-4 py-2 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition-colors"
+                  className="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold text-xs hover:bg-rose-700 transition-colors"
                 >
                   Go to Supabase Dashboard
                 </a>
                 <button 
                   onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-white/5 text-white rounded-xl font-bold text-sm hover:bg-white/10 transition-colors"
+                  className="px-4 py-2 bg-white border border-rose-200 text-rose-800 rounded-xl font-bold text-xs hover:bg-rose-50 transition-colors"
                 >
                   Retry
                 </button>
@@ -366,18 +361,18 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
         <RevenueChart />
         <OrdersChart />
         <PopularItemsChart />
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-white tracking-tight">Real-time Orders</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">Real-time Orders</h2>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-            <span className="text-xs text-primary font-black uppercase tracking-widest">Live Updates</span>
+            <div className="w-2 h-2 bg-[#E76A54] rounded-full animate-pulse" />
+            <span className="text-xs text-[#E76A54] font-black uppercase tracking-widest">Live Updates</span>
           </div>
         </div>
         <OrdersTable 

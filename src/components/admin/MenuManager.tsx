@@ -402,15 +402,15 @@ export const MenuManager: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-20 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold animate-pulse">Loading menu...</p>
+      <div className="bg-white border border-stone-200/80 rounded-3xl p-16 sm:p-20 flex flex-col items-center justify-center gap-3 shadow-xs">
+        <div className="w-10 h-10 border-3 border-[#E76A54]/20 border-t-[#E76A54] rounded-full animate-spin" />
+        <p className="text-stone-500 text-xs font-bold uppercase tracking-wider animate-pulse">Loading menu...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={!!deletingId}
@@ -422,21 +422,21 @@ export const MenuManager: React.FC = () => {
         variant="danger"
       />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight">Menu Management</h2>
-          <p className="text-gray-500 font-medium">Add, edit, or remove items from your restaurant menu</p>
+          <h2 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Menu Management</h2>
+          <p className="text-stone-500 text-xs sm:text-sm font-medium mt-1">Add, edit, or remove items from your bakery menu</p>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <button 
             onClick={() => {
               setLoading(true);
               fetchMenu();
             }}
-            className="flex items-center gap-3 px-6 py-4 bg-[#111]/80 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all group"
+            className="flex items-center gap-2 px-4 py-2.5 sm:py-3 bg-white border border-stone-200 rounded-2xl text-stone-700 hover:bg-stone-50 transition-all text-xs font-bold shadow-xs cursor-pointer"
           >
             <div className={cn("transition-transform duration-700", loading && "animate-spin")}>
-              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             </div>
             Refresh
           </button>
@@ -463,166 +463,167 @@ export const MenuManager: React.FC = () => {
               });
               setIsAdding(true);
             }}
-            className="flex items-center gap-3 px-8 py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all flex-1 md:flex-none justify-center"
+            className="flex items-center gap-2 px-5 py-2.5 sm:py-3 bg-[#E76A54] text-white rounded-2xl font-bold text-xs uppercase tracking-wider shadow-md shadow-[#E76A54]/20 hover:bg-[#d55b45] transition-all flex-1 sm:flex-none justify-center cursor-pointer"
           >
-            <Plus size={20} />
+            <Plus size={16} />
             Add New Item
           </motion.button>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors" size={18} />
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        <div className="relative flex-1 w-full group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#E76A54] transition-colors" size={17} />
           <input 
             type="text" 
             placeholder="Search menu items..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#111]/80 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-orange-500/50 transition-all"
+            className="w-full bg-white border border-stone-200 rounded-2xl py-3 pl-11 pr-4 text-stone-900 text-sm focus:outline-none focus:border-[#E76A54] transition-all shadow-xs placeholder:text-stone-400"
           />
         </div>
-        <button className="flex items-center gap-3 px-6 py-4 bg-[#111]/80 border border-white/10 rounded-2xl text-gray-400 hover:text-white transition-all">
-          <Filter size={18} />
-          Filter
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         <AnimatePresence mode="popLayout">
           {filteredMenu.map((item) => (
             <motion.div 
               key={item.id}
               layout
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="group bg-[#111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden hover:border-orange-500/30 transition-all"
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="group bg-white border border-stone-200/80 rounded-3xl overflow-hidden hover:border-[#E76A54]/40 transition-all shadow-xs flex flex-col justify-between"
             >
-              <div className="relative h-48 overflow-hidden">
-                <ImageZoom 
-                  src={item.image} 
-                  alt={item.name} 
-                  className={cn("w-full h-full object-cover group-hover:scale-110 transition-transform duration-500", (item.available === false || item.stock_quantity <= 0) && "grayscale")}
-                  triggerClassName="w-full h-full"
-                />
-                {(item.available === false || item.stock_quantity <= 0) && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center pointer-events-none">
-                    <span className="bg-red-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg -rotate-12 border border-white/20">
-                      Sold Out
+              <div>
+                <div className="relative h-44 sm:h-48 overflow-hidden bg-stone-100">
+                  <ImageZoom 
+                    src={item.image} 
+                    alt={item.name} 
+                    className={cn("w-full h-full object-cover group-hover:scale-105 transition-transform duration-500", (item.available === false || item.stock_quantity <= 0) && "grayscale")}
+                    triggerClassName="w-full h-full"
+                  />
+                  {(item.available === false || item.stock_quantity <= 0) && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none">
+                      <span className="bg-stone-800 text-white text-[10px] font-black uppercase tracking-widest px-3.5 py-1.5 rounded-full shadow-lg">
+                        Sold Out
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-1.5">
+                    <button 
+                      onClick={() => {
+                        const url = `${window.location.origin}/product/${item.id}`;
+                        navigator.clipboard.writeText(url);
+                        toast.success('Product link copied!');
+                      }}
+                      className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-[#E76A54] transition-all cursor-pointer"
+                      title="Copy Public Link"
+                    >
+                      <LinkIcon size={14} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setEditingItem(item);
+                        setFormData({
+                          name: item.name,
+                          price: item.price.toString(),
+                          stock_quantity: (item.stock_quantity || 0).toString(),
+                          category: item.category,
+                          image: item.image,
+                          available: item.available,
+                          description: item.description || '',
+                          ai_description: item.ai_description || '',
+                          is_ai_boosted: !!item.is_ai_boosted,
+                          estimated_delivery_time: (item.estimated_delivery_time || 30).toString(),
+                          estimated_delivery_time_unit: item.estimated_delivery_time_unit || 'mins',
+                          estimated_delivery_time_string: item.estimated_delivery_time_string || '',
+                          available_date: item.available_date || '',
+                          available_day: item.available_day || ''
+                        });
+                        setIsAdding(true);
+                      }}
+                      className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-[#E76A54] transition-all cursor-pointer"
+                      title="Edit Item"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={() => setDeletingId(item.id)}
+                      className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-rose-600 transition-all cursor-pointer"
+                      title="Delete Item"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-3 left-3">
+                    <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider">
+                      {item.category}
                     </span>
                   </div>
-                )}
-                <div className="absolute top-4 right-4 flex gap-2">
-                  <button 
-                    onClick={() => {
-                      const url = `${window.location.origin}/product/${item.id}`;
-                      navigator.clipboard.writeText(url);
-                      toast.success('Product link copied!');
-                    }}
-                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-primary transition-all"
-                    title="Copy Public Link"
-                  >
-                    <LinkIcon size={16} />
-                  </button>
-                   <button 
-                    onClick={() => {
-                      setEditingItem(item);
-                      setFormData({
-                        name: item.name,
-                        price: item.price.toString(),
-                        stock_quantity: (item.stock_quantity || 0).toString(),
-                        category: item.category,
-                        image: item.image,
-                        available: item.available,
-                        description: item.description || '',
-                        ai_description: item.ai_description || '',
-                        is_ai_boosted: !!item.is_ai_boosted,
-                        estimated_delivery_time: (item.estimated_delivery_time || 30).toString(),
-                        estimated_delivery_time_unit: item.estimated_delivery_time_unit || 'mins',
-                        estimated_delivery_time_string: item.estimated_delivery_time_string || '',
-                        available_date: item.available_date || '',
-                        available_day: item.available_day || ''
-                      });
-                      setIsAdding(true);
-                    }}
-                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-orange-500 transition-all"
-                  >
-                    <Edit2 size={16} />
-                  </button>
-                  <button 
-                    onClick={() => setDeletingId(item.id)}
-                    className="p-2 rounded-xl bg-black/50 backdrop-blur-md text-white hover:bg-red-500 transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-                <div className="absolute bottom-4 left-4">
-                  <span className="px-3 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-widest">
-                    {item.category}
-                  </span>
+
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div>
+                      <h4 className="text-base font-bold text-stone-900 line-clamp-1">{item.name}</h4>
+                      <p className="text-lg font-black text-[#E76A54] mt-0.5">₹{item.price}</p>
+                    </div>
+                    <div className={`flex items-center gap-1 text-[11px] font-bold shrink-0 ${(item.available && item.stock_quantity > 0) ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md' : 'text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md'}`}>
+                      {(item.available && item.stock_quantity > 0) ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                      {(item.available && item.stock_quantity > 0) ? 'Available' : 'Sold Out'}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-1.5 items-center flex-wrap mb-3">
+                    {item.is_ai_boosted && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-[#E76A54]/10 border border-[#E76A54]/20 rounded-md text-[9px] font-bold text-[#E76A54] uppercase">
+                        <Sparkles size={9} /> AI Boosted
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-md text-[9px] font-bold text-amber-800 uppercase">
+                      <Clock size={9} /> {item.estimated_delivery_time_unit === 'days' 
+                        ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
+                        : `${item.estimated_delivery_time || 30} Mins`}
+                    </div>
+                    {item.available_date && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-50 border border-sky-200 rounded-md text-[9px] font-bold text-sky-800 uppercase">
+                        <Calendar size={9} /> {item.available_date}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between py-2 border-t border-stone-100">
+                    <span className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Stock:</span>
+                    <div className="flex items-center gap-1.5 bg-stone-50 rounded-xl px-2.5 py-1 border border-stone-200">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateStock(item, -1);
+                        }}
+                        className="text-stone-400 hover:text-stone-800 transition-colors cursor-pointer"
+                      >
+                        <Minus size={11} />
+                      </button>
+                      <span className="text-xs font-bold text-stone-900 min-w-[20px] text-center">{item.stock_quantity || 0}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateStock(item, 1);
+                        }}
+                        className="text-stone-400 hover:text-stone-800 transition-colors cursor-pointer"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-start">
-                      <h4 className="text-lg font-bold text-white mb-1">{item.name}</h4>
-                      <p className="text-2xl font-black text-orange-500">₹{item.price}</p>
-                      
-                      <div className="flex gap-2 items-center flex-wrap mt-2">
-                        {item.is_ai_boosted && (
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[#f97316]/10 border border-[#f97316]/20 rounded-md text-[8px] font-black text-[#f97316] uppercase animate-pulse">
-                            <Sparkles size={10} /> AI Boosted
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 border border-orange-500/20 rounded-md text-[8px] font-black text-orange-400 uppercase">
-                          <Clock size={10} /> {item.estimated_delivery_time_unit === 'days' 
-                            ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
-                            : `${item.estimated_delivery_time || 30} Mins`}
-                        </div>
-                        {item.available_date && (
-                          <div className="flex items-center gap-1 px-2 py-0.5 bg-sky-500/10 border border-sky-500/20 rounded-md text-[8px] font-black text-sky-400 uppercase">
-                            <Calendar size={10} /> {item.available_date} ({item.available_day})
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Stock:</span>
-                        <div className="flex items-center gap-1 bg-white/5 rounded-lg px-2 py-0.5 border border-white/10">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateStock(item, -1);
-                            }}
-                            className="text-zinc-500 hover:text-orange-500 transition-colors"
-                          >
-                            <Minus size={10} />
-                          </button>
-                          <span className="text-xs font-bold text-white min-w-[20px] text-center">{item.stock_quantity || 0}</span>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateStock(item, 1);
-                            }}
-                            className="text-zinc-500 hover:text-orange-500 transition-colors"
-                          >
-                            <Plus size={10} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`flex items-center gap-1 text-xs font-bold ${(item.available && item.stock_quantity > 0) ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {(item.available && item.stock_quantity > 0) ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                    {(item.available && item.stock_quantity > 0) ? 'Available' : 'Sold Out'}
-                  </div>
-                </div>
+              <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                 <button 
                   onClick={() => toggleAvailability(item)}
-                  className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-semibold hover:bg-white/10 transition-all"
+                  className="w-full py-2.5 rounded-xl bg-[#FAF8F5] border border-stone-200 text-stone-800 text-xs font-bold hover:bg-stone-100 transition-all cursor-pointer"
                 >
                   {item.available ? 'Mark as Sold Out' : 'Mark as Available'}
                 </button>
@@ -633,20 +634,20 @@ export const MenuManager: React.FC = () => {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 bg-white/5 border border-dashed border-white/10 rounded-3xl"
+              className="col-span-full py-16 flex flex-col items-center justify-center text-center space-y-3 bg-white border border-dashed border-stone-200 rounded-3xl"
             >
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-gray-500">
-                <Search size={32} />
+              <div className="w-12 h-12 bg-stone-100 rounded-full flex items-center justify-center text-stone-400">
+                <Search size={24} />
               </div>
               <div>
-                <p className="text-white font-bold text-lg">No menu items found</p>
-                <p className="text-gray-500">Try adjusting your search or add a new food item.</p>
+                <p className="text-stone-800 font-bold text-base">No menu items found</p>
+                <p className="text-stone-400 text-xs mt-0.5">Try adjusting your search or add a new bakery item.</p>
               </div>
               <button 
                 onClick={() => fetchMenu()}
-                className="text-orange-500 font-bold hover:underline"
+                className="text-[#E76A54] text-xs font-bold hover:underline cursor-pointer"
               >
-                Try refreshing
+                Refresh menu
               </button>
             </motion.div>
           )}
@@ -655,98 +656,96 @@ export const MenuManager: React.FC = () => {
 
       <AnimatePresence>
         {isAdding && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsAdding(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#111] border border-white/10 rounded-[32px] shadow-2xl flex flex-col h-[90vh] md:h-auto md:max-h-[85vh] overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-xl bg-white border border-stone-200 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-              
               <div className="relative z-10 flex flex-col h-full overflow-hidden">
-                <div className="flex items-center justify-between p-6 md:p-10 shrink-0">
-                  <h3 className="text-2xl font-bold text-white tracking-tight">{editingItem ? 'Edit Menu Item' : 'Add New Food Item'}</h3>
-                  <button onClick={() => setIsAdding(false)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-all">
-                    <X size={24} />
+                <div className="flex items-center justify-between p-5 sm:p-6 bg-[#FAF8F5] border-b border-stone-200 shrink-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-stone-900">{editingItem ? 'Edit Menu Item' : 'Add New Bakery Item'}</h3>
+                  <button onClick={() => setIsAdding(false)} className="p-2 rounded-xl bg-white text-stone-400 hover:text-stone-800 border border-stone-200 transition-all cursor-pointer">
+                    <X size={18} />
                   </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                  <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 pb-40 md:pb-10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Item Name</label>
+                  <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Item Name</label>
                         <input 
                           type="text" 
                           required
                           value={formData.name}
                           onChange={(e) => setFormData({...formData, name: e.target.value})}
-                          placeholder="e.g. Artisan Sourdough" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
+                          placeholder="e.g. Artisan Sourdough Loaf" 
+                          className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-medium text-sm placeholder:text-stone-400" 
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Category</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Category</label>
                         <select 
                           value={formData.category}
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all appearance-none font-bold"
+                          className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-medium text-sm cursor-pointer"
                         >
                           {CATEGORIES.map(cat => (
-                            <option key={cat} value={cat} className="bg-[#111]">{cat}</option>
+                            <option key={cat} value={cat} className="bg-white text-stone-900">{cat}</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Price (₹)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Price (₹)</label>
                         <input 
                           type="number" 
                           required
                           value={formData.price}
                           onChange={(e) => setFormData({...formData, price: e.target.value})}
                           placeholder="e.g. 350" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
+                          className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold text-sm placeholder:text-stone-400" 
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Stock Quantity</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Stock Quantity</label>
                         <input 
                           type="number" 
                           required
                           value={formData.stock_quantity}
                           onChange={(e) => setFormData({...formData, stock_quantity: e.target.value})}
                           placeholder="e.g. 50" 
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700" 
+                          className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold text-sm placeholder:text-stone-400" 
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-4 p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
-                      <div className="flex items-center justify-between col-span-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Estimated Delivery Duration <span className="text-orange-500">*</span></label>
-                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                    <div className="space-y-3 p-4 bg-[#FAF8F5] border border-stone-200 rounded-2xl">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Delivery Duration</label>
+                        <div className="flex bg-stone-200/70 p-1 rounded-xl">
                           <button
                             type="button"
                             onClick={() => setFormData({...formData, estimated_delivery_time_unit: 'mins'})}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${formData.estimated_delivery_time_unit === 'mins' ? 'bg-orange-500 text-white font-bold text-xs' : 'text-zinc-400 hover:text-white text-xs'}`}
+                            className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${formData.estimated_delivery_time_unit === 'mins' ? 'bg-[#E76A54] text-white' : 'text-stone-600 hover:text-stone-900'}`}
                           >
                             Minutes
                           </button>
                           <button
                             type="button"
                             onClick={() => setFormData({...formData, estimated_delivery_time_unit: 'days'})}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${formData.estimated_delivery_time_unit === 'days' ? 'bg-orange-500 text-white font-bold text-xs' : 'text-zinc-400 hover:text-white text-xs'}`}
+                            className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${formData.estimated_delivery_time_unit === 'days' ? 'bg-[#E76A54] text-white' : 'text-stone-600 hover:text-stone-900'}`}
                           >
                             Days
                           </button>
@@ -761,10 +760,10 @@ export const MenuManager: React.FC = () => {
                             value={formData.estimated_delivery_time}
                             onChange={(e) => setFormData({...formData, estimated_delivery_time: e.target.value})}
                             placeholder="e.g. 30" 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
+                            className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold text-sm pr-11" 
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                            <Clock size={18} />
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400">
+                            <Clock size={16} />
                           </div>
                         </div>
                       ) : (
@@ -775,24 +774,19 @@ export const MenuManager: React.FC = () => {
                             value={formData.estimated_delivery_time_string}
                             onChange={(e) => setFormData({...formData, estimated_delivery_time_string: e.target.value})}
                             placeholder="e.g. 1-2 or 3" 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12 text-sm" 
+                            className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold text-sm pr-11" 
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                            <Calendar size={18} />
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400">
+                            <Calendar size={16} />
                           </div>
                         </div>
                       )}
-                      <p className="text-[10px] text-zinc-500 font-bold tracking-wide italic leading-relaxed">
-                        {formData.estimated_delivery_time_unit === 'mins' 
-                          ? 'Product delivery time in minutes (e.g. 30 for 30 minutes).' 
-                          : 'Enter days format as a range (e.g. "1-2" or singular "3") to display on cards.'}
-                      </p>
                     </div>
 
                     {/* Availability Scheduling */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/[0.02] border border-white/5 rounded-3xl">
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Available On Date</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-[#FAF8F5] border border-stone-200 rounded-2xl">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Available On Date</label>
                         <div className="relative">
                           <input 
                             type="date" 
@@ -815,34 +809,28 @@ export const MenuManager: React.FC = () => {
                                 });
                               }
                             }}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold pr-12 text-sm [color-scheme:dark]" 
+                            className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-medium text-xs sm:text-sm" 
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none">
-                            <Calendar size={18} />
-                          </div>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Computed Day of Week</label>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Day of Week</label>
                         <input 
                           type="text" 
                           readOnly
                           value={formData.available_day || 'No date selected'}
                           placeholder="Monday, Tuesday, etc." 
-                          className="w-full bg-white/[0.02] border border-white/5 rounded-2xl py-4 px-6 text-orange-400 focus:outline-none transition-all font-bold placeholder:text-zinc-700 text-sm cursor-not-allowed" 
+                          className="w-full bg-stone-100 border border-stone-200 rounded-xl py-2.5 px-3.5 text-stone-600 font-medium text-xs sm:text-sm cursor-not-allowed" 
                         />
                       </div>
                     </div>
 
-                    {/* Image Section Moved Up for Better Accessibility */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Visual Identity <span className="text-orange-500">*</span></label>
-                        <span className="text-[8px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md">Required</span>
-                      </div>
+                    {/* Image Section */}
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Product Image</label>
                       
-                      <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-3">
                         <div className="relative">
                           <input 
                             type="text" 
@@ -850,26 +838,26 @@ export const MenuManager: React.FC = () => {
                             value={formData.image}
                             onChange={(e) => setFormData({...formData, image: e.target.value})}
                             placeholder="Paste direct URL or Upload" 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all font-bold placeholder:text-zinc-700 pr-12" 
+                            className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all text-xs font-medium placeholder:text-stone-400 pr-11" 
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-700">
-                             <ImageIcon size={20} />
+                          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400">
+                             <ImageIcon size={18} />
                           </div>
                         </div>
 
                         <label className={cn(
-                          "flex items-center justify-center gap-3 w-full py-5 border-2 border-dashed border-white/10 rounded-[1.5rem] bg-white/[0.02] cursor-pointer hover:bg-white/5 hover:border-orange-500/30 transition-all active:scale-95",
+                          "flex items-center justify-center gap-2.5 w-full py-4 border-2 border-dashed border-stone-200 rounded-2xl bg-[#FAF8F5] cursor-pointer hover:bg-stone-100 hover:border-[#E76A54]/40 transition-all active:scale-98",
                           uploading && "opacity-50 cursor-not-allowed animate-pulse"
                         )}>
                           {uploading ? (
                             <div className="flex items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-                              <span className="text-xs font-black text-white uppercase tracking-widest">Uploading...</span>
+                              <div className="w-4 h-4 border-2 border-[#E76A54]/20 border-t-[#E76A54] rounded-full animate-spin" />
+                              <span className="text-xs font-bold text-stone-700 uppercase tracking-wider">Uploading...</span>
                             </div>
                           ) : (
                             <>
-                              <ImageIcon size={24} className="text-primary" />
-                              <span className="text-xs font-black text-white uppercase tracking-widest">Upload New Food Image</span>
+                              <ImageIcon size={20} className="text-[#E76A54]" />
+                              <span className="text-xs font-bold text-stone-700 uppercase tracking-wider">Upload New Bakery Image</span>
                             </>
                           )}
                           <input 
@@ -883,16 +871,16 @@ export const MenuManager: React.FC = () => {
                         </label>
 
                         {formData.image && (
-                          <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                            <div className="h-20 w-20 rounded-xl overflow-hidden border border-white/10 shrink-0">
+                          <div className="flex items-center gap-3 p-3 bg-[#FAF8F5] rounded-2xl border border-stone-200">
+                            <div className="h-16 w-16 rounded-xl overflow-hidden border border-stone-200 shrink-0 bg-stone-100">
                               <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
                             </div>
                             <div className="flex-1 min-w-0">
-                               <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest truncate">{formData.image}</p>
+                               <p className="text-[10px] font-mono text-stone-500 truncate">{formData.image}</p>
                                <button 
                                  type="button"
                                  onClick={() => setFormData(p => ({ ...p, image: '' }))}
-                                 className="text-[10px] font-black text-rose-500 uppercase tracking-widest mt-1"
+                                 className="text-[10px] font-bold text-rose-600 hover:underline mt-1 cursor-pointer"
                                >
                                  Remove
                                </button>
@@ -902,61 +890,61 @@ export const MenuManager: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-primary/10 border border-primary/20 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                          <Sparkles className="text-primary" size={20} />
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3.5 bg-[#FAF8F5] border border-stone-200 rounded-2xl">
+                        <div className="flex items-center gap-2.5">
+                          <Sparkles className="text-[#E76A54]" size={18} />
                           <div>
-                            <p className="text-xs font-bold text-white uppercase tracking-wider">AI Boost</p>
-                            <p className="text-[10px] text-zinc-500">Enable to prioritize this item in smart recommendations</p>
+                            <p className="text-xs font-bold text-stone-900">AI Boost</p>
+                            <p className="text-[10px] text-stone-500">Prioritize this item in smart recommendations</p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setFormData({ ...formData, is_ai_boosted: !formData.is_ai_boosted })}
                           className={cn(
-                            "w-12 h-6 rounded-full transition-all relative shrink-0",
-                            formData.is_ai_boosted ? "bg-primary" : "bg-zinc-800"
+                            "w-11 h-6 rounded-full transition-all relative shrink-0 cursor-pointer",
+                            formData.is_ai_boosted ? "bg-[#E76A54]" : "bg-stone-300"
                           )}
                         >
                           <div className={cn(
-                            "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
-                            formData.is_ai_boosted ? "left-7" : "left-1"
+                            "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-xs",
+                            formData.is_ai_boosted ? "left-6" : "left-1"
                           )} />
                         </button>
                       </div>
 
-                      <div className="space-y-2">
-                          <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">AI Optimization Description</label>
+                      <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">AI Keywords / Context</label>
                           <textarea 
                             value={formData.ai_description}
                             onChange={(e) => setFormData({...formData, ai_description: e.target.value})}
-                            placeholder="Special search keywords or context for the AI Butler..." 
-                            className="w-full bg-primary/5 border border-primary/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-primary/50 transition-all h-20 resize-none font-medium placeholder:text-zinc-700 text-sm" 
+                            placeholder="Special search keywords or context for the AI Assistant..." 
+                            className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all h-18 resize-none font-medium text-xs placeholder:text-stone-400" 
                           />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-2">Description</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Description</label>
                       <textarea 
                         value={formData.description}
                         onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        placeholder="Describe the item..." 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-orange-500/50 transition-all h-24 resize-none font-medium placeholder:text-zinc-700" 
+                        placeholder="Describe the bakery item..." 
+                        className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all h-20 resize-none font-medium text-xs placeholder:text-stone-400" 
                       />
                     </div>
                   </div>
  
-                  <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#111]/95 backdrop-blur-xl border-t border-white/10 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-                    <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all active:scale-95">
+                  <div className="p-4 sm:p-5 bg-[#FAF8F5] border-t border-stone-200 flex gap-3 shrink-0">
+                    <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-3 rounded-2xl bg-white border border-stone-200 text-stone-700 font-bold hover:bg-stone-100 transition-all text-xs cursor-pointer">
                       Cancel
                     </button>
                     <button 
                       type="submit" 
                       disabled={uploading}
                       className={cn(
-                        "flex-1 py-4 rounded-2xl bg-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all active:scale-95",
+                        "flex-1 py-3 rounded-2xl bg-[#E76A54] text-white font-bold shadow-md shadow-[#E76A54]/20 hover:bg-[#d55b45] transition-all text-xs cursor-pointer",
                         uploading && "opacity-50 cursor-not-allowed"
                       )}
                     >

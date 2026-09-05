@@ -182,115 +182,121 @@ $$ LANGUAGE plpgsql;`,
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Page Header */}
-      <div>
-        <h1 className="text-4xl font-black text-white tracking-tight mb-2 flex items-center gap-3">
-          <ShieldCheck size={40} className="text-red-500" />
-          Security & RLS Diagnostics
-        </h1>
-        <p className="text-gray-500 font-medium">
-          Monitor Row Level Security, diagnose access errors, and generate bypass or security policies for your database.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-3xl border border-stone-200/80 shadow-xs">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#E76A54]/10 border border-[#E76A54]/20 flex items-center justify-center text-[#E76A54] shrink-0">
+            <ShieldCheck size={26} />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight uppercase">
+              Security & RLS Diagnostics
+            </h1>
+            <p className="text-stone-500 text-xs sm:text-sm font-medium mt-0.5">
+              Monitor Row Level Security, diagnose access errors, and generate bypass or security policies for your database.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main interactive testing panel (colspan 2) */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-[#0c0c0e] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Database size={18} className="text-primary" />
+              <div className="space-y-0.5">
+                <h2 className="text-lg sm:text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Database size={18} className="text-[#E76A54]" />
                   Table Authentication Matrix
                 </h2>
-                <p className="text-xs text-zinc-500 font-medium font-sans">
+                <p className="text-xs text-stone-500 font-medium">
                   Instantly trace permission levels and client-side limits directly from active client connections.
                 </p>
               </div>
               <button
                 onClick={runDbScan}
                 disabled={isTesting}
-                className="px-4 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 font-bold text-xs uppercase tracking-wider border border-red-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                className="px-4 h-10 rounded-xl bg-[#E76A54]/10 hover:bg-[#E76A54]/20 text-[#E76A54] font-bold text-xs uppercase tracking-wider border border-[#E76A54]/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shrink-0 shadow-xs"
               >
                 {isTesting ? (
                   <>
-                    <RefreshCw size={14} className="animate-spin text-red-400" />
+                    <RefreshCw size={14} className="animate-spin text-[#E76A54]" />
                     <span>Scanning Public API...</span>
                   </>
                 ) : (
                   <>
-                    <Play size={14} className="text-red-400" />
+                    <Play size={14} className="text-[#E76A54]" />
                     <span>Run Connection Scan</span>
                   </>
                 )}
               </button>
             </div>
 
-            <div className="w-full h-[1px] bg-white/5" />
+            <div className="w-full h-[1px] bg-stone-100" />
 
             {/* Grid status matrix */}
-            <div className="bg-[#07070a] border border-white/5 rounded-2xl overflow-hidden shadow-inner">
+            <div className="bg-[#FAF8F5] border border-stone-200 rounded-2xl overflow-hidden shadow-inner">
               <div className="max-h-[420px] overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse font-sans">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-white/5 bg-white/[0.01]">
-                      <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">Table Name</th>
-                      <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">SELECT (Read Access)</th>
-                      <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">INSERT (Write Access)</th>
-                      <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">Security State</th>
+                    <tr className="border-b border-stone-200 bg-stone-100/75">
+                      <th className="p-3.5 text-[10px] uppercase font-black tracking-wider text-stone-600">Table Name</th>
+                      <th className="p-3.5 text-[10px] uppercase font-black tracking-wider text-stone-600">SELECT (Read Access)</th>
+                      <th className="p-3.5 text-[10px] uppercase font-black tracking-wider text-stone-600">INSERT (Write Access)</th>
+                      <th className="p-3.5 text-[10px] uppercase font-black tracking-wider text-stone-600">Security State</th>
                     </tr>
                   </thead>
                   <tbody>
                     {testResults.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-12 text-center text-zinc-500 text-xs">
+                        <td colSpan={4} className="p-12 text-center text-stone-400 text-xs">
                           <div className="flex flex-col items-center gap-2">
-                            <RefreshCw size={24} className="animate-spin text-zinc-650" />
+                            <RefreshCw size={24} className="animate-spin text-stone-400" />
                             <span>Initializing assessment scan...</span>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       testResults.map((res) => (
-                        <tr key={res.table} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors">
-                          <td className="p-4 font-mono text-xs font-bold text-white">{res.table}</td>
-                          <td className="p-4">
+                        <tr key={res.table} className="border-b border-stone-200/60 hover:bg-white/60 transition-colors">
+                          <td className="p-3.5 font-mono text-xs font-bold text-stone-900">{res.table}</td>
+                          <td className="p-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                               res.select.includes('✅') 
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                                 : res.select.includes('❓')
-                                  ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/10'
-                                  : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                  ? 'bg-stone-100 text-stone-600 border border-stone-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
                             }`}>
                               {res.select}
                             </span>
                           </td>
-                          <td className="p-4">
+                          <td className="p-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                               res.insert.includes('✅') 
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                                 : res.insert.includes('❓')
-                                  ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/10'
-                                  : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                  ? 'bg-stone-100 text-stone-600 border border-stone-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
                             }`}>
                               {res.insert}
                             </span>
                           </td>
-                          <td className="p-4">
+                          <td className="p-3.5">
                             <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
                               res.status === 'ok' 
-                                ? 'text-emerald-400' 
+                                ? 'text-emerald-700' 
                                 : res.status === 'missing'
-                                  ? 'text-zinc-500'
-                                  : 'text-red-500'
+                                  ? 'text-stone-500'
+                                  : 'text-rose-700'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${
                                 res.status === 'ok' 
-                                  ? 'bg-emerald-400' 
+                                  ? 'bg-emerald-500' 
                                   : res.status === 'missing'
-                                    ? 'bg-zinc-550'
-                                    : 'bg-red-500'
+                                    ? 'bg-stone-400'
+                                    : 'bg-rose-500'
                               }`} />
                               {res.status === 'ok' 
                                 ? 'Access Permissive' 
@@ -309,23 +315,23 @@ $$ LANGUAGE plpgsql;`,
           </div>
 
           {/* SQL Remedy Section */}
-          <div className="bg-[#0c0c0e] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-4">
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-7 space-y-4 shadow-xs">
+            <div className="space-y-0.5">
+              <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
                 <Lock size={18} className="text-amber-500" />
                 SQL Recovery Remedies
               </h3>
-              <p className="text-xs text-zinc-500 leading-relaxed">
-                If some tables fail testing, configure permissive policies or bypass RLS security checks in your Supabase SQL Editor.
+              <p className="text-xs text-stone-500 leading-relaxed">
+                If some tables fail testing, configure permissive policies or bypass RLS security checks in your database SQL Editor.
               </p>
             </div>
 
             {/* Tab Selection */}
-            <div className="flex flex-wrap border border-white/5 gap-1 p-1 bg-[#121218] rounded-xl w-fit">
+            <div className="flex flex-wrap border border-stone-200 gap-1 p-1 bg-[#FAF8F5] rounded-xl w-fit">
               <button
                 onClick={() => setActiveSqlTab('rules')}
                 className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                  activeSqlTab === 'rules' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-350'
+                  activeSqlTab === 'rules' ? 'bg-[#E76A54] text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Deploy RLS Rules
@@ -333,7 +339,7 @@ $$ LANGUAGE plpgsql;`,
               <button
                 onClick={() => setActiveSqlTab('bypass')}
                 className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                  activeSqlTab === 'bypass' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-350'
+                  activeSqlTab === 'bypass' ? 'bg-[#E76A54] text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Bypass / Disable RLS
@@ -341,7 +347,7 @@ $$ LANGUAGE plpgsql;`,
               <button
                 onClick={() => setActiveSqlTab('rpc')}
                 className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer ${
-                  activeSqlTab === 'rpc' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-350'
+                  activeSqlTab === 'rpc' ? 'bg-[#E76A54] text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 Policy Inspector SQL
@@ -349,7 +355,7 @@ $$ LANGUAGE plpgsql;`,
               <button
                 onClick={() => setActiveSqlTab('migration')}
                 className={`px-3 py-1.5 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeSqlTab === 'migration' ? 'bg-red-500 text-white shadow-sm font-black' : 'text-zinc-400 hover:text-zinc-200'
+                  activeSqlTab === 'migration' ? 'bg-amber-600 text-white shadow-xs font-black' : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
                 <Database size={11} />
@@ -357,13 +363,13 @@ $$ LANGUAGE plpgsql;`,
               </button>
             </div>
 
-            <div className="relative bg-[#050507] border border-white/5 rounded-2xl p-5 font-mono text-[11px] leading-relaxed text-zinc-400 overflow-x-auto text-left">
-              <pre className="whitespace-pre overflow-x-auto max-h-[320px] custom-scrollbar selection:bg-primary/20 select-all">
+            <div className="relative bg-[#1C1917] border border-stone-800 rounded-2xl p-4 sm:p-5 font-mono text-[11px] leading-relaxed text-stone-300 overflow-x-auto text-left shadow-inner">
+              <pre className="whitespace-pre overflow-x-auto max-h-[320px] custom-scrollbar selection:bg-[#E76A54]/30 select-all">
                 <code>{sqlSnippets[activeSqlTab]}</code>
               </pre>
               <button
                 onClick={() => copySqlToClipboard(sqlSnippets[activeSqlTab])}
-                className="absolute top-4 right-4 px-3 py-2 h-8 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-[10px] text-white border border-white/10 font-sans font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase tracking-widest"
+                className="absolute top-4 right-4 px-3 py-2 h-8 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 text-[10px] text-white border border-white/20 font-sans font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all uppercase tracking-wider"
               >
                 <Copy size={12} />
                 <span>{copiedText ? 'Copied!' : 'Copy SQL'}</span>
@@ -374,63 +380,63 @@ $$ LANGUAGE plpgsql;`,
 
         {/* Right Info Sidebar (colspan 1) */}
         <div className="space-y-6">
-          <div className="bg-[#0c0c0e] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Info size={18} className="text-primary" />
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-xs">
+            <div className="space-y-0.5">
+              <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <Info size={18} className="text-[#E76A54]" />
                 Technical Overview
               </h2>
-              <p className="text-xs text-zinc-500 font-medium">Why do connection tokens and state updates fail?</p>
+              <p className="text-xs text-stone-500 font-medium">Why do connection tokens and state updates fail?</p>
             </div>
 
-            <div className="w-full h-[1px] bg-white/5" />
+            <div className="w-full h-[1px] bg-stone-100" />
 
-            <div className="space-y-6">
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 space-y-2.5">
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-stone-200/80 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
-                  <span className="text-[10px] font-black uppercase text-red-400 tracking-wider font-mono">1. Client / Anon Token</span>
+                  <span className="w-2 h-2 bg-[#E76A54] rounded-full" />
+                  <span className="text-[10px] font-black uppercase text-[#E76A54] tracking-wider font-mono">1. Client / Anon Token</span>
                 </div>
-                <p className="text-xs text-zinc-400 leading-relaxed font-semibold">
-                  By default, when you execute queries via the Supabase Client from a web browser, request headers send your <span className="text-white font-mono font-bold bg-white/10 px-1 rounded">Anon/Public Key</span>. PostgreSQL enforces strict RLS (Row Level Security); any unauthorized access returns a <span className="text-red-400 font-mono">42501 Permission Error</span>.
+                <p className="text-xs text-stone-600 leading-relaxed font-medium">
+                  By default, when you execute queries via the client from a web browser, request headers send your <span className="text-stone-900 font-mono font-bold bg-white px-1.5 py-0.5 border border-stone-200 rounded">Anon/Public Key</span>. PostgreSQL enforces strict RLS (Row Level Security); any unauthorized access returns a <span className="text-rose-600 font-mono font-bold">42501 Permission Error</span>.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 space-y-2.5">
+              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-stone-200/80 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                  <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider font-mono">2. Server Admin Key</span>
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                  <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider font-mono">2. Server Admin Key</span>
                 </div>
-                <p className="text-xs text-zinc-400 leading-relaxed font-semibold">
-                  When you perform requests through administrative backend routes like <span className="text-zinc-300 font-mono">PATCH /api/*</span>, operations automatically run using the secure <span className="text-white font-mono font-bold bg-white/10 px-1 rounded">Service Role Key</span>. The database bypasses all RLS checks entirely here.
+                <p className="text-xs text-stone-600 leading-relaxed font-medium">
+                  When you perform requests through administrative backend routes like <span className="text-stone-900 font-mono font-bold bg-white px-1.5 py-0.5 border border-stone-200 rounded">PATCH /api/*</span>, operations automatically run using the secure <span className="text-stone-900 font-mono font-bold bg-white px-1.5 py-0.5 border border-stone-200 rounded">Service Role Key</span>. The database bypasses all RLS checks entirely here.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 space-y-2.5">
+              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-stone-200/80 space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider font-mono">3. Firebase Syncing</span>
+                  <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                  <span className="text-[10px] font-black uppercase text-amber-700 tracking-wider font-mono">3. Firebase Syncing</span>
                 </div>
-                <p className="text-xs text-zinc-400 leading-relaxed font-semibold">
-                  Our application integrates Firebase Firestore for double durability. Ensure your Firestore rules are synchronized properly alongside any Supabase updates to keep standard records matching correctly.
+                <p className="text-xs text-stone-600 leading-relaxed font-medium">
+                  Our application integrates Firebase Firestore for double durability. Ensure your Firestore rules are synchronized properly alongside any database updates to keep standard records matching correctly.
                 </p>
               </div>
             </div>
           </div>
 
           {/* Quick Links / Troubleshooting Box */}
-          <div className="bg-[#0c0c0e]/30 border border-white/5 rounded-3xl p-6 sm:p-8 space-y-4">
-            <h4 className="font-bold text-white text-sm">Need deep database debugging?</h4>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              Open your Supabase dashboard or execute terminal custom scripts to directly view PostgreSQL system tables and policy catalogs.
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-7 space-y-3.5 shadow-xs">
+            <h4 className="font-bold text-stone-900 text-sm">Need deep database debugging?</h4>
+            <p className="text-xs text-stone-500 leading-relaxed">
+              Open your database dashboard or execute terminal custom scripts to directly view PostgreSQL system tables and policy catalogs.
             </p>
             <a 
               href="https://supabase.com/dashboard" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider border border-white/10 transition-all text-center"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#FAF8F5] hover:bg-stone-100 text-stone-800 font-bold text-xs uppercase tracking-wider border border-stone-200 transition-all text-center"
             >
-              <span>Go to Supabase</span>
+              <span>Go to Database Dashboard</span>
               <ExternalLink size={12} />
             </a>
           </div>

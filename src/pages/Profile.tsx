@@ -118,14 +118,14 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: str
   );
 };
 
-const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary' }: { text: string; icon: any; color?: string }) => (
+const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary/10 text-primary border-primary/20' }: { text: string; icon: any; color?: string }) => (
   <motion.div 
     initial={{ scale: 0, opacity: 0 }}
     animate={{ scale: 1, opacity: 1 }}
-    className={cn("px-4 py-1.5 rounded-full flex items-center gap-2 border border-white/10 shadow-lg backdrop-blur-md", color)}
+    className={cn("px-3.5 sm:px-4 py-1.5 rounded-full flex items-center gap-2 border shadow-xs backdrop-blur-md", color)}
   >
-    <Icon size={14} className="text-white" />
-    <span className="text-[10px] font-black text-white uppercase tracking-widest">{text}</span>
+    <Icon size={14} />
+    <span className="text-[10px] font-black uppercase tracking-wider sm:tracking-widest">{text}</span>
   </motion.div>
 );
 
@@ -134,29 +134,29 @@ const StatCard = ({ label, value, icon: Icon, color, delay, onClick }: { label: 
     initial={{ x: 50, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay, type: 'spring', stiffness: 100 }}
-    whileHover={{ y: -5, scale: 1.02 }}
+    whileHover={{ y: -4, scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="min-w-[150px] md:min-w-[180px] glass-dark border border-white/5 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 group cursor-pointer relative overflow-hidden"
+    className="min-w-[140px] sm:min-w-[170px] bg-white border border-stone-200/80 rounded-3xl p-4 sm:p-5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:border-primary/40 transition-all"
   >
     <div className={cn("absolute top-0 right-0 p-3 md:p-4 opacity-5 group-hover:opacity-10 transition-all scale-125 md:scale-150 rotate-12", color)}>
       <Icon className="w-10 h-10 md:w-12 md:h-12" />
     </div>
-    <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-white/5 flex items-center justify-center mb-3 md:mb-4 transition-transform group-hover:rotate-12", color)}>
-      <Icon className="w-5 h-5 md:w-6 md:h-6" />
+    <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-stone-100 flex items-center justify-center mb-3 transition-transform group-hover:rotate-12", color)}>
+      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
     </div>
     <div>
-      <h4 className="text-2xl md:text-3xl font-black text-white tracking-tighter tabular-nums mb-1">{value}</h4>
+      <h4 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight tabular-nums mb-1">{value}</h4>
       <div className="flex items-center justify-between gap-1">
-        <p className="text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors">{label}</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-stone-500 group-hover:text-primary transition-colors">{label}</p>
         {label === 'Wallet' && onClick && (
-          <span className="text-[6px] md:text-[7px] bg-orange-500/10 text-primary border border-orange-500/10 px-1 py-0.5 rounded uppercase font-black tracking-widest leading-none">
+          <span className="text-[8px] bg-orange-50 text-primary border border-orange-200 px-1.5 py-0.5 rounded-full uppercase font-black tracking-wider leading-none">
             Lock
           </span>
         )}
       </div>
     </div>
-    <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+    <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-stone-200 to-transparent" />
   </motion.div>
 );
 
@@ -175,7 +175,7 @@ const LoyaltyProgressRing = ({ percentage }: { percentage: number }) => {
           stroke="currentColor"
           strokeWidth="12"
           fill="transparent"
-          className="text-white/5"
+          className="text-stone-100"
         />
         <motion.circle
           initial={{ strokeDashoffset: circumference }}
@@ -188,34 +188,34 @@ const LoyaltyProgressRing = ({ percentage }: { percentage: number }) => {
           strokeWidth="12"
           fill="transparent"
           strokeDasharray={circumference}
-          className="text-primary drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]"
+          className="text-primary drop-shadow-[0_2px_8px_rgba(231,106,84,0.3)]"
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <Crown size={32} className="text-yellow-500 animate-bounce mb-1" />
-        <span className="text-3xl font-black text-white">{percentage}%</span>
-        <span className="text-[8px] font-black uppercase text-zinc-500 tracking-widest">To Platinum</span>
+        <Crown size={32} className="text-amber-500 animate-bounce mb-1" />
+        <span className="text-3xl font-black text-stone-900">{percentage}%</span>
+        <span className="text-[9px] font-black uppercase text-stone-500 tracking-widest">To Platinum</span>
       </div>
     </div>
   );
 };
 
-const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white/5' }: { label: string; icon: any; onClick?: () => void; color?: string }) => (
+const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white' }: { label: string; icon: any; onClick?: () => void; color?: string }) => (
   <motion.button
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
     className={cn(
-      "relative p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center gap-3 md:gap-4 transition-all group overflow-hidden",
+      "relative p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-stone-200/80 shadow-xs hover:shadow-md hover:border-primary/40 flex flex-col items-center justify-center gap-2.5 sm:gap-3 transition-all group overflow-hidden cursor-pointer",
       color
     )}
   >
-    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-    <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-white/5 flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors group-hover:scale-110">
-      <Icon className="w-6 h-6 md:w-7 md:h-7" />
+    <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-all group-hover:scale-110">
+      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
     </div>
-    <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.15em] md:tracking-[0.2em] text-zinc-500 group-hover:text-white transition-colors text-center">{label}</span>
-    <div className="absolute -bottom-4 -right-4 text-white/[0.02] group-hover:text-white/[0.05] transition-colors">
+    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-stone-700 group-hover:text-stone-900 transition-colors text-center whitespace-nowrap">{label}</span>
+    <div className="absolute -bottom-4 -right-4 text-stone-900/[0.03] group-hover:text-primary/[0.06] transition-colors">
       <Icon className="w-16 h-16 md:w-20 md:h-20" />
     </div>
   </motion.button>
@@ -980,7 +980,7 @@ export const Profile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black overflow-x-hidden pb-32" ref={containerRef}>
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 overflow-x-hidden pb-32" ref={containerRef}>
       {/* Confirmation Modal for Account Deletion */}
       <ConfirmationModal
         isOpen={showDeleteConfirm}
@@ -993,18 +993,18 @@ export const Profile: React.FC = () => {
         isLoading={isDeletingAccount}
       />
 
-      {/* Cinematic Hero Header */}
-      <section className="relative min-h-[50vh] md:min-h-[70vh] flex items-center justify-center overflow-hidden py-20 md:py-32">
+      {/* Warm Artisan Bakery Hero Header */}
+      <section className="relative min-h-[45vh] md:min-h-[55vh] flex items-center justify-center overflow-hidden py-16 md:py-24 bg-gradient-to-b from-orange-50/70 via-[#FAF8F5] to-[#FAF8F5]">
         {/* Dynamic Mesh Background */}
         <div className={cn(
-          "absolute inset-0 transition-colors duration-1000 bg-gradient-to-tr opacity-40",
+          "absolute inset-0 transition-colors duration-1000 bg-gradient-to-tr opacity-50",
           timeBackground
         )} />
         
         {/* Animated Particles & Glows */}
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-72 h-72 md:w-96 md:h-96 bg-primary/20 rounded-full blur-[80px] md:blur-[120px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-72 h-72 md:w-96 md:h-96 bg-purple-500/20 rounded-full blur-[80px] md:blur-[120px] animate-pulse-slow" />
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 md:w-96 md:h-96 bg-[#E76A54]/10 rounded-full blur-[80px] md:blur-[120px] animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-72 h-72 md:w-96 md:h-96 bg-amber-400/10 rounded-full blur-[80px] md:blur-[120px] animate-pulse-slow" />
         </div>
 
         <div className="relative z-10 flex flex-col items-center text-center px-4 md:px-6 w-full">
@@ -1021,51 +1021,51 @@ export const Profile: React.FC = () => {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="mt-8 md:mt-12 space-y-4 md:space-y-6 w-full max-w-4xl"
+            className="mt-6 md:mt-8 space-y-3 md:space-y-4 w-full max-w-4xl"
           >
-            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 mb-2 md:mb-4">
-              <PremiumBadge text={userData?.badge_tier || 'Foodie Starter'} icon={Crown} color="bg-primary/20 text-primary border-primary/20" />
-              <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-500/10 text-emerald-500 border-emerald-500/10" />
+            <div className="flex flex-wrap items-center justify-center gap-2.5 md:gap-3 mb-2">
+              <PremiumBadge text={userData?.badge_tier || 'Foodie Starter'} icon={Crown} color="bg-orange-50 text-[#E76A54] border-orange-200" />
+              <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-50 text-emerald-700 border-emerald-200" />
             </div>
             
-            <h1 id="profile-greeting" className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter leading-[1.1] md:leading-none px-2">
-              {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-zinc-400 to-zinc-600 block sm:inline-block mt-2 sm:mt-0">{user.name.split(' ')[0]}</span>
+            <h1 id="profile-greeting" className="text-3xl sm:text-5xl md:text-6xl font-black text-stone-900 tracking-tight leading-[1.1] md:leading-none px-2">
+              {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E76A54] via-orange-600 to-amber-600 block sm:inline-block mt-1 sm:mt-0">{user.name.split(' ')[0]}</span>
             </h1>
-            <p className="text-zinc-500 font-bold uppercase tracking-[0.2em] md:tracking-[0.4em] text-[10px] md:text-sm">
+            <p className="text-stone-500 font-bold uppercase tracking-[0.15em] md:tracking-[0.25em] text-[10px] md:text-xs">
               {userData?.title || 'Midnight Food Explorer'} • Level {Math.floor((userData?.points || 0) / 100) + 1}
             </p>
           </motion.div>
         </div>
 
-        {/* Parallax Gradient Overlay */}
-        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent" />
+        {/* Bottom Fade to canvas */}
+        <div className="absolute bottom-0 left-0 w-full h-16 bg-gradient-to-t from-[#FAF8F5] to-transparent pointer-events-none" />
       </section>
 
       {/* Floating Stats Rail */}
-      <div className="relative -mt-8 md:-mt-20 z-20 px-0 overflow-x-auto scrollbar-hide pb-6 md:pb-10">
-        <div className="flex gap-4 px-6 md:justify-center min-w-max">
+      <div className="relative -mt-6 md:-mt-12 z-20 px-0 overflow-x-auto scrollbar-hide pb-6 md:pb-8">
+        <div className="flex gap-3 sm:gap-4 px-4 sm:px-6 md:justify-center min-w-max">
           {stats.map((stat, idx) => (
             <StatCard key={stat.label} {...stat} delay={0.4 + (idx * 0.1)} />
           ))}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 space-y-10 md:space-y-12">
         {/* Main Interface Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
           {/* Left Column: Loyalty & AI */}
-          <div className="lg:col-span-4 space-y-8">
+          <div className="lg:col-span-4 space-y-6 md:space-y-8">
             {/* Loyalty Engine */}
             <motion.div
               initial={{ x: -50, opacity: 0 }}
               whileInView={{ x: 0, opacity: 1 }}
               viewport={{ once: true }}
-              className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 relative overflow-hidden"
+              className="bg-white rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-6 md:p-8 relative overflow-hidden"
             >
               <div className="relative z-10 flex flex-col items-center">
                 <div className="w-full flex justify-between items-center mb-6 md:mb-8">
-                  <h3 className="text-lg md:text-xl font-black text-white tracking-tight italic">LOYALTY ENGINE</h3>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                  <h3 className="text-lg md:text-xl font-black text-stone-900 tracking-tight italic">LOYALTY ENGINE</h3>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 rounded-full border border-orange-200">
                     <TrendingUp size={12} className="text-primary" />
                     <span className="text-[9px] md:text-[10px] font-black text-primary uppercase">Tier: {userData?.badge_tier || 'Starter'}</span>
                   </div>
@@ -1073,19 +1073,19 @@ export const Profile: React.FC = () => {
 
                 <LoyaltyProgressRing percentage={loyaltyStats.progress} />
 
-                <div className="w-full mt-8 p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+                <div className="w-full mt-8 p-5 sm:p-6 bg-stone-50 rounded-3xl border border-stone-200/80 space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Next Milestone</span>
-                    <span className="text-[10px] font-black text-white uppercase tracking-widest">{loyaltyStats.nextTier} Status</span>
+                    <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest">Next Milestone</span>
+                    <span className="text-[10px] font-black text-stone-900 uppercase tracking-widest">{loyaltyStats.nextTier} Status</span>
                   </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-2 w-full bg-stone-200 rounded-full overflow-hidden">
                     <motion.div 
                       className="h-full bg-primary"
                       initial={{ width: 0 }}
                       whileInView={{ width: `${loyaltyStats.progress}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-zinc-400 font-bold leading-relaxed px-1">
+                  <p className="text-[11px] text-stone-600 font-bold leading-relaxed px-1">
                     {loyaltyStats.ordersLeft > 0 
                       ? `Complete ${loyaltyStats.ordersLeft} more orders to unlock ${loyaltyStats.nextTier} benefits.`
                       : `You've reached the ${userData?.badge_tier} tier! Keep ordering for maximum rewards.`}
@@ -1117,27 +1117,27 @@ export const Profile: React.FC = () => {
                 label="Install Desktop App" 
                 icon={Smartphone} 
                 onClick={install}
-                color="bg-primary/10 border-primary/20"
+                color="bg-white border-stone-200/80"
               />
             )}
           </div>
 
           {/* Right Column: Dynamic Content Tabs */}
-          <div className="lg:col-span-8 space-y-8">
-            <div className="flex p-1.5 md:p-2 bg-black/80 border border-white/10 rounded-full sticky top-4 z-40 backdrop-blur-xl mx-4 lg:mx-0">
+          <div className="lg:col-span-8 space-y-6 md:space-y-8">
+            <div className="flex p-1.5 md:p-2 bg-white/95 border border-stone-200/90 rounded-full sticky top-4 z-40 backdrop-blur-xl mx-2 sm:mx-4 lg:mx-0 shadow-sm">
               {(['personal', 'orders', 'wishlist', 'rewards'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    "flex-1 py-3 md:py-4 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] transition-all relative overflow-hidden",
-                    activeTab === tab ? "text-black" : "text-zinc-500 hover:text-zinc-300"
+                    "flex-1 py-3 md:py-3.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all relative overflow-hidden cursor-pointer",
+                    activeTab === tab ? "text-white" : "text-stone-500 hover:text-stone-900"
                   )}
                 >
                   {activeTab === tab && (
                     <motion.div 
                       layoutId="tab-bg"
-                      className="absolute inset-0 bg-white"
+                      className="absolute inset-0 bg-[#E76A54] rounded-full shadow-sm"
                       transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                     />
                   )}
@@ -1154,18 +1154,18 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="space-y-8"
+            className="space-y-6 md:space-y-8"
           >
-            <div className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-10 space-y-8 md:space-y-10">
+            <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-6 md:p-10 space-y-8 md:space-y-10">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter">Personal Identity</h3>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Private Information</p>
+                  <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Personal Identity</h3>
+                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Private Information</p>
                 </div>
                 <motion.button 
-                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileHover={{ scale: 1.05, rotate: 90 }}
                   onClick={() => setIsEditing(true)}
-                  className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors shrink-0"
+                  className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-700 hover:text-stone-900 hover:bg-stone-200 transition-colors shrink-0 cursor-pointer"
                 >
                   <Edit2 className="w-5 h-5 md:w-6 md:h-6" />
                 </motion.button>
@@ -1174,44 +1174,44 @@ export const Profile: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                 <div className="space-y-6">
                   <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
                       <User size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Full Name</p>
-                      <p className="text-lg font-bold text-white">{user.name}</p>
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Full Name</p>
+                      <p className="text-lg font-bold text-stone-900">{user.name}</p>
                     </div>
                   </div>
 
                   <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
                       <Mail size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Email Protocol</p>
-                      <p className="text-lg font-bold text-white">{user.email}</p>
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Email Protocol</p>
+                      <p className="text-lg font-bold text-stone-900 break-all">{user.email}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
                       <Phone size={20} />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Secure Line</p>
-                      <p className="text-lg font-bold text-white">{user.phone}</p>
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Secure Line</p>
+                      <p className="text-lg font-bold text-stone-900">{user.phone}</p>
                     </div>
                   </div>
 
                   <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors">
+                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
                       <MapPin size={20} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Primary Base</p>
-                      <p className="text-sm font-bold text-white leading-relaxed line-clamp-2">{user.address}</p>
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Primary Base</p>
+                      <p className="text-sm font-bold text-stone-900 leading-relaxed line-clamp-2">{user.address}</p>
                     </div>
                   </div>
                 </div>
@@ -1219,29 +1219,29 @@ export const Profile: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4">
-              <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-primary/5 group-hover:bg-primary/10" />
-              <SmartActionCard label="Lock Funds" icon={Shield} onClick={() => setIsFundsLockOpen(true)} color="bg-orange-500/5 group-hover:bg-orange-500/10 border-orange-500/10" />
-              <SmartActionCard label="Help & FAQ" icon={HelpCircle} onClick={() => navigate('/faq')} color="bg-amber-500/5 group-hover:bg-amber-500/10 border-amber-500/10" />
-              <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} />
-              <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-gradient-to-tr from-purple-500/10 to-pink-500/10 border-pink-500/10" />
-              <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-emerald-500/5 group-hover:bg-emerald-500/10" />
-              <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-red-500/5 group-hover:bg-red-500/10" />
+              <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-white hover:border-primary/40" />
+              <SmartActionCard label="Lock Funds" icon={Shield} onClick={() => setIsFundsLockOpen(true)} color="bg-white hover:border-orange-300" />
+              <SmartActionCard label="Help & FAQ" icon={HelpCircle} onClick={() => navigate('/faq')} color="bg-white hover:border-amber-300" />
+              <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} color="bg-white hover:border-emerald-300" />
+              <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-white hover:border-pink-300" />
+              <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-white hover:border-blue-300" />
+              <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-white hover:border-red-300" />
             </div>
 
             {/* Account Session Security & Slide to Logout */}
-            <div className="glass-dark rounded-[2.5rem] md:rounded-[3rem] border border-white/5 p-6 md:p-8 space-y-6">
+            <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-6 md:p-8 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                  <h4 className="text-lg font-black text-stone-900 tracking-tight flex items-center gap-2">
                     <ShieldCheck className="text-orange-500 w-5 h-5" />
                     Session & Security
                   </h4>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">
+                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">
                     Authorized Device Authentication
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-wider w-fit">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-wider w-fit">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Active Session
                 </span>
               </div>
@@ -1261,30 +1261,30 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="space-y-8"
+            className="space-y-6 md:space-y-8"
           >
             {/* Re-order Favorites Quick Action Section */}
             {favoriteItems.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="glass-dark rounded-[2.5rem] border border-amber-500/20 p-6 md:p-8 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent relative overflow-hidden"
+                className="bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-stone-50 rounded-3xl md:rounded-[2.5rem] border border-amber-200/80 p-5 sm:p-7 shadow-xs relative overflow-hidden"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 relative z-10">
                   <div>
-                    <div className="flex items-center gap-2 text-amber-400 text-xs font-black uppercase tracking-widest mb-1">
-                      <Sparkles size={16} className="animate-spin-slow" />
+                    <div className="flex items-center gap-2 text-amber-700 text-xs font-black uppercase tracking-widest mb-1">
+                      <Sparkles size={16} className="text-amber-500 animate-spin-slow" />
                       <span>One-Tap Re-Order</span>
                     </div>
-                    <h3 className="text-2xl font-black text-white tracking-tight">Re-Order Your Favorites</h3>
-                    <p className="text-zinc-400 text-xs mt-1">Pre-populate your cart in a single click with the bakery delights you love most.</p>
+                    <h3 className="text-2xl font-black text-stone-900 tracking-tight">Re-Order Your Favorites</h3>
+                    <p className="text-stone-600 text-xs mt-1">Pre-populate your cart in a single click with the bakery delights you love most.</p>
                   </div>
                   <Button
                     onClick={handleReorderAllFavorites}
                     variant="primary"
-                    className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20"
+                    className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#E76A54] to-orange-600 hover:from-[#d55944] hover:to-orange-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 cursor-pointer"
                   >
-                    <RotateCcw size={16} />
+                    <RotateCcw size={15} />
                     <span>Re-Order All Favorites ({favoriteItems.length})</span>
                   </Button>
                 </div>
@@ -1294,11 +1294,11 @@ export const Profile: React.FC = () => {
                     <motion.div
                       key={fav.id || fav.name || i}
                       whileHover={{ y: -3 }}
-                      className="bg-black/40 border border-white/10 rounded-2xl p-3 flex flex-col justify-between group hover:border-amber-500/40 transition-all"
+                      className="bg-white border border-stone-200/80 rounded-2xl p-3 flex flex-col justify-between group hover:border-[#E76A54]/50 shadow-xs hover:shadow-md transition-all"
                     >
                       <div className="space-y-2">
                         {fav.image && (
-                          <div className="w-full h-20 rounded-xl overflow-hidden bg-white/5">
+                          <div className="w-full h-20 rounded-xl overflow-hidden bg-stone-100">
                             <img 
                               src={fav.image} 
                               alt={fav.name} 
@@ -1308,14 +1308,14 @@ export const Profile: React.FC = () => {
                           </div>
                         )}
                         <div>
-                          <p className="text-xs font-black text-white line-clamp-1 group-hover:text-amber-400 transition-colors">{fav.name}</p>
-                          <p className="text-[10px] font-black text-amber-400/90 mt-0.5">₹{fav.price}</p>
+                          <p className="text-xs font-black text-stone-900 line-clamp-1 group-hover:text-primary transition-colors">{fav.name}</p>
+                          <p className="text-[10px] font-black text-primary mt-0.5">₹{fav.price}</p>
                         </div>
                       </div>
 
                       <button
                         onClick={(e) => handleReorderSingleItem(e, fav)}
-                        className="mt-3 w-full py-1.5 px-2 bg-white/10 hover:bg-amber-500 hover:text-black text-white text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1 transition-colors"
+                        className="mt-3 w-full py-1.5 px-2 bg-stone-100 hover:bg-[#E76A54] hover:text-white text-stone-800 text-[10px] font-black uppercase tracking-wider rounded-xl flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
                         <Plus size={12} />
                         <span>Add</span>
@@ -1327,20 +1327,20 @@ export const Profile: React.FC = () => {
             )}
 
             {recentOrders.length === 0 ? (
-              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
-                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700 animate-pulse">
-                  <ShoppingBag size={48} />
+              <div className="bg-white rounded-3xl md:rounded-[3rem] border border-stone-200/80 p-12 sm:p-20 text-center space-y-6 shadow-xs">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto text-primary">
+                  <ShoppingBag size={42} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">NO MISSION DATA</h3>
-                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">Your order history is a blank canvas. Start your first mission now.</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight uppercase italic">No Orders Yet</h3>
+                  <p className="text-stone-500 text-sm max-w-xs mx-auto font-bold">Your order history is empty. Treat yourself to fresh bakery delights!</p>
                 </div>
                 <Button 
                   onClick={() => navigate('/')}
                   variant="primary"
-                  className="px-12 py-5 rounded-3xl"
+                  className="px-8 sm:px-12 py-4 sm:py-5 rounded-2xl sm:rounded-3xl cursor-pointer"
                 >
-                  Initiate First Order
+                  Explore Delicious Menu
                 </Button>
               </div>
             ) : (
@@ -1350,57 +1350,57 @@ export const Profile: React.FC = () => {
                   initial={{ x: 30, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: idx * 0.1 }}
-                  className="glass-dark rounded-[2.5rem] border border-white/5 p-6 md:p-8 hover:border-primary/30 transition-all group overflow-hidden relative"
+                  className="bg-white rounded-3xl md:rounded-[2.5rem] border border-stone-200/80 shadow-xs hover:shadow-md p-5 sm:p-7 md:p-8 hover:border-primary/40 transition-all group overflow-hidden relative"
                 >
-                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all scale-150 rotate-12 pointer-events-none">
+                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-all scale-150 rotate-12 pointer-events-none text-stone-900">
                     <ShoppingBag size={120} />
                   </div>
 
-                  <div className="flex flex-col gap-6 relative z-10">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="flex items-center gap-5">
+                  <div className="flex flex-col gap-5 sm:gap-6 relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+                      <div className="flex items-center gap-4 sm:gap-5">
                         <div className={cn(
-                          "w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 shrink-0",
+                          "w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 shrink-0",
                           getStatusColor(order.status)
                         )}>
-                          <Clock size={28} />
+                          <Clock size={26} />
                         </div>
                         <div>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <h4 className="text-xl md:text-2xl font-black text-white tracking-tighter">ORDER #{formatOrderId(order.id)}</h4>
+                          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                            <h4 className="text-lg sm:text-xl md:text-2xl font-black text-stone-900 tracking-tight">ORDER #{formatOrderId(order.id)}</h4>
                             <span className={cn(
-                              "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/10 shadow-sm",
+                              "px-2.5 sm:px-3 py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider border shadow-2xs",
                               getStatusColor(order.status)
                             )}>
                               {order.status.replace(/_/g, ' ')}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest mt-2 flex-wrap">
+                          <div className="flex items-center gap-3 sm:gap-4 text-[10px] text-stone-500 font-bold uppercase tracking-wider mt-1.5 flex-wrap">
                             <span className="flex items-center gap-1.5"><Calendar size={12} /> {formatDate(order.created_at)}</span>
-                            <span className="w-1 h-1 bg-zinc-800 rounded-full" />
+                            <span className="w-1 h-1 bg-stone-300 rounded-full" />
                             <span>{order.items.length} ITEM{order.items.length > 1 ? 'S' : ''}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-white/5 pt-4 md:pt-0">
+                      <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-stone-100 pt-3 md:pt-0">
                         <div className="text-left md:text-right">
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-0.5">Total Paid</p>
-                          <p className="text-2xl md:text-3xl font-black text-white tabular-nums">₹{order.total}</p>
+                          <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Total Paid</p>
+                          <p className="text-2xl md:text-3xl font-black text-stone-900 tabular-nums">₹{order.total}</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Order items preview */}
                     {order.items && order.items.length > 0 && (
-                      <div className="bg-black/30 rounded-2xl p-4 border border-white/5">
-                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-2">Order Summary</div>
+                      <div className="bg-stone-50 rounded-2xl p-3.5 sm:p-4 border border-stone-200/80">
+                        <div className="text-[10px] font-black text-stone-500 uppercase tracking-wider mb-2">Order Summary</div>
                         <div className="flex flex-wrap gap-2">
                           {order.items.map((it: any, i: number) => (
-                            <div key={i} className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 flex items-center gap-2 text-xs font-bold text-zinc-300">
-                              <span className="text-amber-400 font-black">{it.quantity}x</span>
-                              <span className="text-white">{it.name}</span>
-                              <span className="text-zinc-500 text-[10px]">₹{it.price * (it.quantity || 1)}</span>
+                            <div key={i} className="bg-white px-3 py-1.5 rounded-xl border border-stone-200/80 flex items-center gap-2 text-xs font-bold text-stone-800 shadow-2xs">
+                              <span className="text-primary font-black">{it.quantity}x</span>
+                              <span className="text-stone-900">{it.name}</span>
+                              <span className="text-stone-500 text-[10px]">₹{it.price * (it.quantity || 1)}</span>
                             </div>
                           ))}
                         </div>
@@ -1408,18 +1408,18 @@ export const Profile: React.FC = () => {
                     )}
 
                     {/* Action buttons: Re-Order Favorites / Repeat Order + Track */}
-                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
                       <button
                         onClick={(e) => handleReorderOrder(e, order)}
-                        className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 transition-transform active:scale-95"
+                        className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 px-5 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#E76A54] to-orange-600 hover:from-[#d55944] hover:to-orange-700 text-white font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 transition-transform active:scale-98 cursor-pointer"
                       >
-                        <RotateCcw size={16} />
+                        <RotateCcw size={15} />
                         <span>Re-Order Favorites ({order.items.length} items)</span>
                       </button>
 
                       <Link
                         to={`/order-tracking/${order.id}`}
-                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white font-black text-xs uppercase tracking-wider border border-white/10 transition-colors"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 sm:py-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-black text-xs uppercase tracking-wider border border-stone-200 transition-colors cursor-pointer"
                       >
                         <span>Track Status</span>
                         <ChevronRight size={16} />
@@ -1436,31 +1436,31 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="space-y-8"
+            className="space-y-6 md:space-y-8"
           >
              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-3xl font-black text-white tracking-tighter">Vault (Wishlist)</h3>
-                  <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.2em] mt-1">Saved delicacies</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Saved Delicacies</h3>
+                  <p className="text-stone-500 text-xs font-black uppercase tracking-[0.2em] mt-1">Your Bakery Wishlist</p>
                 </div>
-                <div className="px-4 py-2 bg-pink-500/10 rounded-full border border-pink-500/20 flex items-center gap-2">
+                <div className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-pink-50 rounded-full border border-pink-200 flex items-center gap-2">
                   <Heart size={14} className="text-pink-500 fill-pink-500" />
-                  <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest">{wishlist.length} Items</span>
+                  <span className="text-[10px] font-black text-pink-700 uppercase tracking-wider">{wishlist.length} Items</span>
                 </div>
               </div>
 
             {wishlist.length === 0 ? (
-              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
-                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700">
-                  <Heart size={48} />
+              <div className="bg-white rounded-3xl md:rounded-[3rem] border border-stone-200/80 p-12 sm:p-20 text-center space-y-6 shadow-xs">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-pink-50 rounded-full flex items-center justify-center mx-auto text-pink-400">
+                  <Heart size={42} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic text-zinc-800">VAULT IS EMPTY</h3>
-                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">You haven't locked any items in your vault yet.</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight uppercase italic">Wishlist is Empty</h3>
+                  <p className="text-stone-500 text-sm max-w-xs mx-auto font-bold">You haven't saved any bakery items to your wishlist yet.</p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                 {wishlist.map((item) => (
                   <FoodCard key={item.id} item={item} />
                 ))}
@@ -1473,36 +1473,36 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="space-y-8"
+            className="space-y-6 md:space-y-8"
           >
              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-3xl font-black text-white tracking-tighter italic uppercase">REWARDS STORE</h3>
-                  <p className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Exclusive Tier-Based Perks</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight italic uppercase">REWARDS STORE</h3>
+                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Exclusive Tier-Based Perks</p>
                 </div>
-                <div className="px-6 py-3 bg-primary/10 rounded-full border border-primary/20 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <div className="px-4 sm:px-5 py-2 sm:py-2.5 bg-orange-50 rounded-full border border-orange-200 flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-orange-100 flex items-center justify-center">
                     <Award size={16} className="text-primary" />
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-zinc-500 uppercase tracking-[0.15em] leading-none mb-1">Your Balance</p>
-                    <p className="text-lg font-black text-white leading-none tabular-nums">{userData?.points || 0} PTS</p>
+                    <p className="text-[8px] font-black text-stone-500 uppercase tracking-widest leading-none mb-1">Your Balance</p>
+                    <p className="text-base sm:text-lg font-black text-stone-900 leading-none tabular-nums">{userData?.points || 0} PTS</p>
                   </div>
                 </div>
               </div>
 
             {gifts.length === 0 ? (
-              <div className="glass-dark rounded-[3rem] border border-white/5 p-20 text-center space-y-6">
-                <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto text-zinc-700 animate-pulse">
-                  <Gift size={48} />
+              <div className="bg-white rounded-3xl md:rounded-[3rem] border border-stone-200/80 p-12 sm:p-20 text-center space-y-6 shadow-xs">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto text-primary">
+                  <Gift size={42} />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">NO REWARDS AVAILABLE</h3>
-                  <p className="text-zinc-500 text-sm max-w-xs mx-auto font-bold">Check back later for exclusive member benefits.</p>
+                  <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight uppercase italic">NO REWARDS AVAILABLE</h3>
+                  <p className="text-stone-500 text-sm max-w-xs mx-auto font-bold">Check back later for exclusive member benefits.</p>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
                 {gifts.map((gift) => {
                   const requiredPriority = badgeConfigs.find(c => c.tierName === gift.requiredTier)?.priority || 0;
                   const userPriority = badgeConfigs.find(c => c.tierName === userData?.badge_tier)?.priority || 0;
@@ -1514,48 +1514,48 @@ export const Profile: React.FC = () => {
                     <motion.div
                       key={gift.id}
                       className={cn(
-                        "glass-dark rounded-[2.5rem] border border-white/5 p-6 md:p-8 flex items-center gap-6 group transition-all relative overflow-hidden",
+                        "bg-white rounded-3xl border border-stone-200/80 shadow-xs p-5 sm:p-6 md:p-7 flex items-center gap-4 sm:gap-6 group transition-all relative overflow-hidden",
                         isLocked && "opacity-50 grayscale pointer-events-none"
                       )}
                     >
-                      <div className="shrink-0 w-24 h-24 rounded-3xl overflow-hidden border border-white/10 relative">
+                      <div className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border border-stone-200 relative bg-stone-100">
                         <OptimizedImage src={gift.image} alt={gift.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                         {isLocked && (
-                          <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
-                            <Shield size={32} className="text-white/40" />
+                          <div className="absolute inset-0 bg-stone-900/60 flex items-center justify-center backdrop-blur-[2px]">
+                            <Shield size={28} className="text-white/80" />
                           </div>
                         )}
                       </div>
 
-                      <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex-1 space-y-2.5 sm:space-y-3 min-w-0">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className={cn(
-                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border",
-                              isLocked ? "bg-zinc-800 text-zinc-500 border-zinc-700" : "bg-primary/20 text-primary border-primary/20"
+                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
+                              isLocked ? "bg-stone-100 text-stone-500 border-stone-200" : "bg-orange-50 text-primary border-orange-200"
                             )}>
                               {gift.requiredTier} Only
                             </span>
                             {isClaimed && (
-                               <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                               <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                                  <CheckCircle size={10} /> Claimed
                                </span>
                             )}
                           </div>
-                          <h4 className="text-xl font-black text-white tracking-tight uppercase italic truncate">{gift.title}</h4>
-                          <p className="text-[10px] text-zinc-500 font-bold line-clamp-2 mt-1">{gift.description}</p>
+                          <h4 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight uppercase italic truncate">{gift.title}</h4>
+                          <p className="text-[10px] text-stone-500 font-bold line-clamp-2 mt-1">{gift.description}</p>
                         </div>
                         
-                        <div className="flex items-center justify-between gap-4 pt-2">
+                        <div className="flex items-center justify-between gap-3 pt-1">
                            <div className="flex flex-col">
-                             <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Investment</span>
-                             <span className="text-lg font-black text-white tabular-nums tracking-tight">{gift.costPoints || 0} PTS</span>
+                             <span className="text-[8px] font-black text-stone-500 uppercase tracking-wider">Investment</span>
+                             <span className="text-base sm:text-lg font-black text-stone-900 tabular-nums tracking-tight">{gift.costPoints || 0} PTS</span>
                            </div>
                            <Button 
                              onClick={() => handleClaimGift(gift.id)}
                              disabled={isLocked || !canAfford || gift.stock <= 0}
                              variant={isLocked ? "outline" : canAfford ? "primary" : "ghost"}
-                             className="rounded-2xl px-6 h-12"
+                             className="rounded-xl px-4 sm:px-5 h-10 sm:h-11 text-xs cursor-pointer"
                            >
                              {isLocked ? 'Locked' : gift.stock <= 0 ? 'Out of Stock' : canAfford ? 'Claim Reward' : 'Points Needed'}
                            </Button>
@@ -1564,8 +1564,8 @@ export const Profile: React.FC = () => {
 
                       {isLocked && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                           <div className="bg-black/60 border border-white/10 px-6 py-2 rounded-full transform -rotate-12">
-                              <span className="text-[10px] font-black text-white uppercase tracking-widest">Locked: Upgrade to {gift.requiredTier}</span>
+                           <div className="bg-stone-900/80 border border-white/20 px-4 py-1.5 rounded-full transform -rotate-6">
+                              <span className="text-[9px] font-black text-white uppercase tracking-wider">Locked: Upgrade to {gift.requiredTier}</span>
                            </div>
                         </div>
                       )}
@@ -1590,72 +1590,72 @@ export const Profile: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsEditing(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+              className="absolute inset-0 bg-stone-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl bg-white border border-stone-200/90 rounded-[2.5rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0">
+                <div className="flex items-center justify-between p-6 sm:p-8 md:p-10 pb-0 shrink-0">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Edit Identity</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
+                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Edit Identity</h3>
+                    <p className="text-xs text-stone-500 font-black uppercase tracking-[0.2em] mt-1">Profile Synchronization</p>
                   </div>
                   <button 
                     onClick={() => setIsEditing(false)} 
-                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                   >
-                    <X size={24} />
+                    <X size={22} />
                   </button>
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-8 scrollbar-hide pb-32 md:pb-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Full Name</label>
+                  <div className="flex-1 overflow-y-auto p-6 sm:p-8 md:p-10 space-y-6 sm:space-y-8 scrollbar-hide pb-28 md:pb-6">
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] ml-2">Full Name</label>
                       <input 
                         type="text" 
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         placeholder="Enter your name"
-                        className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold" 
+                        className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-4 px-6 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all font-bold" 
                       />
                     </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Direct Contact</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] ml-2">Direct Contact</label>
                   <input 
                     type="text" 
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     placeholder="e.g. +91 77358 00239"
-                    className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold" 
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-4 px-6 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all font-bold" 
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-4">Primary HQ (Address)</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-black text-stone-500 uppercase tracking-[0.2em] ml-2">Primary HQ (Address)</label>
                   <textarea 
                     required
                     value={formData.address}
                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                     placeholder="Street, Building, Landmark..."
-                    className="w-full bg-[#111] border border-white/5 rounded-[1.5rem] py-5 px-8 text-white focus:outline-none focus:border-primary/50 transition-all font-bold h-32 resize-none" 
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-4 px-6 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all font-bold h-32 resize-none" 
                   />
                 </div>
 
                   </div>
  
-                  <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-                    <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95">
+                  <div className="sticky bottom-0 left-0 right-0 p-6 sm:p-8 pt-4 bg-white/95 backdrop-blur-xl border-t border-stone-100 flex gap-3 sm:gap-4 shrink-0 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                    <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-4 rounded-2xl bg-stone-100 text-stone-700 font-black uppercase text-xs tracking-wider hover:bg-stone-200 transition-all active:scale-98 cursor-pointer">
                       Dismiss
                     </button>
-                    <button type="submit" className="flex-2 py-5 rounded-[1.5rem] bg-primary text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                    <button type="submit" className="flex-2 py-4 rounded-2xl bg-gradient-to-r from-[#E76A54] to-orange-600 text-white font-black uppercase text-xs tracking-wider shadow-md shadow-orange-500/25 hover:from-[#d55944] hover:to-orange-700 active:scale-98 transition-all cursor-pointer">
                       Commit Changes
                     </button>
                   </div>
@@ -1675,37 +1675,37 @@ export const Profile: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSettingsOpen(false)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+              className="absolute inset-0 bg-stone-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/5 rounded-[3rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl bg-white border border-stone-200/90 rounded-[2.5rem] shadow-2xl flex flex-col max-h-[92vh] md:max-h-[85vh] overflow-hidden"
             >
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between p-8 md:p-10 pb-0 shrink-0 mb-6">
+                <div className="flex items-center justify-between p-6 sm:p-8 md:p-10 pb-0 shrink-0 mb-4 sm:mb-6">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Account Center</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
+                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Account Center</h3>
+                    <p className="text-xs text-stone-500 font-black uppercase tracking-[0.2em] mt-1">Manage Control Panel</p>
                   </div>
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                   >
-                    <X size={24} />
+                    <X size={22} />
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-10 scrollbar-hide pb-32 md:pb-6">
-                {/* Notifications Section skipped */}
-                <div className="space-y-6">
+                <div className="flex-1 overflow-y-auto p-6 sm:p-8 md:p-10 space-y-8 sm:space-y-10 scrollbar-hide pb-28 md:pb-6">
+                {/* Notifications Section */}
+                <div className="space-y-4 sm:space-y-6">
                   <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Notification Preferences</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-200/80">
                       <div>
-                        <p className="text-sm font-bold text-white">Order Status Updates</p>
-                        <p className="text-[10px] text-zinc-500">Real-time alerts for your orders</p>
+                        <p className="text-sm font-bold text-stone-900">Order Status Updates</p>
+                        <p className="text-[10px] text-stone-500">Real-time alerts for your orders</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -1713,21 +1713,21 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, orderUpdates: !settingsData.notifications.orderUpdates }
                         })}
                         className={cn(
-                          "w-12 h-6 rounded-full transition-all relative",
-                          settingsData.notifications.orderUpdates ? "bg-primary" : "bg-zinc-800"
+                          "w-12 h-6 rounded-full transition-all relative cursor-pointer",
+                          settingsData.notifications.orderUpdates ? "bg-[#E76A54]" : "bg-stone-200"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-2xs",
                           settingsData.notifications.orderUpdates ? "right-1" : "left-1"
                         )} />
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between p-4 bg-stone-50 rounded-2xl border border-stone-200/80">
                       <div>
-                        <p className="text-sm font-bold text-white">Promotional Offers</p>
-                        <p className="text-[10px] text-zinc-500">New discounts and seasonal treats</p>
+                        <p className="text-sm font-bold text-stone-900">Promotional Offers</p>
+                        <p className="text-[10px] text-stone-500">New discounts and seasonal treats</p>
                       </div>
                       <button 
                         onClick={() => handleUpdateSettings({
@@ -1735,12 +1735,12 @@ export const Profile: React.FC = () => {
                           notifications: { ...settingsData.notifications, promotions: !settingsData.notifications.promotions }
                         })}
                         className={cn(
-                          "w-12 h-6 rounded-full transition-all relative",
-                          settingsData.notifications.promotions ? "bg-primary" : "bg-zinc-800"
+                          "w-12 h-6 rounded-full transition-all relative cursor-pointer",
+                          settingsData.notifications.promotions ? "bg-[#E76A54]" : "bg-stone-200"
                         )}
                       >
                         <div className={cn(
-                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                          "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-2xs",
                           settingsData.notifications.promotions ? "right-1" : "left-1"
                         )} />
                       </button>
@@ -1749,44 +1749,44 @@ export const Profile: React.FC = () => {
                 </div>
 
                 {/* Data Section */}
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">Data & Portability</h4>
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3 sm:gap-4">
                     <button 
                       onClick={handleExportData}
-                      className="w-full flex items-center justify-between p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors group"
+                      className="w-full flex items-center justify-between p-4 sm:p-5 bg-stone-50 rounded-2xl border border-stone-200/80 hover:bg-stone-100 transition-colors group cursor-pointer"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-200">
                           <ShoppingBag size={20} />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm font-bold text-white">Export Order History</p>
-                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Download as JSON</p>
+                          <p className="text-sm font-bold text-stone-900">Export Order History</p>
+                          <p className="text-[10px] text-stone-500 uppercase tracking-wider font-bold">Download as JSON</p>
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-zinc-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                      <ChevronRight size={16} className="text-stone-400 group-hover:text-stone-900 group-hover:translate-x-1 transition-all" />
                     </button>
                   </div>
                 </div>
 
                 {/* Danger Zone */}
-                <div className="space-y-6 pt-4">
+                <div className="space-y-4 sm:space-y-6 pt-2">
                   <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Danger Zone</h4>
                   <button 
                      onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full h-16 border-2 border-red-500/20 rounded-2xl flex items-center justify-between px-6 text-red-500 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-widest"
+                    className="w-full h-14 sm:h-16 border border-red-200 bg-red-50/60 rounded-2xl flex items-center justify-between px-5 sm:px-6 text-red-600 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-wider cursor-pointer"
                   >
-                    Permanently Delete Account
+                    <span>Permanently Delete Account</span>
                     <Trash2 size={18} />
                   </button>
                 </div>
               </div>
 
-              <div className="sticky bottom-0 left-0 right-0 p-8 pt-4 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/5 flex gap-4 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+              <div className="sticky bottom-0 left-0 right-0 p-6 sm:p-8 pt-4 bg-white/95 backdrop-blur-xl border-t border-stone-100 flex gap-4 shrink-0 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                   <button 
                     onClick={() => setIsSettingsOpen(false)} 
-                    className="w-full py-5 rounded-[1.5rem] bg-white/5 text-zinc-500 font-black uppercase text-xs tracking-widest hover:text-white transition-all active:scale-95"
+                    className="w-full py-4 rounded-2xl bg-stone-100 text-stone-800 font-black uppercase text-xs tracking-wider hover:bg-stone-200 transition-all active:scale-98 cursor-pointer"
                   >
                     Done
                   </button>
@@ -1840,57 +1840,57 @@ export const Profile: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsShareModalOpen(false)}
-              className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+              className="absolute inset-0 bg-stone-950/60 backdrop-blur-md"
             />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-[3rem] shadow-2xl p-8 overflow-hidden"
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-white border border-stone-200/90 rounded-[2.5rem] shadow-2xl p-6 sm:p-8 overflow-hidden"
             >
-              <div className="relative z-10 space-y-8">
+              <div className="relative z-10 space-y-6 sm:space-y-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-3xl font-black text-white tracking-tighter">Share to Story</h3>
-                    <p className="text-xs text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Select Card Style</p>
+                    <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Share to Story</h3>
+                    <p className="text-xs text-stone-500 font-black uppercase tracking-[0.2em] mt-1">Select Card Style</p>
                   </div>
                   <button 
                     onClick={() => setIsShareModalOpen(false)} 
-                    className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                   >
-                    <X size={24} />
+                    <X size={22} />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   {(['avatar', 'rank', 'personality'] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => setShareType(type)}
                       className={cn(
-                        "p-6 rounded-[2rem] border transition-all flex items-center justify-between group",
-                        shareType === type ? "bg-primary border-primary" : "bg-white/5 border-white/5 hover:bg-white/10"
+                        "p-4 sm:p-5 rounded-2xl border transition-all flex items-center justify-between group cursor-pointer",
+                        shareType === type ? "bg-orange-50/80 border-[#E76A54]" : "bg-stone-50 border-stone-200/80 hover:bg-stone-100"
                       )}
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3.5 sm:gap-4">
                         <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center",
-                          shareType === type ? "bg-white text-primary" : "bg-white/5 text-zinc-400 group-hover:text-white"
+                          "w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+                          shareType === type ? "bg-[#E76A54] text-white" : "bg-white text-stone-600 border border-stone-200"
                         )}>
                           {type === 'avatar' && <User size={20} />}
                           {type === 'rank' && <Crown size={20} />}
                           {type === 'personality' && <Sparkles size={20} />}
                         </div>
                         <div className="text-left">
-                          <p className={cn("text-sm font-bold uppercase tracking-widest", shareType === type ? "text-white" : "text-white")}>
+                          <p className="text-sm font-bold uppercase tracking-wider text-stone-900">
                             {type === 'avatar' ? 'Foodie Identity' : type === 'rank' ? 'Loyalty Progress' : 'AI Food Personality'}
                           </p>
-                          <p className={cn("text-[10px] font-bold uppercase opacity-60 tracking-widest", shareType === type ? "text-white" : "text-zinc-500")}>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500">
                             9:16 Instagram Ready
                           </p>
                         </div>
                       </div>
-                      <ChevronRight size={20} className={cn(shareType === type ? "text-white" : "text-zinc-700")} />
+                      <ChevronRight size={18} className={cn(shareType === type ? "text-primary" : "text-stone-400")} />
                     </button>
                   ))}
                 </div>
@@ -1899,23 +1899,23 @@ export const Profile: React.FC = () => {
                   onClick={handleShareStory}
                   disabled={isSharing}
                   variant="primary"
-                  className="w-full py-6 rounded-[2rem] text-sm font-black tracking-[0.2em]"
+                  className="w-full py-4 sm:py-5 rounded-2xl text-xs sm:text-sm font-black tracking-wider uppercase shadow-md shadow-orange-500/20 cursor-pointer"
                 >
                   {isSharing ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       GENERATING...
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3">
-                      <Instagram size={20} />
+                    <div className="flex items-center justify-center gap-2.5">
+                      <Instagram size={18} />
                       GENERATE & SHARE
                     </div>
                   )}
                 </Button>
                 
-                <p className="text-[10px] text-center text-zinc-600 font-bold uppercase tracking-widest leading-relaxed">
-                  Generates a premium vertical card <br /> perfect for Instagram Stories.
+                <p className="text-[10px] text-center text-stone-500 font-bold uppercase tracking-widest leading-relaxed">
+                  Generates a vertical card <br /> perfect for Instagram Stories.
                 </p>
               </div>
             </motion.div>

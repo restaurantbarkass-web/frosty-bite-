@@ -14,29 +14,36 @@ interface CardProps {
 const StatCard: React.FC<CardProps> = ({ title, value, icon: Icon, trend, color }) => {
   const isPositive = trend >= 0;
 
+  const colorStyles: Record<string, { bg: string; text: string; border: string }> = {
+    orange: { bg: 'bg-orange-50', text: 'text-[#E76A54]', border: 'border-orange-200/80' },
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200/80' },
+    blue: { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200/80' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200/80' },
+  };
+
+  const style = colorStyles[color] || colorStyles.orange;
+
   return (
     <motion.div 
-      whileHover={{ y: -5 }}
-      className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-6 relative overflow-hidden group"
+      whileHover={{ y: -3 }}
+      className="bg-white border border-stone-200/80 shadow-xs hover:shadow-md rounded-3xl p-4 sm:p-6 relative overflow-hidden group transition-all"
     >
-      <div className={`absolute top-0 right-0 w-32 h-32 bg-${color}-500/10 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-${color}-500/20 transition-all`} />
-      
-      <div className="flex items-start justify-between relative z-10">
+      <div className="flex items-start justify-between relative z-10 gap-2">
         <div>
-          <p className="text-gray-500 text-sm font-medium mb-1">{title}</p>
-          <h3 className="text-3xl font-bold text-white tracking-tight">{value}</h3>
+          <p className="text-stone-500 text-xs sm:text-sm font-medium mb-1">{title}</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">{value}</h3>
         </div>
-        <div className={`p-4 rounded-2xl bg-${color}-500/10 text-${color}-500 border border-${color}-500/20 shadow-lg shadow-${color}-500/5`}>
-          <Icon size={24} />
+        <div className={`p-3 sm:p-3.5 rounded-2xl ${style.bg} ${style.text} border ${style.border} shrink-0`}>
+          <Icon size={20} className="sm:w-6 sm:h-6" />
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-2 relative z-10">
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-          {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+      <div className="mt-4 sm:mt-6 flex items-center gap-2 relative z-10">
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-bold ${isPositive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'}`}>
+          {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           {Math.abs(trend)}%
         </div>
-        <span className="text-xs text-gray-600 font-medium">vs last 24h</span>
+        <span className="text-[10px] sm:text-xs text-stone-400 font-medium">vs last 24h</span>
       </div>
     </motion.div>
   );
@@ -121,7 +128,7 @@ export const DashboardCards: React.FC = () => {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
       <StatCard 
         title="Total Orders" 
         value={stats.totalOrders.toLocaleString()} 

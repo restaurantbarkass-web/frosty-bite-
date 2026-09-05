@@ -279,61 +279,60 @@ export const Orders: React.FC = () => {
   const processedRefundsSum = processedRefunds.reduce((sum, o) => sum + (Number(o.total) || Number(o.total_amount) || 0), 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Top Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#111116]/80 backdrop-blur-2xl border border-white/10 p-6 sm:p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest">
-            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 bg-white border border-stone-200/80 p-5 sm:p-7 rounded-3xl shadow-xs relative overflow-hidden">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/70 text-[#E76A54] text-[10px] font-black uppercase tracking-widest">
+            <span className="w-2 h-2 rounded-full bg-[#E76A54] animate-pulse" />
             Live Orders Engine
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight italic uppercase">Order Management</h1>
-          <p className="text-zinc-400 text-xs sm:text-sm font-medium">Real-time fulfillment dashboard, payment verifications & audit trails.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">Order Management</h1>
+          <p className="text-stone-500 text-xs sm:text-sm font-medium">Real-time fulfillment dashboard, payment verifications & audit trails.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-2xl px-3 sm:px-4 py-2">
-            <Filter size={14} className="text-orange-400" />
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-2xl px-3 py-2 shadow-xs">
+            <Filter size={14} className="text-[#E76A54]" />
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent text-white text-xs font-bold focus:outline-none cursor-pointer"
+              className="bg-transparent text-stone-800 text-xs font-bold focus:outline-none cursor-pointer"
             >
-              <option value="all" className="bg-[#141414] text-white">All Statuses</option>
-              <option value="pending" className="bg-[#141414] text-white">Pending</option>
-              <option value="confirmed" className="bg-[#141414] text-white">Confirmed</option>
-              <option value="preparing" className="bg-[#141414] text-white">Preparing</option>
-              <option value="out_for_delivery" className="bg-[#141414] text-white">Dispatch</option>
-              <option value="delivered" className="bg-[#141414] text-white">Delivered</option>
-              <option value="cancelled" className="bg-[#141414] text-white">Cancelled</option>
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="preparing">Preparing</option>
+              <option value="out_for_delivery">Dispatch</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-2xl px-3 sm:px-4 py-1.5 flex-1 sm:flex-none">
+          <div className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-2xl px-3 py-1.5 flex-1 sm:flex-none shadow-xs">
             <div className="flex flex-col">
-              <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">From</span>
+              <span className="text-[8px] text-stone-400 font-bold uppercase tracking-wider">From</span>
               <input 
                 type="date" 
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-white text-[10px] sm:text-xs font-bold focus:outline-none w-20 sm:w-auto"
+                className="bg-transparent text-stone-800 text-[10px] sm:text-xs font-bold focus:outline-none w-20 sm:w-auto"
               />
             </div>
-            <div className="w-px h-7 bg-white/10 mx-1 sm:mx-2" />
+            <div className="w-px h-7 bg-stone-200 mx-1 sm:mx-2" />
             <div className="flex flex-col">
-              <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">To</span>
+              <span className="text-[8px] text-stone-400 font-bold uppercase tracking-wider">To</span>
               <input 
                 type="date" 
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-white text-[10px] sm:text-xs font-bold focus:outline-none w-20 sm:w-auto"
+                className="bg-transparent text-stone-800 text-[10px] sm:text-xs font-bold focus:outline-none w-20 sm:w-auto"
               />
             </div>
             {(startDate || endDate) && (
               <button 
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="ml-1 sm:ml-2 text-zinc-400 hover:text-white transition-colors"
+                className="ml-1 sm:ml-2 text-stone-400 hover:text-stone-700 transition-colors"
                 title="Clear date filter"
               >
                 <X size={14} />
@@ -343,36 +342,36 @@ export const Orders: React.FC = () => {
 
           <button 
             onClick={exportToCSV}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#E76A54] hover:bg-[#d95d48] text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
-            <Download size={16} />
+            <Download size={15} />
             <span>Export CSV</span>
           </button>
         </div>
       </div>
 
       {/* Modern 24h Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
-          { label: 'Pending', count: stats.pending, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-          { label: 'Confirmed', count: stats.confirmed, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-          { label: 'Preparing', count: stats.preparing, icon: Package, color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/20' },
-          { label: 'Dispatch', count: stats.out_for_delivery, icon: Truck, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
-          { label: 'Delivered', count: stats.delivered, icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+          { label: 'Pending', count: stats.pending, icon: Clock, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200/80' },
+          { label: 'Confirmed', count: stats.confirmed, icon: CheckCircle2, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200/80' },
+          { label: 'Preparing', count: stats.preparing, icon: Package, color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200/80' },
+          { label: 'Dispatch', count: stats.out_for_delivery, icon: Truck, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200/80' },
+          { label: 'Delivered', count: stats.delivered, icon: Sparkles, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200/80' },
         ].map((stat) => {
           const IconComp = stat.icon;
           return (
             <div 
               key={stat.label} 
-              className="bg-[#111116]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-5 flex items-center justify-between group hover:border-white/20 transition-all hover:-translate-y-0.5 shadow-xl"
+              className="bg-white border border-stone-200/80 rounded-3xl p-4 sm:p-5 flex items-center justify-between group hover:border-stone-300 transition-all hover:-translate-y-0.5 shadow-xs"
             >
               <div>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                <h4 className="text-2xl sm:text-3xl font-black text-white font-mono">{stat.count}</h4>
-                <p className="text-[8px] text-zinc-600 font-bold uppercase mt-1">Last 24 hours</p>
+                <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
+                <h4 className="text-2xl sm:text-3xl font-black text-stone-900 font-mono">{stat.count}</h4>
+                <p className="text-[8px] text-stone-400 font-bold uppercase mt-1">Last 24 hours</p>
               </div>
-              <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center border shadow-lg shrink-0", stat.bg)}>
-                <IconComp size={20} className={stat.color} />
+              <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center border shadow-xs shrink-0", stat.bg)}>
+                <IconComp size={18} className={stat.color} />
               </div>
             </div>
           );
@@ -380,21 +379,21 @@ export const Orders: React.FC = () => {
       </div>
 
       {/* Tabs & Search Navigation Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 bg-[#111116]/80 backdrop-blur-xl border border-white/10 p-2 sm:p-2.5 rounded-[2rem] shadow-xl">
-        <div className="flex bg-black/50 p-1.5 rounded-2xl border border-white/5 overflow-x-auto">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 bg-white border border-stone-200/80 p-2 sm:p-2.5 rounded-3xl shadow-xs">
+        <div className="flex bg-stone-100/90 p-1 rounded-2xl border border-stone-200/60 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('active')}
             className={cn(
-              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
+              "px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
               activeTab === 'active' 
-                ? "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-lg shadow-orange-500/20" 
-                : "text-zinc-400 hover:text-white"
+                ? "bg-[#E76A54] text-white shadow-md shadow-orange-500/25" 
+                : "text-stone-600 hover:text-stone-900 font-semibold"
             )}
           >
             <Layers size={14} />
             <span>Active Orders</span>
-            <span className="px-1.5 py-0.5 rounded-md bg-white/10 text-[9px] font-mono">
+            <span className={cn("px-1.5 py-0.5 rounded-md text-[9px] font-mono", activeTab === 'active' ? "bg-white/20 text-white" : "bg-stone-200 text-stone-700")}>
               {allOrders.filter(o => o.status !== 'cancelled' && o.payment_status !== 'pending_verification').length}
             </span>
           </button>
@@ -403,16 +402,16 @@ export const Orders: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('verification')}
             className={cn(
-              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+              "px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'verification' 
-                ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
-                : "text-zinc-400 hover:text-white"
+                ? "bg-amber-500 text-white shadow-md shadow-amber-500/20" 
+                : "text-stone-600 hover:text-stone-900 font-semibold"
             )}
           >
             <ShieldCheck size={14} />
             <span>Verification</span>
             {allOrders.filter(o => o.payment_status === 'pending_verification').length > 0 && (
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
             )}
           </button>
 
@@ -420,26 +419,26 @@ export const Orders: React.FC = () => {
             type="button"
             onClick={() => setActiveTab('cancelled')}
             className={cn(
-              "px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
+              "px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'cancelled' 
-                ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20" 
-                : "text-zinc-400 hover:text-white"
+                ? "bg-rose-600 text-white shadow-md shadow-rose-600/20" 
+                : "text-stone-600 hover:text-stone-900 font-semibold"
             )}
           >
             <AlertCircle size={14} />
             <span>Cancelled & Refunds</span>
             {allOrders.filter(o => o.status === 'cancelled' && o.refund_status === 'pending_refund').length > 0 && (
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
             )}
           </button>
         </div>
 
         <div className="relative flex-1 group w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-orange-400 transition-colors" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-[#E76A54] transition-colors" size={17} />
           <input 
             type="text" 
             placeholder="Search by Order ID, Customer Name, Phone..." 
-            className="w-full bg-black/40 border border-white/10 rounded-2xl py-3.5 pl-12 pr-10 text-white text-xs sm:text-sm focus:outline-none focus:border-orange-500/50 transition-all placeholder:text-zinc-600"
+            className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-2.5 sm:py-3 pl-11 pr-10 text-stone-900 text-xs sm:text-sm focus:outline-none focus:bg-white focus:border-[#E76A54] transition-all placeholder:text-stone-400"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -447,129 +446,125 @@ export const Orders: React.FC = () => {
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           )}
         </div>
       </div>
 
       {activeTab === 'cancelled' ? (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {/* Cancellation Analytics Board */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-[#111]/85 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/[0.03] rounded-full blur-2xl" />
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Total Canceled</p>
-              <h4 className="text-4xl font-black text-rose-500 italic font-mono">{cancellationsCount}</h4>
-              <p className="text-[9px] text-zinc-650 mt-2 font-bold uppercase transition-colors group-hover:text-zinc-500">All-time store cancellations</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-5 shadow-xs">
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Total Canceled</p>
+              <h4 className="text-3xl sm:text-4xl font-black text-rose-600 font-mono">{cancellationsCount}</h4>
+              <p className="text-[9px] text-stone-400 mt-2 font-bold uppercase">All-time cancellations</p>
             </div>
 
-            <div className="bg-[#111]/85 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/[0.03] rounded-full blur-2xl" />
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Cancellation Rate</p>
-              <h4 className="text-4xl font-black text-orange-400 font-mono">{cancellationPercent}%</h4>
-              <p className="text-[9px] text-zinc-650 mt-2 font-bold uppercase">Proportion of order files</p>
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-5 shadow-xs">
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Cancellation Rate</p>
+              <h4 className="text-3xl sm:text-4xl font-black text-amber-600 font-mono">{cancellationPercent}%</h4>
+              <p className="text-[9px] text-stone-400 mt-2 font-bold uppercase">Proportion of orders</p>
             </div>
 
-            <div className="bg-[#111]/85 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/[0.03] rounded-full blur-2xl" />
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Common Reason</p>
-              <h4 className="text-base font-black text-zinc-100 truncate mt-2 uppercase italic text-sky-400">{topReason}</h4>
-              <p className="text-[9px] text-zinc-650 mt-2 font-bold uppercase">{topCount} matching order files</p>
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-5 shadow-xs">
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Common Reason</p>
+              <h4 className="text-sm sm:text-base font-black text-stone-900 truncate mt-2 uppercase text-sky-700">{topReason}</h4>
+              <p className="text-[9px] text-stone-400 mt-2 font-bold uppercase">{topCount} matching order files</p>
             </div>
 
-            <div className="bg-[#111]/85 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/[0.03] rounded-full blur-2xl" />
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Refund Settlement</p>
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-5 shadow-xs">
+              <p className="text-stone-500 text-[10px] font-black uppercase tracking-widest mb-1 font-sans">Refund Settlement</p>
               <div className="mt-1.5 flex flex-col font-mono">
-                <span className="text-xs text-emerald-400 font-bold">Paid: ₹{processedRefundsSum}</span>
-                <span className="text-xs text-amber-500 font-bold">Pend: ₹{pendingRefundsSum}</span>
+                <span className="text-xs text-emerald-700 font-bold">Paid: ₹{processedRefundsSum}</span>
+                <span className="text-xs text-amber-700 font-bold">Pend: ₹{pendingRefundsSum}</span>
               </div>
-              <p className="text-[9px] text-zinc-650 mt-2 font-bold uppercase">{pendingRefunds.length} claims in escrow</p>
+              <p className="text-[9px] text-stone-400 mt-2 font-bold uppercase">{pendingRefunds.length} claims in escrow</p>
             </div>
           </div>
 
           {/* Refund Registry Dashboard */}
-          <div className="bg-[#111]/80 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] overflow-hidden">
-            <div className="p-8 border-b border-white/5 flex items-center justify-between">
+          <div className="bg-white border border-stone-200/80 rounded-3xl overflow-hidden shadow-xs">
+            <div className="p-5 sm:p-6 border-b border-stone-100 flex items-center justify-between">
               <div>
-                <h3 className="text-xl font-black text-white italic tracking-tight uppercase">Cancelled Orders & Refund Management</h3>
-                <p className="text-xs text-zinc-500 mt-1 font-medium">Verify customer claims, audit restocked menus, and trigger bank reversals.</p>
+                <h3 className="text-lg font-black text-stone-900 tracking-tight">Cancelled Orders & Refund Management</h3>
+                <p className="text-xs text-stone-500 mt-0.5 font-medium">Verify customer claims, audit restocked menus, and trigger bank reversals.</p>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-white/5 text-[9px] text-zinc-600 font-black uppercase tracking-widest bg-black/30">
-                    <th className="p-6">Order ID & Date</th>
-                    <th className="p-6">Customer Profile</th>
-                    <th className="p-6">Cancellation Reason</th>
-                    <th className="p-6 text-right">Refund Amount</th>
-                    <th className="p-6">Reversion Status</th>
-                    <th className="p-6 text-center">Update Action</th>
+                  <tr className="border-b border-stone-200 text-[9px] text-stone-500 font-black uppercase tracking-widest bg-stone-50/80">
+                    <th className="p-4 sm:p-5">Order ID & Date</th>
+                    <th className="p-4 sm:p-5">Customer Profile</th>
+                    <th className="p-4 sm:p-5">Cancellation Reason</th>
+                    <th className="p-4 sm:p-5 text-right">Refund Amount</th>
+                    <th className="p-4 sm:p-5">Reversion Status</th>
+                    <th className="p-4 sm:p-5 text-center">Update Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-stone-100">
                   {filteredOrders.filter(o => o.status === 'cancelled').length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-16 text-center text-zinc-500 font-bold text-xs uppercase tracking-widest">
-                        No cancellation claims found match queries.
+                      <td colSpan={6} className="p-12 text-center text-stone-400 font-bold text-xs uppercase tracking-widest">
+                        No cancellation claims found.
                       </td>
                     </tr>
                   ) : (
                     filteredOrders.filter(o => o.status === 'cancelled').map((order) => {
                       const isOnlinePay = order.payment_method === 'online' || order.payment_method === 'upi';
                       return (
-                        <tr key={order.id} className="hover:bg-white/[0.01] transition-colors group/row">
-                          <td className="p-6">
-                            <div className="font-mono font-black text-white text-xs uppercase">#{formatOrderId(order.id)}</div>
-                            <div className="text-[9px] text-zinc-500 mt-1">
+                        <tr key={order.id} className="hover:bg-stone-50/70 transition-colors">
+                          <td className="p-4 sm:p-5">
+                            <div className="font-mono font-black text-stone-900 text-xs uppercase">#{formatOrderId(order.id)}</div>
+                            <div className="text-[9px] text-stone-400 mt-0.5">
                               {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
                             </div>
                           </td>
-                          <td className="p-6">
-                            <div className="font-bold text-white text-xs">
+                          <td className="p-4 sm:p-5">
+                            <div className="font-bold text-stone-900 text-xs">
                               {order.customer_name || order.customerName || 'Guest Customer'}
                             </div>
-                            <div className="text-[9px] text-zinc-500 mt-1">{order.phone || 'N/A'}</div>
+                            <div className="text-[9px] text-stone-400 mt-0.5">{order.phone || 'N/A'}</div>
                           </td>
-                          <td className="p-6 max-w-xs">
-                            <div className="text-xs font-bold text-rose-400 italic bg-rose-500/5 px-3 py-1.5 rounded-xl border border-rose-500/10 inline-block">
-                              {order.cancellation_reason || order.notes || 'No reason specify'}
+                          <td className="p-4 sm:p-5 max-w-xs">
+                            <div className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200/80 inline-block">
+                              {order.cancellation_reason || order.notes || 'No reason specified'}
                             </div>
                             {order.cancelled_at && (
-                              <div className="text-[8px] text-zinc-600 mt-1 uppercase tracking-widest">
+                              <div className="text-[8px] text-stone-400 mt-1 uppercase tracking-widest">
                                 Logged: {new Date(order.cancelled_at).toLocaleTimeString()}
                               </div>
                             )}
                           </td>
-                          <td className="p-6 text-right font-mono font-black text-zinc-100 text-xs">
+                          <td className="p-4 sm:p-5 text-right font-mono font-black text-stone-900 text-xs">
                             ₹{order.total || order.total_amount || 0}
                           </td>
-                          <td className="p-6">
+                          <td className="p-4 sm:p-5">
                             <span className={cn(
                               "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border whitespace-nowrap",
                               order.refund_status === 'refunded'
-                                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                 : order.refund_status === 'failed'
-                                  ? 'bg-rose-500/10 border-rose-500/25 text-rose-500'
+                                  ? 'bg-rose-50 border-rose-200 text-rose-700'
                                   : order.refund_status === 'pending_refund'
-                                    ? 'bg-amber-500/12 border-amber-500/25 text-amber-400 animate-pulse'
-                                    : 'bg-zinc-500/10 border-white/5 text-zinc-500'
+                                    ? 'bg-amber-50 border-amber-200 text-amber-700 animate-pulse'
+                                    : 'bg-stone-100 border-stone-200 text-stone-500'
                             )}>
                               {order.refund_status ? order.refund_status.replace('_', ' ') : 'None (COD)'}
                             </span>
                           </td>
-                          <td className="p-6">
+                          <td className="p-4 sm:p-5">
                             {isOnlinePay ? (
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => updateRefundStatus(order.id, 'refunded')}
-                                  className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white border border-emerald-500/20 hover:border-emerald-500 text-emerald-400 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200 text-emerald-700 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
                                   title="Settle Refund"
                                 >
                                   Mark Settled
@@ -577,14 +572,14 @@ export const Orders: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => updateRefundStatus(order.id, 'failed')}
-                                  className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/20 hover:border-rose-500 text-rose-500 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 text-rose-700 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
                                   title="Reject Refund"
                                 >
                                   Mark Fail
                                 </button>
                               </div>
                             ) : (
-                              <div className="text-center text-[8px] text-zinc-500 font-black uppercase tracking-widest">
+                              <div className="text-center text-[8px] text-stone-400 font-bold uppercase tracking-widest">
                                 Cash/COD Order
                               </div>
                             )}

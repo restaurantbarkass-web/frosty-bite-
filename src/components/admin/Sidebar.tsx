@@ -83,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden"
+            className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[60] lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -93,16 +93,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         animate={isOpen ? 'open' : (window.innerWidth < 1024 ? 'closed' : 'desktop')}
         variants={sidebarVariants}
         className={cn(
-          "fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen z-[70] bg-[#0a0a0a] border-r border-white/10 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none",
+          "fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen z-[70] bg-white border-r border-stone-200/90 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none",
           isCollapsed ? "lg:w-20" : "lg:w-[260px]"
         )}
       >
-        <div className="p-6 flex items-center justify-between">
+        <div className="p-6 flex items-center justify-between border-b border-stone-100">
           <div className="flex items-center gap-3">
             <img 
               src={UNIVERSAL_LOGO_URL} 
               alt="Frosty Bite Logo" 
-              className={cn("h-10 w-10 object-cover transition-all duration-300 rounded-lg", isCollapsed && "lg:h-8 lg:w-8")}
+              className={cn("h-10 w-10 object-cover transition-all duration-300 rounded-xl shadow-xs border border-stone-200/60", isCollapsed && "lg:h-8 lg:w-8")}
               referrerPolicy="no-referrer"
             />
             {(!isCollapsed || isOpen) && (
@@ -111,12 +111,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                 animate={{ opacity: 1 }}
                 className="flex flex-col"
               >
-                <span className="text-[10px] font-black uppercase text-primary tracking-widest">Admin</span>
+                <span className="text-sm font-black text-stone-900 tracking-tight">Frosty Bite</span>
+                <span className="text-[10px] font-black uppercase text-[#E76A54] tracking-widest">Admin Panel</span>
               </motion.div>
             )}
           </div>
           {isOpen && (
-            <button onClick={onClose} className="lg:hidden text-gray-400 p-2">
+            <button onClick={onClose} className="lg:hidden text-stone-400 hover:text-stone-700 p-2 rounded-xl hover:bg-stone-100 transition-colors">
               <LogOut className="rotate-180" size={20} />
             </button>
           )}
@@ -124,13 +125,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
 
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute -right-3 top-20 bg-primary text-white p-1 rounded-full border-4 border-[#0a0a0a] hover:scale-110 transition-transform z-10"
+          className="hidden lg:flex absolute -right-3 top-20 bg-[#E76A54] text-white p-1 rounded-full border-4 border-white shadow-md hover:scale-110 transition-transform z-10"
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
 
         <nav 
-          className="flex-1 px-4 mt-8 space-y-2 overflow-y-auto custom-scrollbar"
+          className="flex-1 px-3.5 py-4 space-y-1.5 overflow-y-auto custom-scrollbar"
           data-lenis-prevent
         >
           {menuItems.map((item) => {
@@ -145,18 +146,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
                   onClose?.();
                 }}
                 className={cn(
-                  "w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 group",
+                  "w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-200 group text-sm",
                   isActive 
-                    ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
+                    ? "bg-[#E76A54] text-white shadow-md shadow-orange-500/25 font-bold" 
+                    : "text-stone-600 hover:bg-stone-100 hover:text-stone-900 font-medium"
                 )}
               >
-                <Icon className={cn("w-5 h-5 shrink-0", isActive ? "text-white" : "group-hover:text-primary")} />
+                <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-white" : "text-stone-400 group-hover:text-[#E76A54]")} />
                 {(!isCollapsed || isOpen) && (
                   <motion.span 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="font-medium whitespace-nowrap"
+                    className="whitespace-nowrap"
                   >
                     {item.label}
                   </motion.span>
@@ -166,16 +167,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
           })}
         </nav>
 
-      <div className="p-4 border-t border-white/10">
-        <button 
-          onClick={handleLogout}
-          className="w-full flex items-center gap-4 p-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all duration-200"
-        >
-          <LogOut className="w-5 h-5 shrink-0" />
-          {!isCollapsed && <span className="font-medium">Logout</span>}
-        </button>
-      </div>
-    </motion.div>
+        <div className="p-4 border-t border-stone-200/80 bg-stone-50/50">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-all duration-200 font-semibold text-sm"
+          >
+            <LogOut className="w-5 h-5 shrink-0 text-rose-500" />
+            {!isCollapsed && <span className="font-medium">Logout</span>}
+          </button>
+        </div>
+      </motion.div>
     </>
   );
 };

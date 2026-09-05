@@ -235,7 +235,7 @@ export const Coupons: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={!!deletingId}
@@ -247,145 +247,140 @@ export const Coupons: React.FC = () => {
         variant="danger"
       />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-white">Coupons & Discounts</h2>
-          <p className="text-zinc-500 text-sm font-medium">Manage promotional codes and special offers</p>
+          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-stone-900">Coupons & Discounts</h2>
+          <p className="text-stone-500 text-sm font-medium">Manage promotional codes and special offers</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button 
             onClick={generateFirstOrderCoupon}
             disabled={isLoading}
-            className="flex items-center gap-2 bg-white/5 text-zinc-500 px-6 py-3 rounded-2xl font-bold hover:bg-white/10 hover:text-white transition-all border border-white/5 disabled:opacity-50"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-stone-100 text-stone-700 px-4 sm:px-5 py-3 rounded-2xl font-bold hover:bg-stone-200 transition-all border border-stone-200 disabled:opacity-50 text-xs sm:text-sm cursor-pointer shadow-2xs"
           >
-            <Tag size={20} />
+            <Tag size={18} />
             Generate FIRSTORDER
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:bg-orange-600 transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#E76A54] text-white px-5 sm:px-6 py-3 rounded-2xl font-bold shadow-md shadow-[#E76A54]/20 hover:bg-[#d55b45] transition-all text-xs sm:text-sm cursor-pointer"
           >
-            <Plus size={20} />
+            <Plus size={18} />
             Create Coupon
           </button>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="glass-dark p-6 rounded-3xl border border-white/5">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/20 flex items-center justify-center text-orange-500">
-              <Tag size={24} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200/80 shadow-xs">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#FAF8F5] border border-stone-200 flex items-center justify-center text-[#E76A54]">
+              <Tag size={22} />
             </div>
             <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Active Coupons</p>
-              <h3 className="text-2xl font-black text-white">{coupons.filter(c => c.status === 'active').length}</h3>
+              <p className="text-[10px] text-stone-500 uppercase font-black tracking-widest">Active Coupons</p>
+              <h3 className="text-xl sm:text-2xl font-black text-stone-900">{coupons.filter(c => c.status === 'active').length}</h3>
             </div>
           </div>
         </div>
-              <div className="glass-dark p-6 rounded-3xl border border-white/5">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
-                    <CheckCircle size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Total Redemptions</p>
-                    <h3 className="text-2xl font-black text-white">{coupons.reduce((acc, curr) => acc + (curr.usage_count || 0), 0)}</h3>
-                  </div>
-                </div>
-              </div>
-        <div className="glass-dark p-6 rounded-3xl border border-white/5">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-500">
-              <Calendar size={24} />
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200/80 shadow-xs">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+              <CheckCircle size={22} />
             </div>
             <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest">Expiring Soon</p>
-              <h3 className="text-2xl font-black text-white">3</h3>
+              <p className="text-[10px] text-stone-500 uppercase font-black tracking-widest">Total Redemptions</p>
+              <h3 className="text-xl sm:text-2xl font-black text-stone-900">{coupons.reduce((acc, curr) => acc + (curr.usage_count || 0), 0)}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-stone-200/80 shadow-xs">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+              <Calendar size={22} />
+            </div>
+            <div>
+              <p className="text-[10px] text-stone-500 uppercase font-black tracking-widest">Total Coupons</p>
+              <h3 className="text-xl sm:text-2xl font-black text-stone-900">{coupons.length}</h3>
             </div>
           </div>
         </div>
       </div>
 
       {/* Coupons List */}
-      <div className="glass-dark rounded-[2.5rem] border border-white/5 overflow-hidden">
-        <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-[2rem] border border-stone-200/80 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-stone-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
             <input 
               type="text" 
               placeholder="Search by code..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all"
+              className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl pl-12 pr-4 py-2.5 sm:py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#E76A54] transition-all font-medium"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="p-3 bg-white/5 border border-white/10 rounded-xl text-zinc-500 hover:text-white transition-all">
-              <Filter size={18} />
-            </button>
           </div>
         </div>
 
         <div className="overflow-x-auto hidden lg:block">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-white/5">
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Coupon Code</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Discount</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Min. Order</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Usage</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Expiry</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Public?</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] text-zinc-500 uppercase font-black tracking-widest">Actions</th>
+              <tr className="border-b border-stone-100 bg-stone-50/50">
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Coupon Code</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Discount</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Min. Order</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Usage</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Expiry</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Public?</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] text-stone-500 uppercase font-black tracking-widest">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-stone-100">
               {filteredCoupons.map((coupon) => (
-                <tr key={coupon.id} className="hover:bg-white/5 transition-colors group">
+                <tr key={coupon.id} className="hover:bg-[#FAF8F5] transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                      <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-stone-200 flex items-center justify-center text-[#E76A54]">
                         <Tag size={18} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-black text-white tracking-wider">{coupon.code}</span>
+                        <span className="font-black text-stone-900 tracking-wider font-mono">{coupon.code}</span>
                         {coupon.is_first_order_only && (
-                          <span className="text-[8px] text-orange-500 font-black uppercase tracking-widest">First Order Only</span>
+                          <span className="text-[8px] text-[#E76A54] font-black uppercase tracking-widest">First Order Only</span>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-white">
+                    <span className="text-sm font-bold text-stone-900">
                       {coupon.type === 'percentage' ? `${coupon.value}%` : 
                        coupon.type === 'fixed' ? `₹${coupon.value}` : 
                        `Gift: ${coupon.free_item_quantity}x Item`}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">₹{coupon.min_order}</td>
+                  <td className="px-6 py-4 text-sm text-stone-600">₹{coupon.min_order}</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+                      <div className="flex justify-between text-[10px] text-stone-500 font-bold uppercase tracking-widest">
                         <span>{coupon.usage_count} / {coupon.usage_limit}</span>
                       </div>
-                      <div className="w-24 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="w-24 h-1.5 bg-stone-200 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-orange-500" 
+                          className="h-full bg-[#E76A54]" 
                           style={{ width: `${((coupon.usage_count || 0) / (coupon.usage_limit || 1)) * 100}%` }}
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-zinc-400">{coupon.expiry_date}</td>
+                  <td className="px-6 py-4 text-sm text-stone-600">{coupon.expiry_date}</td>
                   <td className="px-6 py-4">
                     <button 
                       onClick={() => toggleCouponVisibility(coupon.id, !!coupon.is_hidden)}
                       className={cn(
-                        "p-2 rounded-lg transition-all",
-                        coupon.is_hidden ? "text-zinc-500 hover:text-white bg-white/5" : "text-emerald-500 bg-emerald-500/10"
+                        "p-2 rounded-xl transition-all cursor-pointer",
+                        coupon.is_hidden ? "text-stone-400 hover:text-stone-700 bg-stone-100" : "text-emerald-700 bg-emerald-50 border border-emerald-200"
                       )}
                       title={coupon.is_hidden ? "Show on Offers page" : "Hide from Offers page"}
                     >
@@ -393,10 +388,10 @@ export const Coupons: React.FC = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                      coupon.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 
-                      coupon.status === 'expired' ? 'bg-red-500/10 text-red-500' : 
-                      'bg-zinc-500/10 text-zinc-500'
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                      coupon.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                      coupon.status === 'expired' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
+                      'bg-stone-100 text-stone-600 border-stone-200'
                     }`}>
                       {coupon.status}
                     </span>
@@ -405,13 +400,15 @@ export const Coupons: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => toggleCouponStatus(coupon.id, coupon.status)}
-                        className="p-2 bg-white/5 border border-white/10 rounded-lg text-zinc-500 hover:text-white transition-all"
+                        className="p-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-500 hover:text-stone-900 transition-all cursor-pointer"
+                        title={coupon.status === 'active' ? 'Disable coupon' : 'Enable coupon'}
                       >
                         {coupon.status === 'active' ? <XCircle size={16} /> : <CheckCircle size={16} />}
                       </button>
                       <button 
                         onClick={() => setDeletingId(coupon.id)}
-                        className="p-2 bg-white/5 border border-white/10 rounded-lg text-zinc-500 hover:text-red-500 transition-all"
+                        className="p-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-500 hover:text-rose-600 hover:border-rose-200 transition-all cursor-pointer"
+                        title="Delete coupon"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -424,62 +421,71 @@ export const Coupons: React.FC = () => {
         </div>
 
         {/* Mobile Coupon List */}
-        <div className="lg:hidden divide-y divide-white/5">
+        <div className="lg:hidden divide-y divide-stone-100">
           {filteredCoupons.map((coupon) => (
-            <div key={coupon.id} className="p-6 space-y-4">
+            <div key={coupon.id} className="p-4 sm:p-5 space-y-3.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                  <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-stone-200 flex items-center justify-center text-[#E76A54]">
                     <Tag size={18} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-black text-white tracking-wider text-sm">{coupon.code}</span>
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${
-                      coupon.status === 'active' ? 'text-emerald-500' : 'text-zinc-500'
+                    <span className="font-bold text-stone-900 tracking-wider text-sm font-mono">{coupon.code}</span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider ${
+                      coupon.status === 'active' ? 'text-emerald-600' : 'text-stone-500'
                     }`}>{coupon.status}</span>
                   </div>
                 </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-white">
-                      {coupon.type === 'percentage' ? `${coupon.value}%` : 
-                       coupon.type === 'fixed' ? `₹${coupon.value}` : 
-                       'Free Gift'}
-                    </p>
-                    <p className="text-[10px] text-zinc-500 font-bold">Min: ₹{coupon.min_order}</p>
-                  </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-stone-900">
+                    {coupon.type === 'percentage' ? `${coupon.value}%` : 
+                     coupon.type === 'fixed' ? `₹${coupon.value}` : 
+                     'Free Gift'}
+                  </p>
+                  <p className="text-[10px] text-stone-500 font-semibold">Min: ₹{coupon.min_order}</p>
                 </div>
-  
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-1">
-                      <span>Usage</span>
-                      <span>{coupon.usage_count}/{coupon.usage_limit}</span>
-                    </div>
-                    <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-orange-500" 
-                        style={{ width: `${((coupon.usage_count || 0) / (coupon.usage_limit || 1)) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-0.5">Expires</p>
-                    <p className="text-[10px] text-white font-bold">{coupon.expiry_date}</p>
-                  </div>
-                </div>
+              </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex justify-between text-[9px] text-stone-500 font-bold uppercase tracking-widest mb-1">
+                    <span>Usage</span>
+                    <span>{coupon.usage_count}/{coupon.usage_limit}</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#E76A54]" 
+                      style={{ width: `${((coupon.usage_count || 0) / (coupon.usage_limit || 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] text-stone-400 uppercase font-bold tracking-widest mb-0.5">Expires</p>
+                  <p className="text-[11px] text-stone-700 font-semibold">{coupon.expiry_date}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
                 <button 
                   onClick={() => toggleCouponStatus(coupon.id, coupon.status)}
-                  className="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-stone-100 border border-stone-200 rounded-xl text-[10px] font-bold uppercase tracking-wider text-stone-700 hover:bg-stone-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {coupon.status === 'active' ? 'Disable' : 'Enable'}
                 </button>
                 <button 
-                  onClick={() => setDeletingId(coupon.id)}
-                  className="px-4 py-2.5 bg-red-500/10 border border-red-500/10 rounded-xl text-red-500"
+                  onClick={() => toggleCouponVisibility(coupon.id, !!coupon.is_hidden)}
+                  className={cn(
+                    "px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer flex items-center gap-1",
+                    coupon.is_hidden ? "bg-stone-100 text-stone-500 border-stone-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  )}
                 >
-                  <Trash2 size={16} />
+                  {coupon.is_hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+                <button 
+                  onClick={() => setDeletingId(coupon.id)}
+                  className="px-3.5 py-2 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 hover:bg-rose-100 transition-all cursor-pointer"
+                >
+                  <Trash2 size={15} />
                 </button>
               </div>
             </div>
@@ -490,46 +496,46 @@ export const Coupons: React.FC = () => {
       {/* Create Modal */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#121212] border border-white/10 rounded-3xl sm:rounded-[2.5rem] p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+              className="relative w-full max-w-lg bg-white border border-stone-200 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden z-10"
             >
-              <div className="flex items-center justify-between mb-6 sm:mb-8 shrink-0">
-                <h3 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tight">New Coupon</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white transition-colors">
-                  <XCircle size={24} />
+              <div className="flex items-center justify-between mb-5 sm:mb-6 shrink-0">
+                <h3 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">New Coupon</h3>
+                <button onClick={() => setIsModalOpen(false)} className="text-stone-400 hover:text-stone-700 transition-colors p-1.5 rounded-xl hover:bg-stone-100 cursor-pointer">
+                  <XCircle size={22} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateCoupon} className="space-y-6 overflow-y-auto no-scrollbar pb-6 pr-1">
+              <form onSubmit={handleCreateCoupon} className="space-y-4 sm:space-y-5 overflow-y-auto no-scrollbar pb-4 pr-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Coupon Code</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Coupon Code</label>
                     <input 
                       type="text" 
                       required
                       placeholder="E.G. WELCOME50"
                       value={newCoupon.code}
                       onChange={(e) => setNewCoupon({...newCoupon, code: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold placeholder:text-zinc-700"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold placeholder:text-stone-400"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Type</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Type</label>
                     <select 
                       value={newCoupon.type}
                       onChange={(e) => setNewCoupon({...newCoupon, type: e.target.value as any})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-sans"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-medium"
                     >
                       <option value="percentage">Percentage (%)</option>
                       <option value="fixed">Fixed Amount (₹)</option>
@@ -538,85 +544,85 @@ export const Coupons: React.FC = () => {
                   </div>
                   {newCoupon.type !== 'free_item' ? (
                     <div>
-                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Value</label>
+                      <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Value</label>
                       <div className="relative">
                         <input 
                           type="number" 
                           required
                           value={newCoupon.value}
                           onChange={(e) => setNewCoupon({...newCoupon, value: Number(e.target.value)})}
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                          className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                         />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400">
                           {newCoupon.type === 'percentage' ? <Percent size={16} /> : <DollarSign size={16} />}
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div className="col-span-1">
-                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Free Item ID</label>
+                      <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Free Item ID</label>
                       <input 
                         type="text" 
                         required
                         placeholder="e.g. cupcakes"
                         value={newCoupon.free_item_id}
                         onChange={(e) => setNewCoupon({...newCoupon, free_item_id: e.target.value})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                        className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                       />
                     </div>
                   )}
                   {newCoupon.type === 'free_item' && (
                     <div className="col-span-1 text-left">
-                      <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Gift Quantity</label>
+                      <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Gift Quantity</label>
                       <input 
                         type="number" 
                         required
                         min="1"
                         value={newCoupon.free_item_quantity}
                         onChange={(e) => setNewCoupon({...newCoupon, free_item_quantity: Number(e.target.value)})}
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                        className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                       />
                     </div>
                   )}
 
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Gift Info URL (Optional)</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Gift Info URL (Optional)</label>
                     <input 
                       type="text" 
                       placeholder="e.g. /product/cupcake-tasting-pack"
                       value={newCoupon.gift_url}
                       onChange={(e) => setNewCoupon({...newCoupon, gift_url: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold placeholder:text-zinc-800"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold placeholder:text-stone-400"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Min. Order (₹)</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Min. Order (₹)</label>
                     <input 
                       type="number" 
                       required
                       value={newCoupon.min_order}
                       onChange={(e) => setNewCoupon({...newCoupon, min_order: Number(e.target.value)})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Usage Limit</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Usage Limit</label>
                     <input 
                       type="number" 
                       required
                       value={newCoupon.usage_limit}
                       onChange={(e) => setNewCoupon({...newCoupon, usage_limit: Number(e.target.value)})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-2 block">Expiry Date</label>
+                    <label className="text-[10px] text-stone-500 uppercase font-black tracking-widest mb-1.5 block">Expiry Date</label>
                     <input 
                       type="date" 
                       required
                       value={newCoupon.expiry_date}
                       onChange={(e) => setNewCoupon({...newCoupon, expiry_date: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-orange-500 transition-all font-bold appearance-none"
+                      className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-bold"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -628,11 +634,11 @@ export const Coupons: React.FC = () => {
                           checked={newCoupon.is_first_order_only}
                           onChange={(e) => setNewCoupon({...newCoupon, is_first_order_only: e.target.checked})}
                         />
-                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_first_order_only ? 'bg-orange-500' : 'bg-zinc-800'}`}>
+                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_first_order_only ? 'bg-[#E76A54]' : 'bg-stone-300'}`}>
                           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.is_first_order_only ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
                       </div>
-                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">First Order Only</span>
+                      <span className="text-xs text-stone-600 font-semibold group-hover:text-stone-900 transition-colors">First Order Only</span>
                     </label>
                   </div>
                   <div className="sm:col-span-2">
@@ -644,20 +650,20 @@ export const Coupons: React.FC = () => {
                           checked={newCoupon.is_hidden}
                           onChange={(e) => setNewCoupon({...newCoupon, is_hidden: e.target.checked})}
                         />
-                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_hidden ? 'bg-orange-500' : 'bg-zinc-800'}`}>
+                        <div className={`w-10 h-5 rounded-full transition-colors ${newCoupon.is_hidden ? 'bg-[#E76A54]' : 'bg-stone-300'}`}>
                           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${newCoupon.is_hidden ? 'translate-x-5' : 'translate-x-0'}`} />
                         </div>
                       </div>
-                      <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest group-hover:text-zinc-300 transition-colors">Hide from Offers List</span>
+                      <span className="text-xs text-stone-600 font-semibold group-hover:text-stone-900 transition-colors">Hide from Offers List</span>
                     </label>
                   </div>
                 </div>
 
-                <div className="sticky bottom-0 pt-4 bg-[#121212] shrink-0">
+                <div className="sticky bottom-0 pt-4 bg-white shrink-0 border-t border-stone-100">
                   <button 
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 bg-[#E76A54] text-white rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-[#d55b45] transition-all shadow-md shadow-[#E76A54]/20 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isLoading ? 'Creating...' : 'Create Coupon'}
                   </button>
