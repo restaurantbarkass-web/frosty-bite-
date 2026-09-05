@@ -182,13 +182,13 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
         duration: 0.35, 
         ease: [0.22, 1, 0.36, 1] 
       }}
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FAF8F5]/94 backdrop-blur-xl border-t border-orange-200/50 rounded-t-[24px] shadow-[0_-10px_35px_rgba(231,106,84,0.08),0_-1px_4px_rgba(0,0,0,0.02)]"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/98 backdrop-blur-xl border-t border-stone-200/90 rounded-t-[24px] shadow-[0_-10px_30px_rgba(0,0,0,0.06),0_-1px_3px_rgba(0,0,0,0.03)]"
       style={{
         paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))'
       }}
     >
-      {/* Soft warm ambient gradient highlight on the top rim */}
-      <div className="absolute top-0 left-8 right-8 h-[1.5px] bg-gradient-to-r from-transparent via-[#E76A54]/40 to-transparent pointer-events-none rounded-full" />
+      {/* Delicate accent gradient highlight on the top rim */}
+      <div className="absolute top-0 left-6 right-6 h-[1.5px] bg-gradient-to-r from-transparent via-[#E76A54]/35 to-transparent pointer-events-none rounded-full" />
 
       <div className="relative max-w-lg mx-auto px-2 pt-1.5 pb-1 flex items-center justify-around">
         {navItems.map((item) => {
@@ -211,7 +211,7 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
               {isActive && (
                 <motion.div
                   layoutId="bottom-nav-active-pill"
-                  className="absolute inset-0 bg-gradient-to-b from-[#FFF1ED] via-[#FFE8E1]/90 to-[#FFDFD6]/80 rounded-2xl border border-[#E76A54]/25 shadow-[0_2px_8px_rgba(231,106,84,0.1)]"
+                  className="absolute inset-0 bg-gradient-to-b from-[#FFF5F2] via-[#FFEFEA] to-[#FFE8E1] rounded-2xl border border-[#E76A54]/30 shadow-[0_2px_8px_rgba(231,106,84,0.12)]"
                   transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                 />
               )}
@@ -227,12 +227,12 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
                 >
                   <Icon
                     size={20}
-                    strokeWidth={isActive ? 2.3 : 1.8}
+                    strokeWidth={isActive ? 2.4 : 1.9}
                     className={cn(
                       "transition-colors duration-200",
                       isActive
-                        ? "text-[#E76A54] fill-[#E76A54]/15"
-                        : "text-stone-400 group-hover:text-stone-600"
+                        ? "text-[#E76A54] fill-[#E76A54]/20"
+                        : "text-stone-500 group-hover:text-stone-800"
                     )}
                   />
                 </motion.div>
@@ -242,7 +242,7 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] rounded-full bg-[#E76A54] text-white text-[9px] font-black flex items-center justify-center px-1 ring-2 ring-[#FAF8F5] shadow-sm shadow-[#E76A54]/40"
+                    className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] rounded-full bg-[#E76A54] text-white text-[9px] font-black flex items-center justify-center px-1 ring-2 ring-white shadow-sm shadow-[#E76A54]/40"
                   >
                     {item.badge > 9 ? '9+' : item.badge}
                   </motion.span>
@@ -255,7 +255,7 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
                   "relative z-10 text-[10px] tracking-tight mt-1 transition-all duration-200 truncate max-w-full",
                   isActive
                     ? "text-[#E76A54] font-bold"
-                    : "text-stone-500 font-medium group-hover:text-stone-700"
+                    : "text-stone-600 font-medium group-hover:text-stone-900"
                 )}
               >
                 {item.name}
