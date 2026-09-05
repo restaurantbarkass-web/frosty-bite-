@@ -41,6 +41,22 @@ const CATEGORY_METADATA: Record<string, CategoryVisualMeta> = {
     bgColor: 'bg-white',
     borderColor: 'border-stone-200/90',
   },
+  'Cheesecakes': {
+    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&q=80&w=800',
+    emoji: '🧀',
+    badge: 'Rich & Creamy',
+    description: 'New York style baked cheesecakes, blueberry swirl & Lotus Biscoff treats.',
+    bgColor: 'bg-white',
+    borderColor: 'border-stone-200/90',
+  },
+  'Cheesecake': {
+    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&q=80&w=800',
+    emoji: '🧀',
+    badge: 'Rich & Creamy',
+    description: 'New York style baked cheesecakes, blueberry swirl & Lotus Biscoff treats.',
+    bgColor: 'bg-white',
+    borderColor: 'border-stone-200/90',
+  },
   'Pastries': {
     image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=800',
     emoji: '🥐',
@@ -174,7 +190,7 @@ export const CategoriesPage: React.FC = () => {
   const computedCategories = useMemo(() => {
     if (!items || items.length === 0) {
       const filtered = (rawCategories || []).filter(c => c && c.toLowerCase() !== 'all');
-      return filtered.length > 0 ? filtered : ['Cakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
+      return filtered.length > 0 ? filtered : ['Cakes', 'Cheesecakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
     }
 
     const uniqueCats = Array.from(

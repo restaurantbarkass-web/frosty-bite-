@@ -19,6 +19,7 @@ import { toast } from 'react-hot-toast';
 import { useCartActions } from '../context/CartContext';
 import { FrostyAnimation } from '../components/LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
+import { OrderCancelledView } from '../components/orders/OrderCancelledView';
 
 const STATUS_ANIMATIONS: Record<string, string> = {
   pending: LOTTIE_ANIMATIONS.PROCESSING,
@@ -350,260 +351,262 @@ export const OrderTracking: React.FC = () => {
           </div>
         </div>
 
-        {/* Hero Live Status & ETA Card */}
-        <div className="bg-gradient-to-br from-stone-900 via-[#1C1816] to-[#2B1E1A] rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-stone-800 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-[#E76A54]/15 rounded-full blur-3xl pointer-events-none" />
+        {/* Conditional Rendering: Cancelled UI vs Active Tracking UI */}
+        {order?.status === 'cancelled' ? (
+          <OrderCancelledView order={order} onReorder={handleReorderItems} />
+        ) : (
+          <>
+            {/* Hero Live Status & ETA Card */}
+            <div className="bg-gradient-to-br from-stone-900 via-[#1C1816] to-[#2B1E1A] rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-stone-800 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-72 h-72 bg-[#E76A54]/15 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-3 flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/15 text-[#E5A970]">
-                <span className="w-2 h-2 rounded-full bg-[#E76A54] animate-ping" />
-                <span>
-                  {order?.status === 'delivered' ? 'Order Delivered 🎉' :
-                   order?.status === 'out_for_delivery' ? 'Courier On The Road 🛵' :
-                   order?.status === 'preparing' ? 'Chef Baking in Oven 👩‍🍳' :
-                   order?.status === 'cancelled' ? 'Order Cancelled' :
-                   'Order Queued in Kitchen ✅'}
-                </span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white tracking-tight">
-                {order?.status === 'delivered' ? 'Your treats have arrived!' :
-                 order?.status === 'cancelled' ? 'Order has been cancelled' :
-                 'Estimated Arrival: 20–25 Mins'}
-              </h2>
-              <p className="text-xs sm:text-sm text-stone-300 max-w-lg leading-relaxed">
-                {order?.status === 'delivered'
-                  ? 'We hope you love every bite! Freshly baked artisanal pastry crafted with love.'
-                  : order?.status === 'cancelled'
-                  ? 'This order was cancelled. Please feel free to order again or reach out to support.'
-                  : 'Your fresh artisan treats are being prepared in our kitchen oven with authentic ingredients.'}
-              </p>
-            </div>
-
-            {/* Live Animated Status Character / Lottie Animation */}
-            <div className="flex items-center shrink-0 justify-center sm:justify-end">
-              <div className="w-28 h-28 sm:w-36 sm:h-36 relative flex items-center justify-center">
-                <div className="absolute inset-0 bg-[#E76A54]/20 rounded-full blur-xl animate-pulse" />
-                <FrostyAnimation 
-                  type={
-                    order?.status === 'delivered' ? 'delivered' :
-                    order?.status === 'out_for_delivery' ? 'delivery_scooter' :
-                    order?.status === 'preparing' ? 'chef_cooking' :
-                    order?.status === 'confirmed' ? 'order_confirmed' :
-                    order?.status === 'cancelled' ? 'cancelled' : 'processing'
-                  }
-                  animation={STATUS_ANIMATIONS[order?.status || 'pending']}
-                  className="w-full h-full object-contain relative z-10 drop-shadow-lg"
-                  loop={true}
-                  autoplay={true}
-                  fallback={
-                    <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center text-[#E76A54]">
-                      <ChefHat size={36} className="animate-bounce" />
-                    </div>
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Stepper Progress Bar */}
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {STATUS_STEPS.map((step, idx) => {
-                const Icon = step.icon;
-                const isPassed = idx <= currentStatusIndex;
-                const isCurrent = idx === currentStatusIndex;
-
-                return (
-                  <div 
-                    key={step.id}
-                    className={cn(
-                      "p-3.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden",
-                      isCurrent ? "bg-[#E76A54]/20 border-[#E76A54] text-white shadow-md shadow-[#E76A54]/20 ring-1 ring-[#E76A54]/40" :
-                      isPassed ? "bg-white/10 border-white/20 text-white" :
-                      "bg-black/20 border-white/5 text-stone-500"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={cn(
-                        "w-8 h-8 rounded-xl flex items-center justify-center relative",
-                        isCurrent ? "bg-[#E76A54] text-white animate-pulse" :
-                        isPassed ? "bg-emerald-500/20 text-emerald-400" :
-                        "bg-white/5 text-stone-600"
-                      )}>
-                        <Icon size={16} />
-                      </div>
-                      <span className="text-[10px] font-mono font-bold opacity-60">
-                        {step.time}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h4 className={cn("text-xs font-bold", isPassed ? "text-white" : "text-stone-500")}>
-                        {step.label}
-                      </h4>
-                      <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-2 leading-tight">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Delivery Address Details */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-              <MapPin size={14} className="text-[#E76A54]" />
-              Delivery Destination
-            </span>
-            <span className="text-xs text-stone-500 font-medium">
-              {order?.customer_name || 'Customer'}
-            </span>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs sm:text-sm font-semibold text-stone-800 leading-relaxed">
-              {order?.address || order?.delivery_address || 'Delivery address saved with kitchen'}
-            </p>
-            {order?.notes && (
-              <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/50 text-[11px] text-amber-800">
-                <span className="font-bold">Note:</span> {order.notes}
-              </div>
-            )}
-          </div>
-
-          <div className="pt-2 text-xs text-stone-500 flex items-center justify-between border-t border-stone-100">
-            <span>Contact: {order?.phone || 'Verified via OTP'}</span>
-            <span className="font-mono text-[10px] text-emerald-600 font-bold uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-              Prepaid Verified
-            </span>
-          </div>
-        </div>
-
-        {/* Itemized Order Details & Bill Breakdown */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
-                <Receipt size={18} className="text-[#E76A54]" />
-                Order Summary & Items
-              </h2>
-              <p className="text-xs text-stone-500 mt-0.5">
-                Crafted fresh at Frosty Bite Artisan Kitchen
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleReorderItems}
-              className="px-3.5 py-1.5 rounded-xl bg-[#E76A54]/10 hover:bg-[#E76A54]/20 text-[#E76A54] text-xs font-bold transition-colors cursor-pointer"
-            >
-              Order Again 🔁
-            </button>
-          </div>
-
-          {/* Items List */}
-          <div className="divide-y divide-stone-100">
-            {order?.items && Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
-              <div key={idx} className="py-3.5 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <Cake size={18} className="text-[#E76A54]" />
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-snug">
-                      {item.name}
-                    </h4>
-                    <span className="text-[11px] text-stone-500 font-medium">
-                      Qty: {item.quantity || 1} × ₹{item.price}
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-3 flex-1">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/15 text-[#E5A970]">
+                    <span className="w-2 h-2 rounded-full bg-[#E76A54] animate-ping" />
+                    <span>
+                      {order?.status === 'delivered' ? 'Order Delivered 🎉' :
+                       order?.status === 'out_for_delivery' ? 'Courier On The Road 🛵' :
+                       order?.status === 'preparing' ? 'Chef Baking in Oven 👩‍🍳' :
+                       'Order Queued in Kitchen ✅'}
                     </span>
                   </div>
+                  <h2 className="text-2xl sm:text-3xl font-serif font-bold text-white tracking-tight">
+                    {order?.status === 'delivered' ? 'Your treats have arrived!' :
+                     'Estimated Arrival: 20–25 Mins'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-stone-300 max-w-lg leading-relaxed">
+                    {order?.status === 'delivered'
+                      ? 'We hope you love every bite! Freshly baked artisanal pastry crafted with love.'
+                      : 'Your fresh artisan treats are being prepared in our kitchen oven with authentic ingredients.'}
+                  </p>
                 </div>
 
-                <div className="text-xs sm:text-sm font-bold text-stone-900 font-mono">
-                  ₹{(item.price || 0) * (item.quantity || 1)}
+                {/* Live Animated Status Character / Lottie Animation */}
+                <div className="flex items-center shrink-0 justify-center sm:justify-end">
+                  <div className="w-28 h-28 sm:w-36 sm:h-36 relative flex items-center justify-center">
+                    <div className="absolute inset-0 bg-[#E76A54]/20 rounded-full blur-xl animate-pulse" />
+                    <FrostyAnimation 
+                      type={
+                        order?.status === 'delivered' ? 'delivered' :
+                        order?.status === 'out_for_delivery' ? 'delivery_scooter' :
+                        order?.status === 'preparing' ? 'chef_cooking' :
+                        order?.status === 'confirmed' ? 'order_confirmed' : 'processing'
+                      }
+                      animation={STATUS_ANIMATIONS[order?.status || 'pending']}
+                      className="w-full h-full object-contain relative z-10 drop-shadow-lg"
+                      loop={true}
+                      autoplay={true}
+                      fallback={
+                        <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center text-[#E76A54]">
+                          <ChefHat size={36} className="animate-bounce" />
+                        </div>
+                      }
+                    />
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          {/* Financial Breakdown */}
-          <div className="bg-stone-50 rounded-2xl p-4 sm:p-5 space-y-2.5 text-xs text-stone-600 border border-stone-200/80">
-            <div className="flex justify-between">
-              <span>Items Subtotal</span>
-              <span className="font-mono font-semibold text-stone-900">₹{order?.total || 0}</span>
-            </div>
-            <div className="flex justify-between text-emerald-700">
-              <span>Delivery Fee (Frosty Special)</span>
-              <span className="font-mono font-bold uppercase text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded">
-                FREE DELIVERY
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Taxes & Kitchen Packaging</span>
-              <span className="font-mono font-semibold text-stone-900">Included</span>
-            </div>
-            <div className="pt-2.5 border-t border-stone-200 flex justify-between items-center text-sm sm:text-base font-bold text-stone-900">
-              <span>Grand Total Paid</span>
-              <span className="font-mono text-base sm:text-lg text-[#E76A54]">
-                ₹{order?.total || 0}
-              </span>
-            </div>
-          </div>
-        </div>
+              {/* Stepper Progress Bar */}
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {STATUS_STEPS.map((step, idx) => {
+                    const Icon = step.icon;
+                    const isPassed = idx <= currentStatusIndex;
+                    const isCurrent = idx === currentStatusIndex;
 
-        {/* Review & Feedback Card (if delivered and not yet reviewed) */}
-        {order?.status === 'delivered' && !reviewSubmitted && (
-          <div className="bg-white rounded-3xl p-6 border border-stone-200/80 shadow-xs space-y-4">
-            <div className="text-center max-w-sm mx-auto space-y-1">
-              <h3 className="text-base font-serif font-bold text-stone-900">
-                How were your treats today? 🍰
-              </h3>
-              <p className="text-xs text-stone-500">
-                Your feedback helps our pastry chefs craft the best desserts in town!
-              </p>
+                    return (
+                      <div 
+                        key={step.id}
+                        className={cn(
+                          "p-3.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden",
+                          isCurrent ? "bg-[#E76A54]/20 border-[#E76A54] text-white shadow-md shadow-[#E76A54]/20 ring-1 ring-[#E76A54]/40" :
+                          isPassed ? "bg-white/10 border-white/20 text-white" :
+                          "bg-black/20 border-white/5 text-stone-500"
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className={cn(
+                            "w-8 h-8 rounded-xl flex items-center justify-center relative",
+                            isCurrent ? "bg-[#E76A54] text-white animate-pulse" :
+                            isPassed ? "bg-emerald-500/20 text-emerald-400" :
+                            "bg-white/5 text-stone-600"
+                          )}>
+                            <Icon size={16} />
+                          </div>
+                          <span className="text-[10px] font-mono font-bold opacity-60">
+                            {step.time}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className={cn("text-xs font-bold", isPassed ? "text-white" : "text-stone-500")}>
+                            {step.label}
+                          </h4>
+                          <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-2 leading-tight">
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleReviewSubmit} className="max-w-md mx-auto space-y-3">
-              <div className="flex items-center justify-center gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    className="p-1 cursor-pointer hover:scale-125 transition-transform"
-                  >
-                    <Star
-                      size={24}
-                      className={cn(
-                        star <= rating ? "fill-amber-400 text-amber-400" : "text-stone-300"
-                      )}
-                    />
-                  </button>
+            {/* Delivery Address Details */}
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                  <MapPin size={14} className="text-[#E76A54]" />
+                  Delivery Destination
+                </span>
+                <span className="text-xs text-stone-500 font-medium">
+                  {order?.customer_name || 'Customer'}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs sm:text-sm font-semibold text-stone-800 leading-relaxed">
+                  {order?.address || order?.delivery_address || 'Delivery address saved with kitchen'}
+                </p>
+                {order?.notes && (
+                  <div className="p-2.5 rounded-xl bg-amber-50/60 border border-amber-200/50 text-[11px] text-amber-800">
+                    <span className="font-bold">Note:</span> {order.notes}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 text-xs text-stone-500 flex items-center justify-between border-t border-stone-100">
+                <span>Contact: {order?.phone || 'Verified via OTP'}</span>
+                <span className="font-mono text-[10px] text-emerald-600 font-bold uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+                  Prepaid Verified
+                </span>
+              </div>
+            </div>
+
+            {/* Itemized Order Details & Bill Breakdown */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-serif font-bold text-stone-900 flex items-center gap-2">
+                    <Receipt size={18} className="text-[#E76A54]" />
+                    Order Summary & Items
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Crafted fresh at Frosty Bite Artisan Kitchen
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReorderItems}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#E76A54]/10 hover:bg-[#E76A54]/20 text-[#E76A54] text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Order Again 🔁
+                </button>
+              </div>
+
+              {/* Items List */}
+              <div className="divide-y divide-stone-100">
+                {order?.items && Array.isArray(order.items) && order.items.map((item: any, idx: number) => (
+                  <div key={idx} className="py-3.5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0 overflow-hidden">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Cake size={18} className="text-[#E76A54]" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-snug">
+                          {item.name}
+                        </h4>
+                        <span className="text-[11px] text-stone-500 font-medium">
+                          Qty: {item.quantity || 1} × ₹{item.price}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-xs sm:text-sm font-bold text-stone-900 font-mono">
+                      ₹{(item.price || 0) * (item.quantity || 1)}
+                    </div>
+                  </div>
                 ))}
               </div>
-              <textarea
-                value={reviewComment}
-                onChange={(e) => setReviewComment(e.target.value)}
-                placeholder="Tell us what you loved about the flavor, texture, and delivery..."
-                rows={2}
-                className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-[#E76A54]"
-              />
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                Submit Review
-              </button>
-            </form>
-          </div>
+
+              {/* Financial Breakdown */}
+              <div className="bg-stone-50 rounded-2xl p-4 sm:p-5 space-y-2.5 text-xs text-stone-600 border border-stone-200/80">
+                <div className="flex justify-between">
+                  <span>Items Subtotal</span>
+                  <span className="font-mono font-semibold text-stone-900">₹{order?.total || 0}</span>
+                </div>
+                <div className="flex justify-between text-emerald-700">
+                  <span>Delivery Fee (Frosty Special)</span>
+                  <span className="font-mono font-bold uppercase text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded">
+                    FREE DELIVERY
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Taxes & Kitchen Packaging</span>
+                  <span className="font-mono font-semibold text-stone-900">Included</span>
+                </div>
+                <div className="pt-2.5 border-t border-stone-200 flex justify-between items-center text-sm sm:text-base font-bold text-stone-900">
+                  <span>Grand Total Paid</span>
+                  <span className="font-mono text-base sm:text-lg text-[#E76A54]">
+                    ₹{order?.total || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Review & Feedback Card (if delivered and not yet reviewed) */}
+            {order?.status === 'delivered' && !reviewSubmitted && (
+              <div className="bg-white rounded-3xl p-6 border border-stone-200/80 shadow-xs space-y-4">
+                <div className="text-center max-w-sm mx-auto space-y-1">
+                  <h3 className="text-base font-serif font-bold text-stone-900">
+                    How were your treats today? 🍰
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Your feedback helps our pastry chefs craft the best desserts in town!
+                  </p>
+                </div>
+
+                <form onSubmit={handleReviewSubmit} className="max-w-md mx-auto space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        className="p-1 cursor-pointer hover:scale-125 transition-transform"
+                      >
+                        <Star
+                          size={24}
+                          className={cn(
+                            star <= rating ? "fill-amber-400 text-amber-400" : "text-stone-300"
+                          )}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Tell us what you loved about the flavor, texture, and delivery..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-900 focus:outline-none focus:border-[#E76A54]"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Submit Review
+                  </button>
+                </form>
+              </div>
+            )}
+          </>
         )}
 
       </div>

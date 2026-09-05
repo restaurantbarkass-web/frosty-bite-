@@ -424,13 +424,26 @@ const Orders: React.FC = () => {
                               }
                             } else if (order.status === 'cancelled') {
                               return (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 text-rose-500 text-[9px] font-black uppercase tracking-widest">
-                                    <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                                    Order Cancelled
+                                <div className="space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-rose-400 text-[9px] font-black uppercase tracking-widest">
+                                      <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                                      Order Cancelled
+                                    </div>
+                                    <span className="text-[9px] text-zinc-500 font-mono">
+                                      {order.payment_method === 'cod' ? 'COD Order' : 'Prepaid'}
+                                    </span>
                                   </div>
+                                  
+                                  <Link
+                                    to={`/order-tracking/${order.id}`}
+                                    className="block w-full py-2 px-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 hover:text-rose-200 rounded-xl text-[10px] font-bold text-center transition-colors"
+                                  >
+                                    View Cancellation & Refund Breakdown →
+                                  </Link>
+
                                   {order.refund_status && order.refund_status !== 'none' && (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 pt-1">
                                       <span className={cn(
                                         "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
                                         order.refund_status === 'refunded'

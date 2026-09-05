@@ -126,7 +126,8 @@ export const Analytics: React.FC = () => {
 
   // Group by category
   const popularItemsData = [
-    { name: 'Cakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cake'))).length },
+    { name: 'Cakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cake') && !i.name?.toLowerCase().includes('cheesecake'))).length },
+    { name: 'Cheesecakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cheesecake'))).length },
     { name: 'Pastries', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('pastry') || i.name?.toLowerCase().includes('croissant'))).length },
     { name: 'Cupcakes', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('cupcake'))).length },
     { name: 'Brownies', sales: filteredOrders.filter(o => o.items?.some((i: any) => i.name?.toLowerCase().includes('brownie'))).length },

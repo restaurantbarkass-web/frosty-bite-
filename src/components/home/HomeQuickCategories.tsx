@@ -13,6 +13,7 @@ interface CategoryItem {
 
 const CATEGORY_ITEMS: CategoryItem[] = [
   { id: 'Cakes', name: 'Cakes', emoji: '🍰', bgColor: 'bg-[#FFF1EE]', borderColor: 'border-[#FADCD6]' },
+  { id: 'Cheesecakes', name: 'Cheesecake', emoji: '🧀', bgColor: 'bg-[#FFF9EA]', borderColor: 'border-[#FEECC4]' },
   { id: 'Pastries', name: 'Pastries', emoji: '🍮', bgColor: 'bg-[#F7F2EB]', borderColor: 'border-[#E9DFD3]' },
   { id: 'Cupcakes', name: 'Cupcakes', emoji: '🧁', bgColor: 'bg-[#FDF0F3]', borderColor: 'border-[#F8DBE2]' },
   { id: 'Brownies', name: 'Brownies', emoji: '🍫', bgColor: 'bg-[#F5ECE5]', borderColor: 'border-[#E8D8CC]' },

@@ -20,7 +20,7 @@ export const getRoleFromEmail = (email: string | null): UserRole => {
   return 'customer';
 };
 
-export const CATEGORIES = ['Cakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
+export const CATEGORIES = ['Cakes', 'Cheesecakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
 
 export const MENU_ITEMS: FoodItem[] = [
   {
@@ -32,6 +32,18 @@ export const MENU_ITEMS: FoodItem[] = [
     image: 'https://images.unsplash.com/photo-1586788680434-30d3246718d0?auto=format&fit=crop&q=80&w=800',
     category: 'Cakes',
     stock_quantity: 10,
+    available: true
+  },
+  {
+    id: '10',
+    name: 'New York Classic Cheesecake',
+    description: 'Rich and velvety baked cream cheese filling on a buttery Graham cracker crust with fresh berry coulis.',
+    price: 320,
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&q=80&w=800',
+    category: 'Cheesecakes',
+    tags: ['cheesecake', 'classic', 'creamy', 'best-seller'],
+    stock_quantity: 18,
     available: true
   },
   {
