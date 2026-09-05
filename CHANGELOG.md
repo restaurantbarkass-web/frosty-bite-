@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `8`
+- **Release Details**:
+* 5ada7c9 feat: redesign home and categories experience, update navigation and food components
+
+
 ## [1.6] - 2026-09-03 (PRODUCTION)
 - **Build / Version Code**: `7`
 - **Release Details**:
