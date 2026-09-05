@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.12] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `13`
+- **Release Details**:
+* 3c5f2f0 feat: introduce swipe-to-confirm checkout interaction, real-time promo claims, and enhanced order confirmation
+
+
 ## [1.11] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `12`
 - **Release Details**:
