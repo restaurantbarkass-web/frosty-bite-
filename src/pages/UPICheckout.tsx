@@ -33,6 +33,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { PaymentStatusCard, PaymentState } from '../components/payment/PaymentStatusCard';
 import { PaymentLeaveModal } from '../components/payment/PaymentLeaveModal';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 const DEFAULT_UPI_ID = "7735800239@ibl";
 const DISPLAY_UPI_ID = "frostybite@upi";
@@ -1123,12 +1124,7 @@ export const UPICheckout: React.FC = () => {
   }
 
   if (authStatus === 'loading' || authLoading) {
-    return (
-      <div className="min-h-svh flex flex-col items-center justify-center bg-zinc-950 text-white p-6">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-400 mb-4" />
-        <p className="text-sm font-black uppercase tracking-widest text-zinc-400">Restoring secure session...</p>
-      </div>
-    );
+    return <LoadingScreen fullScreen={true} message="Restoring secure checkout session..." />;
   }
 
   return (

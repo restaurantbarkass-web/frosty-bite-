@@ -6,6 +6,7 @@ import './index.css';
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initGlobalSoundListeners } from './utils/soundEffects';
+import { LoadingScreen } from './components/LoadingScreen';
 
 // Initialize global UI button sound effects
 initGlobalSoundListeners();
@@ -13,11 +14,7 @@ initGlobalSoundListeners();
 /* ---------------- LOADER ---------------- */
 
 function Loader() {
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center text-white">
-      Loading Frosty Bite...
-    </div>
-  );
+  return <LoadingScreen fullScreen={true} />;
 }
 
 /* ---------------- PREVENT REFRESH LOOPS ---------------- */

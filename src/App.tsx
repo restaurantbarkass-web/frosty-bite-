@@ -61,17 +61,17 @@ const FeedbackPage = lazyWithRetry(() => import('./pages/FeedbackPage'));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
-    <div className="h-[3px] w-full bg-white/5 relative overflow-hidden">
+    <div className="h-1 w-full bg-stone-200/50 relative overflow-hidden backdrop-blur-xs">
       <motion.div 
         animate={{ 
           x: ["-100%", "200%"] 
         }}
         transition={{ 
-          duration: 1.5, 
+          duration: 1.2, 
           repeat: Infinity, 
-          ease: "easeInOut" 
+          ease: [0.4, 0, 0.2, 1] 
         }}
-        className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-primary to-transparent"
+        className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-[#E76A54] to-amber-400 rounded-full shadow-[0_0_12px_rgba(231,106,84,0.7)]"
       />
     </div>
   </div>

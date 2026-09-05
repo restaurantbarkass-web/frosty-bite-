@@ -347,7 +347,30 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #FAF8F5; font-family: Inter, -apple-system, sans-serif; user-select: none;">
+        <div style="position: relative; width: 84px; height: 84px; border-radius: 26px; background: #ffffff; border: 1px solid #fed7aa; box-shadow: 0 12px 30px rgba(231,106,84,0.12); display: flex; align-items: center; justify-content: center; animation: initial-bounce 2s ease-in-out infinite;">
+          <span style="font-size: 40px; transform: translateY(-2px);">🍰</span>
+        </div>
+        <div style="margin-top: 22px; text-align: center;">
+          <h2 style="font-family: 'Archivo Black', -apple-system, sans-serif; text-transform: uppercase; letter-spacing: -0.02em; color: #1c1917; font-size: 24px; margin: 0;">Frosty Bite</h2>
+          <p style="color: #78716c; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; margin-top: 6px;">Artisan Patisserie</p>
+        </div>
+        <div style="width: 140px; height: 5px; background: #e7e5e4; border-radius: 9999px; overflow: hidden; margin-top: 20px; position: relative;">
+          <div style="position: absolute; top: 0; bottom: 0; width: 55%; background: linear-gradient(90deg, #E76A54, #f59e0b); border-radius: 9999px; animation: initial-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes initial-bounce {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-6px) scale(1.03); }
+        }
+        @keyframes initial-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(250%); }
+        }
+      </style>
+    </div>
     <script type="module" crossorigin src="/src/main.tsx"></script>
   </body>
 </html>

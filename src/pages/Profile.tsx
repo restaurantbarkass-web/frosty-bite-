@@ -28,6 +28,7 @@ import { formatOrderId } from '../utils/orderUtils';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { searchService, AiRecommendationResponse } from '../services/searchService';
 import { useMenu } from '../context/MenuContext';
+import { LoadingScreen } from '../components/LoadingScreen';
 import { useNotifications } from '../context/NotificationContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
@@ -877,12 +878,7 @@ export const Profile: React.FC = () => {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold animate-pulse">Establishing Secure Session...</p>
-      </div>
-    );
+    return <LoadingScreen fullScreen={true} message="Establishing secure session..." />;
   }
 
   const handleSaveAvatar = async (avatarConfig: any) => {

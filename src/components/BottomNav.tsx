@@ -7,12 +7,13 @@ import { useNotifications } from '../context/NotificationContext';
 import { motion } from 'motion/react';
 import { preloadRoute } from '../utils/preload';
 import { cn } from '../lib/utils';
+import { playClickSound } from '../utils/soundEffects';
 
 interface BottomNavProps {
   onCartClick?: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = React.memo(() => {
+export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCartState();
   const { unreadCount } = useNotifications();
@@ -150,6 +151,7 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(() => {
 
   const handleItemClick = (item: typeof navItems[0]) => {
     try {
+      playClickSound(580);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate(8);
       }
@@ -180,12 +182,15 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(() => {
         duration: 0.35, 
         ease: [0.22, 1, 0.36, 1] 
       }}
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-t border-stone-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FAF8F5]/94 backdrop-blur-xl border-t border-orange-200/50 rounded-t-[24px] shadow-[0_-10px_35px_rgba(231,106,84,0.08),0_-1px_4px_rgba(0,0,0,0.02)]"
       style={{
         paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))'
       }}
     >
-      <div className="max-w-md mx-auto px-2 pt-2 pb-1 flex items-center justify-around">
+      {/* Soft warm ambient gradient highlight on the top rim */}
+      <div className="absolute top-0 left-8 right-8 h-[1.5px] bg-gradient-to-r from-transparent via-[#E76A54]/40 to-transparent pointer-events-none rounded-full" />
+
+      <div className="relative max-w-lg mx-auto px-2 pt-1.5 pb-1 flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.isActive;
@@ -197,45 +202,70 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(() => {
               onClick={() => handleItemClick(item)}
               onMouseEnter={() => preloadRoute(item.path)}
               onTouchStart={() => preloadRoute(item.path)}
-              whileTap={{ scale: 0.88 }}
-              className="relative flex flex-col items-center justify-center min-w-0 flex-1 py-1 px-1 rounded-2xl focus:outline-none cursor-pointer group"
+              whileTap={{ scale: 0.9 }}
+              className="relative flex flex-col items-center justify-center min-w-0 flex-1 py-1.5 px-1 rounded-2xl focus:outline-none cursor-pointer group select-none transition-transform"
               aria-label={item.name}
               aria-current={isActive ? 'page' : undefined}
             >
-              {/* Icon Container */}
-              <div className="relative">
-                <Icon
-                  size={20}
-                  strokeWidth={isActive ? 2.4 : 1.8}
-                  className={cn(
-                    "transition-colors duration-200",
-                    isActive ? "text-[#E76A54]" : "text-stone-400 group-hover:text-stone-700"
-                  )}
+              {/* Active Ambient Pill Indicator */}
+              {isActive && (
+                <motion.div
+                  layoutId="bottom-nav-active-pill"
+                  className="absolute inset-0 bg-gradient-to-b from-[#FFF1ED] via-[#FFE8E1]/90 to-[#FFDFD6]/80 rounded-2xl border border-[#E76A54]/25 shadow-[0_2px_8px_rgba(231,106,84,0.1)]"
+                  transition={{ type: 'spring', stiffness: 450, damping: 32 }}
                 />
+              )}
+
+              {/* Icon Container with subtle spring scale */}
+              <div className="relative z-10">
+                <motion.div
+                  animate={{
+                    scale: isActive ? 1.08 : 1,
+                    y: isActive ? -1 : 0
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                >
+                  <Icon
+                    size={20}
+                    strokeWidth={isActive ? 2.3 : 1.8}
+                    className={cn(
+                      "transition-colors duration-200",
+                      isActive
+                        ? "text-[#E76A54] fill-[#E76A54]/15"
+                        : "text-stone-400 group-hover:text-stone-600"
+                    )}
+                  />
+                </motion.div>
 
                 {/* Badge (e.g. Unread notifications or Orders) */}
                 {item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] rounded-full bg-[#E76A54] text-white text-[9px] font-black flex items-center justify-center px-0.5 shadow-xs">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1.5 -right-2 min-w-[17px] h-[17px] rounded-full bg-[#E76A54] text-white text-[9px] font-black flex items-center justify-center px-1 ring-2 ring-[#FAF8F5] shadow-sm shadow-[#E76A54]/40"
+                  >
                     {item.badge > 9 ? '9+' : item.badge}
-                  </span>
+                  </motion.span>
                 )}
               </div>
 
               {/* Label */}
               <span
                 className={cn(
-                  "text-[10px] sm:text-[11px] tracking-tight mt-1 transition-colors duration-200 truncate max-w-full",
-                  isActive ? "text-[#E76A54] font-bold" : "text-stone-500 group-hover:text-stone-700 font-medium"
+                  "relative z-10 text-[10px] tracking-tight mt-1 transition-all duration-200 truncate max-w-full",
+                  isActive
+                    ? "text-[#E76A54] font-bold"
+                    : "text-stone-500 font-medium group-hover:text-stone-700"
                 )}
               >
                 {item.name}
               </span>
 
-              {/* Active Dot Indicator */}
+              {/* Active Glowing Dot Accent */}
               {isActive && (
                 <motion.div
                   layoutId="bottom-nav-active-dot"
-                  className="w-1.5 h-1.5 rounded-full bg-[#E76A54] mt-0.5"
+                  className="relative z-10 w-1 h-1 rounded-full bg-[#E76A54] mt-0.5 shadow-[0_0_6px_rgba(231,106,84,0.8)]"
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               )}

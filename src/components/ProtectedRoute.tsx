@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { ShieldAlert } from 'lucide-react';
+import { LoadingScreen } from './LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -45,18 +46,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }, [userId, loading, authStatus, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout]);
 
   if (loading || authStatus === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6">
-        <div className="flex flex-col items-center gap-6">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-            className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full shadow-[0_0_30px_rgba(249,115,22,0.1)]"
-          />
-          <p className="text-zinc-500 text-xs font-black uppercase tracking-[0.4em] animate-pulse">Checking Access</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen fullScreen={true} message="Verifying secure access..." />;
   }
 
   if (!user) {

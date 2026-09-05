@@ -13,6 +13,7 @@ import { CancelOrderModal } from '../components/CancelOrderModal';
 import toast from 'react-hot-toast';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatOrderId } from '../utils/orderUtils';
+import { OrderSkeleton } from '../components/OrderSkeleton';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -231,12 +232,7 @@ const Orders: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold animate-pulse">Fetching Your History...</p>
-      </div>
-    );
+    return <OrderSkeleton />;
   }
 
   return (
