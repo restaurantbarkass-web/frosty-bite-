@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `11`
+- **Release Details**:
+* 16b7664 feat: optimize mobile responsiveness, touch targets, and visual polish across product details and navigation
+
+
 ## [1.9] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `10`
 - **Release Details**:
