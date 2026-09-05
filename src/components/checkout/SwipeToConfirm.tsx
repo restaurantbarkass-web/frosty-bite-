@@ -173,15 +173,15 @@ export const SwipeToConfirm: React.FC<SwipeToConfirmProps> = ({
 
         {/* Centered Track Text / Feedback Label */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-12">
-          {disabled ? (
-            <div className="flex items-center gap-2 text-stone-400 font-bold text-xs uppercase tracking-wider text-center">
-              <Lock size={14} className="shrink-0" />
-              <span className="truncate">{disabledReason || 'Checkout Unavailable'}</span>
-            </div>
-          ) : isProcessing ? (
+          {isProcessing ? (
             <div className="flex items-center gap-2.5 text-white font-bold text-xs sm:text-sm tracking-wide">
               <Loader2 className="animate-spin shrink-0 text-white" size={18} />
               <span>{processingText}</span>
+            </div>
+          ) : disabled ? (
+            <div className="flex items-center gap-2 text-stone-400 font-bold text-xs uppercase tracking-wider text-center">
+              <Lock size={14} className="shrink-0" />
+              <span className="truncate">{disabledReason || 'Checkout Unavailable'}</span>
             </div>
           ) : (
             <motion.div 
