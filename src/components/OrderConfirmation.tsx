@@ -1,14 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
-import { Package, MapPin, CreditCard, Clock, MessageCircle, Truck, CheckCircle2, Sparkles, Cake, Calendar } from 'lucide-react';
+import { 
+  Package, 
+  MapPin, 
+  CreditCard, 
+  Clock, 
+  MessageCircle, 
+  Truck, 
+  CheckCircle2, 
+  Sparkles, 
+  Cake, 
+  Calendar,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ShoppingBag,
+  Flame,
+  ChefHat,
+  ArrowRight,
+  ShieldCheck,
+  HeartHandshake
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { FrostyAnimation } from './LottiePlayer';
 import { LOTTIE_ANIMATIONS } from '../constants/animations';
 import { openWhatsAppOrder } from '../utils/whatsapp';
-import { RESTAURANT_WHATSAPP } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { formatOrderId } from '../utils/orderUtils';
+import { cn, haptic } from '../lib/utils';
+import { playSuccessChime } from '../utils/soundEffects';
 
 interface OrderItem {
   id: string;
@@ -28,6 +50,7 @@ interface OrderConfirmationProps {
     notes?: string;
     delivery_date?: string;
     delivery_time?: string;
+    delivery_time_slot?: string;
     cake_message?: string;
     cake_occasion?: string;
     cake_candle_knife?: boolean;
@@ -36,10 +59,11 @@ interface OrderConfirmationProps {
     amount: number;
     delivery_charge?: number;
     discount?: number;
+    couponCode?: string;
     items?: OrderItem[];
     estimatedDelivery?: number | string;
-    id?: string; // Add optional id for backward compatibility
-    total?: number; // Add optional total for backward compatibility
+    id?: string;
+    total?: number;
     utr?: string;
   };
   onClose: () => void;
@@ -52,69 +76,90 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user, openAuthModal } = useAuth();
+  
   const idValue = orderData?.orderId || orderData?.id || '';
+  const formattedId = formatOrderId(idValue);
   const amountValue = orderData?.amount || orderData?.total || 0;
-  const deliveryTime = orderData?.estimatedDelivery || 45;
+  const deliveryTime = orderData?.estimatedDelivery || '35-45 mins';
+  
+  const [copied, setCopied] = useState(false);
+  const [showItemDetails, setShowItemDetails] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      const duration = 4 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 10000 };
+      // Play celebratory chime
+      try {
+        playSuccessChime();
+      } catch (e) {}
 
+      // Fire celebratory confetti bursts
+      const duration = 3.5 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 40, spread: 360, ticks: 90, zIndex: 10000 };
       const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
       const interval: any = setInterval(() => {
         const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) return clearInterval(interval);
 
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 60 * (timeLeft / duration);
+        const particleCount = 50 * (timeLeft / duration);
+        // Frosty Bite Theme Palette: Warm Coral, Golden Amber, Emerald, Pure White
+        const colors = ['#E76A54', '#F97316', '#F59E0B', '#10B981', '#FFFFFF'];
+        
         confetti({ 
           ...defaults, 
           particleCount, 
-          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-          colors: ['#F97316', '#FFFFFF', '#059669']
+          origin: { x: randomInRange(0.15, 0.35), y: Math.random() - 0.2 },
+          colors
         });
         confetti({ 
           ...defaults, 
           particleCount, 
-          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-          colors: ['#F97316', '#FFFFFF', '#059669']
+          origin: { x: randomInRange(0.65, 0.85), y: Math.random() - 0.2 },
+          colors
         });
-      }, 300);
+      }, 280);
 
       return () => clearInterval(interval);
     }
   }, [isOpen]);
 
+  const handleCopyOrderId = () => {
+    if (!idValue) return;
+    navigator.clipboard.writeText(formattedId || idValue);
+    haptic.light();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleWhatsAppShare = () => {
+    haptic.medium();
     openWhatsAppOrder(orderData as any);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !orderData) return null;
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.15,
-        delayChildren: 0.2
+        staggerChildren: 0.1,
+        delayChildren: 0.15
       }
     }
   };
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { y: 16, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
-      transition: { type: "spring" as const, stiffness: 300, damping: 24 }
+      transition: { type: "spring" as const, stiffness: 350, damping: 25 }
     }
   };
+
+  const isUpi = orderData.method === 'upi';
 
   return (
     <AnimatePresence>
@@ -122,212 +167,318 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 backdrop-blur-3xl overflow-y-auto"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-2xl overflow-y-auto"
       >
         <motion.div
-          initial={{ scale: 0.8, y: 100, opacity: 0, rotate: -2 }}
-          animate={{ scale: 1, y: 0, opacity: 1, rotate: 0 }}
+          initial={{ scale: 0.85, y: 50, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
           transition={{ 
             type: "spring", 
-            damping: 18, 
-            stiffness: 120,
-            mass: 0.8
+            damping: 22, 
+            stiffness: 200,
+            mass: 0.9
           }}
-          className="w-full max-w-2xl my-auto bg-zinc-900 border border-white/5 rounded-[40px] p-6 md:p-10 relative shadow-[0_0_120px_-20px_rgba(249,115,22,0.2)]"
+          className="w-full max-w-2xl my-auto bg-[#1A1816] border border-stone-800 text-stone-100 rounded-3xl sm:rounded-[36px] p-5 sm:p-8 relative shadow-[0_20px_80px_-15px_rgba(231,106,84,0.3)] overflow-hidden"
         >
-          {/* Decorative Elements */}
-          <div className="absolute -top-12 -left-12 w-48 h-48 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
-          <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
+          {/* Ambient Warm Bakery Radial Glows */}
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#E76A54]/20 rounded-full blur-[90px] pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-emerald-500/15 rounded-full blur-[90px] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-amber-500/10 rounded-full blur-[110px] pointer-events-none" />
 
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="relative"
+            className="relative space-y-6"
           >
-            {/* Header Animation Section */}
-            <motion.div variants={itemVariants} className="flex flex-col items-center text-center -mt-4">
+            {/* Header Section */}
+            <motion.div variants={itemVariants} className="flex flex-col items-center text-center">
+              {/* Bakery Animation Badge */}
               <motion.div 
                 animate={{ 
-                  scale: [1, 1.05, 1],
-                  rotate: [0, 5, 0, -5, 0]
+                  scale: [1, 1.04, 1],
+                  rotate: [0, 2, 0, -2, 0]
                 }}
                 transition={{ 
-                  duration: 6, 
+                  duration: 5, 
                   repeat: Infinity,
                   ease: "easeInOut"
                 }}
-                className="w-40 h-40 md:w-56 md:h-56 -mb-6"
+                className="w-28 h-28 sm:w-36 sm:h-36 -mb-2 relative"
               >
                 <FrostyAnimation 
                   url={LOTTIE_ANIMATIONS.ORDER_CONFIRMED}
-                  className="w-full h-full"
+                  className="w-full h-full drop-shadow-[0_10px_20px_rgba(231,106,84,0.3)]"
                 />
               </motion.div>
 
-              <div className="space-y-4">
-                <motion.div 
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", delay: 0.5 }}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 border border-primary/20 rounded-full"
-                >
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-                  <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Order Successfully Received</span>
-                </motion.div>
-                
-                <motion.h2 variants={itemVariants} className="text-5xl md:text-7xl font-black text-white italic tracking-tighter uppercase leading-[0.85]">
-                  {orderData.method === 'upi' ? (
-                    <>Verification <br /><span className="text-primary italic">Started</span></>
-                  ) : (
-                    <>Order <br /><span className="text-primary italic">Confirmed</span></>
-                  )}
-                </motion.h2>
-                
-                <motion.p variants={itemVariants} className="text-zinc-500 font-bold uppercase tracking-[0.15em] text-[9px] md:text-[10px] max-w-xs mx-auto leading-relaxed">
-                  {orderData.method === 'upi' 
-                    ? "We're validating your transaction. Your fresh treats will be ready in 45-60 mins!"
-                    : "Hang tight! Our chefs are already mixing the magic for your cravings."
-                  }
-                </motion.p>
+              {/* Status Pill */}
+              <motion.div 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.2 }}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#E76A54]/15 border border-[#E76A54]/30 rounded-full mb-3"
+              >
+                <div className="w-2 h-2 bg-[#E76A54] rounded-full animate-ping" />
+                <span className="text-[11px] font-black text-[#E76A54] uppercase tracking-wider">
+                  {isUpi ? 'Payment Verified & Confirmed' : 'Order Confirmed (Cash on Delivery)'}
+                </span>
+                <Sparkles size={13} className="text-amber-400 animate-pulse" />
+              </motion.div>
+
+              {/* Grand Display Headline */}
+              <motion.h2 
+                variants={itemVariants} 
+                className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight uppercase leading-tight"
+              >
+                Fresh Bakes <br className="sm:hidden" />
+                <span className="bg-gradient-to-r from-[#E76A54] via-amber-400 to-[#F97316] bg-clip-text text-transparent italic font-serif ml-1.5">
+                  Incoming!
+                </span>
+              </motion.h2>
+
+              <motion.p 
+                variants={itemVariants} 
+                className="text-stone-400 font-medium text-xs sm:text-sm max-w-md mx-auto mt-2 leading-relaxed"
+              >
+                {orderData.is_scheduled ? (
+                  <span>Scheduled with care! Our master chefs will prepare your fresh artisan bakes on time.</span>
+                ) : (
+                  <span>Your order has been received by our kitchen. Fresh ingredients are getting prepped right now!</span>
+                )}
+              </motion.p>
+            </motion.div>
+
+            {/* Bakery Kitchen Timeline Stepper */}
+            <motion.div variants={itemVariants} className="bg-stone-900/80 border border-stone-800/80 rounded-2xl p-4 sm:p-5">
+              <div className="flex items-center justify-between relative">
+                {/* Connecting Line */}
+                <div className="absolute top-1/2 left-6 right-6 -translate-y-1/2 h-0.5 bg-stone-800 z-0" />
+                <div className="absolute top-1/2 left-6 w-1/4 -translate-y-1/2 h-0.5 bg-[#E76A54] z-0 transition-all duration-1000" />
+
+                {/* Step 1: Confirmed */}
+                <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
+                  <div className="w-8 h-8 rounded-full bg-[#E76A54] text-white flex items-center justify-center shadow-md shadow-[#E76A54]/30 ring-4 ring-[#1A1816]">
+                    <Check size={14} className="stroke-[3]" />
+                  </div>
+                  <span className="text-[10px] font-bold text-white uppercase tracking-wider">Received</span>
+                </div>
+
+                {/* Step 2: In Oven */}
+                <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
+                  <div className="w-8 h-8 rounded-full bg-stone-800 border border-amber-500/40 text-amber-400 flex items-center justify-center ring-4 ring-[#1A1816]">
+                    <ChefHat size={14} className="animate-pulse" />
+                  </div>
+                  <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Baking</span>
+                </div>
+
+                {/* Step 3: Quality Check */}
+                <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
+                  <div className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 text-stone-500 flex items-center justify-center ring-4 ring-[#1A1816]">
+                    <Package size={14} />
+                  </div>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Packaged</span>
+                </div>
+
+                {/* Step 4: Dispatch */}
+                <div className="relative z-10 flex flex-col items-center gap-1.5 text-center">
+                  <div className="w-8 h-8 rounded-full bg-stone-800 border border-stone-700 text-stone-500 flex items-center justify-center ring-4 ring-[#1A1816]">
+                    <Truck size={14} />
+                  </div>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Dispatch</span>
+                </div>
               </div>
             </motion.div>
 
-            {/* Details Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-10">
-              {/* Payment Summary */}
-              <motion.div variants={itemVariants} className="space-y-3 md:col-span-2">
-                 <div className="flex items-center justify-between bg-primary/5 p-6 rounded-3xl border border-primary/10 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-1000" />
-                    <div className="relative flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary shadow-lg shadow-primary/20">
-                        <CreditCard size={24} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Amount to Pay</p>
-                        <p className="text-2xl font-black text-white italic">₹{amountValue}</p>
-                        {(orderData.delivery_charge || orderData.discount) && (
-                          <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
-                            {orderData.delivery_charge ? `Incl. ₹${orderData.delivery_charge} delivery` : ''}
-                            {orderData.discount ? `${orderData.delivery_charge ? ' • ' : ''}-₹${orderData.discount} discount` : ''}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">{orderData.method === 'upi' ? 'UPI Method' : 'COD Method'}</p>
-                       <p className="text-[11px] font-black text-primary uppercase tracking-tighter bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
-                         {orderData.method === 'upi' ? 'Pending Approval' : 'Payment on Delivery'}
-                       </p>
-                    </div>
-                 </div>
-              </motion.div>
+            {/* Authoritative Order Card */}
+            <motion.div variants={itemVariants} className="space-y-3">
+              {/* Top Row: Order ID & Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Order ID Box with 1-Click Copy */}
+                <div className="bg-stone-900/90 border border-stone-800 p-4 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Order Reference</p>
+                    <p className="text-base font-black text-white font-mono tracking-wider">
+                      #{formattedId || idValue}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyOrderId}
+                    className="p-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+                    title="Copy Order ID"
+                  >
+                    {copied ? (
+                      <>
+                        <Check size={14} className="text-emerald-400" />
+                        <span className="text-[10px] text-emerald-400 font-bold">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} />
+                        <span className="text-[10px] text-stone-400">Copy</span>
+                      </>
+                    )}
+                  </button>
+                </div>
 
-              {/* Order Meta */}
-              <motion.div variants={itemVariants} className="bg-white/5 p-5 rounded-3xl border border-white/5 space-y-4">
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center text-primary">
-                      <Package size={16} />
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Order Ref</p>
-                      <p className="text-xs font-black text-white uppercase tracking-tight">#{formatOrderId(idValue)}</p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center text-primary">
-                      <Clock size={16} />
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">
-                        {orderData.delivery_date ? 'Scheduled Delivery' : 'Estimated Time'}
-                      </p>
-                      <p className="text-xs font-black text-white uppercase tracking-tight">
-                        {orderData.delivery_date 
-                          ? `${orderData.delivery_date}${orderData.delivery_time ? ` (${orderData.delivery_time})` : ''}`
-                          : (typeof deliveryTime === 'number' ? `${deliveryTime} Mins` : deliveryTime)}
-                      </p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center text-primary">
-                      <MapPin size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Ship To</p>
-                      <p className="text-xs font-bold text-white uppercase tracking-tight truncate shrink-0">{orderData.address}</p>
-                    </div>
-                 </div>
-              </motion.div>
+                {/* Payment Amount Box */}
+                <div className="bg-stone-900/90 border border-stone-800 p-4 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                      {isUpi ? 'Amount Paid' : 'Amount Due (COD)'}
+                    </p>
+                    <p className="text-xl font-black text-white tracking-tight">
+                      ₹{amountValue}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border",
+                      isUpi
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    )}>
+                      {isUpi ? <ShieldCheck size={12} /> : <CreditCard size={12} />}
+                      {isUpi ? 'UPI Verified' : 'Pay at Delivery'}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-              {/* Cake Inscription or UTR Info */}
-              <motion.div variants={itemVariants} className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col justify-center text-center md:text-left relative overflow-hidden group">
-                 {orderData.cake_message ? (
-                   <div className="space-y-2">
-                     <div className="flex items-center justify-between">
-                       <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                         <Cake size={13} className="text-primary" /> Cake Inscription
-                       </span>
-                       {orderData.cake_occasion && (
-                         <span className="text-[8px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
-                           {orderData.cake_occasion}
-                         </span>
-                       )}
-                     </div>
-                     <p className="text-sm font-serif italic text-white font-semibold">
-                       "{orderData.cake_message}"
-                     </p>
-                     {orderData.cake_candle_knife && (
-                       <p className="text-[9px] text-emerald-400 font-bold tracking-wider">
-                         ✓ Free Candle & Knife Included
-                       </p>
-                     )}
-                   </div>
-                 ) : orderData.method === 'upi' ? (
-                   <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="inline-flex items-center gap-2 text-emerald-500">
-                           <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                           <span className="text-[9px] font-black uppercase tracking-widest">UTR Registered</span>
+              {/* Delivery Meta: Address & Estimated Time */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-stone-900/60 border border-stone-800/80 p-3.5 rounded-2xl flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-[#E76A54]/15 text-[#E76A54] flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Deliver To</p>
+                    <p className="text-xs font-semibold text-white truncate">{orderData.customerName}</p>
+                    <p className="text-[11px] text-stone-400 truncate">{orderData.address}</p>
+                  </div>
+                </div>
+
+                <div className="bg-stone-900/60 border border-stone-800/80 p-3.5 rounded-2xl flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                      {orderData.delivery_date ? 'Scheduled Time' : 'Estimated Time'}
+                    </p>
+                    <p className="text-xs font-bold text-white">
+                      {orderData.delivery_date 
+                        ? `${orderData.delivery_date} (${orderData.delivery_time || orderData.delivery_time_slot || 'Standard'})`
+                        : (typeof deliveryTime === 'number' ? `${deliveryTime} Mins` : deliveryTime)}
+                    </p>
+                    <p className="text-[10px] text-emerald-400 font-medium">Fresh from our oven</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cake Inscription Card (If Cake Message Present) */}
+              {orderData.cake_message && (
+                <div className="bg-stone-900/60 border border-stone-800/80 p-3.5 rounded-2xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#E76A54] uppercase tracking-wider flex items-center gap-1.5">
+                      <Cake size={13} /> Custom Cake Inscription
+                    </span>
+                    {orderData.cake_occasion && (
+                      <span className="text-[9px] font-bold bg-[#E76A54]/10 text-[#E76A54] px-2 py-0.5 rounded-md border border-[#E76A54]/20">
+                        {orderData.cake_occasion}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs font-serif italic text-white pl-1">
+                    "{orderData.cake_message}"
+                  </p>
+                  {orderData.cake_candle_knife && (
+                    <p className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+                      <Check size={11} className="stroke-[3]" /> Complimentary Candle & Cake Knife Included
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Items Breakdown Toggle */}
+              {orderData.items && orderData.items.length > 0 && (
+                <div className="border border-stone-800 rounded-2xl overflow-hidden bg-stone-900/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowItemDetails(!showItemDetails)}
+                    className="w-full p-3 px-4 flex items-center justify-between text-stone-300 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 text-xs font-bold">
+                      <ShoppingBag size={14} className="text-[#E76A54]" />
+                      <span>{orderData.items.length} {orderData.items.length === 1 ? 'Item' : 'Items'} Ordered</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] font-semibold text-stone-400">
+                      <span>{showItemDetails ? 'Hide' : 'View Items'}</span>
+                      {showItemDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </div>
+                  </button>
+
+                  {showItemDetails && (
+                    <div className="p-3 pt-0 space-y-2 border-t border-stone-800/60 max-h-48 overflow-y-auto">
+                      {orderData.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 text-xs py-1.5 border-b border-stone-800/40 last:border-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {item.image && (
+                              <img 
+                                src={item.image} 
+                                alt={item.name} 
+                                className="w-8 h-8 rounded-lg object-cover bg-stone-800 shrink-0" 
+                              />
+                            )}
+                            <span className="text-stone-200 font-medium truncate">{item.name}</span>
+                            <span className="text-stone-400 text-[11px] font-bold">x{item.quantity}</span>
+                          </div>
+                          <span className="text-stone-100 font-bold shrink-0">₹{item.price * item.quantity}</span>
                         </div>
-                        <CheckCircle2 size={16} className="text-emerald-500" />
-                      </div>
-                      <div className="p-3 bg-white/5 rounded-2xl border border-white/10 group-hover:border-primary/30 transition-colors">
-                         <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Reference ID</p>
-                         <p className="text-lg font-mono font-black text-white tracking-widest">{orderData.utr || 'NOT PROVIDED'}</p>
-                      </div>
-                   </div>
-                 ) : (
-                   <div className="space-y-2">
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Freshness Guaranteed</p>
-                      <p className="text-xs font-medium text-zinc-400 leading-relaxed italic">Our chef prepares your fresh bake for the requested time. Thank you!</p>
-                   </div>
-                 )}
-              </motion.div>
-            </div>
+                      ))}
 
-            {/* Optional Account Creation for Guest Users */}
+                      {/* Line Item Breakdown */}
+                      <div className="pt-2 text-[11px] space-y-1 text-stone-400">
+                        {orderData.delivery_charge !== undefined && (
+                          <div className="flex justify-between">
+                            <span>Delivery Fee</span>
+                            <span className="text-stone-200 font-semibold">{orderData.delivery_charge === 0 ? 'FREE' : `₹${orderData.delivery_charge}`}</span>
+                          </div>
+                        )}
+                        {orderData.discount ? (
+                          <div className="flex justify-between text-emerald-400">
+                            <span>Coupon Discount {orderData.couponCode ? `(${orderData.couponCode})` : ''}</span>
+                            <span>-₹{orderData.discount}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Optional Account Creation Card for Guests */}
             {!user && (
               <motion.div 
                 variants={itemVariants}
-                className="mt-6 p-5 rounded-3xl bg-gradient-to-b from-primary/10 to-transparent border border-primary/20 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left"
+                className="p-4 rounded-2xl bg-gradient-to-r from-[#E76A54]/15 via-amber-500/10 to-transparent border border-[#E76A54]/25 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left"
               >
-                <div className="space-y-1">
-                  <div className="flex items-center justify-center sm:justify-start gap-2 text-primary font-bold text-xs tracking-wider uppercase">
-                    <Sparkles size={14} className="animate-pulse" />
-                    <span>Create Your Free Account</span>
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                    <Sparkles size={13} className="animate-pulse" />
+                    <span>Free Bakery Rewards</span>
                   </div>
-                  <p className="text-white font-extrabold text-sm tracking-tight">
-                    Save your order history & earn reward points!
-                  </p>
-                  <p className="text-zinc-400 text-[10px]">
-                    Optionally sign up in just 10 seconds. No obligation.
+                  <p className="text-white font-extrabold text-xs sm:text-sm">
+                    Create an account to track orders & earn reward treats!
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => openAuthModal('Create Account', 'Sign up to track your order history and earn rewards!')}
-                  className="px-5 py-2.5 rounded-xl bg-primary text-black font-black text-xs uppercase tracking-wider hover:bg-orange-600 transition-colors cursor-pointer shrink-0"
+                  onClick={() => openAuthModal('Create Account', 'Sign up in 10 seconds to track live orders!')}
+                  className="px-4 py-2 rounded-xl bg-[#E76A54] hover:bg-[#d85c46] text-white font-black text-xs uppercase tracking-wider transition-colors cursor-pointer shrink-0 shadow-md shadow-[#E76A54]/20"
                 >
                   Sign Up Free
                 </button>
@@ -335,33 +486,41 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
             )}
 
             {/* Action Buttons */}
-            <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mt-8">
+            <motion.div variants={itemVariants} className="space-y-2.5 pt-2">
+              {/* Share on WhatsApp CTA */}
               <button
+                type="button"
                 onClick={handleWhatsAppShare}
-                className="md:col-span-2 group relative h-16 bg-emerald-500 rounded-2xl overflow-hidden shadow-xl shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                className="w-full h-13 sm:h-14 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white rounded-2xl font-black uppercase tracking-wider text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-600/25 cursor-pointer"
               >
-                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <MessageCircle size={20} className="text-white" />
-                <span className="text-sm font-black text-white uppercase tracking-[0.1em]">Share via WhatsApp</span>
-              </button>
-              
-              <button
-                 onClick={() => {
-                   onClose();
-                   navigate(`/order-tracking/${idValue}`);
-                 }}
-                 className="h-16 bg-white border border-white/10 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-zinc-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-              >
-                <Truck size={16} />
-                Track
+                <MessageCircle size={18} className="fill-current text-white" />
+                <span>Share Order on WhatsApp</span>
               </button>
 
-              <button
-                onClick={onClose}
-                className="md:col-span-3 h-14 text-zinc-600 font-black uppercase tracking-[0.4em] text-[8px] hover:text-white transition-colors"
-              >
-                Dismiss Overview
-              </button>
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* Track Order CTA */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    navigate(`/order-tracking/${idValue}`);
+                  }}
+                  className="h-12 bg-stone-800 hover:bg-stone-700 active:scale-[0.99] text-white rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all border border-stone-700 cursor-pointer"
+                >
+                  <Truck size={15} className="text-[#E76A54]" />
+                  <span>Track Order</span>
+                </button>
+
+                {/* Continue Shopping / Dismiss */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-12 bg-white/10 hover:bg-white/15 active:scale-[0.99] text-stone-200 hover:text-white rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>Done</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         </motion.div>

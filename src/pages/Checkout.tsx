@@ -53,6 +53,7 @@ import { playErrorShakeSound, playSuccessChime } from '../utils/soundEffects';
 import { MapSelector } from '../components/MapSelector';
 import { GooglePlacesAutocomplete } from '../components/GooglePlacesAutocomplete';
 import { DeliveryDatePicker, DeliveryScheduleData } from '../components/DeliveryDatePicker';
+import { SwipeToConfirm } from '../components/checkout/SwipeToConfirm';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 import { geocode } from '../lib/geocoder';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
@@ -591,29 +592,65 @@ export const Checkout: React.FC = () => {
     try {
       const code = trimmedCode.toUpperCase();
       
-      const { data: coupons, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', code)
-        .eq('status', 'active')
-        .limit(1);
+      // 1. Fetch from Supabase coupons table
+      let couponData: any = null;
+      try {
+        const { data: coupons, error } = await supabase
+          .from('coupons')
+          .select('*')
+          .ilike('code', code)
+          .eq('status', 'active')
+          .limit(1);
 
-      if (error || !coupons || coupons.length === 0) {
+        if (!error && coupons && coupons.length > 0) {
+          couponData = coupons[0];
+        }
+      } catch (err) {
+        console.warn('[Checkout] Supabase coupon query fallback:', err);
+      }
+
+      // 2. Fallback to locally cached coupons if network glitch
+      if (!couponData) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('coupons_cache') || '{}');
+          if (Array.isArray(cached.data)) {
+            couponData = cached.data.find(
+              (c: any) => c.code?.toUpperCase() === code && c.status === 'active'
+            );
+          }
+        } catch (e) {}
+      }
+
+      // 3. Built-in fallback for common initial promo coupons if db not populated yet
+      if (!couponData && (code === 'FIRST10' || code === 'FIRSTORDER')) {
+        couponData = {
+          id: 'default-first-order',
+          code: code,
+          type: 'percentage',
+          value: code === 'FIRST10' ? 10 : 20,
+          min_order: 0,
+          status: 'active',
+          is_first_order_only: true
+        };
+      }
+
+      if (!couponData) {
         toast.error('Invalid or expired coupon code');
         setIsApplyingCoupon(false);
         return;
       }
-      const couponData = coupons[0];
-      const couponId = couponData.id;
+      const couponId = couponData.id || `coupon-${code}`;
       
-      // Validate expiry
-      const expiryDateValue = new Date(couponData.expiry_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (expiryDateValue < today) {
-        toast.error('This coupon has expired');
-        setIsApplyingCoupon(false);
-        return;
+      // Validate expiry if set
+      if (couponData.expiry_date) {
+        const expiryDateValue = new Date(couponData.expiry_date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (!isNaN(expiryDateValue.getTime()) && expiryDateValue < today) {
+          toast.error('This coupon has expired');
+          setIsApplyingCoupon(false);
+          return;
+        }
       }
 
       // Validate min order
@@ -633,27 +670,30 @@ export const Checkout: React.FC = () => {
       // If all checks pass
       setAppliedCoupon({ 
         id: couponId,
-        code: couponData.code, 
-        value: couponData.value || 0,
-        type: couponData.type,
+        code: couponData.code?.toUpperCase() || code, 
+        value: Number(couponData.value) || 0,
+        type: couponData.type || 'percentage',
         free_item_id: couponData.free_item_id,
         free_item_quantity: couponData.free_item_quantity,
         gift_url: couponData.gift_url
       });
 
       let discountDisplay = '';
-      if (couponData.type === 'percentage') discountDisplay = `${couponData.value}%`;
-      else if (couponData.type === 'fixed') discountDisplay = `₹${couponData.value}`;
+      if (couponData.type === 'percentage') discountDisplay = `${couponData.value}% OFF`;
+      else if (couponData.type === 'fixed') discountDisplay = `₹${couponData.value} OFF`;
       else if (couponData.type === 'free_item') discountDisplay = `FREE Gift`;
+      else discountDisplay = 'Discount';
 
-      toast.success(`${discountDisplay} applied!`, { icon: '🎉' });
+      toast.success(`${discountDisplay} applied successfully!`, { icon: '🎉' });
       
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#F97316', '#FFFFFF', '#DBEAFE']
-      });
+      try {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#F97316', '#FFFFFF', '#DBEAFE']
+        });
+      } catch (e) {}
       
       setCouponCode('');
     } catch (error: any) {
@@ -712,8 +752,8 @@ export const Checkout: React.FC = () => {
     );
   }
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePlaceOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (isOrdering) return;
 
     setIsOrdering(true);
@@ -2013,49 +2053,25 @@ export const Checkout: React.FC = () => {
                 </div>
               )}
 
-              <button
+              <SwipeToConfirm
                 id="checkout-action-btn"
-                onClick={handlePlaceOrder}
+                paymentMethod={formData.paymentMethod}
+                amount={finalPrice}
+                onConfirm={handlePlaceOrder}
+                isProcessing={isOrdering}
                 disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
-                className={cn(
-                  "w-full h-13 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer",
-                  formData.paymentMethod === 'cod' 
-                    ? "bg-stone-900 hover:bg-stone-800 text-white" 
-                    : "bg-[#E76A54] hover:bg-[#d85c46] text-white",
-                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "opacity-60 cursor-not-allowed bg-stone-300 text-stone-500 shadow-none hover:bg-stone-300"
-                )}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  {isOrdering ? (
-                    <>
-                      <Loader2 className="animate-spin" size={18} />
-                      <span>Processing Order...</span>
-                    </>
-                  ) : isLoading ? (
-                    <>
-                      <Loader2 className="animate-spin" size={18} />
-                      <span>Checking status...</span>
-                    </>
-                  ) : !isOrderingOpen ? (
-                    <>
-                      <X size={18} />
-                      <span>Orders Closed</span>
-                    </>
-                  ) : !isLocationInServiceArea() ? (
-                    <>
-                      <AlertTriangle size={18} />
-                      <span>Location Out of Bounds</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>
-                        {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR Code & Pay'}
-                      </span>
-                      <ChevronRight size={16} />
-                    </>
-                  )}
-                </div>
-              </button>
+                disabledReason={
+                  !isOrderingOpen 
+                    ? 'Orders are currently closed' 
+                    : !isLocationInServiceArea() 
+                      ? 'Location Out of Boundary' 
+                      : getCartAvailabilityWarning() 
+                        ? 'Check Schedule Date' 
+                        : isLoading 
+                          ? 'Checking status...' 
+                          : undefined
+                }
+              />
 
               <div className="flex items-center justify-center gap-1.5 text-stone-400">
                 <ShieldCheck size={14} className="text-emerald-600" />
@@ -2067,9 +2083,9 @@ export const Checkout: React.FC = () => {
       </div>
 
       {/* Sticky Bottom Bar for Mobile Checkout */}
-      {cart.length > 0 && !showConfirmation && !isOrdering && (
-        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-lg">
-          <div className="max-w-md mx-auto space-y-3">
+      {cart.length > 0 && !showConfirmation && (
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 p-3.5 pb-[calc(14px+env(safe-area-inset-bottom))] shadow-lg">
+          <div className="max-w-md mx-auto space-y-2.5">
             <div className="flex justify-between items-center px-1">
                <div>
                  <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Payable</p>
@@ -2081,36 +2097,25 @@ export const Checkout: React.FC = () => {
                </div>
             </div>
             
-            <button
-              onClick={handlePlaceOrder}
+            <SwipeToConfirm
+              id="mobile-checkout-action-btn"
+              paymentMethod={formData.paymentMethod}
+              amount={finalPrice}
+              onConfirm={handlePlaceOrder}
+              isProcessing={isOrdering}
               disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
-              className={cn(
-                "w-full h-12 bg-[#E76A54] hover:bg-[#d85c46] text-white rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer",
-                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "bg-stone-200 text-stone-400 opacity-70 shadow-none pointer-events-none"
-              )}
-            >
-              {isOrdering ? (
-                <Loader2 className="animate-spin" size={18} />
-              ) : isLoading ? (
-                <>
-                  <Loader2 className="animate-spin" size={18} />
-                  <span>Checking status...</span>
-                </>
-              ) : !isOrderingOpen ? (
-                'Orders Closed'
-              ) : !isLocationInServiceArea() ? (
-                'Location Out of Boundary'
-              ) : getCartAvailabilityWarning() ? (
-                'Check Schedule Date'
-              ) : (
-                <>
-                  <span>
-                    {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR & Pay'}
-                  </span>
-                  <ChevronRight size={16} />
-                </>
-              )}
-            </button>
+              disabledReason={
+                !isOrderingOpen 
+                  ? 'Orders are currently closed' 
+                  : !isLocationInServiceArea() 
+                    ? 'Location Out of Boundary' 
+                    : getCartAvailabilityWarning() 
+                      ? 'Check Schedule Date' 
+                      : isLoading 
+                        ? 'Checking status...' 
+                        : undefined
+              }
+            />
           </div>
         </div>
       )}
