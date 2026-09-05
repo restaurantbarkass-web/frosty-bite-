@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.14] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `15`
+- **Release Details**:
+* 4400bfc feat: redesign order confirmation UI, enhance swipe-to-confirm, and optimize checkout serviceability flow
+
+
 ## [1.13] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `14`
 - **Release Details**:
