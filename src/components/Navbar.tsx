@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag, HelpCircle } from 'lucide-react';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag, HelpCircle, Bell } from 'lucide-react';
 import { useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, smoothScroll } from '../lib/utils';
 import { useAppConfig } from '../hooks/useAppConfig';
@@ -13,6 +14,7 @@ import { preloadRoute } from '../utils/preload';
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = React.memo(({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
   const { user, role, isAdmin, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -95,6 +97,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
     
     if (user) {
       links.push({ name: 'Orders', path: '/orders', icon: ClipboardList });
+      links.push({ name: 'Alerts', path: '/notifications', icon: Bell });
       if (isAdmin) links.push({ name: 'Admin', path: '/admin', icon: LayoutDashboard });
       links.push({ name: 'Profile', path: '/profile', icon: User });
     }
@@ -107,7 +110,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
 
   return (
     <nav className={cn(
-      "fixed top-0 left-0 w-full z-50 transition-transform duration-300 glass-dark border-b border-white/5",
+      "fixed top-0 left-0 w-full z-50 transition-transform duration-300 bg-[#FAF8F5]",
       showHeader ? "translate-y-0" : "-translate-y-full"
     )}>
       {/* Status Banner */}
@@ -120,10 +123,10 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             className={cn(
               "w-full py-2 px-4 flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] transition-colors text-center",
               !config.isOrderingOpen 
-                ? "bg-red-500/10 text-red-500 border-b border-red-500/10"
+                ? "bg-red-500/10 text-red-600"
                 : (Boolean(config.pickup_only ?? config.isPickupOnly) 
-                    ? "bg-amber-500/15 text-amber-400 border-b border-amber-500/20" 
-                    : "bg-emerald-500/10 text-emerald-500 border-b border-emerald-500/10")
+                    ? "bg-amber-500/15 text-amber-800" 
+                    : "bg-emerald-500/10 text-emerald-700")
             )}
           >
             {config.isOrderingOpen ? (
@@ -169,13 +172,13 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={onSearchClick}
-              className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl py-2.5 px-4 group hover:border-primary/50 transition-all text-gray-500"
+              className="w-full flex items-center justify-between bg-stone-200/50 rounded-2xl py-2.5 px-4 group hover:bg-stone-200/70 transition-all text-stone-600 shadow-none"
             >
               <div className="flex items-center gap-3">
                 <Search size={18} className="group-hover:text-primary transition-colors group-hover:scale-110 duration-200" />
-                <span className="text-sm font-medium animate-pulse">Search for premium treats...</span>
+                <span className="text-sm font-medium">Search for premium treats...</span>
               </div>
-              <div className="flex items-center gap-1 px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold">
+              <div className="flex items-center gap-1 px-2 py-1 bg-stone-300/50 rounded-lg text-[10px] font-bold text-stone-600">
                 <Command size={10} />
                 <span>K</span>
               </div>
@@ -242,7 +245,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   }}
                   className={cn(
                     "text-sm font-medium transition-colors relative py-1 px-2 rounded-lg",
-                    isActive ? "text-primary z-10" : "text-muted hover:text-white"
+                    isActive ? "text-primary z-10 font-semibold" : "text-stone-700 hover:text-stone-900"
                   )}
                 >
                   <motion.span
@@ -256,7 +259,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   {isActive ? (
                     <motion.div
                       layoutId="active-nav-dot"
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(255,107,38,0.8)]"
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full"
                       transition={{ type: "spring", stiffness: 400, damping: 20 }}
                     />
                   ) : (
@@ -270,11 +273,28 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
               );
             })}
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Link
+                to="/notifications"
+                className="relative p-2 text-stone-700 hover:text-primary transition-colors focus:outline-none"
+                title="Notifications"
+              >
+                <Bell size={22} />
+                {unreadCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 bg-[#E76A54] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </motion.span>
+                )}
+              </Link>
+
               <button
                 id="cart-btn-desktop"
                 onClick={onCartClick}
-                className="relative p-2 text-muted hover:text-primary transition-colors focus:outline-none"
+                className="relative p-2 text-stone-700 hover:text-primary transition-colors focus:outline-none"
               >
                 <motion.div
                   key={`${totalItems}-${bounceKey}`}
@@ -300,7 +320,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                   whileHover={{ scale: 1.15, rotate: 8 }}
                   whileTap={{ scale: 0.85 }}
                   onClick={handleLogout}
-                  className="p-2 text-muted hover:text-red-500 transition-colors"
+                  className="p-2 text-stone-600 hover:text-red-500 transition-colors"
                   title="Logout"
                 >
                   <LogOut size={20} />
@@ -334,14 +354,26 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             )}
             <button
               onClick={onSearchClick}
-              className="p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0"
+              className="p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0"
             >
               <Search size={20} />
             </button>
+            <Link
+              to="/notifications"
+              className="relative p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0"
+              title="Notifications"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-[#E76A54] text-white text-[8px] font-bold w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center border border-[#FAF8F5]">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Link>
             <button
               id="cart-btn-mobile"
               onClick={onCartClick}
-              className="relative p-1.5 sm:p-2 text-muted hover:text-primary active:scale-95 transition-all shrink-0 focus:outline-none block"
+              className="relative p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0 focus:outline-none block"
             >
               <motion.div
                 key={totalItems}
@@ -352,7 +384,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                 <ShoppingCart size={22} />
               </motion.div>
               {totalItems > 0 && (
-                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-black/50">
+                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-[#FAF8F5]">
                   {totalItems}
                 </span>
               )}
@@ -368,16 +400,16 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass border-b border-white/5"
+            className="md:hidden bg-[#FAF8F5]"
           >
             <div className="px-4 pt-2 pb-6 space-y-4">
               {/* Mobile Search */}
               <div className="relative group px-3">
-                <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-stone-500" size={18} />
                 <input 
                   type="text" 
                   placeholder="Search Bakery..." 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-primary/50"
+                  className="w-full bg-stone-200/50 rounded-2xl py-3 pl-12 pr-4 text-sm text-stone-900 placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-primary/40 border-none"
                   onChange={(e) => {
                     const query = e.target.value;
                     if (location.pathname !== '/') {
@@ -407,7 +439,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                         }}
                         className={cn(
                           "flex items-center px-3 py-1 rounded-lg",
-                          isActive ? "bg-primary/10" : "hover:bg-white/5"
+                          isActive ? "bg-primary/10" : "hover:bg-stone-200/40"
                         )}
                       >
                         <div className="scale-75 -ml-8">
@@ -415,7 +447,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                         </div>
                         <span className={cn(
                           "text-base font-medium -ml-4",
-                          isActive ? "text-primary" : "text-muted"
+                          isActive ? "text-primary font-semibold" : "text-stone-700"
                         )}>
                           {link.name}
                         </span>
@@ -441,7 +473,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
                       }}
                       className={cn(
                         "flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium",
-                        isActive ? "bg-primary/10 text-primary" : "text-muted hover:bg-white/5"
+                        isActive ? "bg-primary/10 text-primary font-semibold" : "text-stone-700 hover:bg-stone-200/40"
                       )}
                     >
                       {link.icon && <link.icon size={20} />}

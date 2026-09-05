@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { Sidebar } from '../components/admin/Sidebar';
 import { Navbar } from '../components/admin/Navbar';
 import { OrderActionPopup } from '../components/admin/OrderActionPopup';
@@ -24,9 +25,28 @@ const BannerManager = lazy(() => import('../components/admin/BannerManager').the
 const NotificationCenter = lazy(() => import('./admin/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 
 export const AdminLayout: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getInitialTab = () => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) return tabParam;
+    const pathPart = location.pathname.replace('/admin', '').replace(/^\//, '');
+    if (pathPart && pathPart.trim()) return pathPart.split('/')[0];
+    return 'dashboard';
+  };
+
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { incomingOrder, setIncomingOrder } = useNotifications();
+
+  // Keep tab in sync with URL
+  useEffect(() => {
+    const currentTab = getInitialTab();
+    if (currentTab && currentTab !== activeTab) {
+      setActiveTab(currentTab);
+    }
+  }, [location.pathname, searchParams]);
 
   useEffect(() => {
     // Request permission and register token

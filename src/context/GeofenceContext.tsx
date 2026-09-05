@@ -713,7 +713,27 @@ export const GeofenceProvider: React.FC<{ children: ReactNode }> = ({ children }
             try {
               localStorage.setItem('frostybite_user_lat', latitude.toString());
               localStorage.setItem('frostybite_user_lng', longitude.toString());
-            } catch {}
+
+              // Reverse geocode GPS coordinates to detect customer city
+              const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`, {
+                headers: { 'Accept-Language': 'en' }
+              });
+              if (geoRes.ok) {
+                const geoData = await geoRes.json();
+                const foundCity = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.county || geoData.address?.state_district;
+                const foundState = geoData.address?.state;
+                if (foundCity) {
+                  setDetectedCity(foundCity);
+                  localStorage.setItem('frostybite_detected_city', foundCity);
+                }
+                if (foundState) {
+                  setDetectedState(foundState);
+                  localStorage.setItem('frostybite_detected_state', foundState);
+                }
+              }
+            } catch (e) {
+              console.error('GPS reverse geocode error:', e);
+            }
 
             if (GEOFENCING_V2_ENABLED) {
               setSelectedCandidateLocation(latitude, longitude);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
-import { Star, Plus, Zap, ShoppingCart, Check, Heart, Share2, Sparkles } from 'lucide-react';
+import { Star, Plus, Minus, Zap, ShoppingCart, Check, Heart, Share2, Sparkles } from 'lucide-react';
 import { FoodItem } from '../types';
-import { useCartActions } from '../context/CartContext';
+import { useCartActions, useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -31,7 +31,8 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   onClick,
   showBuyNow = false
 }) => {
-  const { addToCart, setIsCartOpen } = useCartActions();
+  const { cart } = useCartState();
+  const { addToCart, updateQuantity, setIsCartOpen } = useCartActions();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,6 +41,9 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   const { isOrderingOpen, isPickupOnly } = useAppConfig();
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
+
+  const cartItem = cart.find((c) => c.id === item.id);
+  const inCartQuantity = cartItem ? cartItem.quantity : 0;
 
   useEffect(() => {
     const fetchWishlistStatus = async () => {
@@ -100,6 +104,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {
@@ -108,6 +113,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
           color: '#fff',
         }
       });
+      return;
+    }
+
+    if (item.available === false || (item.stock_quantity !== undefined && item.stock_quantity <= 0)) {
+      toast.error('Item is currently out of stock');
       return;
     }
 
@@ -128,15 +138,20 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
     setIsFlying(true);
     setShowSuccess(true);
     addToCart(item);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+    toast.success(`${item.name} added to cart!`, { id: `cart-${item.id}`, duration: 2000 });
     setTimeout(() => {
       setIsFlying(false);
       setShowSuccess(false);
-    }, 1500);
+    }, 1200);
   };
 
   const [isBuyingNow, setIsBuyingNow] = useState(false);
 
-  const handleBuyNow = () => {
+  const handleBuyNow = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!isOrderingOpen) {
       toast.error('Orders are currently closed', {
         style: {
@@ -156,7 +171,7 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       icon: '⚡',
       style: {
         borderRadius: '16px',
-        background: '#f97316',
+        background: '#E76A54',
         color: '#fff',
         fontWeight: '900',
         textTransform: 'uppercase',
@@ -182,13 +197,16 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
           y: -6, 
           scale: 1.02,
         } : undefined}
-        transition={{ 
+        transition={isFlying ? {
+          duration: 0.5,
+          ease: "easeInOut"
+        } : { 
           type: "spring", 
           stiffness: 300, 
           damping: 24 
         }}
         className={cn(
-          "group relative bg-white/5 overflow-hidden border border-white/5 hover:border-primary/30 transition-colors shadow-xl cursor-pointer card-contain",
+          "group relative bg-white overflow-hidden border border-stone-200/90 hover:border-orange-300/80 transition-all duration-300 shadow-xs hover:shadow-md cursor-pointer card-contain",
           variant === 'compact' ? "rounded-2xl" : "rounded-3xl"
         )}
         onMouseEnter={() => {
@@ -204,30 +222,31 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
       >
         {/* Flying Animation Element skipped */}
         
-        <div className="relative aspect-[4/3] overflow-hidden">
+        <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
           <ImageZoom
             src={item.image}
             alt={item.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             triggerClassName="w-full h-full"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
           
-          <div className="absolute top-5 right-5 flex flex-col gap-2">
-            <div className="bg-background/60 backdrop-blur-md border border-border px-3 py-1.5 rounded-2xl flex items-center space-x-1.5 shadow-lg">
-              <Star size={14} className="text-primary fill-primary" />
-              <span className="text-xs font-black text-foreground">{item.rating}</span>
+          <div className="absolute top-3.5 right-3.5 flex flex-col gap-1.5 z-10">
+            <div className="bg-white/95 backdrop-blur-sm border border-stone-200/90 px-2.5 py-1 rounded-xl flex items-center space-x-1 shadow-xs">
+              <Star size={13} className="text-amber-500 fill-amber-500" />
+              <span className="text-xs font-bold text-stone-800">{item.rating}</span>
             </div>
             
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleToggleWishlist}
               className={cn(
-                "w-10 h-10 rounded-2xl flex items-center justify-center transition-all bg-background/60 backdrop-blur-md border border-border shadow-lg",
-                isLiked ? "text-red-500" : "text-foreground/70 hover:text-red-400"
+                "w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/95 backdrop-blur-sm border border-stone-200/90 shadow-xs cursor-pointer",
+                isLiked ? "text-red-500 fill-red-500" : "text-stone-600 hover:text-red-500"
               )}
+              aria-label="Wishlist"
             >
-              <Heart size={18} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
+              <Heart size={15} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
             </motion.button>
 
             <motion.button
@@ -239,24 +258,25 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
                 toast.success('Product link copied!', {
                    style: {
                     borderRadius: '16px',
-                    background: '#18181b',
+                    background: '#1c1917',
                     color: '#fff',
                   }
                 });
               }}
-              className="w-10 h-10 rounded-2xl flex items-center justify-center bg-background/60 backdrop-blur-md border border-border text-foreground/70 hover:text-primary transition-all shadow-lg"
+              className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/95 backdrop-blur-sm border border-stone-200/90 text-stone-600 hover:text-orange-600 transition-all shadow-xs cursor-pointer"
               title="Copy Link"
+              aria-label="Share"
             >
-              <Share2 size={16} />
+              <Share2 size={14} />
             </motion.button>
           </div>
 
-          <div className="absolute top-5 left-5 flex flex-col gap-2">
-            <span className="bg-primary/90 backdrop-blur-md text-white text-[9px] font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-lg">
+          <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 z-10">
+            <span className="bg-orange-500 text-white text-[9px] font-extrabold px-3 py-1 rounded-lg uppercase tracking-wider shadow-xs">
               Freshly Baked
             </span>
             {isPickupOnly && (
-              <span className="bg-amber-500/95 backdrop-blur-md text-black text-[9px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg flex items-center gap-1">
+              <span className="bg-amber-400 text-amber-950 text-[9px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-xs flex items-center gap-1">
                 🛍 Pickup Available
               </span>
             )}
@@ -264,10 +284,10 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
               <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-black/80 backdrop-blur-md border border-primary/50 text-primary text-[8px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-[0_0_15px_rgba(249,115,22,0.3)] flex items-center gap-1.5"
+                className="bg-stone-900/90 text-amber-300 border border-amber-400/40 text-[8px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider shadow-xs flex items-center gap-1"
               >
-                <Sparkles size={10} className="animate-pulse" />
-                AI Recommended
+                <Sparkles size={10} className="animate-pulse text-amber-300" />
+                AI Pick
               </motion.div>
             )}
           </div>
@@ -276,52 +296,52 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-[4px] flex flex-col items-center justify-center p-6 text-center z-20"
+            className="absolute inset-0 bg-stone-900/70 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-20"
           >
             <motion.div
-              initial={{ scale: 0.5, rotate: -10 }}
+              initial={{ scale: 0.5, rotate: -6 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.3em] px-6 py-2.5 rounded-full shadow-[0_0_30px_rgba(239,68,68,0.5)] border-2 border-white/20 mb-4"
+              className="bg-red-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-2 rounded-full shadow-md mb-2"
             >
               Sold Out
             </motion.div>
-            <p className="text-white/60 text-[9px] font-bold uppercase tracking-widest max-w-[120px]">
-              Join the waitlist for the next batch
+            <p className="text-white/80 text-[10px] font-semibold uppercase tracking-wider max-w-[140px]">
+              Available in next batch
             </p>
           </motion.div>
         )}
       </div>
 
       <div className={cn(
-        "transition-all duration-500", 
+        "transition-all duration-300", 
         !isOrderingOpen && "opacity-60",
-        variant === 'compact' ? "p-4" : "p-6"
+        variant === 'compact' ? "p-3.5" : "p-5"
       )}>
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start gap-2 mb-1.5">
           <h3 className={cn(
-            "font-black leading-tight text-white group-hover:text-primary transition-colors tracking-tight uppercase",
-            variant === 'compact' ? "text-xs" : "text-lg"
+            "font-extrabold leading-snug text-stone-900 group-hover:text-orange-600 transition-colors tracking-tight uppercase",
+            variant === 'compact' ? "text-xs line-clamp-1" : "text-base sm:text-lg line-clamp-1"
           )}>
             {item.name}
           </h3>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end shrink-0">
             <span className={cn(
-              "text-primary font-black",
-              variant === 'compact' ? "text-xs" : "text-xl"
+              "text-orange-600 font-black",
+              variant === 'compact' ? "text-xs" : "text-lg sm:text-xl"
             )}>₹{item.price}</span>
           </div>
         </div>
         
         {variant !== 'compact' && (
-          <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider line-clamp-2 mb-4">
+          <p className="text-stone-500 text-xs font-medium line-clamp-2 mb-3 leading-relaxed">
             {item.description}
           </p>
         )}
 
         <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-1 text-orange-500/85 text-[9px] font-black uppercase tracking-wider bg-[#f97316]/5 py-1.5 px-2.5 rounded-xl w-fit border border-[#f97316]/10">
-            <Zap size={9} className="fill-[#f97316] text-[#f97316]" />
+          <div className="flex items-center gap-1.5 text-orange-700 text-[10px] font-bold uppercase tracking-wider bg-orange-50/90 py-1 px-2.5 rounded-lg w-fit border border-orange-200/80">
+            <Zap size={11} className="fill-orange-500 text-orange-500" />
             <span>
               Delivers in {item.estimated_delivery_time_unit === 'days' 
                 ? `${item.estimated_delivery_time_string || item.estimated_delivery_time || '1-2'} Days` 
@@ -330,53 +350,86 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
           </div>
         </div>
 
-        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={handleAddToCart}
-            disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
-            className={cn(
-              "flex-1 bg-white/5 hover:bg-white/10 text-white rounded-xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 border border-white/5 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden",
-              variant === 'compact' ? "py-2" : "py-3"
-            )}
-            title={!isOrderingOpen ? "Orders are currently closed" : "Add to Cart"}
-          >
-            <AnimatePresence mode="wait">
-              {showSuccess ? (
-                <motion.div
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 flex items-center justify-center bg-emerald-500"
-                >
-                  <FrostyAnimation 
-                    url={LOTTIE_ANIMATIONS.SUCCESS_CHECK}
-                    loop={false}
-                    className="w-12 h-12"
-                    fallback={
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      >
-                        <Check className="text-white" size={24} strokeWidth={3} />
-                      </motion.div>
-                    }
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="plus"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex items-center space-x-2"
-                >
-                  <Plus size={18} className="group-hover/btn:rotate-90 transition-transform duration-300" />
-                  <span className="text-xs font-black uppercase tracking-widest">Add</span>
-                </motion.div>
+        <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+          {inCartQuantity > 0 ? (
+            <div className={cn(
+              "flex-1 flex items-center justify-between bg-stone-100 rounded-xl sm:rounded-2xl border border-stone-200/90 shadow-2xs",
+              variant === 'compact' ? "p-0.5" : "p-1"
+            )}>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.85 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateQuantity(item.id, -1);
+                }}
+                className={cn(
+                  "flex items-center justify-center text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer",
+                  variant === 'compact' ? "w-6 h-6" : "w-7 h-7 sm:w-8 sm:h-8"
+                )}
+                aria-label="Decrease quantity"
+              >
+                <Minus size={variant === 'compact' ? 12 : 14} strokeWidth={2.5} />
+              </motion.button>
+              <span className={cn(
+                "font-black text-stone-900 px-1 text-center min-w-[16px]",
+                variant === 'compact' ? "text-[11px]" : "text-xs sm:text-sm"
+              )}>
+                {inCartQuantity}
+              </span>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.85 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateQuantity(item.id, 1);
+                }}
+                className={cn(
+                  "flex items-center justify-center text-stone-700 hover:bg-stone-200 rounded-lg transition-colors cursor-pointer",
+                  variant === 'compact' ? "w-6 h-6" : "w-7 h-7 sm:w-8 sm:h-8"
+                )}
+                aria-label="Increase quantity"
+              >
+                <Plus size={variant === 'compact' ? 12 : 14} strokeWidth={2.5} />
+              </motion.button>
+            </div>
+          ) : (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.94 }}
+              onClick={handleAddToCart}
+              disabled={item.available === false || showSuccess || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0)}
+              className={cn(
+                "flex-1 bg-[#E76A54] hover:bg-[#d65943] text-white rounded-xl sm:rounded-2xl flex items-center justify-center space-x-1.5 transition-all duration-200 active:scale-95 border border-[#E76A54]/20 disabled:opacity-50 disabled:cursor-not-allowed group/btn relative overflow-hidden font-bold cursor-pointer shadow-xs",
+                variant === 'compact' ? "py-2 text-xs" : "py-2.5 sm:py-3 text-xs"
               )}
-            </AnimatePresence>
-          </button>
+              title={!isOrderingOpen ? "Orders are currently closed" : "Add to Cart"}
+            >
+              <AnimatePresence mode="wait">
+                {showSuccess ? (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex items-center justify-center bg-emerald-600 text-white"
+                  >
+                    <Check className="text-white" size={16} strokeWidth={3} />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="plus"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center space-x-1 text-white"
+                  >
+                    <Plus size={15} className="group-hover/btn:rotate-90 transition-transform duration-300 text-white" strokeWidth={2.5} />
+                    <span className="text-xs font-bold uppercase tracking-wider">ADD</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          )}
 
           {showBuyNow && (
             <button
@@ -387,11 +440,11 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
                  setIsCartOpen(true);
                }}
                className={cn(
-                 "flex-1 bg-primary text-white rounded-xl flex items-center justify-center transition-all duration-300 active:scale-95 shadow-lg shadow-primary/20",
-                 variant === 'compact' ? "py-2 px-4" : "py-3 px-6"
+                 "flex-1 bg-stone-900 hover:bg-black text-white rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95 shadow-xs font-bold cursor-pointer",
+                 variant === 'compact' ? "py-2 px-3 text-xs" : "py-2.5 sm:py-3 px-4 text-xs"
                )}
             >
-               <span className="text-xs font-black uppercase tracking-widest">Buy Now</span>
+               <span className="text-xs font-bold uppercase tracking-wider">Buy Now</span>
             </button>
           )}
           
@@ -400,8 +453,8 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
               onClick={handleBuyNow}
               disabled={item.available === false || !isOrderingOpen || (item.stock_quantity !== undefined && item.stock_quantity <= 0) || isBuyingNow}
               className={cn(
-                "flex-[2.5] bg-primary hover:opacity-90 text-white rounded-2xl flex items-center justify-center space-x-2 transition-all duration-300 active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden",
-                variant === 'compact' ? "py-2.5" : "py-4"
+                "flex-1 bg-stone-900 hover:bg-stone-800 text-white rounded-xl sm:rounded-2xl flex items-center justify-center space-x-1.5 transition-all duration-200 active:scale-95 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed group relative overflow-hidden font-bold cursor-pointer",
+                variant === 'compact' ? "py-2 text-xs" : "py-2.5 sm:py-3 text-xs"
               )}
               title={!isOrderingOpen ? "Orders are currently closed" : "Quick Checkout"}
             >
@@ -409,27 +462,27 @@ export const FoodCard: React.FC<FoodCardProps> = memo(({
                 {isBuyingNow ? (
                   <motion.div
                     key="buying"
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-1.5"
                   >
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     >
-                      <Zap size={16} fill="currentColor" />
+                      <Zap size={13} fill="currentColor" />
                     </motion.div>
-                    <span className="text-[10px] font-black uppercase tracking-widest italic">Fast tracking...</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Fast...</span>
                   </motion.div>
                 ) : (
                   <motion.div
                     key="default"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="flex items-center space-x-2"
+                    className="flex items-center space-x-1"
                   >
-                    <Zap size={16} fill="currentColor" className="group-hover:scale-125 transition-transform" />
-                    <span className="text-xs font-black uppercase tracking-[0.15em]">Quick Buy</span>
+                    <Zap size={13} fill="currentColor" className="group-hover:scale-110 transition-transform text-amber-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Quick Buy</span>
                   </motion.div>
                 )}
               </AnimatePresence>

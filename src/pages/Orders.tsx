@@ -246,7 +246,7 @@ const Orders: React.FC = () => {
       className="max-w-4xl mx-auto px-4 py-8 md:py-16 space-y-8"
     >
       <div className="space-y-2">
-        <h1 className="text-4xl font-black text-white tracking-tighter italic uppercase">Order History</h1>
+        <h1 className="text-4xl font-black text-stone-900 tracking-tighter italic uppercase">Order History</h1>
         <p className="text-zinc-500 font-medium">Revisit your favorite bakes and tracking details.</p>
         {isOffline && (
           <div className="mt-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center gap-2.5 backdrop-blur-md shadow-lg">

@@ -1,276 +1,252 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, ClipboardList, User, ShoppingBag, LayoutDashboard, Gift } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Home, LayoutGrid, ShoppingBag, BadgePercent, User, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCartState } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
-import { cn } from '../lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
-import { LottieOfferButton } from './LottieOfferButton';
+import { motion } from 'motion/react';
 import { preloadRoute } from '../utils/preload';
+import { cn } from '../lib/utils';
 
-export const BottomNav: React.FC<{ onCartClick: () => void }> = React.memo(({ onCartClick }) => {
+interface BottomNavProps {
+  onCartClick?: () => void;
+}
+
+export const BottomNav: React.FC<BottomNavProps> = React.memo(() => {
   const { user, isAdmin } = useAuth();
   const { totalItems } = useCartState();
   const { unreadCount } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
-  const [refreshKey, setRefreshKey] = useState(0);
+
   const [isVisible, setIsVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+  const scrollStopTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollThreshold = 10; // Minimum scroll delta before triggering
 
+  const pathname = location.pathname;
+
+  // Scroll listener: hides on downward scroll, shows on upward scroll,
+  // and automatically reappears when the user stops scrolling.
   useEffect(() => {
-    const handleCartBounce = () => {
-      setRefreshKey(prev => prev + 1);
-    };
-    window.addEventListener('cart-bounce', handleCartBounce);
-    return () => window.removeEventListener('cart-bounce', handleCartBounce);
-  }, []);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        setRefreshKey((prev) => prev + 1);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
-
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    let stopTimer: NodeJS.Timeout | null = null;
-    const threshold = 15; // Filter minor natural shakes or micro-adjustments
     let ticking = false;
 
-    const updateVisibility = () => {
-      const currentScrollY = window.scrollY;
-
-      // Keep entirely visible if close to the absolute top of the page
-      if (currentScrollY < 40) {
-        setIsVisible(true);
-        if (stopTimer) clearTimeout(stopTimer);
-        ticking = false;
-        return;
-      }
-
-      // Check threshold distance to avoid jittering
-      if (Math.abs(currentScrollY - lastScrollY) < threshold) {
-        ticking = false;
-        return;
-      }
-
-      // Hide representation on scrolling down, reappear instantly on scroll up
-      if (currentScrollY > lastScrollY) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
-
-      lastScrollY = currentScrollY;
-
-      // Premium Detail: Instantly reveal after 1 second of total inactivity/stop scrolling
-      if (stopTimer) clearTimeout(stopTimer);
-      stopTimer = setTimeout(() => {
-        setIsVisible(true);
-      }, 1000);
-
-      ticking = false;
-    };
-
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(updateVisibility);
-        ticking = true;
+      // 1. Reset the scroll-stop timer on every scroll movement
+      if (scrollStopTimeoutRef.current) {
+        clearTimeout(scrollStopTimeoutRef.current);
       }
+
+      // 2. When the user stops scrolling for 600ms, automatically reveal the bottom navigation
+      scrollStopTimeoutRef.current = setTimeout(() => {
+        setIsVisible(true);
+      }, 600);
+
+      if (ticking) return;
+
+      window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
+        const prevScrollY = lastScrollYRef.current;
+        const scrollDelta = currentScrollY - prevScrollY;
+
+        // Always show when near the very top of the page
+        if (currentScrollY < 60) {
+          setIsVisible(true);
+        }
+        // Hide when scrolling down significantly
+        else if (scrollDelta > scrollThreshold && currentScrollY > 100) {
+          setIsVisible(false);
+        }
+        // Show when scrolling up significantly
+        else if (scrollDelta < -scrollThreshold) {
+          setIsVisible(true);
+        }
+
+        lastScrollYRef.current = currentScrollY;
+        ticking = false;
+      });
+
+      ticking = true;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      if (stopTimer) clearTimeout(stopTimer);
+      if (scrollStopTimeoutRef.current) {
+        clearTimeout(scrollStopTimeoutRef.current);
+      }
     };
   }, []);
 
-  const navLinks = React.useMemo(() => {
-    const links = [
-      { name: 'Home', path: '/', icon: Home },
-      { name: 'Offers', path: '/offers', icon: Gift },
-      { name: 'Orders', path: '/orders', icon: ClipboardList, protected: true },
-      { name: 'Cart', path: '#cart', icon: ShoppingBag, action: onCartClick, badge: totalItems },
-      { name: 'Profile', path: '/profile', icon: User, protected: true, badge: unreadCount },
-      { name: 'Login', path: '/login', icon: User, publicOnly: true },
+  // Ensure bottom nav is always visible upon route change
+  useEffect(() => {
+    setIsVisible(true);
+    if (scrollStopTimeoutRef.current) {
+      clearTimeout(scrollStopTimeoutRef.current);
+    }
+    lastScrollYRef.current = window.scrollY;
+  }, [pathname]);
+
+  const navItems = useMemo(() => {
+    const items = [
+      {
+        id: 'home',
+        name: 'Home',
+        path: '/',
+        icon: Home,
+        isActive: pathname === '/' || pathname === '/index.html',
+      },
+      {
+        id: 'categories',
+        name: 'Categories',
+        path: '/categories',
+        icon: LayoutGrid,
+        isActive: pathname === '/categories',
+        customAction: () => {
+          if (pathname === '/categories') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
+          navigate('/categories');
+        },
+      },
+      {
+        id: 'orders',
+        name: 'Orders',
+        path: '/orders',
+        icon: ShoppingBag,
+        isActive: pathname.startsWith('/orders') || pathname.startsWith('/order-tracking') || pathname.startsWith('/track'),
+      },
+      {
+        id: 'offers',
+        name: 'Offers',
+        path: '/offers',
+        icon: BadgePercent,
+        isActive: pathname === '/offers',
+      },
+      {
+        id: 'account',
+        name: 'Account',
+        path: user ? '/profile' : '/login',
+        icon: User,
+        isActive: pathname === '/profile' || pathname === '/login' || pathname === '/signup',
+        badge: unreadCount,
+      },
     ];
 
+    // When admin is logged in, append the Admin management button
     if (isAdmin) {
-      links.splice(2, 0, { name: 'Admin', path: '/admin', icon: LayoutDashboard, protected: true });
+      items.push({
+        id: 'admin',
+        name: 'Admin',
+        path: '/admin',
+        icon: ShieldCheck,
+        isActive: pathname.startsWith('/admin'),
+      });
     }
-    return links;
-  }, [isAdmin, onCartClick, totalItems, unreadCount]);
+
+    return items;
+  }, [pathname, user, isAdmin, unreadCount, navigate]);
+
+  const handleItemClick = (item: typeof navItems[0]) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(8);
+      }
+    } catch {}
+
+    if (item.customAction) {
+      item.customAction();
+      return;
+    }
+
+    if (item.isActive && item.path === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    navigate(item.path);
+  };
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] h-20 pointer-events-none">
-      <motion.div 
-        initial={{ y: 0, opacity: 1 }}
-        animate={{ 
-          y: isVisible ? 0 : 88,
-          opacity: isVisible ? 1 : 0
-        }}
-        transition={{
-          type: 'tween',
-          ease: [0.16, 1, 0.3, 1],
-          duration: 0.25
-        }}
-        className="pointer-events-auto bg-black/65 backdrop-blur-2xl p-2 pb-[calc(1.1rem+env(safe-area-inset-bottom,4px))] pt-3 flex items-center justify-around rounded-t-[30px] border-t border-white/15 shadow-[0_-10px_40px_rgba(0,0,0,0.65)]"
-      >
-        {navLinks.map((link) => {
-          const Icon = link.icon;
-          const isActive = location.pathname === link.path.split('#')[0];
-          
-          if (link.protected && !user) return null;
-          if (link.publicOnly && user) return null;
+    <motion.nav 
+      aria-label="Bottom Navigation"
+      initial={{ y: 0, opacity: 1 }}
+      animate={{ 
+        y: isVisible ? 0 : 90,
+        opacity: isVisible ? 1 : 0
+      }}
+      transition={{ 
+        duration: 0.35, 
+        ease: [0.22, 1, 0.36, 1] 
+      }}
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-t border-stone-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]"
+      style={{
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))'
+      }}
+    >
+      <div className="max-w-md mx-auto px-2 pt-2 pb-1 flex items-center justify-around">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.isActive;
 
-          if (link.name === 'Offers') {
-            return (
-              <LottieOfferButton
-                key={`bottom-nav-${link.name}`}
-                active={isActive}
-                onClick={() => {
-                  if (isActive) {
-                    window.dispatchEvent(new CustomEvent('scroll-to-top'));
-                  } else {
-                    navigate(link.path);
-                  }
-                }}
-                className="scale-90"
-              />
-            );
-          }
-
-          const content = (
-            <motion.div
-              whileTap={{ scale: 0.85 }}
-              animate={{
-                y: isActive ? -6 : 0,
-                scale: isActive ? 1.1 : 1,
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 25,
-              }}
-              className="relative flex flex-col items-center justify-center py-2 px-3 cursor-pointer group"
-              onMouseEnter={() => {
-                if (link.path && !link.path.startsWith('#')) {
-                  preloadRoute(link.path);
-                }
-              }}
-              onTouchStart={() => {
-                if (link.path && !link.path.startsWith('#')) {
-                  preloadRoute(link.path);
-                }
-              }}
-              onClick={() => {
-                try {
-                  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                    navigator.vibrate(10);
-                  }
-                } catch (e) {}
-                
-                if (link.action) {
-                  link.action();
-                }
-              }}
+          return (
+            <motion.button
+              key={item.id}
+              type="button"
+              onClick={() => handleItemClick(item)}
+              onMouseEnter={() => preloadRoute(item.path)}
+              onTouchStart={() => preloadRoute(item.path)}
+              whileTap={{ scale: 0.88 }}
+              className="relative flex flex-col items-center justify-center min-w-0 flex-1 py-1 px-1 rounded-2xl focus:outline-none cursor-pointer group"
+              aria-label={item.name}
+              aria-current={isActive ? 'page' : undefined}
             >
-              {/* Glow Active Background */}
-              {isActive && (
-                <motion.div
-                  layoutId="bottom-nav-glow"
-                  className="absolute inset-0 bg-primary/20 blur-xl rounded-full"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              {/* Icon */}
+              {/* Icon Container */}
               <div className="relative">
-                <Icon 
-                  size={22} 
+                <Icon
+                  size={20}
+                  strokeWidth={isActive ? 2.4 : 1.8}
                   className={cn(
                     "transition-colors duration-200",
-                    isActive ? "text-primary" : (link.badge && link.badge > 0 ? "text-primary/70" : "text-gray-400 group-hover:text-white")
-                  )} 
-                />
-                
-                {/* Badge for Cart */}
-                <AnimatePresence>
-                  {link.badge !== undefined && link.badge > 0 && (
-                    <motion.span 
-                      key={`${link.name}-${link.badge}-${refreshKey}`}
-                      initial={{ scale: 0, y: -5 }}
-                      animate={{ scale: 1, y: 0 }}
-                      exit={{ scale: 0 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 15,
-                      }}
-                      className="absolute -top-2 -right-2 bg-primary text-white text-[9px] font-black px-1 py-0.5 min-w-[16px] h-4 rounded-full flex items-center justify-center border border-black shadow-lg z-20"
-                    >
-                      {link.badge}
-                    </motion.span>
+                    isActive ? "text-[#E76A54]" : "text-stone-400 group-hover:text-stone-700"
                   )}
-                </AnimatePresence>
+                />
+
+                {/* Badge (e.g. Unread notifications or Orders) */}
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[15px] h-[15px] rounded-full bg-[#E76A54] text-white text-[9px] font-black flex items-center justify-center px-0.5 shadow-xs">
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
               </div>
 
               {/* Label */}
-              <span className={cn(
-                "text-[8px] font-black uppercase tracking-wider mt-1 transition-colors",
-                isActive ? "text-primary" : "text-gray-500"
-              )}>
-                {link.name}
+              <span
+                className={cn(
+                  "text-[10px] sm:text-[11px] tracking-tight mt-1 transition-colors duration-200 truncate max-w-full",
+                  isActive ? "text-[#E76A54] font-bold" : "text-stone-500 group-hover:text-stone-700 font-medium"
+                )}
+              >
+                {item.name}
               </span>
 
-              {/* Active Dot */}
+              {/* Active Dot Indicator */}
               {isActive && (
-                <motion.div 
-                  layoutId="bottom-nav-dot"
-                  className="absolute -bottom-1.5 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_12px_rgba(255,107,38,1)]"
-                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                <motion.div
+                  layoutId="bottom-nav-active-dot"
+                  className="w-1.5 h-1.5 rounded-full bg-[#E76A54] mt-0.5"
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               )}
-            </motion.div>
-          );
-
-          if (link.action) {
-            return (
-              <div 
-                key={`bottom-nav-${link.name}`}
-                id={link.name === 'Cart' ? 'cart-btn-mobile' : undefined}
-              >
-                {content}
-              </div>
-            );
-          }
-
-          return (
-            <Link 
-              key={`bottom-nav-${link.name}`} 
-              to={link.path}
-              onMouseEnter={() => preloadRoute(link.path)}
-              onTouchStart={() => preloadRoute(link.path)}
-              onClick={(e) => {
-                if (isActive) {
-                  e.preventDefault();
-                  window.dispatchEvent(new CustomEvent('scroll-to-top'));
-                }
-              }}
-            >
-              {content}
-            </Link>
+            </motion.button>
           );
         })}
-      </motion.div>
-    </div>
+      </div>
+    </motion.nav>
   );
 });
 
 BottomNav.displayName = 'BottomNav';
+
+export default BottomNav;

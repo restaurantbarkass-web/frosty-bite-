@@ -1194,36 +1194,38 @@ export const Checkout: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 overflow-y-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 pb-40 lg:pb-20">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
-          <div className="space-y-4">
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-zinc-400 hover:text-primary transition-colors font-black uppercase tracking-widest text-[10px]">
-              <ChevronLeft size={14} /> Back to menu
+      <div className="flex-1 overflow-y-auto max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-40 lg:pb-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div className="space-y-2">
+            <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-stone-500 hover:text-[#E76A54] transition-colors font-bold uppercase tracking-wider text-xs cursor-pointer">
+              <ChevronLeft size={16} /> Back to menu
             </button>
-            <h1 className="text-4xl md:text-6xl font-black text-white italic tracking-tighter uppercase leading-none">
-              Finalize Your <br />
-              <span className="text-primary">Order</span>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-black text-stone-900 tracking-tight">
+              Finalize Your <span className="text-[#E76A54]">Order</span>
             </h1>
+            <p className="text-xs sm:text-sm text-stone-500 font-medium">
+              Review delivery details, scheduling, and payment options
+            </p>
           </div>
-          <div className="glass-bakery p-6 rounded-[32px] md:text-right">
-            <p className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Cart Total</p>
-            <p className="text-4xl font-black text-white italic tracking-tighter leading-none">₹{subtotal}</p>
+          <div className="bg-white p-5 rounded-2xl border border-stone-200/80 shadow-xs md:text-right min-w-[180px]">
+            <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-1">Cart Total</p>
+            <p className="text-3xl font-black text-stone-900 tracking-tight">₹{subtotal}</p>
           </div>
         </div>
 
         {/* Orders Closed Banner */}
         {!isOrderingOpen && (
-          <div className="mb-12 p-8 bg-red-500/10 border border-red-500/20 rounded-[32px] flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
-            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center text-red-500 shrink-0">
-              <AlertTriangle size={32} />
+          <div className="mb-8 p-6 bg-red-50 border border-red-200 rounded-3xl flex flex-col md:flex-row items-center gap-5 text-center md:text-left">
+            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
+              <AlertTriangle size={28} />
             </div>
             <div className="space-y-1 flex-1">
-              <h3 className="text-2xl font-black uppercase tracking-tighter text-red-500 italic">Online Orders are Currently Closed</h3>
-              <p className="text-sm font-bold text-red-500/80">🚫 We are not accepting new orders at this moment. You can still fill in your details, but you won't be able to place the order until we reopen.</p>
+              <h3 className="text-xl font-bold uppercase tracking-tight text-red-700">Online Orders are Currently Closed</h3>
+              <p className="text-xs font-medium text-red-600">We are not accepting new orders at this moment. You can still fill in your details, but you won't be able to place the order until we reopen.</p>
             </div>
             <button 
               onClick={() => navigate('/')}
-              className="px-6 py-3 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-red-600 transition-colors"
+              className="px-5 py-2.5 bg-red-600 text-white font-bold uppercase tracking-wider text-xs rounded-xl hover:bg-red-700 transition-colors cursor-pointer"
             >
               Back to Menu
             </button>
@@ -1236,59 +1238,62 @@ export const Checkout: React.FC = () => {
             <div 
               ref={deliverySectionRef} 
               className={cn(
-                "bakery-card p-8 md:p-10 space-y-8 transition-all duration-1000",
-                isHighlighted && "border-primary shadow-[0_0_50px_rgba(249,115,22,0.15)] ring-1 ring-primary/50"
+                "bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-xs space-y-6 transition-all duration-700",
+                isHighlighted && "border-[#E76A54] shadow-lg shadow-[#E76A54]/10 ring-2 ring-[#E76A54]/30"
               )}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3.5 border-b border-stone-100 pb-4">
                 <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center",
-                  isPickupOnly ? "bg-amber-500/10 text-amber-400" : "bg-primary/10 text-primary"
+                  "w-11 h-11 rounded-2xl flex items-center justify-center",
+                  isPickupOnly ? "bg-amber-50 text-amber-600 border border-amber-200" : "bg-[#E76A54]/10 text-[#E76A54] border border-[#E76A54]/20"
                 )}>
-                  {isPickupOnly ? <ShoppingBag size={24} /> : <Truck size={24} />}
+                  {isPickupOnly ? <ShoppingBag size={22} /> : <Truck size={22} />}
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">
-                  {isPickupOnly ? "Pickup & Customer Details" : "Delivery Details"}
-                </h2>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-serif font-bold text-stone-900 tracking-tight">
+                    {isPickupOnly ? "Pickup & Customer Details" : "Delivery Details"}
+                  </h2>
+                  <p className="text-xs text-stone-500 font-medium">Enter your contact and destination details</p>
+                </div>
               </div>
 
               {/* Banner for Pickup Only */}
               {isPickupOnly && (
-                <div className="p-6 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 rounded-3xl space-y-4">
-                  <div className="flex items-center gap-3 text-amber-400">
-                    <ShoppingBag size={24} className="animate-bounce shrink-0" />
+                <div className="p-5 bg-amber-50 border border-amber-200/80 rounded-2xl space-y-3.5 text-stone-900">
+                  <div className="flex items-center gap-3 text-amber-800">
+                    <ShoppingBag size={22} className="shrink-0 text-amber-600" />
                     <div>
-                      <h3 className="font-black text-sm uppercase tracking-wider text-white">🛍 Pickup Only Active</h3>
-                      <p className="text-xs text-amber-200/90 font-medium mt-0.5">Place your order online and collect it directly from our bakery counter. Home delivery is currently disabled.</p>
+                      <h3 className="font-bold text-sm uppercase tracking-wider text-amber-950">🛍 Pickup Only Active</h3>
+                      <p className="text-xs text-amber-800 font-medium mt-0.5">Place your order online and collect it directly from our bakery counter. Home delivery is currently disabled.</p>
                     </div>
                   </div>
-                  <div className="p-4 bg-black/40 rounded-2xl space-y-3 text-xs border border-white/5">
+                  <div className="p-4 bg-white rounded-xl space-y-2.5 text-xs border border-amber-200/60 shadow-2xs">
                     <div className="flex items-start gap-2.5">
-                      <MapPin size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                      <MapPin size={16} className="text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-white uppercase text-[10px] tracking-widest">Bakery Collection Address:</p>
-                        <p className="text-amber-200 font-semibold font-mono mt-0.5">{BAKERY_ADDRESS}</p>
+                        <p className="font-bold text-stone-800 uppercase text-[10px] tracking-wider">Bakery Collection Address:</p>
+                        <p className="text-stone-600 font-medium font-mono mt-0.5">{BAKERY_ADDRESS}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5 pt-3 border-t border-white/10">
-                      <Sparkles size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-2.5 pt-2 border-t border-stone-100">
+                      <Sparkles size={16} className="text-amber-600 shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-bold text-white uppercase text-[10px] tracking-widest">Pickup Instructions:</p>
-                        <p className="text-zinc-300 leading-relaxed mt-0.5">{BAKERY_PICKUP_INSTRUCTIONS}</p>
+                        <p className="font-bold text-stone-800 uppercase text-[10px] tracking-wider">Pickup Instructions:</p>
+                        <p className="text-stone-600 leading-relaxed mt-0.5">{BAKERY_PICKUP_INSTRUCTIONS}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2.5 pt-3 border-t border-white/10 text-emerald-400 font-bold">
-                      <CheckCircle2 size={18} className="shrink-0" />
+                    <div className="flex items-center gap-2 pt-2 border-t border-stone-100 text-emerald-700 font-bold">
+                      <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
                       <span>Estimated Ready Time: 20 - 30 Minutes</span>
                     </div>
                   </div>
                 </div>
               )}
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <User size={12} className="text-primary" /> Full Name *
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                    <User size={13} className="text-[#E76A54]" /> Full Name *
                   </label>
                   <input
                     ref={nameRef}
@@ -1297,10 +1302,10 @@ export const Checkout: React.FC = () => {
                     required
                     placeholder="Enter your full name"
                     className={cn(
-                      "w-full bg-white/5 border p-4 rounded-2xl transition-all font-medium text-white",
+                      "w-full bg-stone-50 border p-3.5 rounded-2xl transition-all font-medium text-stone-900 placeholder:text-stone-400 text-sm focus:bg-white focus:outline-none",
                       invalidFields.name 
-                        ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                        : "border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5"
+                        ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                        : "border-stone-200 focus:border-[#E76A54] focus:ring-4 focus:ring-[#E76A54]/10"
                     )}
                     value={formData.name}
                     onChange={(e) => {
@@ -1311,14 +1316,14 @@ export const Checkout: React.FC = () => {
                     }}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <Phone size={12} className="text-primary" /> Phone Number *
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider ml-1 flex items-center gap-1.5">
+                    <Phone size={13} className="text-[#E76A54]" /> Phone Number *
                   </label>
                   <div className="relative flex items-center">
-                    <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none text-zinc-500">
-                      <Phone size={16} className="text-primary" />
-                      <span className="text-sm font-semibold border-r border-white/10 pr-2 font-mono text-zinc-400 leading-none">+91</span>
+                    <div className="absolute left-4 flex items-center gap-1.5 pointer-events-none text-stone-500">
+                      <Phone size={15} className="text-[#E76A54]" />
+                      <span className="text-sm font-semibold border-r border-stone-200 pr-2 font-mono text-stone-600 leading-none">+91</span>
                     </div>
                     <input
                       ref={phoneRef}
@@ -1327,10 +1332,10 @@ export const Checkout: React.FC = () => {
                       required
                       placeholder="9876543210"
                       className={cn(
-                        "w-full bg-white/5 border pl-[5.5rem] pr-4 h-14 rounded-2xl transition-all font-mono text-white text-sm",
+                        "w-full bg-stone-50 border pl-[5.5rem] pr-4 h-12 rounded-2xl transition-all font-mono text-stone-900 placeholder:text-stone-400 text-sm focus:bg-white focus:outline-none",
                         invalidFields.phone 
-                          ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                          : "border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5"
+                          ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                          : "border-stone-200 focus:border-[#E76A54] focus:ring-4 focus:ring-[#E76A54]/10"
                       )}
                       value={formData.phone}
                       onChange={(e) => {
@@ -1355,16 +1360,16 @@ export const Checkout: React.FC = () => {
                 <>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center px-1">
-                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                        <MapPin size={12} className="text-primary" /> Complete Address *
+                      <label className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <MapPin size={13} className="text-[#E76A54]" /> Complete Address *
                       </label>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <button
                           type="button"
                           onClick={() => setShowMap(!showMap)}
                           className={cn(
-                            "text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all",
-                            showMap ? "text-primary bg-primary/10 px-2 py-0.5 rounded-md" : "text-zinc-500 hover:text-white"
+                            "text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all cursor-pointer",
+                            showMap ? "text-[#E76A54] bg-[#E76A54]/10 border-[#E76A54]/30" : "text-stone-600 bg-stone-100 hover:bg-stone-200 border-stone-200"
                           )}
                         >
                           <MapIcon size={12} />
@@ -1374,7 +1379,7 @@ export const Checkout: React.FC = () => {
                           type="button"
                           onClick={handleLocateMe}
                           disabled={isLocating}
-                          className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                          className="text-[10px] font-bold text-[#E76A54] bg-[#E76A54]/10 border border-[#E76A54]/20 px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1.5 hover:bg-[#E76A54]/20 transition-colors cursor-pointer"
                         >
                           {isLocating ? (
                             <Loader2 size={12} className="animate-spin" />
@@ -1395,7 +1400,7 @@ export const Checkout: React.FC = () => {
                           className="overflow-hidden"
                         >
                           <div className="mb-4">
-                            <React.Suspense fallback={<div className="w-full h-[300px] bg-zinc-900 animate-pulse rounded-3xl" />}>
+                            <React.Suspense fallback={<div className="w-full h-[300px] bg-stone-100 animate-pulse rounded-3xl" />}>
                               <MapSelector 
                                 initialLocation={formData.location}
                                 onLocationSelect={(lat, lng, address) => {
@@ -1411,7 +1416,7 @@ export const Checkout: React.FC = () => {
                     {/* Structured Address Form Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">House / Flat / Plot *</label>
+                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-wider ml-1">House / Flat / Plot *</label>
                         <input
                           ref={houseNumberRef}
                           key={`houseNumber-${shakeKey}`}
@@ -1419,10 +1424,10 @@ export const Checkout: React.FC = () => {
                           required
                           placeholder="e.g. House 12 / Plot 3A"
                           className={cn(
-                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                            "w-full h-11 px-4 rounded-xl bg-stone-50 border text-stone-900 placeholder:text-stone-400 text-xs focus:bg-white focus:outline-none transition-all font-semibold",
                             invalidFields.houseNumber 
-                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                              : "border-white/10 focus:border-primary/50"
+                              ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                              : "border-stone-200 focus:border-[#E76A54]"
                           )}
                           value={addrFields.houseNumber}
                           onChange={(e) => {
@@ -1473,7 +1478,7 @@ export const Checkout: React.FC = () => {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Landmark *</label>
+                        <label className="text-[10px] font-bold text-stone-600 uppercase tracking-wider ml-1">Landmark *</label>
                         <input
                           ref={landmarkRef}
                           key={`landmark-${shakeKey}`}
@@ -1481,10 +1486,10 @@ export const Checkout: React.FC = () => {
                           required
                           placeholder="e.g. Near Link Road"
                           className={cn(
-                            "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                            "w-full h-11 px-4 rounded-xl bg-stone-50 border text-stone-900 placeholder:text-stone-400 text-xs focus:bg-white focus:outline-none transition-all font-semibold",
                             invalidFields.landmark 
-                              ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                              : "border-white/10 focus:border-primary/50"
+                              ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                              : "border-stone-200 focus:border-[#E76A54]"
                           )}
                           value={addrFields.landmark}
                           onChange={(e) => {
@@ -1498,7 +1503,7 @@ export const Checkout: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">City *</label>
+                          <label className="text-[10px] font-bold text-stone-600 uppercase tracking-wider ml-1">City *</label>
                           <input
                             ref={cityRef}
                             key={`city-${shakeKey}`}
@@ -1506,10 +1511,10 @@ export const Checkout: React.FC = () => {
                             required
                             placeholder="e.g. Cuttack"
                             className={cn(
-                              "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold",
+                              "w-full h-11 px-4 rounded-xl bg-stone-50 border text-stone-900 placeholder:text-stone-400 text-xs focus:bg-white focus:outline-none transition-all font-semibold",
                               invalidFields.city 
-                                ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                                : "border-white/10 focus:border-primary/50"
+                                ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                                : "border-stone-200 focus:border-[#E76A54]"
                             )}
                             value={addrFields.city}
                             onChange={(e) => {
@@ -1522,7 +1527,7 @@ export const Checkout: React.FC = () => {
                         </div>
 
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Pincode *</label>
+                          <label className="text-[10px] font-bold text-stone-600 uppercase tracking-wider ml-1">Pincode *</label>
                           <input
                             ref={pincodeRef}
                             key={`pincode-${shakeKey}`}
@@ -1530,10 +1535,10 @@ export const Checkout: React.FC = () => {
                             required
                             placeholder="e.g. 753010"
                             className={cn(
-                              "w-full h-12 px-4 rounded-xl bg-white/5 border text-white placeholder-zinc-650 text-xs focus:outline-none transition-all font-semibold font-mono",
+                              "w-full h-11 px-4 rounded-xl bg-stone-50 border text-stone-900 placeholder:text-stone-400 text-xs focus:bg-white focus:outline-none transition-all font-semibold font-mono",
                               invalidFields.pincode 
-                                ? "border-red-500 ring-2 ring-red-500/30 animate-shake" 
-                                : "border-white/10 focus:border-primary/50"
+                                ? "border-red-500 ring-2 ring-red-500/20 animate-shake" 
+                                : "border-stone-200 focus:border-[#E76A54]"
                             )}
                             value={addrFields.pincode}
                             onChange={(e) => {
@@ -1551,16 +1556,16 @@ export const Checkout: React.FC = () => {
                     {/* Delivery Status indicator for Checkout */}
                     <div className="pt-2">
                       {validationResult.isValidating ? (
-                        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse flex items-center gap-3">
-                          <Loader2 size={16} className="text-primary animate-spin" />
-                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider animate-pulse">Evaluating Delivery Area...</span>
+                        <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 animate-pulse flex items-center gap-3">
+                          <Loader2 size={16} className="text-[#E76A54] animate-spin" />
+                          <span className="text-xs font-bold text-stone-600 uppercase tracking-wider">Evaluating Delivery Area...</span>
                         </div>
                       ) : validationResult.success === true ? (
-                        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3 text-left">
-                          <span className="text-emerald-500 text-lg">✅</span>
+                        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-left">
+                          <span className="text-emerald-600 text-lg">✅</span>
                           <div>
-                            <p className="text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">Delivery Available</p>
-                            <p className="text-zinc-200 text-xs font-semibold mt-0.5">
+                            <p className="text-emerald-800 font-extrabold text-xs uppercase tracking-wider">Delivery Available</p>
+                            <p className="text-stone-700 text-xs font-medium mt-0.5">
                               Estimated delivery: {hasDaysItems ? (
                                 `Within ${getDaysMaxString()}`
                               ) : (
@@ -1570,20 +1575,20 @@ export const Checkout: React.FC = () => {
                                 )} mins`
                               )}
                             </p>
-                            {validationResult.message && <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
+                            {validationResult.message && <p className="text-stone-500 text-[10px] uppercase font-bold tracking-wider mt-1">{validationResult.message}</p>}
                           </div>
                         </div>
                       ) : validationResult.success === false ? (
-                        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex flex-col gap-3 text-left">
+                        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex flex-col gap-2.5 text-left">
                           <div className="flex items-start gap-3">
-                            <span className="text-red-500 text-lg">
+                            <span className="text-red-600 text-lg">
                               {validationResult.reason === 'SERVICEABILITY_UNAVAILABLE' ? '⚠️' : '❌'}
                             </span>
                             <div>
-                              <p className="text-red-400 font-extrabold text-[11px] uppercase tracking-wider">
+                              <p className="text-red-800 font-bold text-xs uppercase tracking-wider">
                                 {validationResult.reason === 'SERVICEABILITY_UNAVAILABLE' ? 'Serviceability Offline' : 'Outside Service Area'}
                               </p>
-                              <p className="text-zinc-200 text-xs font-medium mt-0.5 leading-relaxed">
+                              <p className="text-stone-600 text-xs font-medium mt-0.5 leading-relaxed">
                                 {validationResult.message || "Frosty Bite currently delivers only in Cuttack."}
                               </p>
                             </div>
@@ -1592,16 +1597,16 @@ export const Checkout: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => validateDeliveryAddress()}
-                              className="px-4 py-2 bg-red-500/25 hover:bg-red-500/40 border border-red-500/30 text-white rounded-xl text-xs font-bold transition-all text-center self-start flex items-center gap-2"
+                              className="px-3.5 py-1.5 bg-red-100 hover:bg-red-200 border border-red-300 text-red-800 rounded-xl text-xs font-bold transition-all text-center self-start flex items-center gap-2 cursor-pointer"
                             >
                               <span>🔄</span> Retry Connection Check
                             </button>
                           )}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-2 text-left">
-                          <span className="text-zinc-500">🚚</span>
-                          <p className="text-zinc-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
+                        <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 flex items-start gap-2 text-left">
+                          <span className="text-stone-500">🚚</span>
+                          <p className="text-stone-500 text-[10px] font-semibold uppercase tracking-wider">Address geofence dynamic validations active</p>
                         </div>
                       )}
                     </div>
@@ -1610,7 +1615,7 @@ export const Checkout: React.FC = () => {
               )}
 
               {/* Date & Time Scheduling: Using DeliveryDatePicker Component (Active for both Delivery & Store Pickup) */}
-              <div className="pt-2 border-t border-white/5">
+              <div className="pt-2 border-t border-stone-100">
                 <DeliveryDatePicker
                   fulfillmentType={isPickupOnly ? 'pickup' : 'delivery'}
                   mode={deliveryMode}
@@ -1642,19 +1647,19 @@ export const Checkout: React.FC = () => {
               </div>
 
               {/* Cake Inscription & Celebration Card (Active for both Delivery & Store Pickup) */}
-              <div className="pt-4 border-t border-white/5 text-left space-y-3">
+              <div className="pt-4 border-t border-stone-100 text-left space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Cake size={13} className="text-primary" /> Cake Message & Celebration (Optional)
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Cake size={14} className="text-[#E76A54]" /> Cake Message & Celebration (Optional)
                   </label>
-                  <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     Free Customization
                   </span>
                 </div>
 
                 {/* Occasion chips */}
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">Select Occasion</span>
+                  <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">Select Occasion</span>
                   <div className="flex flex-wrap gap-1.5">
                     {CAKE_OCCASIONS.map((occ) => {
                       const isSelected = cakeOccasion === occ.id;
@@ -1664,10 +1669,10 @@ export const Checkout: React.FC = () => {
                           type="button"
                           onClick={() => setCakeOccasion(occ.id)}
                           className={cn(
-                            "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer",
+                            "px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border transition-all cursor-pointer",
                             isSelected
-                              ? "bg-primary text-black border-primary font-black shadow-sm shadow-primary/20"
-                              : "bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10"
+                              ? "bg-[#E76A54] text-white border-[#E76A54] shadow-xs"
+                              : "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100 hover:text-stone-900"
                           )}
                         >
                           {occ.label}
@@ -1680,10 +1685,10 @@ export const Checkout: React.FC = () => {
                 {/* Cake Inscription Input */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">
                       Text to Write on Cake
                     </span>
-                    <span className="text-[8px] font-mono font-bold text-zinc-500">
+                    <span className="text-[10px] font-mono font-bold text-stone-400">
                       {cakeMessage.length}/50
                     </span>
                   </div>
@@ -1693,17 +1698,17 @@ export const Checkout: React.FC = () => {
                     placeholder='e.g. "Happy 25th Birthday Sarah! 💖"'
                     value={cakeMessage}
                     onChange={(e) => setCakeMessage(e.target.value)}
-                    className="w-full h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-zinc-650 text-xs focus:outline-none focus:border-primary transition-all font-semibold"
+                    className="w-full h-11 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder:text-stone-400 text-xs focus:bg-white focus:outline-none focus:border-[#E76A54] transition-all font-semibold"
                   />
                   
                   {/* Quick Message Suggestion chips */}
-                  <div className="flex flex-wrap gap-1 pt-1">
+                  <div className="flex flex-wrap gap-1.5 pt-1">
                     {['Happy Birthday 🎉', 'Happy Anniversary 💍', 'Best Wishes ✨', 'Congratulations 🎓'].map((msg) => (
                       <button
                         key={msg}
                         type="button"
                         onClick={() => setCakeMessage(msg)}
-                        className="px-2 py-0.5 bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-md text-[8px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
+                        className="px-2.5 py-1 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-lg text-[10px] font-medium text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
                       >
                         + {msg}
                       </button>
@@ -1712,18 +1717,18 @@ export const Checkout: React.FC = () => {
                 </div>
 
                 {/* Candle and knife complement check */}
-                <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors cursor-pointer select-none">
+                <label className="flex items-center gap-3 p-3.5 rounded-xl bg-stone-50 border border-stone-200 hover:bg-stone-100/80 transition-colors cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={includeCandleKnife}
                     onChange={(e) => setIncludeCandleKnife(e.target.checked)}
-                    className="w-4 h-4 rounded text-primary focus:ring-primary border-zinc-700 bg-zinc-800 accent-primary cursor-pointer"
+                    className="w-4 h-4 rounded text-[#E76A54] focus:ring-[#E76A54] border-stone-300 bg-white accent-[#E76A54] cursor-pointer"
                   />
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black text-zinc-200 uppercase tracking-wide">
+                    <p className="text-xs font-bold text-stone-800 uppercase tracking-wide">
                       Include Free Birthday Candles & Cutting Knife 🕯️🔪
                     </p>
-                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">
+                    <p className="text-[10px] text-stone-500 font-medium mt-0.5">
                       Complimentary accessory pack with your cake order
                     </p>
                   </div>
@@ -1731,25 +1736,25 @@ export const Checkout: React.FC = () => {
 
                 {/* Live Inscription Tag Preview */}
                 {cakeMessage.trim() && (
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl space-y-1">
-                    <p className="text-[8px] font-black text-primary uppercase tracking-widest">
+                  <div className="p-3 bg-[#E76A54]/10 border border-[#E76A54]/20 rounded-xl space-y-0.5">
+                    <p className="text-[10px] font-bold text-[#E76A54] uppercase tracking-wider">
                       🎂 Cake Inscription Preview
                     </p>
-                    <p className="text-xs font-serif italic text-white font-medium">
+                    <p className="text-xs font-serif italic text-stone-900 font-medium">
                       "{cakeMessage.trim()}"
                     </p>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">
+              <div className="space-y-1.5 pt-2 border-t border-stone-100">
+                <label className="text-xs font-bold text-stone-700 uppercase tracking-wider ml-1">
                   Order Notes (Optional)
                 </label>
                 <textarea
                   rows={2}
                   placeholder="Anything else we should know? (e.g. deliver after 5 PM, ring bell twice)"
-                  className="w-full bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-medium text-white resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 focus:border-[#E76A54] focus:bg-white focus:outline-none p-3.5 rounded-2xl transition-all font-medium text-stone-900 placeholder:text-stone-400 text-xs resize-none"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
@@ -1757,14 +1762,14 @@ export const Checkout: React.FC = () => {
             </div>
 
             {/* Coupon Code section */}
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 p-6 md:p-8 rounded-[2.5rem] overflow-hidden relative group">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 rounded-[20px] bg-primary/10 flex items-center justify-center text-primary group-hover:rotate-12 transition-transform duration-500">
-                  <Ticket size={24} />
+            <div className="bg-white rounded-3xl border border-stone-200/80 p-6 md:p-7 shadow-xs">
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="w-10 h-10 rounded-2xl bg-[#E76A54]/10 text-[#E76A54] flex items-center justify-center">
+                  <Ticket size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-white uppercase italic tracking-tight leading-none">Coupon Code</h3>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Unlock a delicious deal</p>
+                  <h3 className="text-base font-bold text-stone-900 tracking-tight">Coupon Code</h3>
+                  <p className="text-[11px] font-medium text-stone-500">Apply a promo code for exclusive discounts</p>
                 </div>
               </div>
 
@@ -1773,16 +1778,16 @@ export const Checkout: React.FC = () => {
                   {!appliedCoupon ? (
                     <motion.div 
                       key="input"
-                      initial={{ opacity: 0, x: -20 }}
+                      initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
+                      exit={{ opacity: 0, x: 10 }}
                       className="space-y-4"
                     >
-                      <div className="flex gap-2 sm:gap-3">
+                      <div className="flex gap-2.5">
                         <input
                           type="text"
-                          placeholder="ENTER CODE"
-                          className="flex-1 bg-white/5 border border-white/10 focus:border-primary focus:ring-4 focus:ring-primary/5 p-4 rounded-2xl transition-all font-black text-white uppercase placeholder:text-zinc-700 placeholder:text-[10px] tracking-widest min-w-0"
+                          placeholder="ENTER COUPON CODE"
+                          className="flex-1 bg-stone-50 border border-stone-200 focus:border-[#E76A54] focus:bg-white focus:outline-none px-4 py-3 rounded-xl transition-all font-bold text-stone-900 uppercase placeholder:text-stone-400 placeholder:text-xs placeholder:font-medium tracking-wider text-xs min-w-0"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value)}
                         />
@@ -1790,7 +1795,7 @@ export const Checkout: React.FC = () => {
                           type="button"
                           onClick={() => handleApplyCoupon()}
                           disabled={isApplyingCoupon || !couponCode}
-                          className="px-6 sm:px-8 bg-primary text-white disabled:bg-zinc-800 disabled:opacity-50 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:brightness-110 active:scale-95 shadow-lg shadow-primary/25 whitespace-nowrap"
+                          className="px-6 bg-[#E76A54] hover:bg-[#d85c46] text-white disabled:bg-stone-200 disabled:text-stone-400 disabled:opacity-70 rounded-xl font-bold uppercase text-xs tracking-wider transition-all active:scale-98 shadow-xs cursor-pointer whitespace-nowrap"
                         >
                           {isApplyingCoupon ? (
                             <Loader2 size={16} className="animate-spin mx-auto" />
@@ -1803,27 +1808,21 @@ export const Checkout: React.FC = () => {
                   ) : (
                     <motion.div 
                       key="applied"
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="flex items-center justify-between bg-primary/10 border border-primary/20 p-4 sm:p-5 rounded-2xl relative overflow-hidden"
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center justify-between bg-emerald-50 border border-emerald-200 p-4 rounded-2xl relative overflow-hidden"
                     >
-                      <motion.div 
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: 1 }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="absolute inset-x-0 bottom-0 h-0.5 bg-primary/40 origin-left"
-                      />
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/40">
-                          <Check size={20} className="text-white" />
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0">
+                          <Check size={18} />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-sm sm:text-base font-black text-white uppercase italic tracking-tight">{appliedCoupon.code}</p>
-                            <span className="px-2 py-0.5 bg-primary/20 text-primary text-[8px] font-black uppercase rounded-md tracking-widest border border-primary/30">Verified</span>
+                            <p className="text-sm font-bold text-stone-900 uppercase tracking-tight">{appliedCoupon.code}</p>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-md tracking-wider">Applied</span>
                           </div>
-                          <p className="text-[11px] font-bold text-primary uppercase mt-1 tracking-wider italic">
+                          <p className="text-xs font-semibold text-emerald-700 mt-0.5">
                             {appliedCoupon.type === 'free_item' ? 'FREE Gift Applied! 🎁' : `₹${discountAmount.toFixed(0)} Discounted! ✨`}
                           </p>
                           {appliedCoupon.gift_url && (
@@ -1831,9 +1830,9 @@ export const Checkout: React.FC = () => {
                               href={appliedCoupon.gift_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[9px] font-black text-white/40 hover:text-primary transition-colors uppercase tracking-widest mt-2 bg-white/5 px-2 py-1 rounded-md border border-white/5"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-stone-600 hover:text-stone-900 transition-colors uppercase tracking-wider mt-1.5 bg-white px-2 py-0.5 rounded-md border border-stone-200"
                             >
-                              <Sparkles size={10} /> View Gift details
+                              <Sparkles size={11} className="text-amber-500" /> View Gift details
                             </a>
                           )}
                         </div>
@@ -1841,7 +1840,7 @@ export const Checkout: React.FC = () => {
                       <button
                         type="button"
                         onClick={removeCoupon}
-                        className="p-3 hover:bg-white/10 rounded-xl transition-all text-zinc-500 hover:text-red-400 active:scale-90"
+                        className="p-2 hover:bg-stone-200/60 rounded-xl transition-all text-stone-400 hover:text-red-500 active:scale-90 cursor-pointer"
                         title="Remove Coupon"
                       >
                         <X size={18} />
@@ -1853,83 +1852,82 @@ export const Checkout: React.FC = () => {
             </div>
 
             {/* Payment Method */}
-            <div className="bakery-card p-8 md:p-10 space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                  <CreditCard size={24} />
+            <div className="bg-white rounded-3xl border border-stone-200/80 p-6 md:p-7 shadow-xs space-y-6">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#E76A54]/10 text-[#E76A54] flex items-center justify-center">
+                  <CreditCard size={20} />
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Payment Method</h2>
+                <div>
+                  <h2 className="text-base font-bold text-stone-900 tracking-tight">Payment Method</h2>
+                  <p className="text-[11px] font-medium text-stone-500">Choose how you would like to pay</p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <button
                   type="button"
                   onClick={() => {
                     setFormData({ ...formData, paymentMethod: 'upi' });
-                    // Scroll to final checkout button for better UX
                     document.getElementById('checkout-action-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}
                   className={cn(
-                    "relative flex flex-col p-6 rounded-3xl border-2 transition-all group overflow-hidden text-left",
+                    "relative flex flex-col p-5 rounded-2xl border-2 transition-all text-left cursor-pointer",
                     formData.paymentMethod === 'upi' 
-                      ? "border-primary bg-primary/10" 
-                      : "border-white/5 hover:border-primary/20 hover:bg-white/5"
+                      ? "border-[#E76A54] bg-[#E76A54]/5 ring-1 ring-[#E76A54]/30" 
+                      : "border-stone-200 bg-stone-50/50 hover:bg-stone-50 hover:border-stone-300"
                   )}
                 >
-                  <div className="flex items-center justify-between mb-4 relative z-10">
+                  <div className="flex items-center justify-between mb-3">
                     <div className={cn(
-                      "p-3 rounded-xl",
-                      formData.paymentMethod === 'upi' ? "bg-primary text-white shadow-sm" : "bg-white/5 text-zinc-500"
+                      "p-2.5 rounded-xl transition-colors",
+                      formData.paymentMethod === 'upi' ? "bg-[#E76A54] text-white" : "bg-stone-200 text-stone-600"
                     )}>
-                      <Wallet size={24} />
+                      <Wallet size={20} />
                     </div>
                     {formData.paymentMethod === 'upi' && (
-                      <CheckCircle2 size={24} className="text-primary" />
+                      <CheckCircle2 size={22} className="text-[#E76A54]" />
                     )}
                   </div>
-                  <h3 className="text-lg font-black text-white uppercase italic tracking-tight leading-none relative z-10">Pay via UPI</h3>
-                  <p className="text-xs text-zinc-500 font-bold tracking-widest mt-2 uppercase relative z-10">Google Pay, PhonePe, Paytm</p>
+                  <h3 className="text-sm font-bold text-stone-900 leading-none">Pay via UPI / QR</h3>
+                  <p className="text-xs text-stone-500 font-medium mt-1.5">Google Pay, PhonePe, Paytm, BHIM</p>
                   
                   {formData.paymentMethod === 'upi' && (
-                    <div className="mt-4 relative z-10 flex items-center gap-2 text-primary font-black uppercase tracking-tighter text-[10px] animate-pulse">
-                      <QrCode size={12} />
-                      Click to Process & View QR
+                    <div className="mt-3 flex items-center gap-1.5 text-[#E76A54] font-bold text-[11px]">
+                      <QrCode size={13} />
+                      Scan & pay instantly with UPI QR
                     </div>
                   )}
-
-                  <div className={cn(
-                    "absolute bottom-0 right-0 w-32 h-32 blur-3xl -mb-16 -mr-16 transition-all",
-                    formData.paymentMethod === 'upi' ? "bg-primary/20" : "bg-transparent"
-                  )} />
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, paymentMethod: 'cod' })}
                   className={cn(
-                    "relative flex flex-col p-6 rounded-3xl border-2 transition-all group overflow-hidden text-left",
+                    "relative flex flex-col p-5 rounded-2xl border-2 transition-all text-left cursor-pointer",
                     formData.paymentMethod === 'cod' 
-                      ? "border-white bg-white/10" 
-                      : "border-white/5 hover:border-white/20 hover:bg-white/5"
+                      ? "border-stone-800 bg-stone-900 text-white" 
+                      : "border-stone-200 bg-stone-50/50 hover:bg-stone-50 hover:border-stone-300"
                   )}
                 >
-                  <div className="flex items-center justify-between mb-4 relative z-10">
+                  <div className="flex items-center justify-between mb-3">
                     <div className={cn(
-                      "p-3 rounded-xl",
-                      formData.paymentMethod === 'cod' ? "bg-white text-black shadow-sm" : "bg-white/5 text-zinc-500"
+                      "p-2.5 rounded-xl transition-colors",
+                      formData.paymentMethod === 'cod' ? "bg-white text-stone-900" : "bg-stone-200 text-stone-600"
                     )}>
-                      <HandCoins size={24} />
+                      <HandCoins size={20} />
                     </div>
                     {formData.paymentMethod === 'cod' && (
-                      <CheckCircle2 size={24} className="text-white" />
+                      <CheckCircle2 size={22} className="text-white" />
                     )}
                   </div>
-                  <h3 className="text-lg font-black text-white uppercase italic tracking-tight leading-none relative z-10">Cash on Delivery</h3>
-                  <p className="text-xs text-zinc-500 font-bold tracking-widest mt-2 uppercase relative z-10">Pay when your order arrives</p>
-                  <div className={cn(
-                    "absolute bottom-0 right-0 w-32 h-32 blur-3xl -mb-16 -mr-16 transition-all",
-                    formData.paymentMethod === 'cod' ? "bg-zinc-800/40" : "bg-transparent"
-                  )} />
+                  <h3 className={cn(
+                    "text-sm font-bold leading-none",
+                    formData.paymentMethod === 'cod' ? "text-white" : "text-stone-900"
+                  )}>Cash on Delivery</h3>
+                  <p className={cn(
+                    "text-xs font-medium mt-1.5",
+                    formData.paymentMethod === 'cod' ? "text-stone-300" : "text-stone-500"
+                  )}>Pay with cash when your order arrives</p>
                 </button>
               </div>
             </div>
@@ -1937,75 +1935,79 @@ export const Checkout: React.FC = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bakery-card p-8 space-y-6 lg:sticky lg:top-24">
-              <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-3">
-                Order Summary
-                <span className="text-xs font-bold text-zinc-500">({cart.length} items)</span>
-              </h3>
+            <div className="bg-white rounded-3xl border border-stone-200/80 p-6 md:p-7 shadow-xs space-y-5 lg:sticky lg:top-24">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                <h3 className="text-base font-bold text-stone-900 flex items-center gap-2">
+                  Order Summary
+                </h3>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600">
+                  {cart.length} {cart.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
 
-              <div className="space-y-4 max-h-[300px] overflow-y-auto px-1 custom-scrollbar">
+              <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                 {cart.map((item) => (
-                  <div key={item.id} className="flex gap-4 group">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/5">
-                      <OptimizedImage src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <div key={item.id} className="flex gap-3.5 items-center group">
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-stone-100 bg-stone-50">
+                      <OptimizedImage src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     </div>
-                    <div className="flex-1 min-w-0 py-1">
-                      <h4 className="text-sm font-black text-white uppercase italic tracking-tight truncate leading-tight">{item.name}</h4>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Qty: {item.quantity}</p>
-                      <p className="text-xs font-black text-primary italic mt-1">₹{item.price * item.quantity}</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-xs font-bold text-stone-900 truncate">{item.name}</h4>
+                      <p className="text-[11px] text-stone-500 font-medium">Qty: {item.quantity}</p>
+                      <p className="text-xs font-bold text-[#E76A54] mt-0.5">₹{item.price * item.quantity}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-6 border-t border-white/5 space-y-4">
-                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
+              <div className="pt-4 border-t border-stone-100 space-y-2.5">
+                <div className="flex justify-between items-center text-xs font-medium text-stone-600">
                   <span>Subtotal</span>
-                  <span>₹{subtotal}</span>
+                  <span className="font-semibold text-stone-900">₹{subtotal}</span>
                 </div>
                 {appliedCoupon && (
-                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-primary">
+                  <div className="flex justify-between items-center text-xs font-semibold text-emerald-600">
                     <span>Discount ({appliedCoupon.code})</span>
                     <span>-₹{discountAmount}</span>
                   </div>
                 )}
-                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-[0.1em] text-zinc-500">
+                <div className="flex justify-between items-center text-xs font-medium text-stone-600">
                   <span>{isPickupOnly ? 'Fulfillment' : 'Delivery'}</span>
                   {isPickupOnly ? (
-                    <span className="text-amber-400 font-extrabold flex items-center gap-1">
-                      <ShoppingBag size={12} /> PICKUP (FREE)
+                    <span className="text-amber-700 font-bold flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                      <ShoppingBag size={11} /> PICKUP (FREE)
                     </span>
                   ) : deliveryFee === 0 ? (
-                    <span className="text-emerald-500">FREE</span>
+                    <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">FREE</span>
                   ) : (
-                    <span>₹{deliveryFee}</span>
+                    <span className="font-semibold text-stone-900">₹{deliveryFee}</span>
                   )}
                 </div>
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-lg font-black text-white uppercase italic tracking-tight">Total Payable</span>
-                  <span className="text-2xl font-black text-white italic tracking-tighter">₹{finalPrice}</span>
+                <div className="flex justify-between items-center pt-3 border-t border-stone-100">
+                  <span className="text-sm font-bold text-stone-900">Total Payable</span>
+                  <span className="text-2xl font-black text-stone-900 tracking-tight">₹{finalPrice}</span>
                 </div>
               </div>
 
               {!isPickupOnly && formData.location && !isLocationInServiceArea() && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl space-y-2">
+                <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-2xl space-y-1">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle size={16} />
-                    <span className="font-black text-xs uppercase tracking-widest leading-none">Out of Delivery Boundary</span>
+                    <AlertTriangle size={15} />
+                    <span className="font-bold text-xs">Out of Delivery Boundary</span>
                   </div>
-                  <p className="text-[10px] uppercase tracking-wider leading-relaxed text-zinc-400 font-bold">
+                  <p className="text-[11px] leading-relaxed text-stone-600 font-normal">
                     The chosen map pin coordinate lies outside Frosty Bite's active delivery boundaries. Please adjust your address marker on the map selector.
                   </p>
                 </div>
               )}
 
               {getCartAvailabilityWarning() && (
-                <div className="p-4 bg-orange-500/10 border border-orange-500/20 text-orange-500 rounded-2xl space-y-2">
+                <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl space-y-1">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle size={16} />
-                    <span className="font-black text-xs uppercase tracking-widest leading-none">Availability Warning</span>
+                    <AlertTriangle size={15} />
+                    <span className="font-bold text-xs">Availability Warning</span>
                   </div>
-                  <p className="text-[10px] uppercase tracking-wider leading-relaxed text-zinc-400 font-bold">
+                  <p className="text-[11px] leading-relaxed text-stone-600 font-normal">
                     {getCartAvailabilityWarning()}
                   </p>
                 </div>
@@ -2016,45 +2018,48 @@ export const Checkout: React.FC = () => {
                 onClick={handlePlaceOrder}
                 disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
                 className={cn(
-                  "w-full btn-premium group h-16 transition-all",
-                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "opacity-80 cursor-not-allowed bg-zinc-700 hover:scale-100 shadow-none border-zinc-600"
+                  "w-full h-13 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer",
+                  formData.paymentMethod === 'cod' 
+                    ? "bg-stone-900 hover:bg-stone-800 text-white" 
+                    : "bg-[#E76A54] hover:bg-[#d85c46] text-white",
+                  (isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "opacity-60 cursor-not-allowed bg-stone-300 text-stone-500 shadow-none hover:bg-stone-300"
                 )}
               >
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-2">
                   {isOrdering ? (
                     <>
-                      <Loader2 className="animate-spin" size={20} />
-                      <span className="font-black uppercase tracking-widest text-sm">Processing Order...</span>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>Processing Order...</span>
                     </>
                   ) : isLoading ? (
                     <>
-                      <Loader2 className="animate-spin" size={20} />
-                      <span className="font-black uppercase tracking-widest text-sm">Checking status...</span>
+                      <Loader2 className="animate-spin" size={18} />
+                      <span>Checking status...</span>
                     </>
                   ) : !isOrderingOpen ? (
                     <>
-                      <X size={20} />
-                      <span className="font-black uppercase tracking-widest font-bold">Orders Closed</span>
+                      <X size={18} />
+                      <span>Orders Closed</span>
                     </>
                   ) : !isLocationInServiceArea() ? (
                     <>
-                      <AlertTriangle size={20} />
-                      <span className="font-black uppercase tracking-widest font-bold">Location Out of Bounds</span>
+                      <AlertTriangle size={18} />
+                      <span>Location Out of Bounds</span>
                     </>
                   ) : (
                     <>
-                      <span className="font-black uppercase tracking-widest">
+                      <span>
                         {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR Code & Pay'}
                       </span>
-                      <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight size={16} />
                     </>
                   )}
                 </div>
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-zinc-500">
-                <ShieldCheck size={14} className="text-primary" />
-                <span className="text-[9px] font-black uppercase tracking-[0.15em]">100% Encrypted & Secure</span>
+              <div className="flex items-center justify-center gap-1.5 text-stone-400">
+                <ShieldCheck size={14} className="text-emerald-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">100% Secure Checkout</span>
               </div>
             </div>
           </div>
@@ -2063,16 +2068,16 @@ export const Checkout: React.FC = () => {
 
       {/* Sticky Bottom Bar for Mobile Checkout */}
       {cart.length > 0 && !showConfirmation && !isOrdering && (
-        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/95 backdrop-blur-xl border-t border-white/10 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="flex justify-between items-center px-2">
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-stone-200 p-4 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-lg">
+          <div className="max-w-md mx-auto space-y-3">
+            <div className="flex justify-between items-center px-1">
                <div>
-                 <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Total Payable</p>
-                 <p className="text-2xl font-black text-white italic tracking-tighter">₹{finalPrice}</p>
+                 <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Total Payable</p>
+                 <p className="text-xl font-black text-stone-900 tracking-tight">₹{finalPrice}</p>
                </div>
-               <div className="text-right">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">Secure</p>
-                  <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Checkout</p>
+               <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                  <ShieldCheck size={12} />
+                  <span>Secure Checkout</span>
                </div>
             </div>
             
@@ -2080,8 +2085,8 @@ export const Checkout: React.FC = () => {
               onClick={handlePlaceOrder}
               disabled={isLoading || isOrdering || !isOrderingOpen || !isLocationInServiceArea() || !!getCartAvailabilityWarning()}
               className={cn(
-                "w-full h-14 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl shadow-primary/20",
-                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "bg-zinc-800 opacity-50 shadow-none pointer-events-none"
+                "w-full h-12 bg-[#E76A54] hover:bg-[#d85c46] text-white rounded-xl font-bold uppercase tracking-wider text-xs flex items-center justify-center gap-2 transition-all active:scale-98 shadow-sm cursor-pointer",
+                (isLoading || !isOrderingOpen || isOrdering || !isLocationInServiceArea() || !!getCartAvailabilityWarning()) && "bg-stone-200 text-stone-400 opacity-70 shadow-none pointer-events-none"
               )}
             >
               {isOrdering ? (
@@ -2102,7 +2107,7 @@ export const Checkout: React.FC = () => {
                   <span>
                     {formData.paymentMethod === 'cod' ? 'Place COD Order' : 'Go to QR & Pay'}
                   </span>
-                  <ChevronRight size={18} />
+                  <ChevronRight size={16} />
                 </>
               )}
             </button>

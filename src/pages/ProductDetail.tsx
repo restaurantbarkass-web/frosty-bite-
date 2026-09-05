@@ -7,7 +7,6 @@ import { cn } from '../lib/utils';
 import { useCartActions, useCartState } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { FoodItem } from '../types';
-import { Button } from '../components/Button';
 import { ProductPageSkeleton } from '../components/ProductPageSkeleton';
 import { FoodCard } from '../components/FoodCard';
 import { toggleWishlist, checkIfWishlisted } from '../services/wishlistService';
@@ -15,7 +14,6 @@ import { supabase } from '../supabase';
 import toast from 'react-hot-toast';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { preloadRoute } from '../utils/preload';
-
 import { ImageZoom } from '../components/ImageZoom';
 
 const getInitialCachedProduct = (productId?: string): FoodItem | null => {
@@ -51,9 +49,9 @@ const ProductDetail: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [isWishlisting, setIsWishlisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews' | 'ingredients'>('description');
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   useEffect(() => {
-    // Predictive prefetch of checkout route on detail mount
     preloadRoute('/checkout');
   }, []);
 
@@ -99,316 +97,96 @@ const ProductDetail: React.FC = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       if (!id) return;
-      
-      setIsLoading(true);
       try {
-        let currentProduct: FoodItem | null = null;
-        
-        // 1. Try to fetch product from Supabase
-        const { data: items, error: supabaseError } = await supabase
+        setIsLoading(true);
+        const { data, error } = await supabase
           .from('products')
           .select('*')
-          .eq('id', id);
+          .eq('id', id)
+          .single();
 
-        if (!supabaseError && items && items.length > 0) {
-          const item = items[0];
-          let ai_desc = item.ai_description || '';
-          let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
-          let est_unit = item.estimated_delivery_time_unit || '';
-          let est_string = item.estimated_delivery_time_string || '';
+        if (error) throw error;
+        if (data) {
+          setProduct(data);
           
-          if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
-            try {
-              const parsed = JSON.parse(ai_desc);
-              ai_desc = parsed.ai_description || '';
-              if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
-                est_time = Number(parsed.estimated_delivery_time);
-              }
-              if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
-                est_unit = parsed.estimated_delivery_time_unit;
-              }
-              if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
-                est_string = parsed.estimated_delivery_time_string;
-              }
-            } catch (e) {
-              // Ignore failure
-            }
-          }
-
-          currentProduct = {
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            category: item.category || 'General',
-            available: item.available !== undefined ? item.available : true,
-            stock_quantity: item.stock_quantity || 0,
-            description: item.description || '',
-            rating: item.rating || 5,
-            estimated_delivery_time: est_time || 30,
-            estimated_delivery_time_unit: (est_unit || 'mins') as 'mins' | 'days',
-            estimated_delivery_time_string: est_string
-          };
-        }
-
-        // 2. Fallback to cache if Supabase fail or not found
-        if (!currentProduct) {
-          const cachedMenu = localStorage.getItem('menu_cache');
-          if (cachedMenu) {
-            try {
-              const parsed = JSON.parse(cachedMenu);
-              const menuItems = (parsed.data || parsed) as FoodItem[];
-              const found = menuItems.find(item => item.id === id);
-              if (found) {
-                currentProduct = found;
-              }
-            } catch (e) {}
-          }
-        }
-
-        if (!currentProduct) {
-          setProduct(null);
-        } else {
-          setProduct(currentProduct);
+          // Fetch related items in same category
+          const { data: related } = await supabase
+            .from('products')
+            .select('*')
+            .eq('category', data.category)
+            .neq('id', id)
+            .limit(6);
           
-          // Fetch related items from Supabase
-          try {
-            const { data: relItems, error: relError } = await supabase
-              .from('products')
-              .select('*')
-              .eq('category', currentProduct.category)
-              .limit(10);
-
-            if (!relError && relItems) {
-              const mappedRel = relItems
-                .filter((item: any) => item.id !== id)
-                .map((item: any) => {
-                  let ai_desc = item.ai_description || '';
-                  let est_time = item.estimated_delivery_time !== undefined ? Number(item.estimated_delivery_time) : undefined;
-                  let est_unit = item.estimated_delivery_time_unit || '';
-                  let est_string = item.estimated_delivery_time_string || '';
-                  
-                  if (ai_desc.startsWith('{') && ai_desc.endsWith('}')) {
-                    try {
-                      const parsed = JSON.parse(ai_desc);
-                      ai_desc = parsed.ai_description || '';
-                      if (est_time === undefined && parsed.estimated_delivery_time !== undefined) {
-                        est_time = Number(parsed.estimated_delivery_time);
-                      }
-                      if (!est_unit && parsed.estimated_delivery_time_unit !== undefined) {
-                        est_unit = parsed.estimated_delivery_time_unit;
-                      }
-                      if (!est_string && parsed.estimated_delivery_time_string !== undefined) {
-                        est_string = parsed.estimated_delivery_time_string;
-                      }
-                    } catch (e) {
-                      // Ignore failure
-                    }
-                  }
-
-                  return {
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    image: item.image,
-                    category: item.category || 'General',
-                    available: item.available !== undefined ? item.available : true,
-                    stock_quantity: item.stock_quantity || 0,
-                    description: item.description || '',
-                    rating: item.rating || 5,
-                    estimated_delivery_time: est_time || 30,
-                    estimated_delivery_time_unit: (est_unit || 'mins') as 'mins' | 'days',
-                    estimated_delivery_time_string: est_string
-                  };
-                })
-                .slice(0, 8);
-              setRelatedItems(mappedRel);
-            }
-          } catch (relError) {
-            console.error("Supabase error for related items:", relError);
-          }
+          if (related) setRelatedItems(related);
         }
-      } catch (error) {
-        console.error("Error in fetchProduct:", error);
+      } catch (err) {
+        console.error("Error fetching product:", err);
+        // Fallback to cache search
+        const fallback = getInitialCachedProduct(id);
+        if (fallback) setProduct(fallback);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProduct();
-
-    if (id) {
-      const channel = supabase
-        .channel(`product_detail_${id}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'products', filter: `id=eq.${id}` },
-          () => {
-            console.log(`[Realtime] Product detail change detected for ${id}`);
-            fetchProduct();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
-  useEffect(() => {
-    if (!isLoading) {
-      window.scrollTo(0, 0);
-    }
-  }, [isLoading]);
-
-  const handleAddToCart = (e?: React.MouseEvent) => {
-    if (!isOrderingOpen) {
-      toast.error('Orders are currently closed', {
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      return;
-    }
-    if (product) {
-      const startX = e ? e.clientX : window.innerWidth / 2;
-      const startY = e ? e.clientY : window.innerHeight / 2;
-
-      window.dispatchEvent(new CustomEvent('add-to-cart-fly', {
-        detail: {
-          startX,
-          startY,
-          image: product.image
-        }
-      }));
-
-      for (let i = 0; i < quantity; i++) {
-        addToCart(product);
-      }
-      toast.success(`${quantity} ${product.name} added to cart`, {
-        icon: '🛒',
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-    }
-  };
-
-  const [isBuyingNow, setIsBuyingNow] = useState(false);
-
-  const handleBuyNow = () => {
-    if (!isOrderingOpen) {
-      toast.error('Orders are currently closed', {
-        style: {
-          borderRadius: '16px',
-          background: '#18181b',
-          color: '#fff',
-        }
-      });
-      return;
-    }
-    if (product) {
-      setIsBuyingNow(true);
-      // Add based on selected quantity
-      for (let i = 0; i < quantity; i++) {
-        addToCart(product);
-      }
-      
-      toast.success('Instant Checkout!', {
-        duration: 1500,
-        icon: '⚡',
-        style: {
-          borderRadius: '16px',
-          background: '#f97316',
-          color: '#fff',
-          fontWeight: '900',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em'
-        }
-      });
-      
-      setTimeout(() => {
-        navigate('/checkout', { state: { fromBuyNow: true } });
-      }, 400);
-    }
-  };
-
   const handleToggleWishlist = async () => {
-    if (!product || isWishlisting) return;
-
-    setIsWishlisting(true);
+    if (!product) return;
     try {
-      const added = await toggleWishlist(user?.uid || null, product);
-      setIsLiked(added);
-      if (added) {
-        toast.success('Added to wishlist!', {
-          icon: '❤️',
-          style: {
-            borderRadius: '16px',
-            background: '#18181b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }
-        });
-      } else {
-        toast.success('Removed from wishlist', {
-          style: {
-            borderRadius: '16px',
-            background: '#18181b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }
-        });
-      }
-    } catch (error: any) {
-      let isQuota = false;
-      try {
-        const errData = JSON.parse(error.message);
-        if (errData.error === "DATABASE_QUOTA_EXCEEDED") isQuota = true;
-      } catch (e) {
-        if (error.message?.toLowerCase().includes('quota') || error.message?.toLowerCase().includes('limit exceeded')) {
-          isQuota = true;
-        }
-      }
-
-      if (isQuota) {
-        toast.error('Database limit reached! Your wishlist will sync later.', {
-          duration: 4000,
-          style: {
-            borderRadius: '16px',
-            background: '#18181b',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }
-        });
-      } else {
-        toast.error('Failed to update wishlist');
-      }
+      setIsWishlisting(true);
+      const newStatus = await toggleWishlist(user?.uid || null, product);
+      setIsLiked(newStatus);
+      toast.success(newStatus ? 'Added to your wishlist!' : 'Removed from wishlist', {
+        icon: newStatus ? '❤️' : '🗑️',
+        style: { borderRadius: '16px', background: '#1c1917', color: '#fff' }
+      });
+    } catch (error) {
+      toast.error('Failed to update wishlist');
     } finally {
       setIsWishlisting(false);
     }
   };
 
-  if (isLoading && !product) {
+  const handleAddToCart = () => {
+    if (!product) return;
+    if (product.available === false || product.stock_quantity <= 0) {
+      toast.error('Sorry, this item is currently out of stock.');
+      return;
+    }
+    for (let i = 0; i < quantity; i++) {
+      addToCart(product);
+    }
+    toast.success(`Added ${quantity}x ${product.name} to cart!`, {
+      icon: '🛒',
+      style: { borderRadius: '16px', background: '#1c1917', color: '#fff' }
+    });
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    if (product.available === false || product.stock_quantity <= 0) {
+      toast.error('Sorry, this item is currently out of stock.');
+      return;
+    }
+    setIsBuyingNow(true);
+    for (let i = 0; i < quantity; i++) {
+      addToCart(product);
+    }
+    setTimeout(() => {
+      setIsBuyingNow(false);
+      navigate('/checkout');
+    }, 400);
+  };
+
+  if (isLoading || !product) {
     return <ProductPageSkeleton />;
   }
 
-  if (!product) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505] text-white p-6">
-        <h2 className="text-2xl font-black mb-4">Product Not Found</h2>
-        <Button onClick={() => navigate('/')}>Back to Menu</Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-background text-foreground pb-32">
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 pb-36">
       
       {/* Header Navigation */}
       <header className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex items-center justify-between pointer-events-none">
@@ -416,9 +194,10 @@ const ProductDetail: React.FC = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => navigate(-1)}
-          className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground pointer-events-auto hover:bg-white/10 transition-colors shadow-2xl"
+          className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-md border border-stone-200/80 flex items-center justify-center text-stone-800 pointer-events-auto hover:bg-white transition-colors shadow-lg cursor-pointer"
+          title="Go back"
         >
-          <ArrowLeft size={24} />
+          <ArrowLeft size={22} />
         </motion.button>
         
         <div className="flex gap-3 pointer-events-auto">
@@ -426,15 +205,17 @@ const ProductDetail: React.FC = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => setIsCartOpen(true)}
-            className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground relative hover:bg-white/10 transition-colors shadow-2xl"
+            className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-md border border-stone-200/80 flex items-center justify-center text-stone-800 relative hover:bg-white transition-colors shadow-lg cursor-pointer"
+            title="Open cart"
           >
-            <ShoppingCart size={22} />
+            <ShoppingCart size={20} />
             {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-background">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E76A54] text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-xs">
                 {totalItems}
               </span>
             )}
           </motion.button>
+
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -444,11 +225,12 @@ const ProductDetail: React.FC = () => {
               const text = `Check out this delicious ${product.name} from Frosty Bite! 🍰\n\n${url}`;
               window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
             }}
-            className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center hover:bg-emerald-500/30 transition-colors shadow-2xl pointer-events-auto border border-emerald-500/20"
+            className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition-colors shadow-lg pointer-events-auto cursor-pointer"
             title="Share to WhatsApp"
           >
             <MessageCircle size={20} />
           </motion.button>
+
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -458,34 +240,35 @@ const ProductDetail: React.FC = () => {
               navigator.clipboard.writeText(url);
               toast.success('Link copied to clipboard!', {
                 icon: '🔗',
-                style: {
-                  borderRadius: '16px',
-                  background: '#18181b',
-                  color: '#fff',
-                }
+                style: { borderRadius: '16px', background: '#1c1917', color: '#fff' }
               });
             }}
-            className="w-12 h-12 rounded-2xl glass-dark flex items-center justify-center text-foreground hover:bg-white/10 transition-colors shadow-2xl pointer-events-auto"
+            className="w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-md border border-stone-200/80 flex items-center justify-center text-stone-800 hover:bg-white transition-colors shadow-lg pointer-events-auto cursor-pointer"
             title="Copy Link"
           >
-            <Share2 size={20} />
+            <Share2 size={18} />
           </motion.button>
+
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 }}
             onClick={handleToggleWishlist}
             disabled={isWishlisting}
-            className={`w-12 h-12 rounded-2xl glass-dark flex items-center justify-center transition-all shadow-2xl active:scale-90 disabled:opacity-50 ${isLiked ? 'text-red-500' : 'text-foreground hover:bg-white/10'}`}
+            className={cn(
+              "w-12 h-12 rounded-2xl bg-white/90 backdrop-blur-md border border-stone-200/80 flex items-center justify-center transition-all shadow-lg active:scale-90 disabled:opacity-50 cursor-pointer",
+              isLiked ? 'text-red-500 bg-red-50 border-red-200' : 'text-stone-800 hover:bg-white'
+            )}
+            title="Wishlist"
           >
-            <Heart size={22} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
+            <Heart size={20} fill={isLiked ? "currentColor" : "none"} className={isWishlisting ? 'animate-pulse' : ''} />
           </motion.button>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-16">
         {/* Product Image Section */}
-        <div className="relative aspect-square md:h-screen lg:sticky lg:top-0 overflow-hidden">
+        <div className="relative aspect-square md:h-screen lg:sticky lg:top-0 overflow-hidden bg-stone-100 shadow-sm">
           <ImageZoom
             src={product.image}
             alt={product.name}
@@ -496,45 +279,48 @@ const ProductDetail: React.FC = () => {
             <motion.div 
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 flex items-center justify-center z-10"
+              className="absolute inset-0 flex items-center justify-center z-10 bg-black/40 backdrop-blur-xs"
             >
-              <div className="bg-red-500 text-white font-black uppercase tracking-[0.5em] px-12 py-6 rounded-[2.5rem] shadow-[0_0_50px_rgba(239,68,68,0.4)] border-2 border-white/20 -rotate-6 text-xl">
+              <div className="bg-red-600 text-white font-black uppercase tracking-[0.3em] px-10 py-5 rounded-[2rem] shadow-2xl border-2 border-white/20 -rotate-6 text-xl">
                 Out of Stock
               </div>
             </motion.div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent lg:hidden" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#FAF8F5] via-transparent to-transparent lg:hidden" />
         </div>
 
         {/* Product Details Section */}
-        <div className="px-6 py-12 lg:py-32 space-y-10">
+        <div className="px-6 py-12 lg:py-32 space-y-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest rounded-full border border-primary/20">
+              <span className="px-3.5 py-1.5 bg-[#E76A54]/10 text-[#E76A54] text-[10px] font-black uppercase tracking-widest rounded-full border border-[#E76A54]/20 shadow-2xs">
                 {product.category}
               </span>
               {isPickupOnly && (
-                <span className="px-3 py-1 bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-500/30 flex items-center gap-1">
+                <span className="px-3.5 py-1.5 bg-amber-500/10 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-full border border-amber-500/30 flex items-center gap-1 shadow-2xs">
                   🛍 Pickup Available
                 </span>
               )}
-              <div className="flex items-center gap-1.5 text-orange-500">
-                <Star size={14} fill="currentColor" />
-                <span className="text-xs font-black">{product.rating} (120+ Reviews)</span>
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200 text-xs font-bold shadow-2xs">
+                <Star size={14} fill="currentColor" className="text-amber-500" />
+                <span>{product.rating} (120+ Reviews)</span>
               </div>
             </div>
             
-            <h1 className="text-5xl lg:text-7xl font-display uppercase tracking-tighter mb-4 leading-none">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display uppercase tracking-tight text-stone-900 mb-4 leading-tight">
               {product.name}
             </h1>
             
-            <div className="flex items-baseline gap-4">
-              <span className="text-4xl font-display text-primary italic">₹{product.price}</span>
-              <span className="text-zinc-500 line-through text-xl">₹{Math.round(product.price * 1.2)}</span>
+            <div className="flex items-baseline gap-4 mt-2">
+              <span className="text-4xl font-display text-[#E76A54] italic">₹{product.price}</span>
+              <span className="text-stone-400 line-through text-xl font-semibold">₹{Math.round(product.price * 1.2)}</span>
+              <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                Inclusive of all taxes
+              </span>
             </div>
           </motion.div>
 
@@ -545,21 +331,27 @@ const ProductDetail: React.FC = () => {
             transition={{ delay: 0.3 }}
             className="grid grid-cols-3 gap-4"
           >
-            <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
-              <Clock size={20} className="text-primary" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="bg-white p-4 rounded-3xl border border-stone-200/80 shadow-2xs flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 text-[#E76A54] flex items-center justify-center">
+                <Clock size={20} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-stone-700">
                 {product.estimated_delivery_time_unit === 'days' 
                   ? `${product.estimated_delivery_time_string || product.estimated_delivery_time || '1-2'} Days` 
-                  : `${product.estimated_delivery_time || 30} Min`}
+                  : `${product.estimated_delivery_time || 30} Min Delivery`}
               </span>
             </div>
-            <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
-              <Flame size={20} className="text-orange-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Freshly Baked</span>
+            <div className="bg-white p-4 rounded-3xl border border-stone-200/80 shadow-2xs flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
+                <Flame size={20} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-stone-700">Freshly Baked</span>
             </div>
-            <div className="glass-dark p-4 rounded-3xl border border-white/5 flex flex-col items-center text-center gap-2">
-              <ShieldCheck size={20} className="text-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hygiene+</span>
+            <div className="bg-white p-4 rounded-3xl border border-stone-200/80 shadow-2xs flex flex-col items-center text-center gap-2">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <ShieldCheck size={20} />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-stone-700">100% Hygienic</span>
             </div>
           </motion.div>
 
@@ -568,46 +360,58 @@ const ProductDetail: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="space-y-6"
+            className="space-y-6 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-xs"
           >
-            <div className="flex border-b border-white/5">
+            <div className="flex border-b border-stone-200">
               {(['description', 'reviews', 'ingredients'] as const).map((tab) => (
                 <button
                   key={tab}
+                  type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${activeTab === tab ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-6 py-3 text-xs font-black uppercase tracking-widest transition-all relative cursor-pointer ${activeTab === tab ? 'text-[#E76A54]' : 'text-stone-500 hover:text-stone-800'}`}
                 >
                   {tab}
                   {activeTab === tab && (
                     <motion.div 
                       layoutId="activeTab"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E76A54]"
                     />
                   )}
                 </button>
               ))}
             </div>
 
-            <div className="text-zinc-400 text-sm leading-relaxed min-h-[100px]">
+            <div className="text-stone-700 text-sm sm:text-base leading-relaxed min-h-[110px]">
               {activeTab === 'description' && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  {product.description} Our {product.name} is prepared with the finest ingredients and artisan baking techniques. Each piece is crafted to provide a moment of pure bliss, ensuring a premium experience right at your home.
+                  {product.description || `Our ${product.name} is prepared daily with the finest artisan ingredients and traditional baking techniques. Each piece is crafted to provide a moment of pure bliss, ensuring an unforgettable bakery experience right at your home.`}
                 </motion.p>
               )}
               {activeTab === 'reviews' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                  <div className="p-4 glass-dark rounded-2xl border border-white/5">
-                    <div className="flex justify-between mb-2">
-                      <span className="font-bold text-white">Emily S.</span>
-                      <div className="flex text-orange-500"><Star size={12} fill="currentColor" /> <Star size={12} fill="currentColor" /> <Star size={12} fill="currentColor" /> <Star size={12} fill="currentColor" /> <Star size={12} fill="currentColor" /></div>
+                  <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/60">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-stone-900 text-sm">Emily S.</span>
+                      <div className="flex text-amber-500">
+                        {[1, 2, 3, 4, 5].map(s => <Star key={s} size={12} fill="currentColor" />)}
+                      </div>
                     </div>
-                    <p className="text-xs italic">"The best pastries I've ever had! So fresh and delicious."</p>
+                    <p className="text-xs text-stone-600 italic">"The best pastries I've ever tasted! So fresh, rich, and delicious."</p>
+                  </div>
+                  <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200/60">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-stone-900 text-sm">Rahul M.</span>
+                      <div className="flex text-amber-500">
+                        {[1, 2, 3, 4, 5].map(s => <Star key={s} size={12} fill="currentColor" />)}
+                      </div>
+                    </div>
+                    <p className="text-xs text-stone-600 italic">"Delivered right on time and packaging was super premium. Will order again!"</p>
                   </div>
                 </motion.div>
               )}
               {activeTab === 'ingredients' && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  Premium Flour, Natural Leaven, Organic Sugar, Belgian Chocolate, Real Butter, and our secret Frosty Bite magic.
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-stone-700">
+                  Premium Unbleached Flour, Natural Leaven, Organic Cane Sugar, Belgian Chocolate, Real Cultured Butter, Fresh Farm Eggs, and our signature Frosty Bite artisan touch.
                 </motion.p>
               )}
             </div>
@@ -619,35 +423,38 @@ const ProductDetail: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="flex flex-col sm:flex-row items-start sm:items-center gap-6"
+              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs"
             >
-              <div className="flex items-center gap-6">
-                <span className="text-xs font-black uppercase tracking-widest text-zinc-500">Quantity</span>
-                <div className="flex items-center bg-white/5 rounded-2xl border border-white/10 p-1">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-black uppercase tracking-widest text-stone-500">Quantity</span>
+                <div className="flex items-center bg-stone-100 rounded-2xl border border-stone-200 p-1">
                   <button 
+                    type="button"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                    className="w-10 h-10 rounded-xl bg-white text-stone-800 shadow-2xs flex items-center justify-center hover:bg-stone-50 transition-colors cursor-pointer"
                   >
-                    <Minus size={18} />
+                    <Minus size={16} />
                   </button>
-                  <span className="w-12 text-center font-bold text-lg">{quantity}</span>
+                  <span className="w-12 text-center font-bold text-stone-900 text-base">{quantity}</span>
                   <button 
+                    type="button"
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-colors"
+                    className="w-10 h-10 rounded-xl bg-white text-stone-800 shadow-2xs flex items-center justify-center hover:bg-stone-50 transition-colors cursor-pointer"
                   >
-                    <Plus size={18} />
+                    <Plus size={16} />
                   </button>
                 </div>
               </div>
 
               <button
+                type="button"
                 onClick={handleToggleWishlist}
                 disabled={isWishlisting}
                 className={cn(
-                  "flex items-center gap-2 px-6 py-3 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50 w-full sm:w-auto justify-center",
+                  "flex items-center gap-2 px-6 py-3.5 rounded-2xl border transition-all duration-300 text-xs font-black uppercase tracking-widest group active:scale-95 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center",
                   isLiked 
-                    ? "bg-red-500/10 border-red-500/20 text-red-500" 
-                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
+                    ? "bg-red-50 border-red-200 text-red-600" 
+                    : "bg-stone-100 border-stone-200 text-stone-700 hover:bg-stone-200"
                 )}
               >
                 <Heart 
@@ -659,7 +466,7 @@ const ProductDetail: React.FC = () => {
               </button>
             </motion.div>
 
-            {/* In-Line Action Buttons to prevent mandatory scrolling */}
+            {/* In-Line Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -667,18 +474,20 @@ const ProductDetail: React.FC = () => {
               className="flex flex-col sm:flex-row gap-4"
             >
               <button
+                type="button"
                 onClick={handleAddToCart}
                 disabled={product.available === false || product.stock_quantity <= 0}
-                className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 border border-white/10 group shadow-xl disabled:opacity-30 disabled:cursor-not-allowed text-xs font-black uppercase tracking-widest"
+                className="flex-1 py-4 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed group text-xs font-black uppercase tracking-widest cursor-pointer"
               >
-                <ShoppingCart size={18} className="group-hover:scale-110 transition-transform" />
+                <ShoppingCart size={18} className="group-hover:scale-110 transition-transform text-[#E76A54]" />
                 <span>Add to Cart</span>
               </button>
               
               <button
+                type="button"
                 onClick={handleBuyNow}
                 disabled={product.available === false || product.stock_quantity <= 0 || isBuyingNow}
-                className="flex-[1.5] py-4 bg-primary hover:bg-accent text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden text-xs font-black uppercase tracking-widest"
+                className="flex-[1.5] py-4 bg-[#E76A54] hover:bg-[#d55943] text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-xl shadow-[#E76A54]/25 disabled:bg-stone-300 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden text-xs font-black uppercase tracking-widest cursor-pointer"
               >
                 <AnimatePresence mode="wait">
                   {isBuyingNow ? (
@@ -718,7 +527,7 @@ const ProductDetail: React.FC = () => {
 
       {/* Related Products Section */}
       {relatedItems.length > 0 && (
-        <section className="max-w-7xl mx-auto px-6 py-24 border-t border-white/5">
+        <section className="max-w-7xl mx-auto px-6 py-24 border-t border-stone-200 mt-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -726,14 +535,14 @@ const ProductDetail: React.FC = () => {
             className="mb-12"
           >
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+              <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-[#E76A54]">
                  <Sparkles size={24} />
               </div>
               <div className="space-y-1">
-                <h2 className="text-4xl lg:text-6xl font-display uppercase tracking-tighter leading-none italic">
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display uppercase tracking-tighter leading-none text-stone-900">
                   You Might Also Like
                 </h2>
-                <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px]">
+                <p className="text-stone-500 font-bold uppercase tracking-widest text-[10px]">
                   More from {product.category} for your cravings
                 </p>
               </div>
@@ -754,23 +563,24 @@ const ProductDetail: React.FC = () => {
       <motion.div 
         initial={{ y: 100 }}
         animate={{ y: 0 }}
-        className="fixed bottom-0 left-0 right-0 z-50 p-6 pb-8 glass-dark border-t border-white/10 backdrop-blur-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+        className="fixed bottom-0 left-0 right-0 z-50 p-4 sm:p-6 bg-white/95 backdrop-blur-2xl border-t border-stone-200 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
       >
         <div className="max-w-7xl mx-auto flex items-center gap-4">
           <button
+            type="button"
             onClick={handleAddToCart}
             disabled={product.available === false || product.stock_quantity <= 0}
-            className="flex-1 py-5 bg-white/5 hover:bg-white/10 text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 border border-white/10 group shadow-xl disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex-1 py-4 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-md disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
           >
-            <ShoppingCart size={20} className="group-hover:scale-110 transition-transform" />
-            <span className="text-xs font-black uppercase tracking-[0.2em] hidden sm:inline">Add to Cart</span>
-            <span className="text-xs font-black uppercase tracking-[0.2em] sm:hidden">Add</span>
+            <ShoppingCart size={18} className="group-hover:scale-110 transition-transform text-[#E76A54]" />
+            <span className="text-xs font-black uppercase tracking-[0.15em]">Add to Cart</span>
           </button>
           
           <button
+            type="button"
             onClick={handleBuyNow}
             disabled={product.available === false || product.stock_quantity <= 0 || isBuyingNow}
-            className="flex-[1.8] py-5 bg-primary hover:bg-accent text-white rounded-[2rem] flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-2xl shadow-primary/30 disabled:bg-zinc-800 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden"
+            className="flex-[1.5] py-4 bg-[#E76A54] hover:bg-[#d55943] text-white rounded-2xl flex items-center justify-center space-x-3 transition-all duration-300 active:scale-95 shadow-xl shadow-[#E76A54]/25 disabled:bg-stone-300 disabled:shadow-none disabled:cursor-not-allowed group relative overflow-hidden cursor-pointer"
           >
             <AnimatePresence mode="wait">
               {isBuyingNow ? (
@@ -778,15 +588,15 @@ const ProductDetail: React.FC = () => {
                   key="buying"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center space-x-3"
+                  className="flex items-center space-x-2"
                 >
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   >
-                    <Zap size={20} fill="currentColor" />
+                    <Zap size={18} fill="currentColor" />
                   </motion.div>
-                  <span className="text-xs font-black uppercase tracking-[0.2em] italic">Fast tracking...</span>
+                  <span className="text-xs font-black uppercase tracking-[0.15em] italic">Fast tracking...</span>
                 </motion.div>
               ) : (
                 <motion.div
@@ -795,8 +605,8 @@ const ProductDetail: React.FC = () => {
                   animate={{ opacity: 1 }}
                   className="flex items-center justify-center space-x-3"
                 >
-                  <Zap size={20} fill="currentColor" className="group-hover:scale-125 transition-transform" />
-                  <span className="text-xs font-black uppercase tracking-[0.2em]">
+                  <Zap size={18} fill="currentColor" className="group-hover:scale-125 transition-transform" />
+                  <span className="text-xs font-black uppercase tracking-[0.15em]">
                     {(product.available === false || product.stock_quantity <= 0) ? 'Currently Unavailable' : 'Buy Now'}
                   </span>
                 </motion.div>
@@ -810,13 +620,14 @@ const ProductDetail: React.FC = () => {
       <AnimatePresence>
         {showScrollFab && (
           <motion.button
+            type="button"
             initial={{ opacity: 0, scale: 0.8, y: 50 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 50 }}
             onClick={() => {
               purchaseSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
-            className="fixed bottom-32 right-6 z-50 px-6 py-4 bg-primary text-white font-black uppercase tracking-widest text-xs rounded-full shadow-[0_10px_30px_rgba(249,115,22,0.4)] hover:bg-accent active:scale-95 transition-all flex items-center gap-2 border border-white/20"
+            className="fixed bottom-28 right-6 z-40 px-5 py-3.5 bg-[#E76A54] text-white font-black uppercase tracking-widest text-xs rounded-full shadow-[0_10px_30px_rgba(231,106,84,0.4)] hover:bg-[#d55943] active:scale-95 transition-all flex items-center gap-2 border border-white/20 cursor-pointer"
           >
             <Sparkles size={14} className="animate-pulse" />
             Order Options

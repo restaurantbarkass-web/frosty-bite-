@@ -25,7 +25,7 @@ import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { Instagram, MessageCircle, ShieldAlert } from 'lucide-react';
+import { Instagram, ShieldAlert } from 'lucide-react';
 
 import { Logo } from './components/Logo';
 import { PerformanceTierProvider } from './context/PerformanceTierContext';
@@ -39,6 +39,7 @@ import { requestForToken, subscribeToMessages } from './utils/messaging';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
 import Home from './pages/HomePage';
+import CategoriesPage from './pages/CategoriesPage';
 import Offers from './pages/Offers';
 import Checkout from './pages/Checkout';
 import Profile from './pages/Profile';
@@ -256,8 +257,9 @@ function AppContent() {
   const isCheckoutPage = location.pathname === '/checkout';
   const isFeedbackPage = location.pathname.startsWith('/feedback');
   
+  const isHomePage = location.pathname === '/' || location.pathname === '/index.html' || location.pathname === '/categories';
   const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage && !isFeedbackPage;
-  const showNavbar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage && !isFeedbackPage;
+  const showNavbar = !isHomePage && !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage && !isFeedbackPage;
   const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage || isFeedbackPage;
 
   const { bootState } = useBoot();
@@ -271,7 +273,13 @@ function AppContent() {
   // }
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden">
+    <div 
+      className={cn(
+        "min-h-screen font-sans overflow-x-hidden transition-colors",
+        isHomePage ? "bg-[#FAF8F5] text-stone-900" : "bg-background text-foreground"
+      )}
+      style={isHomePage ? { backgroundColor: '#FAF8F5' } : undefined}
+    >
       <CustomToaster />
       
       {isOffline && (
@@ -353,6 +361,7 @@ function AppContent() {
               <Routes location={location}>
                 <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
                 <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
+                <Route path="/categories" element={<LocalErrorBoundary fallbackName="Categories Page"><CategoriesPage /></LocalErrorBoundary>} />
                 <Route path="/cart" element={
                   <LocalErrorBoundary fallbackName="Cart Page">
                     <CartPageRoute />
@@ -384,7 +393,9 @@ function AppContent() {
                     <UPICheckout />
                   </LocalErrorBoundary>
                 } />
+                <Route path="/order-tracking" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
                 <Route path="/order-tracking/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
+                <Route path="/track" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
                 <Route path="/track/:orderId" element={<LocalErrorBoundary fallbackName="Order Tracking Page"><OrderTracking /></LocalErrorBoundary>} />
                 <Route path="/feedback" element={<LocalErrorBoundary fallbackName="Feedback Page"><FeedbackPage /></LocalErrorBoundary>} />
                 <Route path="/feedback/:orderId" element={<LocalErrorBoundary fallbackName="Feedback Page"><FeedbackPage /></LocalErrorBoundary>} />
@@ -461,16 +472,6 @@ function AppContent() {
         </footer>
       )}
 
-      {!hideNavFooter && (
-        <a
-          href={`https://wa.me/${RESTAURANT_WHATSAPP}`}
-          target="_blank"
-          rel="noreferrer"
-          className="fixed z-50 bg-emerald-500 text-white p-4 rounded-full shadow-2xl hover:bg-emerald-600 transition-all hover:scale-110 active:scale-95 flex items-center justify-center bottom-32 right-8 md:bottom-8 md:right-8"
-        >
-          <MessageCircle size={24} />
-        </a>
-      )}
 
       <NotificationPermissionBanner />
       <AppUpdateScreen />

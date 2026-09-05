@@ -1,30 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMetadata } from '../hooks/useMetadata';
 import { motion, AnimatePresence } from 'motion/react';
-import { Gift, Zap, Ticket, ArrowRight, Sparkles } from 'lucide-react';
+import { 
+  Gift, Zap, Ticket, ArrowRight, Sparkles, Copy, Check, 
+  Clock, Tag, Percent, ShoppingBag, Flame, Star, ShieldCheck, 
+  ChevronRight, Cake, Coffee, Heart, CheckCircle2, Search, Loader2
+} from 'lucide-react';
 import { supabase } from '../supabase';
 import { Coupon, Banner } from '../types';
 import { useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { cn } from '../lib/utils';
 import { BannerCarousel } from '../components/BannerCarousel';
-import { GiftBoxLoader } from '../components/GiftBoxLoader';
 
-const OffersPage = () => {
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All Offers', icon: Tag },
+  { id: 'first_order', label: 'First Order', icon: Sparkles },
+  { id: 'cakes', label: 'Cakes & Desserts', icon: Cake },
+  { id: 'combos', label: 'Combos & Coffee', icon: Coffee },
+];
+
+export const OffersPage: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [flash, setFlash] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   const navigate = useNavigate();
   const location = useLocation();
 
   useMetadata({
-    title: 'Discounts, Promo Codes & Special Offers',
-    description: 'Save big with active discount codes, special dessert combo offers, and exclusive flash deals available only at Frosty Bite.',
-    keywords: ['coupons', 'discounts', 'sweets promo codes', 'burger deals', 'Frosty Bite coupons', 'Cuttack restaurant discount']
+    title: 'Bakery Deals, Coupons & Special Offers',
+    description: 'Save big with active promo codes, dessert combo discounts, and free delivery vouchers at Frosty Bite.',
+    keywords: ['coupons', 'bakery discounts', 'cake promo codes', 'Frosty Bite offers', 'Cuttack deals']
   });
-
-  const flashDeal = banners.find(b => b.is_flash_deal);
-  const regularBanners = banners.filter(b => !b.is_flash_deal);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,290 +57,329 @@ const OffersPage = () => {
           couponsPromise
         ]);
 
-        if (bannersRes.data) setBanners(bannersRes.data);
-        if (couponsRes.data) setCoupons(couponsRes.data);
+        if (bannersRes.data) {
+          setBanners(bannersRes.data);
+        }
+        if (couponsRes.data) {
+          setCoupons(couponsRes.data);
+        }
       } catch (error) {
-        console.error('Error fetching offers:', error);
+        console.warn('Error fetching offers:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    setLoading(true);
-    fetchData().finally(() => setLoading(false));
-
-    // Subscribe to banners realtime updates
-    const bannersChannel = supabase
-      .channel('banners_realtime_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'banners' },
-        () => {
-          console.log('[Realtime] Banners updated, re-fetching...');
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to coupons realtime updates
-    const couponsChannel = supabase
-      .channel('coupons_realtime_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'coupons' },
-        () => {
-          console.log('[Realtime] Coupons updated, re-fetching...');
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    const interval = setInterval(() => {
-      setFlash((prev) => !prev);
-    }, 1200);
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(bannersChannel);
-      supabase.removeChannel(couponsChannel);
-    };
+    fetchData();
   }, []);
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [location.pathname]);
-
-  const handleApplyCoupon = (code: string) => {
+  const handleCopyCoupon = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
     localStorage.setItem('claimed_coupon', code);
-    toast.success(`Coupon ${code} Claimed! 🎉`, {
+    
+    toast.success(`Code "${code}" copied & saved! 🎉`, {
       style: {
         borderRadius: '16px',
-        background: '#18181b',
-        color: '#fff',
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '12px',
+        background: '#1C1816',
+        color: '#FAF8F5',
         fontWeight: 'bold',
+        fontSize: '13px',
       },
-      icon: '🎁'
+      icon: '🏷️'
     });
-    // Navigate to home and scroll to menu
-    navigate('/');
+
     setTimeout(() => {
-      document.getElementById('menu-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+      setCopiedCode(null);
+    }, 2500);
   };
 
-  return (
-    <div className="min-h-screen bg-black pb-32 overflow-hidden offers-content">
-      <style>{`
-        .offers-content { display: block !important; }
-        .perspective-1000 { perspective: 1000px; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-      
-      {/* Header */}
-      <section className="relative pt-16 sm:pt-24 px-8 pb-12 flex flex-col space-y-4">
-        <div className="absolute top-0 right-0 w-[50%] h-[40%] bg-primary/10 blur-[120px] -z-10 rounded-full" />
-        <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           className="space-y-2"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <span className="w-10 h-[1px] bg-primary/50" />
-            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-primary/80">Private Collection</p>
-          </div>
-          <motion.h1 
-            initial={{ opacity: 0, filter: 'blur(20px)', y: 60 }}
-            animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            className="text-7xl sm:text-9xl font-black italic uppercase tracking-tighter leading-[0.75] text-white"
-          >
-            <motion.span 
-              initial={{ x: -40, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 1 }}
-              className="block"
-            >
-              Offers &
-            </motion.span>
-            <motion.span 
-              initial={{ x: 40, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 1 }}
-              className="text-primary/90 block"
-            >
-              Deals
-            </motion.span>
-          </motion.h1>
-          <p className="text-[11px] text-white/30 font-medium tracking-[0.2em] max-w-sm mt-6 leading-relaxed">
-            A curated selection of high-end rewards and exclusive gastronomic perks for our most valued guests.
-          </p>
-        </motion.div>
-      </section>
+  const handleApplyAndOrder = (code: string) => {
+    localStorage.setItem('claimed_coupon', code);
+    toast.success(`Coupon ${code} claimed! Directing to menu... 🍰`);
+    navigate('/categories');
+  };
 
-      <div className="px-6 space-y-16">
-        {/* Flash Deal Section Loading / Content */}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-             <GiftBoxLoader />
-             <p className="mt-8 text-primary/40 font-black uppercase tracking-[0.4em] text-[10px] animate-pulse">Unlocking Rewards...</p>
+  // Format backend coupons into displayable offer cards
+  const formattedOffers = useMemo(() => {
+    return coupons.map(coupon => {
+      let title = '';
+      let description = '';
+      let tag = 'Active Voucher';
+      let category = 'all';
+
+      if (coupon.type === 'percentage') {
+        title = `${coupon.value}% OFF on Your Order`;
+        description = `Save ${coupon.value}% across our freshly baked menu. Minimum order ₹${coupon.min_order || 0}.`;
+      } else if (coupon.type === 'fixed') {
+        title = `₹${coupon.value} OFF on Bakery Treats`;
+        description = `Enjoy flat ₹${coupon.value} discount on orders above ₹${coupon.min_order || 0}.`;
+      } else {
+        title = `Free Special Gift Item`;
+        description = `Claim complimentary artisan item on orders above ₹${coupon.min_order || 0}.`;
+        tag = 'Free Item';
+      }
+
+      if (coupon.is_first_order_only) {
+        tag = 'First Order';
+        category = 'first_order';
+      } else if (coupon.code.toLowerCase().includes('cake') || coupon.code.toLowerCase().includes('tart')) {
+        category = 'cakes';
+      } else if (coupon.code.toLowerCase().includes('combo') || coupon.code.toLowerCase().includes('coffee') || coupon.code.toLowerCase().includes('brew')) {
+        category = 'combos';
+      }
+
+      return {
+        id: coupon.id,
+        code: coupon.code,
+        title,
+        description,
+        discount_type: coupon.type,
+        discount_value: coupon.value,
+        min_order_value: coupon.min_order || 0,
+        category,
+        expires_in: coupon.expiry_date ? `Valid till ${coupon.expiry_date}` : 'Active Now',
+        tag
+      };
+    });
+  }, [coupons]);
+
+  // Filter coupons based on active tab
+  const filteredOffers = useMemo(() => {
+    if (activeTab === 'all') return formattedOffers;
+    return formattedOffers.filter(item => item.category === activeTab || item.category === 'all');
+  }, [formattedOffers, activeTab]);
+
+  const featuredOffer = formattedOffers[0];
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 pt-6 pb-28 px-4 sm:px-6">
+      <div className="max-w-5xl mx-auto space-y-8">
+        
+        {/* Top Header Card */}
+        <div className="text-center max-w-2xl mx-auto space-y-3 pt-2">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#E76A54]/10 text-[#E76A54] text-xs font-bold uppercase tracking-wider">
+            <Sparkles size={14} />
+            <span>Exclusive Bakery Rewards</span>
           </div>
-        ) : flashDeal ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="rounded-[4rem] p-[1.5px] text-white shadow-[0_50px_100px_-30px_rgba(255,82,0,0.3)] relative overflow-hidden group cursor-pointer"
-            onClick={() => {
-              if (flashDeal.redirect_url) navigate(flashDeal.redirect_url);
-              if (flashDeal.auto_apply_coupon) handleApplyCoupon(flashDeal.auto_apply_coupon);
-            }}
-          >
-            {/* Animated Border Gradient */}
-            <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-[-150%] bg-[conic-gradient(from_0deg,transparent_0deg,transparent_270deg,#FF5200_360deg)] opacity-40"
-            />
-            
-            <div className="relative z-10 bg-[#080808] rounded-[3.95rem] p-10 overflow-hidden min-h-[340px] flex flex-col justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-transparent" />
-              <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-primary/10 blur-[100px] rounded-full" />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="px-5 py-2 bg-rose-600 rounded-full flex items-center gap-2.5 shadow-[0_8px_20px_rgba(225,29,72,0.5)]">
-                    <Zap size={12} className="fill-white" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em]">Imperial Deal</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-stone-900 tracking-tight">
+            Deals, Vouchers & Fresh Perks
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-500 max-w-lg mx-auto leading-relaxed">
+            Apply active discount codes at checkout to enjoy handmade artisan pastries, celebration cakes, and freshly brewed coffees at special prices.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={32} className="animate-spin text-[#E76A54]" />
+          </div>
+        ) : filteredOffers.length === 0 && coupons.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-stone-200 shadow-xs space-y-3">
+            <Ticket size={48} className="mx-auto text-stone-300" />
+            <h3 className="text-lg font-serif font-bold text-stone-800">No Active Offers Right Now</h3>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto">
+              Our kitchen team is preparing new daily specials. Check back soon for exciting discount codes and seasonal vouchers!
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Featured Hero Deal Card (If available) */}
+            {featuredOffer && (
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1C1816] via-[#2D1F1B] to-[#1C1816] text-white p-6 sm:p-8 border border-stone-800 shadow-xl">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-[#E76A54]/20 rounded-full blur-3xl pointer-events-none" />
+                
+                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="space-y-3 max-w-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#E76A54] text-white shadow-xs">
+                        Today's Special Deal
+                      </span>
+                      <span className="text-[11px] text-stone-300 font-mono flex items-center gap-1">
+                        <Clock size={12} className="text-[#E5A970]" /> {featuredOffer.expires_in}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-white tracking-tight leading-snug">
+                      {featuredOffer.title}
+                    </h2>
+
+                    <p className="text-xs sm:text-sm text-stone-300 leading-relaxed">
+                      {featuredOffer.description} Use promo code <strong className="text-[#E5A970]">{featuredOffer.code}</strong> at checkout.
+                    </p>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyAndOrder(featuredOffer.code)}
+                        className="px-6 py-3 rounded-2xl bg-[#E76A54] hover:bg-[#D55943] text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-[#E76A54]/25 transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        <span>Claim & Order</span>
+                        <ArrowRight size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCoupon(featuredOffer.code)}
+                        className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white text-xs font-mono font-bold border border-white/20 transition-all cursor-pointer flex items-center gap-2"
+                      >
+                        <span>{featuredOffer.code}</span>
+                        {copiedCode === featuredOffer.code ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-[9px] font-black text-white/40 uppercase tracking-[0.4em] flex items-center gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    Strictly Limited
+
+                  {/* Visual Badge Card */}
+                  <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-2xl text-center shrink-0 min-w-[200px] hidden md:block">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-[#E5A970] mb-1">
+                      Verified Code
+                    </div>
+                    <div className="text-2xl font-serif font-bold text-white tracking-wider">
+                      {featuredOffer.code}
+                    </div>
+                    <p className="text-[10px] text-stone-400 mt-1">Min. order ₹{featuredOffer.min_order_value}</p>
                   </div>
-                </div>
-                <h2 className="text-6xl sm:text-7xl font-black italic uppercase tracking-tighter leading-[0.8] drop-shadow-3xl max-w-2xl">{flashDeal.title}</h2>
-                <div className="flex items-center gap-6 mt-6">
-                   <button className="h-16 px-10 bg-white text-black rounded-[1.8rem] text-[11px] font-black uppercase tracking-[0.4em] shadow-2xl hover:bg-primary hover:text-white transition-all transform hover:-translate-y-1 active:scale-95">
-                     Claim Access
-                   </button>
-                   {flashDeal.auto_apply_coupon && (
-                     <div className="h-16 flex items-center gap-4 px-8 bg-white/5 rounded-[1.8rem] border border-white/10 backdrop-blur-3xl">
-                        <Ticket size={16} className="text-primary" />
-                        <span className="text-primary font-black text-xs tracking-[0.3em]">{flashDeal.auto_apply_coupon}</span>
-                     </div>
-                   )}
                 </div>
               </div>
-              <Zap size={300} className="absolute -right-24 -bottom-12 text-white/[0.03] rotate-12 blur-sm pointer-events-none" />
+            )}
+
+            {/* Category Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {CATEGORY_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "px-4 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer",
+                      isActive
+                        ? "bg-[#E76A54] text-white shadow-md shadow-[#E76A54]/20 scale-102"
+                        : "bg-white text-stone-600 hover:bg-stone-100 border border-stone-200/80"
+                    )}
+                  >
+                    <Icon size={14} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
-        ) : null}
-        {/* Premium Rotational Banner Section */}
-        {regularBanners.length > 0 && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20 px-2">Featured Promos</h3>
-            <BannerCarousel 
-              banners={regularBanners} 
-              onApplyCoupon={handleApplyCoupon}
-              onNavigate={(url) => navigate(url)}
-            />
-          </div>
+
+            {/* Coupons Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {filteredOffers.map((item) => {
+                const isCopied = copiedCode === item.code;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between group"
+                  >
+                    {/* Authentic Ticket Notch Cutouts */}
+                    <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#FAF8F5] border-r border-stone-200" />
+                    <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#FAF8F5] border-l border-stone-200" />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E76A54]/10 text-[#E76A54] border border-[#E76A54]/20">
+                          {item.tag}
+                        </span>
+                        <span className="text-[11px] text-stone-400 font-medium flex items-center gap-1">
+                          <Clock size={11} /> {item.expires_in}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h3 className="text-base sm:text-lg font-serif font-bold text-stone-900 group-hover:text-[#E76A54] transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-[11px] text-stone-400 font-medium pt-1">
+                        <span>Min. Order: <strong>₹{item.min_order_value}</strong></span>
+                        <span>•</span>
+                        <span className="text-emerald-600 font-semibold">100% Verified</span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Row */}
+                    <div className="mt-5 pt-4 border-t border-dashed border-stone-200 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1.5 rounded-xl bg-stone-100 font-mono text-xs font-bold text-stone-800 border border-stone-200 select-all">
+                          {item.code}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCoupon(item.code)}
+                          className="p-1.5 rounded-lg text-stone-500 hover:text-[#E76A54] transition-colors cursor-pointer"
+                          title="Copy Code"
+                        >
+                          {isCopied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleApplyAndOrder(item.code)}
+                        className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                      >
+                        <span>Use Offer</span>
+                        <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
-        {/* Premium Coupons Section */}
-        <div id="rewards-section" className="space-y-10 py-10">
-          <div className="flex items-center gap-4 px-8">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20 whitespace-nowrap">Elite Rewards</h3>
-            <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" />
+        {/* Bakery Perks & Loyalty Club Card */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 rounded-3xl p-6 sm:p-8 border border-amber-200/60 shadow-xs space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#E76A54] text-white flex items-center justify-center font-bold shadow-md shadow-[#E76A54]/20">
+              <Gift size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-serif font-bold text-stone-900">
+                Frosty Bite Baker's Club Perks
+              </h3>
+              <p className="text-xs text-stone-600">
+                Unlock complimentary artisan treats every time you order online.
+              </p>
+            </div>
           </div>
-          
-          <div className="grid gap-12 px-6">
-            {loading ? (
-              [1, 2, 3].map(i => (
-                <motion.div 
-                  key={`coupon-skeleton-${i}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="h-56 rounded-[4rem] bg-white/[0.02] border border-white/[0.05] relative overflow-hidden group"
-                >
-                  {/* Shimmer Effect */}
-                  <motion.div 
-                    animate={{ 
-                      x: ['-100%', '200%'],
-                    }}
-                    transition={{ 
-                      duration: 2, 
-                      repeat: Infinity, 
-                      ease: "linear" 
-                    }}
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -skew-x-12"
-                  />
-                  
-                  <div className="p-10 flex items-center gap-10">
-                    <div className="w-28 h-28 rounded-[2.5rem] bg-white/[0.03] border border-white/5 shrink-0" />
-                    <div className="flex-1 space-y-4">
-                      <div className="h-10 w-48 bg-white/[0.03] rounded-xl" />
-                      <div className="h-4 w-32 bg-white/[0.02] rounded-lg" />
-                      <div className="flex gap-4">
-                        <div className="h-12 w-32 bg-white/[0.03] rounded-2xl" />
-                        <div className="h-12 w-40 bg-white/[0.03] rounded-2xl" />
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
-            ) : coupons.map((coupon, idx) => (
-              <motion.div
-                key={coupon.id ? `coupon-${coupon.id}` : `coupon-${coupon.code}-${idx}`}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                className="group relative overflow-hidden rounded-[4rem] bg-[#0A0A0A] border border-white/[0.08] transition-all duration-700 hover:border-primary/50 hover:shadow-[0_60px_100px_-40px_rgba(255,82,0,0.4)]"
-              >
-                {/* Backdrop Visual */}
-                <div className="absolute top-0 right-0 w-[40%] h-full bg-gradient-to-l from-primary/5 to-transparent flex items-center justify-end pr-8 overflow-hidden pointer-events-none">
-                  <span className="text-[18rem] font-black italic text-white/[0.02] transform translate-x-20 rotate-12">{coupon.code.slice(0, 1)}</span>
-                </div>
 
-                <div className="relative z-10 p-10 flex flex-col sm:flex-row items-center gap-10">
-                  <div className="w-28 h-28 shrink-0 rounded-[2.5rem] bg-gradient-to-br from-white/[0.05] to-transparent flex items-center justify-center border border-white/10 shadow-2xl relative group-hover:scale-110 transition-transform duration-700">
-                    <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <Ticket size={48} className="text-primary drop-shadow-[0_0_15px_rgba(255,82,0,0.5)]" />
-                  </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-4 border border-amber-200/40 space-y-1">
+              <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Free Cookie on ₹499+
+              </div>
+              <p className="text-[11px] text-stone-500">Auto-added to cart with every dessert order.</p>
+            </div>
 
-                  <div className="flex-1 space-y-6 text-center sm:text-left">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
-                        <h4 className="text-5xl font-black text-white italic tracking-tighter uppercase leading-none">
-                          {coupon.type === 'percentage' ? `${coupon.value}% OFF` : 
-                           coupon.type === 'fixed' ? `₹${coupon.value} OFF` :
-                           'Privilege'}
-                        </h4>
-                        {coupon.is_first_order_only && (
-                          <span className="px-4 py-1.5 bg-primary/20 text-primary text-[8px] font-black rounded-xl uppercase tracking-[0.2em] border border-primary/20 shadow-xl">Prestige Only</span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-white/20 font-black uppercase tracking-[0.4em]">Minimum Order: ₹{coupon.min_order}</p>
-                    </div>
+            <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-4 border border-amber-200/40 space-y-1">
+              <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Birthday Month Surprise
+              </div>
+              <p className="text-[11px] text-stone-500">Receive an exclusive ₹200 pastry voucher on your special day.</p>
+            </div>
 
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
-                      <div className="h-14 px-8 bg-black/80 rounded-2xl border border-white/10 flex items-center gap-4 shadow-inner">
-                        <span className="text-base font-black text-white uppercase tracking-[0.5em]">{coupon.code}</span>
-                      </div>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleApplyCoupon(coupon.code)}
-                        className="h-14 px-10 bg-white text-black rounded-2xl text-[11px] font-black uppercase tracking-[0.3em] shadow-2xl hover:bg-primary hover:text-white transition-all"
-                      >
-                        Claim Reward
-                      </motion.button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+            <div className="bg-white/80 backdrop-blur-xs rounded-2xl p-4 border border-amber-200/40 space-y-1">
+              <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" /> Weekend Double Points
+              </div>
+              <p className="text-[11px] text-stone-500">Earn 2x loyalty credits on every Saturday & Sunday checkout.</p>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

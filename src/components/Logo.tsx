@@ -59,13 +59,13 @@ export const Logo: React.FC<LogoProps> = ({ className, size = 'md', white = fals
         <span className={cn(
           "font-black tracking-tighter italic uppercase",
           sizes[size],
-          white ? "text-white" : "text-white"
+          white ? "text-white" : "text-stone-900"
         )}>
           Frosty<span className="text-primary italic">Bite</span>
         </span>
         <span className={cn(
           "text-[8px] font-black uppercase tracking-[0.3em]",
-          white ? "text-white/40" : "text-zinc-500"
+          white ? "text-white/40" : "text-stone-500"
         )}>
           Artisan Bakery
         </span>

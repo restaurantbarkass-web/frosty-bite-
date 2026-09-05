@@ -9,10 +9,10 @@ export interface Notification {
   id: string;
   title: string;
   message: string;
-  type: 'order' | 'system';
+  type: 'order' | 'system' | 'promo' | 'freshness' | 'delivery';
   read: boolean;
   created_at: string;
-  user_id: string;
+  user_id?: string;
   link?: string;
 }
 
@@ -23,6 +23,8 @@ interface NotificationContextType {
   setIncomingOrder: (order: any | null) => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   addNotification: (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => Promise<void>;
   requestPushPermission: () => Promise<boolean>;
   pushPermission: NotificationPermission | 'default';
@@ -342,6 +344,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     toast.success('All notifications marked as read');
   }, []);
 
+  const deleteNotification = React.useCallback(async (id: string) => {
+    setNotifications(prev => {
+      const updated = prev.filter(n => n.id !== id);
+      const currentUser = userRef.current;
+      const uid = currentUser ? (currentUser.id || currentUser.uid || 'guest') : 'guest';
+      const cacheKey = `user_notifications_${uid}`;
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Failed to write notifications to localStorage:', e);
+      }
+      return updated;
+    });
+  }, []);
+
+  const clearAllNotifications = React.useCallback(async () => {
+    setNotifications([]);
+    const currentUser = userRef.current;
+    const uid = currentUser ? (currentUser.id || currentUser.uid || 'guest') : 'guest';
+    const cacheKey = `user_notifications_${uid}`;
+    try {
+      localStorage.removeItem(cacheKey);
+    } catch (e) {
+      console.warn('Failed to clear notifications in localStorage:', e);
+    }
+    toast.success('Notification history cleared');
+  }, []);
+
   const addNotification = React.useCallback(async (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
     const currentUser = userRef.current;
     const targetUserId = notif.user_id || (currentUser ? (currentUser.id || currentUser.uid) : 'guest') || 'guest';
@@ -399,10 +429,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIncomingOrder,
     markAsRead, 
     markAllAsRead,
+    deleteNotification,
+    clearAllNotifications,
     addNotification,
     requestPushPermission,
     pushPermission
-  }), [notifications, unreadCount, incomingOrder, markAsRead, markAllAsRead, addNotification, requestPushPermission, pushPermission]);
+  }), [notifications, unreadCount, incomingOrder, markAsRead, markAllAsRead, deleteNotification, clearAllNotifications, addNotification, requestPushPermission, pushPermission]);
 
   return (
     <NotificationContext.Provider value={value}>
