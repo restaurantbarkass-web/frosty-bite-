@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9] - 2026-09-05 (PRODUCTION)
+- **Build / Version Code**: `10`
+- **Release Details**:
+* 1367777 feat: update bottom navigation theme styling and set default theme to light
+
+
 ## [1.8] - 2026-09-05 (PRODUCTION)
 - **Build / Version Code**: `9`
 - **Release Details**:
