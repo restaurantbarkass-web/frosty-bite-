@@ -1,0 +1,197 @@
+import express from 'express';
+import { supabase } from '../lib/supabase';
+import { requireAdmin } from '../middleware/auth';
+
+const router = express.Router();
+
+// Resilient in-memory master backup
+let inMemoryConfig: any = null;
+
+/**
+ * GET /api/config
+ * Retrieves the current app configuration exclusively from Supabase falling back to local files
+ */
+router.get('/', async (req, res) => {
+  try {
+    let chosenConfig: any = null;
+
+    // Fetch from Supabase app_settings table (id = '1')
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', '1')
+        .maybeSingle();
+
+      if (error) {
+        console.error('[ConfigRoutes] Supabase error in GET app_settings:', error.message);
+      } else if (data && data.value) {
+        try {
+          const val = data.value;
+          chosenConfig = typeof val === 'string' ? JSON.parse(val) : val;
+        } catch (parseErr: any) {
+          console.error('[ConfigRoutes] JSON parse error of app_settings value:', parseErr.message);
+        }
+      }
+    } catch (sbErr: any) {
+      console.warn('[ConfigRoutes] Supabase config lookup failed:', sbErr.message);
+    }
+
+    // Self-healing migration from legacy system_settings_v1@frostybite.internal users table
+    if (!chosenConfig) {
+      console.log('[ConfigRoutes] app_settings not found. Attempting legacy migration...');
+      try {
+        const { data: legacyData, error: legacyErr } = await supabase
+          .from('users')
+          .select('address')
+          .eq('email', 'system_settings_v1@frostybite.internal')
+          .maybeSingle();
+
+        if (!legacyErr && legacyData && legacyData.address) {
+          try {
+            chosenConfig = JSON.parse(legacyData.address);
+            console.log('[ConfigRoutes] Migrating legacy config:', chosenConfig);
+
+            // Insert into the new app_settings table
+            const { error: insertErr } = await supabase
+              .from('app_settings')
+              .insert({
+                id: '1',
+                value: JSON.stringify(chosenConfig)
+              });
+
+            if (insertErr) {
+              console.warn('[ConfigRoutes] Failed to save migrated config:', insertErr.message);
+            } else {
+              console.log('[ConfigRoutes] Legacy config migrated successfully to app_settings!');
+            }
+          } catch (e: any) {
+            console.error('[ConfigRoutes] Legacy config parsing failed:', e.message);
+          }
+        }
+      } catch (e: any) {
+        console.warn('[ConfigRoutes] Legacy migration failed:', e.message);
+      }
+    }
+
+    // File/In-Memory fallback if still null
+    if (!chosenConfig) {
+      if (inMemoryConfig) {
+        chosenConfig = inMemoryConfig;
+      } else {
+        chosenConfig = {
+          isOrderingOpen: true,
+          deliveryBaseFee: 15,
+          deliveryFeePerKm: 5,
+          deliveryFreeKm: 3,
+          defaultDeliveryTime: 25,
+          geofencingEnabled: true,
+          geofencingLatitude: 20.4625,
+          geofencingLongitude: 85.8828,
+          geofencingRadius: 12,
+          geofencingZones: '[]',
+          isInstantDeliveryClosed: false
+        };
+
+        // Try initializing the app_settings table
+        try {
+          const { error: insertErr } = await supabase
+            .from('app_settings')
+            .insert({
+              id: '1',
+              value: JSON.stringify(chosenConfig)
+            });
+          if (insertErr) {
+            console.warn('[ConfigRoutes] Initial app_settings insert failed:', insertErr.message);
+          }
+        } catch (sbInsertErr: any) {
+          console.warn('[ConfigRoutes] Initial app_settings insert exception:', sbInsertErr.message);
+        }
+      }
+    }
+
+    inMemoryConfig = chosenConfig;
+
+    return res.json({ success: true, config: chosenConfig });
+  } catch (error: any) {
+    console.error('[ConfigRoutes] Error fetching config:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
+  }
+});
+
+/**
+ * POST /api/config
+ * Updates configuration in Supabase and backup files.
+ */
+router.post('/', requireAdmin, async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('[ConfigRoutes] POST request payload:', JSON.stringify(payload));
+
+    // Get existing config from app_settings
+    let existingConfig: any = {};
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', '1')
+        .maybeSingle();
+
+      if (!error && data && data.value) {
+        const val = data.value;
+        existingConfig = typeof val === 'string' ? JSON.parse(val) : val;
+      }
+    } catch (e: any) {
+      console.warn('[ConfigRoutes] Error reading existing app_settings config:', e.message);
+    }
+
+    // Merge settings
+    const updatedConfig = {
+      ...existingConfig,
+      ...payload,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('[ConfigRoutes] updatedConfig to be saved:', JSON.stringify(updatedConfig));
+
+    const configString = JSON.stringify(updatedConfig);
+
+    // Perform update in app_settings table (id = '1')
+    let { error: upsertErr } = await supabase
+      .from('app_settings')
+      .update({
+        value: configString,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', '1');
+
+    if (upsertErr) {
+      console.warn('[ConfigRoutes] Update app_settings failed, trying upsert...', upsertErr.message);
+      const res = await supabase
+        .from('app_settings')
+        .upsert({
+          id: '1',
+          value: configString,
+          updated_at: new Date().toISOString()
+        });
+      upsertErr = res.error;
+    }
+
+    if (upsertErr) {
+      console.error('[ConfigRoutes] Supabase update settings error:', upsertErr.message);
+      return res.status(500).json({ success: false, error: 'Database Error', message: 'Failed to update system settings', details: upsertErr });
+    }
+
+    console.log('[ConfigRoutes] Configuration successfully synchronized to Supabase app_settings');
+
+    // Update backup files and memory state ONLY after successful database write!
+    inMemoryConfig = updatedConfig;
+
+    res.json({ success: true, config: updatedConfig });
+  } catch (error: any) {
+    console.error('[ConfigRoutes] Error setting config:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error', message: error.message });
+  }
+});
+
+export default router;

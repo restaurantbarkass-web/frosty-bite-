@@ -1,0 +1,493 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart, User, Home, ClipboardList, Menu, X, LogOut, LayoutDashboard, AlertCircle, CheckCircle2, Search, Gift, Command, Sparkles, ShoppingBag, HelpCircle, Bell } from 'lucide-react';
+import { useCartState } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn, smoothScroll } from '../lib/utils';
+import { useAppConfig } from '../hooks/useAppConfig';
+import { Logo } from './Logo';
+import { LottieOfferButton } from './LottieOfferButton';
+import { preloadRoute } from '../utils/preload';
+
+export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = React.memo(({ onCartClick, onSearchClick }) => {
+  const { totalItems } = useCartState();
+  const { user, role, isAdmin, logout } = useAuth();
+  const { unreadCount } = useNotifications();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { config } = useAppConfig();
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollYRef = useRef(0);
+  const [bounceKey, setBounceKey] = useState(0);
+
+  useEffect(() => {
+    const handleCartBounce = () => {
+      setBounceKey(prev => prev + 1);
+    };
+    window.addEventListener('cart-bounce', handleCartBounce);
+    return () => window.removeEventListener('cart-bounce', handleCartBounce);
+  }, []);
+
+  const showHeaderRef = useRef(true);
+
+  useEffect(() => {
+    let ticking = false;
+
+    const updateHeader = () => {
+      const currentScrollY = window.scrollY;
+      const prev = lastScrollYRef.current;
+      
+      if (Math.abs(currentScrollY - prev) >= 12) {
+        const nextShow = !(currentScrollY > prev && currentScrollY > 100);
+        if (nextShow !== showHeaderRef.current) {
+          showHeaderRef.current = nextShow;
+          setShowHeader(nextShow);
+        }
+        lastScrollYRef.current = currentScrollY;
+      }
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateHeader);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+    }
+  };
+
+  const getNavLinks = React.useMemo(() => {
+    const links = [
+      { name: 'Home', path: '/', icon: Home },
+      { name: 'Butler', path: '#search', icon: Sparkles, onClick: onSearchClick },
+      { 
+        name: 'Offers', 
+        path: '/offers', 
+        component: (isActive: boolean) => (
+          <div className="relative group">
+            <LottieOfferButton 
+              active={isActive} 
+              className="scale-[0.5] sm:scale-[0.6] origin-center -my-6" 
+            />
+            {isActive && (
+              <motion.div 
+                layoutId="nav-underline-desktop"
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_rgba(255,107,38,0.5)]"
+              />
+            )}
+          </div>
+        )
+      }
+    ];
+    
+    if (user) {
+      links.push({ name: 'Orders', path: '/orders', icon: ClipboardList });
+      links.push({ name: 'Alerts', path: '/notifications', icon: Bell });
+      if (isAdmin) links.push({ name: 'Admin', path: '/admin', icon: LayoutDashboard });
+      links.push({ name: 'Profile', path: '/profile', icon: User });
+    }
+    links.push({ name: 'FAQ', path: '/faq', icon: HelpCircle });
+    
+    return links;
+  }, [user?.uid || user?.id, isAdmin]);
+
+  const navLinks = getNavLinks;
+
+  return (
+    <nav className={cn(
+      "fixed top-0 left-0 w-full z-50 transition-transform duration-300 bg-[#FAF8F5]",
+      showHeader ? "translate-y-0" : "-translate-y-full"
+    )}>
+      {/* Status Banner */}
+      <AnimatePresence mode="wait">
+        {config && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className={cn(
+              "w-full py-2 px-4 flex items-center justify-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] transition-colors text-center",
+              !config.isOrderingOpen 
+                ? "bg-red-500/10 text-red-600"
+                : (Boolean(config.pickup_only ?? config.isPickupOnly) 
+                    ? "bg-amber-500/15 text-amber-800" 
+                    : "bg-emerald-500/10 text-emerald-700")
+            )}
+          >
+            {config.isOrderingOpen ? (
+              Boolean(config.pickup_only ?? config.isPickupOnly) ? (
+                <>
+                  <ShoppingBag size={14} className="animate-bounce shrink-0 text-amber-400" />
+                  <span className="font-bold tracking-normal">🛍 Pickup Only — Place your order online and collect it from our bakery at your preferred time</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={12} className="animate-pulse shrink-0" />
+                  <span>🟢 Orders Open - Fast Delivery Active</span>
+                </>
+              )
+            ) : (
+              <>
+                <AlertCircle size={12} className="animate-bounce shrink-0" />
+                <span>🔴 Orders Closed - We'll be back soon!</span>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-20 sm:h-24 gap-4">
+          <Link 
+            to="/" 
+            className="flex items-center shrink-0 group relative"
+            onClick={(e) => {
+              if (location.pathname === '/') {
+                e.preventDefault();
+                smoothScroll.toTop();
+              }
+            }}
+          >
+            <Logo size="md" className="scale-90 sm:scale-100" />
+          </Link>
+
+          {/* Search Bar (Desktop) */}
+          <div className="hidden lg:flex flex-1 max-w-sm mx-8">
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onSearchClick}
+              className="w-full flex items-center justify-between bg-stone-200/50 rounded-2xl py-2.5 px-4 group hover:bg-stone-200/70 transition-all text-stone-600 shadow-none"
+            >
+              <div className="flex items-center gap-3">
+                <Search size={18} className="group-hover:text-primary transition-colors group-hover:scale-110 duration-200" />
+                <span className="text-sm font-medium">Search for premium treats...</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 bg-stone-300/50 rounded-lg text-[10px] font-bold text-stone-600">
+                <Command size={10} />
+                <span>K</span>
+              </div>
+            </motion.button>
+          </div>
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center space-x-8">
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.path.split('#')[0];
+              
+              if ('component' in link && link.component) {
+                return (
+                  <Link 
+                    key={`desktop-nav-${link.name}`} 
+                    to={link.path} 
+                    onMouseEnter={() => {
+                      if (link.path && !link.path.startsWith('#')) {
+                        preloadRoute(link.path);
+                      }
+                    }}
+                    onTouchStart={() => {
+                      if (link.path && !link.path.startsWith('#')) {
+                        preloadRoute(link.path);
+                      }
+                    }}
+                    onClick={(e) => {
+                      if (location.pathname === link.path) {
+                        e.preventDefault();
+                        smoothScroll.toTop();
+                      }
+                    }}
+                    className="flex items-center"
+                  >
+                    {link.component(isActive)}
+                  </Link>
+                );
+              }
+
+              return (
+                <Link
+                  key={`desktop-nav-${link.name}`}
+                  to={link.path}
+                  onMouseEnter={() => {
+                    if (link.path && !link.path.startsWith('#')) {
+                      preloadRoute(link.path);
+                    }
+                  }}
+                  onTouchStart={() => {
+                    if (link.path && !link.path.startsWith('#')) {
+                      preloadRoute(link.path);
+                    }
+                  }}
+                  onClick={(e) => {
+                    if ('onClick' in link && link.onClick) {
+                      e.preventDefault();
+                      link.onClick();
+                      return;
+                    }
+                    if (location.pathname === link.path) {
+                      e.preventDefault();
+                      smoothScroll.toTop();
+                    }
+                  }}
+                  className={cn(
+                    "text-sm font-medium transition-colors relative py-1 px-2 rounded-lg",
+                    isActive ? "text-primary z-10 font-semibold" : "text-stone-700 hover:text-stone-900"
+                  )}
+                >
+                  <motion.span
+                    whileHover={{ scale: 1.05, y: -1 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                    className="inline-block"
+                  >
+                    {link.name}
+                  </motion.span>
+                  {isActive ? (
+                    <motion.div
+                      layoutId="active-nav-dot"
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full"
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    />
+                  ) : (
+                    <motion.div
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary/40 rounded-full opacity-0"
+                      whileHover={{ opacity: 1, scale: 1.2 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+            
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <Link
+                to="/notifications"
+                className="relative p-2 text-stone-700 hover:text-primary transition-colors focus:outline-none"
+                title="Notifications"
+              >
+                <Bell size={22} />
+                {unreadCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 bg-[#E76A54] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </motion.span>
+                )}
+              </Link>
+
+              <button
+                id="cart-btn-desktop"
+                onClick={onCartClick}
+                className="relative p-2 text-stone-700 hover:text-primary transition-colors focus:outline-none"
+              >
+                <motion.div
+                  key={`${totalItems}-${bounceKey}`}
+                  animate={{ scale: [1, 1.35, 0.9, 1.1, 1], rotate: [0, -12, 12, -6, 0] }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  className="flex items-center justify-center"
+                >
+                  <ShoppingCart size={24} />
+                </motion.div>
+                {totalItems > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1 -right-1 bg-primary text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center"
+                  >
+                    {totalItems}
+                  </motion.span>
+                )}
+              </button>
+
+              {user ? (
+                <motion.button
+                  whileHover={{ scale: 1.15, rotate: 8 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={handleLogout}
+                  className="p-2 text-stone-600 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={20} />
+                </motion.button>
+              ) : (
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -1 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                >
+                  <Link
+                    to="/login"
+                    className="bg-primary hover:bg-orange-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 transition-all block"
+                  >
+                    Login
+                  </Link>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Menu Button - Optimized spacing */}
+          <div className="md:hidden flex items-center gap-1 sm:gap-2 shrink-0">
+            {!user && (
+              <Link
+                to="/login"
+                className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-primary text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-full active:scale-95 transition-all shadow-lg shadow-primary/20 shrink-0"
+              >
+                Login
+              </Link>
+            )}
+            <button
+              onClick={onSearchClick}
+              className="p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0"
+            >
+              <Search size={20} />
+            </button>
+            <Link
+              to="/notifications"
+              className="relative p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0"
+              title="Notifications"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-[#E76A54] text-white text-[8px] font-bold w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center border border-[#FAF8F5]">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Link>
+            <button
+              id="cart-btn-mobile"
+              onClick={onCartClick}
+              className="relative p-1.5 sm:p-2 text-stone-700 hover:text-primary active:scale-95 transition-all shrink-0 focus:outline-none block"
+            >
+              <motion.div
+                key={totalItems}
+                animate={{ scale: [1, 1.25, 0.95, 1.05, 1], rotate: [0, -8, 8, -4, 0] }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="flex items-center justify-center"
+              >
+                <ShoppingCart size={22} />
+              </motion.div>
+              {totalItems > 0 && (
+                <span className="absolute top-0 sm:-top-1 right-0 sm:-right-1 bg-primary text-white text-[9px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-[#FAF8F5]">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden bg-[#FAF8F5]"
+          >
+            <div className="px-4 pt-2 pb-6 space-y-4">
+              {/* Mobile Search */}
+              <div className="relative group px-3">
+                <Search className="absolute left-7 top-1/2 -translate-y-1/2 text-stone-500" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search Bakery..." 
+                  className="w-full bg-stone-200/50 rounded-2xl py-3 pl-12 pr-4 text-sm text-stone-900 placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-primary/40 border-none"
+                  onChange={(e) => {
+                    const query = e.target.value;
+                    if (location.pathname !== '/') {
+                      navigate(`/?search=${encodeURIComponent(query)}`);
+                    } else {
+                      window.dispatchEvent(new CustomEvent('navbar-search', { detail: query }));
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-1">
+                {navLinks.map((link) => {
+                  const isActive = location.pathname === link.path.split('#')[0];
+                  
+                  if ('component' in link && link.component) {
+                    return (
+                      <Link
+                        key={`mobile-nav-${link.name}`}
+                        to={link.path}
+                        onClick={(e) => {
+                          setIsMobileMenuOpen(false);
+                          if (location.pathname === link.path) {
+                            e.preventDefault();
+                            window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                          }
+                        }}
+                        className={cn(
+                          "flex items-center px-3 py-1 rounded-lg",
+                          isActive ? "bg-primary/10" : "hover:bg-stone-200/40"
+                        )}
+                      >
+                        <div className="scale-75 -ml-8">
+                          {link.component(isActive)}
+                        </div>
+                        <span className={cn(
+                          "text-base font-medium -ml-4",
+                          isActive ? "text-primary font-semibold" : "text-stone-700"
+                        )}>
+                          {link.name}
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={`mobile-nav-${link.name}`}
+                      to={link.path}
+                      onClick={(e) => {
+                        setIsMobileMenuOpen(false);
+                        if ('onClick' in link && link.onClick) {
+                          e.preventDefault();
+                          link.onClick();
+                          return;
+                        }
+                        if (location.pathname === link.path) {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('scroll-to-top'));
+                        }
+                      }}
+                      className={cn(
+                        "flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium",
+                        isActive ? "bg-primary/10 text-primary font-semibold" : "text-stone-700 hover:bg-stone-200/40"
+                      )}
+                    >
+                      {link.icon && <link.icon size={20} />}
+                      <span>{link.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+});
+
+Navbar.displayName = 'Navbar';

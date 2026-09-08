@@ -1,0 +1,701 @@
+{
+  "service_areas": [
+    {
+      "id": "sa-00000000-0000-0000-0000-000000000001",
+      "name": "Frosty Bite Odisha Service Region",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.7,
+                20.15
+              ],
+              [
+                86.05,
+                20.15
+              ],
+              [
+                86.05,
+                20.65
+              ],
+              [
+                85.7,
+                20.65
+              ],
+              [
+                85.7,
+                20.15
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    }
+  ],
+  "cities": [
+    {
+      "id": "city-cuttack-001",
+      "name": "Cuttack",
+      "slug": "cuttack",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.4
+              ],
+              [
+                85.96,
+                20.4
+              ],
+              [
+                85.96,
+                20.53
+              ],
+              [
+                85.8,
+                20.53
+              ],
+              [
+                85.8,
+                20.4
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "city-bhubaneswar-002",
+      "name": "Bhubaneswar",
+      "slug": "bhubaneswar",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.75,
+                20.22
+              ],
+              [
+                85.92,
+                20.22
+              ],
+              [
+                85.92,
+                20.38
+              ],
+              [
+                85.75,
+                20.38
+              ],
+              [
+                85.75,
+                20.22
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "city-puri-003",
+      "name": "Puri",
+      "slug": "puri",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": false,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.78,
+                19.78
+              ],
+              [
+                85.88,
+                19.78
+              ],
+              [
+                85.88,
+                19.86
+              ],
+              [
+                85.78,
+                19.86
+              ],
+              [
+                85.78,
+                19.78
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "3916efc1-678f-432e-89dc-2d826b681f00",
+      "name": "TestCity",
+      "slug": "testcity",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": null,
+      "created_at": "2026-08-14T11:59:35.546+00:00",
+      "updated_at": "2026-08-14T11:59:35.546+00:00"
+    },
+    {
+      "id": "5c26d42b-0d37-4b7a-8e6a-dd928289949e",
+      "name": "Sambalpur",
+      "slug": "sambalpur",
+      "state": "Odisha",
+      "country": "India",
+      "is_active": true,
+      "boundary": null,
+      "created_at": "2026-08-14T12:03:59.441+00:00",
+      "updated_at": "2026-08-14T12:03:59.441+00:00"
+    }
+  ],
+  "pincodes": [
+    {
+      "id": "pin-753001",
+      "city_id": "city-cuttack-001",
+      "pincode": "753001",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.85,
+                20.44
+              ],
+              [
+                85.92,
+                20.44
+              ],
+              [
+                85.92,
+                20.5
+              ],
+              [
+                85.85,
+                20.5
+              ],
+              [
+                85.85,
+                20.44
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "pin-753012",
+      "city_id": "city-cuttack-001",
+      "pincode": "753012",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.41
+              ],
+              [
+                85.86,
+                20.41
+              ],
+              [
+                85.86,
+                20.46
+              ],
+              [
+                85.8,
+                20.46
+              ],
+              [
+                85.8,
+                20.41
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "pin-753003",
+      "city_id": "city-cuttack-001",
+      "pincode": "753003",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.82,
+                20.44
+              ],
+              [
+                85.9,
+                20.44
+              ],
+              [
+                85.9,
+                20.52
+              ],
+              [
+                85.82,
+                20.52
+              ],
+              [
+                85.82,
+                20.44
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T09:24:03.105+00:00",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "pin-751001",
+      "city_id": "city-bhubaneswar-002",
+      "pincode": "751001",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.25
+              ],
+              [
+                85.88,
+                20.25
+              ],
+              [
+                85.88,
+                20.33
+              ],
+              [
+                85.8,
+                20.33
+              ],
+              [
+                85.8,
+                20.25
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "pin-751024",
+      "city_id": "city-bhubaneswar-002",
+      "pincode": "751024",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.78,
+                20.32
+              ],
+              [
+                85.86,
+                20.32
+              ],
+              [
+                85.86,
+                20.38
+              ],
+              [
+                85.78,
+                20.38
+              ],
+              [
+                85.78,
+                20.32
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "pin-751003",
+      "city_id": "city-bhubaneswar-002",
+      "pincode": "751003",
+      "is_active": true,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.82,
+                20.27
+              ],
+              [
+                85.9,
+                20.27
+              ],
+              [
+                85.9,
+                20.35
+              ],
+              [
+                85.82,
+                20.35
+              ],
+              [
+                85.82,
+                20.27
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    }
+  ],
+  "localities": [
+    {
+      "id": "loc-jobra-001",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753001",
+      "name": "Jobra",
+      "slug": "jobra",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.86,
+                20.44
+              ],
+              [
+                85.92,
+                20.44
+              ],
+              [
+                85.92,
+                20.49
+              ],
+              [
+                85.86,
+                20.49
+              ],
+              [
+                85.86,
+                20.44
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-buxi-002",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753001",
+      "name": "Buxi Bazaar",
+      "slug": "buxi-bazaar",
+      "is_active": true,
+      "delivery_fee": 50,
+      "minimum_order": 199,
+      "estimated_delivery_minutes": 35,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.84,
+                20.43
+              ],
+              [
+                85.88,
+                20.43
+              ],
+              [
+                85.88,
+                20.48
+              ],
+              [
+                85.84,
+                20.48
+              ],
+              [
+                85.84,
+                20.43
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-badambadi-003",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753012",
+      "name": "Badambadi",
+      "slug": "badambadi",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.81,
+                20.41
+              ],
+              [
+                85.86,
+                20.41
+              ],
+              [
+                85.86,
+                20.45
+              ],
+              [
+                85.81,
+                20.45
+              ],
+              [
+                85.81,
+                20.41
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-12T09:24:44.907Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-cda-004",
+      "city_id": "city-cuttack-001",
+      "pincode_id": "pin-753012",
+      "name": "CDA Sector 6",
+      "slug": "cda-sector-6",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.46
+              ],
+              [
+                85.86,
+                20.46
+              ],
+              [
+                85.86,
+                20.52
+              ],
+              [
+                85.8,
+                20.52
+              ],
+              [
+                85.8,
+                20.46
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-saheed-nagar-005",
+      "city_id": "city-bhubaneswar-002",
+      "pincode_id": "pin-751001",
+      "name": "Saheed Nagar",
+      "slug": "saheed-nagar",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.81,
+                20.27
+              ],
+              [
+                85.87,
+                20.27
+              ],
+              [
+                85.87,
+                20.32
+              ],
+              [
+                85.81,
+                20.32
+              ],
+              [
+                85.81,
+                20.27
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-patia-006",
+      "city_id": "city-bhubaneswar-002",
+      "pincode_id": "pin-751024",
+      "name": "Patia",
+      "slug": "patia",
+      "is_active": true,
+      "delivery_fee": 45,
+      "minimum_order": 179,
+      "estimated_delivery_minutes": 35,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.78,
+                20.32
+              ],
+              [
+                85.85,
+                20.32
+              ],
+              [
+                85.85,
+                20.38
+              ],
+              [
+                85.78,
+                20.38
+              ],
+              [
+                85.78,
+                20.32
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    },
+    {
+      "id": "loc-jayadev-007",
+      "city_id": "city-bhubaneswar-002",
+      "pincode_id": "pin-751003",
+      "name": "Jayadev Vihar",
+      "slug": "jayadev-vihar",
+      "is_active": true,
+      "delivery_fee": 40,
+      "minimum_order": 149,
+      "estimated_delivery_minutes": 30,
+      "boundary": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                85.8,
+                20.28
+              ],
+              [
+                85.85,
+                20.28
+              ],
+              [
+                85.85,
+                20.33
+              ],
+              [
+                85.8,
+                20.33
+              ],
+              [
+                85.8,
+                20.28
+              ]
+            ]
+          ]
+        ]
+      },
+      "created_at": "2026-08-14T10:00:00.000Z",
+      "updated_at": "2026-08-14T10:00:00.000Z"
+    }
+  ]
+}

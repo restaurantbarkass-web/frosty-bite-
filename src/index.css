@@ -1,0 +1,284 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Archivo+Black&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #FAF8F5;
+  --color-foreground: #1c1917;
+  --color-primary: #E76A54;
+  --color-secondary: #f5f5f4;
+  --color-accent: #f59e0b;
+  --color-muted: #78716c;
+  --color-card: #ffffff;
+  --color-border: #e7e5e4;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo Black", sans-serif;
+
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  --animate-shine: shine 1.5s infinite;
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+    20%, 40%, 60%, 80% { transform: translateX(6px); }
+  }
+  --animate-shake: shake 0.5s ease-in-out;
+
+  @keyframes gradient-x {
+    0%, 100% {
+      background-size: 200% 200%;
+      background-position: left center;
+    }
+    50% {
+      background-size: 200% 200%;
+      background-position: right center;
+    }
+  }
+  --animate-gradient-x: gradient-x 3s ease infinite;
+
+  @keyframes highlight {
+    0% { border-color: rgba(255,255,255,0.05); box-shadow: 0 0 0 rgba(249,115,22,0); }
+    50% { border-color: #f97316; box-shadow: 0 0 30px rgba(249,115,22,0.2); }
+    100% { border-color: rgba(255,255,255,0.05); box-shadow: 0 0 0 rgba(249,115,22,0); }
+  }
+  --animate-pulse-highlight: highlight 2s ease-in-out;
+
+  @keyframes popup-elastic {
+    0% { transform: scale(0.82) translateY(12px); opacity: 0; }
+    50% { transform: scale(1.04) translateY(-2px); opacity: 1; }
+    75% { transform: scale(0.98) translateY(1px); }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  --animate-popup-elastic: popup-elastic 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+
+  @keyframes popup-backdrop {
+    0% { opacity: 0; backdrop-filter: blur(0px); }
+    100% { opacity: 1; backdrop-filter: blur(8px); }
+  }
+  --animate-popup-backdrop: popup-backdrop 0.3s ease-out forwards;
+}
+
+@layer base {
+  html {
+    scroll-behavior: auto;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: auto;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    overscroll-behavior-y: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  /* Native-feeling kinetic momentum scrolling on mobile devices */
+  .overflow-y-auto, .overflow-y-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
+  }
+  .overflow-x-auto, .overflow-x-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+    touch-action: pan-x pan-y;
+  }
+  /* Ensure horizontal carousels never lock or interfere with vertical momentum scrolling */
+  .touch-carousel, .scrollbar-hide, .no-scrollbar {
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+  }
+}
+
+/* Zero-lag hardware compositing & offscreen containment */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 380px;
+}
+
+.content-visibility-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+.card-contain {
+  contain: layout paint style;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Shimmer Keyframe in global CSS for instant performance without inline styles */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Reduced motion preference fallback for low-power or sensitive devices */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+}
+
+.glass-dark {
+  @apply bg-black/40 backdrop-blur-xl border border-white/5;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.scrollbar-hide::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide, .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.bakery-card {
+  @apply bg-zinc-900/50 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl;
+}
+
+.btn-premium {
+  @apply relative overflow-hidden bg-primary text-white font-black uppercase tracking-[0.2em] text-[10px] py-4.5 px-8 rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.glass-bakery {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+.custom-scrollbar::-webkit-scrollbar,
+#locked-geofence-screen::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+#locked-geofence-screen::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+#locked-geofence-screen::-webkit-scrollbar-thumb {
+  background: rgba(255, 77, 109, 0.25);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+#locked-geofence-screen::-webkit-scrollbar-thumb:hover {
+  background: #FF4D6D;
+}
+
+#locked-geofence-screen {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Hide development WebSocket / HMR failure overlays */
+vite-error-overlay {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* Dynamic Performance Engine Class Styles */
+html.perf-tier-low *,
+html.perf-tier-low ::before,
+html.perf-tier-low ::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Eliminate expensive backdrop-blur layers on low performance devices */
+html.perf-tier-low .backdrop-blur,
+html.perf-tier-low .backdrop-blur-sm,
+html.perf-tier-low .backdrop-blur-md,
+html.perf-tier-low .backdrop-blur-lg,
+html.perf-tier-low .backdrop-blur-xl,
+html.perf-tier-low .backdrop-blur-2xl,
+html.perf-tier-low .backdrop-blur-3xl {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.perf-tier-low .glass-dark {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: rgba(12, 12, 16, 0.98) !important;
+}
+
+html.perf-tier-low .glass,
+html.perf-tier-low .glass-bakery {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: #FAF8F5 !important;
+}
+
+/* Reduce blur values on balanced devices to optimize GPU framerates */
+html.perf-tier-balanced .backdrop-blur-xl,
+html.perf-tier-balanced .backdrop-blur-2xl,
+html.perf-tier-balanced .backdrop-blur-3xl,
+html.perf-tier-balanced .glass-dark,
+html.perf-tier-balanced .glass-bakery,
+html.perf-tier-balanced .bakery-card {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Disable expensive box-shadow rendering on low-end devices */
+html.perf-tier-low [class*="shadow-"] {
+  box-shadow: none !important;
+}
+
+/* Disable glowing static background blur graphics on low-tier devices */
+html.perf-tier-low .blur-\[120px\],
+html.perf-tier-low .blur-3xl,
+html.perf-tier-low [class*="bg-primary/10"],
+html.perf-tier-low [class*="bg-emerald-500/10"],
+html.perf-tier-low [class*="bg-teal-500/10"] {
+  display: none !important;
+}
+
+/* Offscreen lazy rendering optimization using browser layout skipping */
+.content-visibility-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 450px;
+}
+
+
+

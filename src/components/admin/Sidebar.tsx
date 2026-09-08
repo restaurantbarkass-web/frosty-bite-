@@ -1,0 +1,184 @@
+import React, { useState } from 'react';
+import { UNIVERSAL_LOGO_URL } from '../../constants/logo';
+import { 
+  LayoutDashboard, 
+  ShoppingBag, 
+  UtensilsCrossed, 
+  BarChart3, 
+  Settings, 
+  ChevronLeft, 
+  ChevronRight,
+  LogOut,
+  Tag,
+  Palette,
+  Users,
+  ShieldCheck,
+  Truck,
+  Search as SearchIcon,
+  Award,
+  Globe,
+  Database,
+  Bell,
+  MessageSquareHeart,
+  Sparkles
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+interface SidebarProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const menuItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'notifications', label: 'Push Notifications', icon: Bell },
+  { id: 'rewards', label: 'Rewards Engine', icon: Award },
+  { id: 'customers', label: 'Customers', icon: Users },
+  { id: 'feedback', label: 'Customer Feedback', icon: MessageSquareHeart },
+  { id: 'admins', label: 'Admins', icon: ShieldCheck },
+  { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
+  { id: 'coupons', label: 'Coupons', icon: Tag },
+  { id: 'campaigns', label: 'Campaigns', icon: Sparkles },
+  { id: 'banners', label: 'Banners', icon: Palette },
+  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { id: 'search-analytics', label: 'Search Insights', icon: SearchIcon },
+  { id: 'pricing', label: 'Delivery Pricing', icon: Truck },
+  { id: 'service-zones', label: 'Service Zones', icon: Globe },
+  { id: 'rls-diagnostics', label: 'Database & RLS', icon: Database },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, onClose }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      // User cancelled logout
+      console.log('Logout action cancelled by user');
+    }
+  };
+
+  const sidebarVariants = {
+    open: { x: 0, width: '260px' },
+    closed: { x: '-100%', width: '260px' },
+    desktop: { x: 0, width: isCollapsed ? '80px' : '260px' }
+  };
+
+  return (
+    <>
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-[60] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        initial={false}
+        animate={isOpen ? 'open' : (window.innerWidth < 1024 ? 'closed' : 'desktop')}
+        variants={sidebarVariants}
+        className={cn(
+          "fixed inset-y-0 left-0 lg:sticky lg:top-0 lg:h-screen z-[70] bg-white border-r border-stone-200/90 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none",
+          isCollapsed ? "lg:w-20" : "lg:w-[260px]"
+        )}
+      >
+        <div className="p-6 flex items-center justify-between border-b border-stone-100">
+          <div className="flex items-center gap-3">
+            <img 
+              src={UNIVERSAL_LOGO_URL} 
+              alt="Frosty Bite Logo" 
+              className={cn("h-10 w-10 object-cover transition-all duration-300 rounded-xl shadow-xs border border-stone-200/60", isCollapsed && "lg:h-8 lg:w-8")}
+              referrerPolicy="no-referrer"
+            />
+            {(!isCollapsed || isOpen) && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col"
+              >
+                <span className="text-sm font-black text-stone-900 tracking-tight">Frosty Bite</span>
+                <span className="text-[10px] font-black uppercase text-[#E76A54] tracking-widest">Admin Panel</span>
+              </motion.div>
+            )}
+          </div>
+          {isOpen && (
+            <button onClick={onClose} className="lg:hidden text-stone-400 hover:text-stone-700 p-2 rounded-xl hover:bg-stone-100 transition-colors">
+              <LogOut className="rotate-180" size={20} />
+            </button>
+          )}
+        </div>
+
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden lg:flex absolute -right-3 top-20 bg-[#E76A54] text-white p-1 rounded-full border-4 border-white shadow-md hover:scale-110 transition-transform z-10"
+        >
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+
+        <nav 
+          className="flex-1 px-3.5 py-4 space-y-1.5 overflow-y-auto custom-scrollbar"
+          data-lenis-prevent
+        >
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  onClose?.();
+                }}
+                className={cn(
+                  "w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-200 group text-sm",
+                  isActive 
+                    ? "bg-[#E76A54] text-white shadow-md shadow-orange-500/25 font-bold" 
+                    : "text-stone-600 hover:bg-stone-100 hover:text-stone-900 font-medium"
+                )}
+              >
+                <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-white" : "text-stone-400 group-hover:text-[#E76A54]")} />
+                {(!isCollapsed || isOpen) && (
+                  <motion.span 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="whitespace-nowrap"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-stone-200/80 bg-stone-50/50">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-rose-600 hover:bg-rose-50 transition-all duration-200 font-semibold text-sm"
+          >
+            <LogOut className="w-5 h-5 shrink-0 text-rose-500" />
+            {!isCollapsed && <span className="font-medium">Logout</span>}
+          </button>
+        </div>
+      </motion.div>
+    </>
+  );
+};

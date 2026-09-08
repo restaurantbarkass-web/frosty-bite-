@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#ff0055" />
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Frosty Bite" />
+    <!-- Preloading & Preconnecting Critical Assets -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Archivo+Black&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap" as="style" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Archivo+Black&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600;1,700&display=swap" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" type="text/css" />
+    <link rel="preload" href="/logo_192.png" as="image" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/jpeg" href="https://www.image2url.com/r2/default/images/1788259171573-fd1fa167-c5d0-42fc-b38a-17a7197dc51e.jpeg" />
+    <link rel="apple-touch-icon" href="https://www.image2url.com/r2/default/images/1788259171573-fd1fa167-c5d0-42fc-b38a-17a7197dc51e.jpeg" />
+    <title>Frosty Bite | Artisan Bakery & Frosty Treats</title>
+    <meta name="description" content="Artisan bakery and frosty treats. Order freshly baked cakes, artisan desserts, cold treats, and gourmet bites online with fast delivery!" />
+
+    <!-- Open Graph / Facebook / WhatsApp Link Previews -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Frosty Bite" />
+    <meta property="og:title" content="Frosty Bite | Artisan Bakery & Frosty Treats" />
+    <meta property="og:description" content="Order freshly baked cakes, artisan desserts, cold treats, and gourmet bites online with fast delivery!" />
+    <meta property="og:image" content="/logo_512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="Frosty Bite Artisan Bakery" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Frosty Bite | Artisan Bakery & Frosty Treats" />
+    <meta name="twitter:description" content="Order freshly baked cakes, artisan desserts, cold treats, and gourmet bites online with fast delivery!" />
+    <meta name="twitter:image" content="/logo_512.png" />
+    <script>
+      (function() {
+        // Safe Storage Polyfill for sandboxed iframes
+        function createStoragePolyfill() {
+          var storage = {};
+          return {
+            getItem: function(key) {
+              return storage.hasOwnProperty(key) ? storage[key] : null;
+            },
+            setItem: function(key, value) {
+              storage[key] = String(value);
+            },
+            removeItem: function(key) {
+              delete storage[key];
+            },
+            clear: function() {
+              storage = {};
+            },
+            key: function(i) {
+              var keys = Object.keys(storage);
+              return keys[i] || null;
+            },
+            get length() {
+              return Object.keys(storage).length;
+            }
+          };
+        }
+
+        try {
+          var testLocal = window.localStorage;
+          // Accessing a property on localStorage to trigger the security error if blocked
+          if (testLocal) {
+            testLocal.getItem('__test_sandbox_storage__');
+          } else {
+            throw new Error("localStorage is null");
+          }
+        } catch (e) {
+          console.warn("localStorage is blocked or disabled, installing Window.prototype polyfill:", e);
+          try {
+            var localPolyfill = createStoragePolyfill();
+            Object.defineProperty(Window.prototype, 'localStorage', {
+              get: function() { return localPolyfill; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (err) {
+            console.warn("Failed to define localStorage polyfill on Window.prototype:", err);
+            try {
+              Object.defineProperty(window, 'localStorage', {
+                value: createStoragePolyfill(),
+                writable: true,
+                configurable: true
+              });
+            } catch (err2) {
+              console.warn("Failed to define localStorage polyfill on window:", err2);
+            }
+          }
+        }
+
+        try {
+          var testSession = window.sessionStorage;
+          // Accessing a property on sessionStorage to trigger the security error if blocked
+          if (testSession) {
+            testSession.getItem('__test_sandbox_storage__');
+          } else {
+            throw new Error("sessionStorage is null");
+          }
+        } catch (e) {
+          console.warn("sessionStorage is blocked or disabled, installing Window.prototype polyfill:", e);
+          try {
+            var sessionPolyfill = createStoragePolyfill();
+            Object.defineProperty(Window.prototype, 'sessionStorage', {
+              get: function() { return sessionPolyfill; },
+              configurable: true,
+              enumerable: true
+            });
+          } catch (err) {
+            console.warn("Failed to define sessionStorage polyfill on Window.prototype:", err);
+            try {
+              Object.defineProperty(window, 'sessionStorage', {
+                value: createStoragePolyfill(),
+                writable: true,
+                configurable: true
+              });
+            } catch (err2) {
+              console.warn("Failed to define sessionStorage polyfill on window:", err2);
+            }
+          }
+        }
+
+        // Initialize global diagnostics
+        window.__frostybite_diagnostics = {
+          errors: [],
+          unhandledRejections: [],
+          resourceFailures: [],
+          appLogs: []
+        };
+
+        // Helper to push diagnostic logs safely
+        function logDiagnostic(type, data) {
+          try {
+            if (data && data.message && String(data.message).toLowerCase().indexOf('script error') !== -1) {
+              return; // suppress cross-origin script error diagnostics
+            }
+            data.timestamp = new Date().toISOString();
+            data.url = window.location.href;
+            window.__frostybite_diagnostics[type].push(data);
+            
+            // Also store in localStorage crash logs
+            var logs = [];
+            try {
+              logs = JSON.parse(localStorage.getItem('frostybite_crash_logs') || '[]');
+            } catch (_) {}
+            logs.push({
+              timestamp: data.timestamp,
+              component: 'Global' + type,
+              message: data.message || String(data),
+              stack: data.stack || ''
+            });
+            localStorage.setItem('frostybite_crash_logs', JSON.stringify(logs.slice(-20)));
+          } catch (e) {
+            console.warn("Failed to write diagnostic:", e);
+          }
+        }
+
+        // Intercept global WebSocket creation to silence connection errors in sandboxed environments
+        if (window.WebSocket) {
+          var OriginalWebSocket = window.WebSocket;
+          var SafeWebSocket = function(url, protocols) {
+            var instance;
+            try {
+              if (protocols) {
+                instance = new OriginalWebSocket(url, protocols);
+              } else {
+                instance = new OriginalWebSocket(url);
+              }
+            } catch (e) {
+              console.warn("Silenced benign WebSocket preview error:", e);
+              instance = {
+                url: url,
+                readyState: 3, // CLOSED
+                bufferedAmount: 0,
+                extensions: "",
+                protocol: "",
+                binaryType: "blob",
+                onopen: null,
+                onmessage: null,
+                onerror: null,
+                onclose: null,
+                addEventListener: function(type, listener) {},
+                removeEventListener: function(type, listener) {},
+                close: function() {},
+                send: function(data) {}
+              };
+            }
+            
+            // Safe listener attach to prevent error propagation 
+            if (instance && typeof instance.addEventListener === 'function') {
+              instance.addEventListener('error', function(event) {
+                try {
+                  event.preventDefault();
+                  event.stopImmediatePropagation();
+                } catch(_) {}
+              });
+            }
+            return instance;
+          };
+          SafeWebSocket.prototype = OriginalWebSocket.prototype;
+          for (var key in OriginalWebSocket) {
+            if (OriginalWebSocket.hasOwnProperty(key)) {
+              SafeWebSocket[key] = OriginalWebSocket[key];
+            }
+          }
+          window.WebSocket = SafeWebSocket;
+        }
+
+        // Refined benign checks - ONLY silence Vite/WebSocket noise
+        function isBenignNoise(msg) {
+          if (!msg) return false;
+          var m = String(msg).toLowerCase();
+          return (m.indexOf('websocket') !== -1 || 
+                  m.indexOf('web socket') !== -1 || 
+                  m.indexOf('closed without opened') !== -1 || 
+                  m.indexOf('closeevent') !== -1 || 
+                  m.indexOf('vite') !== -1 || 
+                  m.indexOf('hmr') !== -1 ||
+                  m.indexOf('script error') !== -1 ||
+                  m.indexOf('pending promise was never set') !== -1);
+        }
+
+        // Custom Console.error wrapper
+        if (window.console && window.console.error) {
+          var originalConsoleError = window.console.error;
+          window.console.error = function() {
+            var args = Array.prototype.slice.call(arguments);
+            var argStr = args.map(function(arg) {
+              try {
+                if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg || '');
+              } catch(_) {
+                return '';
+              }
+            }).join(' ');
+
+            if (isBenignNoise(argStr)) {
+              return; // Suppress developer environment noise
+            }
+
+            // Save to diagnostics
+            try {
+              window.__frostybite_diagnostics.appLogs.push({
+                timestamp: new Date().toISOString(),
+                message: argStr
+              });
+            } catch (_) {}
+
+            originalConsoleError.apply(window.console, arguments);
+          };
+        }
+
+        // Uncaught exceptions
+        window.onerror = function(msg, url, line, col, error) {
+          var strMsg = String(msg || '');
+          
+          if (isBenignNoise(strMsg) || strMsg.toLowerCase().indexOf('script error') !== -1) {
+            return true; // prevent browser console spam and diagnostic reports for HMR/sandboxing Script error
+          }
+
+          var stack = error ? (error.stack || '') : '';
+
+          logDiagnostic('errors', {
+            message: strMsg,
+            source: url || 'Unknown',
+            line: line || 0,
+            col: col || 0,
+            stack: stack
+          });
+
+          return false; // allow standard error propagation so ErrorBoundary can catch it
+        };
+
+        // Capturing error event listener for resource load failures (e.g. dynamic chunk script load failures)
+        window.addEventListener('error', function(e) {
+          var target = e.target;
+          if (target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK' || target.tagName === 'IMG')) {
+            var src = target.src || target.href || '';
+            
+            // Log resource failure
+            logDiagnostic('resourceFailures', {
+              tagName: target.tagName,
+              url: src,
+              message: "Resource failed to load: <" + target.tagName.toLowerCase() + "> at " + src,
+              outerHTML: target.outerHTML ? target.outerHTML.substring(0, 150) : ''
+            });
+
+            // If it is a critical bundle file, we don't preventDefault so that the ErrorBoundary can show "Update Available"
+            if (src.indexOf('assets/') !== -1) {
+              console.error("Critical asset loading failure occurred:", src);
+            }
+          } else {
+            // General error event (uncaught exception)
+            var msg = e.message || (e.error ? (e.error.message || String(e.error)) : 'Unknown error event');
+            if (isBenignNoise(msg) || String(msg).toLowerCase().indexOf('script error') !== -1) {
+              try {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+              } catch(_) {}
+              return;
+            }
+
+            var stack = e.error ? (e.error.stack || '') : '';
+            logDiagnostic('errors', {
+              message: msg,
+              source: e.filename || 'Unknown',
+              line: e.lineno || 0,
+              col: e.colno || 0,
+              stack: stack
+            });
+          }
+        }, true);
+
+        // Unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e.reason;
+          var msg = reason ? (reason.message || reason.description || reason.reason || reason) : '';
+          var constructorName = (reason && reason.constructor) ? String(reason.constructor.name) : '';
+          
+          var msgStr = String(msg || '');
+          if (isBenignNoise(msgStr) || isBenignNoise(constructorName)) {
+            try {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+            } catch(_) {}
+            return;
+          }
+
+          var stack = reason && reason.stack ? reason.stack : '';
+          logDiagnostic('unhandledRejections', {
+            message: msgStr,
+            constructorName: constructorName,
+            stack: stack
+          });
+        }, true);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #FAF8F5; font-family: Inter, -apple-system, sans-serif; user-select: none;">
+        <div style="position: relative; width: 84px; height: 84px; border-radius: 26px; background: #ffffff; border: 1px solid #fed7aa; box-shadow: 0 12px 30px rgba(231,106,84,0.12); display: flex; align-items: center; justify-content: center; animation: initial-bounce 2s ease-in-out infinite;">
+          <span style="font-size: 40px; transform: translateY(-2px);">🍰</span>
+        </div>
+        <div style="margin-top: 22px; text-align: center;">
+          <h2 style="font-family: 'Archivo Black', -apple-system, sans-serif; text-transform: uppercase; letter-spacing: -0.02em; color: #1c1917; font-size: 24px; margin: 0;">Frosty Bite</h2>
+          <p style="color: #78716c; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.25em; margin-top: 6px;">Artisan Patisserie</p>
+        </div>
+        <div style="width: 140px; height: 5px; background: #e7e5e4; border-radius: 9999px; overflow: hidden; margin-top: 20px; position: relative;">
+          <div style="position: absolute; top: 0; bottom: 0; width: 55%; background: linear-gradient(90deg, #E76A54, #f59e0b); border-radius: 9999px; animation: initial-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes initial-bounce {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-6px) scale(1.03); }
+        }
+        @keyframes initial-progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(250%); }
+        }
+      </style>
+    </div>
+    <script type="module" crossorigin src="/src/main.tsx"></script>
+  </body>
+</html>
+
