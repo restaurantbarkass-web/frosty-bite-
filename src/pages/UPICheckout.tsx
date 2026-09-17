@@ -31,6 +31,7 @@ import { formatOrderId } from '../utils/orderUtils';
 import { useNotifications } from '../context/NotificationContext';
 
 import { PaymentStatusCard, PaymentState } from '../components/payment/PaymentStatusCard';
+import { PaymentTimerRing } from '../components/payment/PaymentTimerRing';
 import { PaymentLeaveModal } from '../components/payment/PaymentLeaveModal';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 import { LoadingScreen } from '../components/LoadingScreen';
@@ -1128,7 +1129,7 @@ export const UPICheckout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-svh flex flex-col bg-background text-foreground antialiased selection:bg-primary/20">
+    <div className="min-h-svh flex flex-col bg-[#FAF8F5] text-[#2C1810] antialiased selection:bg-[#D4AF37]/20">
       {/* Leave Guard Modal */}
       <PaymentLeaveModal
         isOpen={showLeaveModal}
@@ -1140,116 +1141,87 @@ export const UPICheckout: React.FC = () => {
       />
 
       {/* Main Container */}
-      <div className="flex-1 overflow-y-auto max-w-2xl mx-auto px-4 py-6 md:py-12 space-y-6 pb-36">
+      <div className="flex-1 overflow-y-auto max-w-xl mx-auto w-full px-4 py-6 md:py-10 space-y-5 pb-36">
         
         {/* Navigation Bar Header */}
         <div className="flex items-center justify-between">
           <button 
             onClick={handleBackClick}
-            className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-400 hover:text-white transition-all active:scale-95"
+            className="p-2.5 bg-white hover:bg-[#F5EFEB] border border-[#EFE8DD] rounded-2xl text-[#5A3D2D] hover:text-[#2C1810] shadow-xs transition-all active:scale-95"
             aria-label="Go back"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={20} />
           </button>
           
           <div className="text-center">
-            <h1 className="text-xl md:text-2xl font-black text-white tracking-tight italic uppercase">
-              Frosty Bite
+            <h1 className="text-lg md:text-xl font-black text-[#2C1810] tracking-tight uppercase">
+              Frosty Bite Bakery
             </h1>
-            <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1">
-              <ShieldCheck size={12} /> Secure UPI Payment
+            <p className="text-[10px] text-[#9E6F10] font-bold uppercase tracking-widest flex items-center justify-center gap-1">
+              <ShieldCheck size={12} className="text-[#C59B27]" /> Secure UPI Payment
             </p>
           </div>
 
           <div className="text-right">
-            <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Order</p>
-            <p className="text-xs font-black text-primary font-mono">#{formatOrderId(effectiveOrderId)}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-[#8C6D58]">Order</p>
+            <p className="text-xs font-black text-[#2C1810] font-mono">#{formatOrderId(effectiveOrderId)}</p>
           </div>
-        </div>
-
-        {/* Prominent Payment Amount Card */}
-        <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-white/10 rounded-3xl p-6 text-center space-y-2 shadow-xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
-          <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Total Amount Payable</p>
-          <div className="text-4xl md:text-5xl font-black text-white italic tracking-tight">
-            ₹{totalPrice.toFixed(2)}
-          </div>
-          {orderDetails?.discount > 0 && (
-            <div className="inline-block px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-              Includes Discount -₹{orderDetails.discount}
-            </div>
-          )}
         </div>
 
         {/* Subtle Reconnecting Banner */}
         {isReconnecting && paymentState !== 'PAYMENT_VERIFIED' && paymentState !== 'ERROR' && (
-          <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-bold animate-pulse shadow-lg text-center">
-            <Loader2 size={14} className="animate-spin text-amber-400 shrink-0" />
+          <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-[#FFFBEB] border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold animate-pulse shadow-xs text-center">
+            <Loader2 size={14} className="animate-spin text-amber-600 shrink-0" />
             <span>Reconnecting to payment verification server...</span>
           </div>
         )}
 
-        {/* Live Payment Verification Status Card */}
-        <PaymentStatusCard
-          paymentState={paymentState}
-          amount={totalPrice}
-          timeLeftSeconds={timeLeftSeconds}
-          errorStatus={errorStatus}
-          errorMessage={errorMessage}
-          onRetry={paymentState === 'ERROR' ? () => initializePaymentSession() : checkAuthoritativeStatus}
-          onViewOrder={handleViewOrder}
-          onRestartPayment={() => initializePaymentSession()}
-          onBackToCheckout={() => navigate('/checkout')}
-          reducedMotion={reducedMotion}
-          onLogin={() => openAuthModal('Sign In to Pay', 'Authentication is required to complete payment for this registered customer order.')}
-        />
-
-        {/* Main Payment Options (QR Code & Deep Link) */}
-        {(paymentState === 'WAITING_FOR_PAYMENT' ||
-          paymentState === 'PAYMENT_DETECTED' ||
-          paymentState === 'VERIFYING' ||
-          paymentState === 'PAYMENT_AMBIGUOUS' ||
-          paymentState === 'PAYMENT_NOT_MATCHED') && (
-          <div className="bg-zinc-900/80 backdrop-blur-md border border-white/10 rounded-3xl p-5 sm:p-6 space-y-5 sm:space-y-6 shadow-xl">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+        {paymentState === 'WAITING_FOR_PAYMENT' ? (
+          /* Clean & Professional Unified Payment Card: Amount, Time, and QR */
+          <div className="bg-white border border-[#EFE8DD] rounded-3xl p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_rgba(44,24,16,0.05)]">
+            {/* Top Row: Amount & Countdown Timer */}
+            <div className="flex items-center justify-between gap-4 pb-5 border-b border-[#F2ECE1]">
               <div>
-                <h2 className="text-base font-black text-white italic uppercase tracking-tight flex items-center gap-2">
-                  <QrCode size={18} className="text-emerald-400" /> Pay securely using any UPI app
-                </h2>
-                <p className="text-xs text-zinc-400">Scan the QR code or tap the button below</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#8C6D58]">
+                  Total Amount
+                </p>
+                <div className="text-3xl sm:text-4xl font-black text-[#2C1810] tracking-tight font-sans mt-0.5">
+                  ₹{totalPrice.toFixed(2)}
+                </div>
+                {orderDetails?.discount > 0 && (
+                  <span className="inline-block mt-1 px-2.5 py-0.5 bg-[#FFF9EE] border border-[#F2DEB0] rounded-full text-[9px] font-black text-[#9E6F10] uppercase tracking-wider">
+                    Includes Discount -₹{orderDetails.discount}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Auto Verify</span>
+
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <PaymentTimerRing 
+                  timeLeftSeconds={timeLeftSeconds} 
+                  reducedMotion={reducedMotion} 
+                />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C6D58]">
+                  Time Remaining
+                </span>
               </div>
             </div>
 
             {/* QR Code Section */}
-            <div id="qr-section" className="flex flex-col items-center space-y-5">
-              <div className="relative group bg-white rounded-3xl p-5 sm:p-6 shadow-2xl flex flex-col items-center border border-zinc-100/20 w-full max-w-sm">
-                <div className="text-center mb-3">
-                  <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-1 text-center bg-zinc-100 py-1.5 px-3 rounded-xl border border-zinc-200">
-                    Scan QR with any UPI app
-                  </h3>
-                  <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mt-2">Frosty Bite Official UPI</p>
-                  <p className="text-xs font-black text-zinc-900 font-mono tracking-tight">{DEFAULT_UPI_ID}</p>
-                </div>
-
-                <motion.div
-                  animate={reducedMotion ? {} : { y: [0, -3, 0] }}
-                  transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-                  className="p-2 bg-white rounded-2xl border border-zinc-100 shadow-inner"
-                >
+            <div id="qr-section" className="flex flex-col items-center space-y-4">
+              <div className="bg-[#FAF8F5] rounded-3xl p-5 sm:p-6 border border-[#EFE8DD] flex flex-col items-center w-full max-w-sm shadow-xs">
+                <div className="p-3 bg-white rounded-2xl border border-[#E8E1D5] shadow-xs">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUri)}`}
                     alt="UPI Payment QR Code"
                     className="w-[180px] h-[180px] sm:w-[200px] sm:h-[200px] rounded-xl object-contain"
                   />
-                </motion.div>
+                </div>
 
-                <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-3">
-                  Scan to pay ₹{totalPrice.toFixed(2)}
+                <p className="text-xs font-black text-[#2C1810] uppercase tracking-wider mt-3">
+                  Scan QR with any UPI app
+                </p>
+                <p className="text-[10px] text-[#8C6D58] font-bold uppercase tracking-widest mt-0.5 text-center">
+                  GPay • PhonePe • Paytm • BHIM • CRED
                 </p>
               </div>
 
@@ -1258,57 +1230,57 @@ export const UPICheckout: React.FC = () => {
                 <a
                   href={upiUri}
                   onClick={handleOpenUpiApp}
-                  className="w-full py-4 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 select-none cursor-pointer text-center"
+                  className="w-full py-4 px-6 bg-[#2C1810] hover:bg-[#3E2415] active:scale-[0.98] text-[#FFF9EE] font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg shadow-[#2C1810]/15 transition-all flex items-center justify-center gap-2 select-none cursor-pointer text-center"
                 >
-                  <Smartphone size={18} />
-                  <span>Open UPI App</span>
+                  <Smartphone size={18} className="text-[#D4AF37]" />
+                  <span>Open UPI App to Pay</span>
                   <ExternalLink size={14} className="opacity-70" />
                 </a>
 
                 {showFallbackNotice && (
-                  <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-amber-200 text-xs leading-relaxed space-y-2.5 shadow-md">
+                  <div className="p-4 bg-[#FFFBEB] border border-amber-200 rounded-2xl text-[#78350F] text-xs leading-relaxed space-y-2.5 shadow-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-amber-400 font-bold">⚠️</span>
-                      <p className="font-black uppercase tracking-wider text-[10px] text-amber-400">UPI App Launch & Compatibility Notice</p>
+                      <span className="text-amber-700 font-bold">⚠️</span>
+                      <p className="font-black uppercase tracking-wider text-[10px] text-amber-900">UPI App Launch & Compatibility Notice</p>
                     </div>
-                    <p className="font-semibold text-amber-300">Unable to start payment in this app.</p>
-                    <p className="text-zinc-300 font-medium">If your UPI app displayed <em>"Could not initiate transaction"</em>, it usually means you are paying from the same phone/account (UPI does not allow paying oneself), or your bank requires manual entry or QR scanning.</p>
-                    <p className="text-zinc-300 font-medium">Please scan the QR code above or copy the UPI ID below to pay from any UPI app manually.</p>
+                    <p className="font-semibold text-amber-950">Unable to start payment in this app.</p>
+                    <p className="text-[#5A3D2D] font-medium">If your UPI app displayed <em>"Could not initiate transaction"</em>, it usually means you are paying from the same phone/account (UPI does not allow paying oneself), or your bank requires manual entry or QR scanning.</p>
+                    <p className="text-[#5A3D2D] font-medium">Please scan the QR code above or copy the UPI ID below to pay from any UPI app manually.</p>
                     
-                    <div className="pt-2 border-t border-amber-500/20 space-y-1.5 text-zinc-300 font-medium text-[11px]">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/90">3 Quick Ways to Complete Your Order:</p>
-                      <p><strong className="text-white">1. Dynamic QR:</strong> Scan the QR code above with any UPI app (GPay, PhonePe, Paytm, BHIM, CRED, or Bank app).</p>
-                      <p><strong className="text-white">2. Copy UPI ID:</strong> Copy <span className="font-mono text-emerald-400 font-bold">{DEFAULT_UPI_ID}</span> and transfer ₹{totalPrice.toFixed(2)} directly from your UPI app.</p>
-                      <p><strong className="text-white">3. Another Installed UPI App:</strong> Tap "Open UPI App" again and select a different UPI application from your device app chooser.</p>
+                    <div className="pt-2 border-t border-amber-200/80 space-y-1.5 text-[#5A3D2D] font-medium text-[11px]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900">3 Quick Ways to Complete Your Order:</p>
+                      <p><strong className="text-[#2C1810]">1. Dynamic QR:</strong> Scan the QR code above with any UPI app (GPay, PhonePe, Paytm, BHIM, CRED, or Bank app).</p>
+                      <p><strong className="text-[#2C1810]">2. Copy UPI ID:</strong> Copy <span className="font-mono text-[#2C1810] font-bold bg-white/70 px-1 py-0.5 rounded border border-amber-200">{DEFAULT_UPI_ID}</span> and transfer ₹{totalPrice.toFixed(2)} directly from your UPI app.</p>
+                      <p><strong className="text-[#2C1810]">3. Another Installed UPI App:</strong> Tap "Open UPI App" again and select a different UPI application from your device app chooser.</p>
                     </div>
                     
-                    <p className="text-[10px] text-zinc-400 italic pt-1 border-t border-amber-500/20">
+                    <p className="text-[10px] text-[#8C6D58] italic pt-1 border-t border-amber-200/80">
                       Payment verification continues automatically in real-time via FrostyPay soundbox & device alerts.
                     </p>
                   </div>
                 )}
 
                 {/* Copy UPI ID */}
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/10">
+                <div className="flex items-center justify-between p-3 bg-[#FAF8F5] rounded-2xl border border-[#EFE8DD]">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                    <div className="w-8 h-8 rounded-xl bg-[#FFF9EE] border border-[#F2DEB0] flex items-center justify-center text-[#B45309]">
                       <Smartphone size={16} />
                     </div>
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">UPI ID</p>
-                      <p className="text-xs font-black text-white font-mono">{DEFAULT_UPI_ID}</p>
+                      <p className="text-[9px] font-black uppercase tracking-widest text-[#8C6D58]">UPI ID</p>
+                      <p className="text-xs font-black text-[#2C1810] font-mono">{DEFAULT_UPI_ID}</p>
                     </div>
                   </div>
 
                   <button
                     onClick={handleCopyUpi}
-                    className="py-2 px-3 bg-white/10 hover:bg-white/15 active:scale-95 text-xs font-black uppercase tracking-widest text-white rounded-xl transition-all flex items-center gap-1.5"
+                    className="py-2 px-3 bg-white hover:bg-[#F2ECE1] border border-[#EFE8DD] active:scale-95 text-xs font-black uppercase tracking-widest text-[#2C1810] rounded-xl transition-all flex items-center gap-1.5 shadow-2xs"
                     aria-label="Copy UPI ID"
                   >
                     {copiedUpi ? (
                       <>
-                        <Check size={14} className="text-emerald-400" />
-                        <span className="text-emerald-400">Copied</span>
+                        <Check size={14} className="text-emerald-600" />
+                        <span className="text-emerald-700">Copied</span>
                       </>
                     ) : (
                       <>
@@ -1321,27 +1293,57 @@ export const UPICheckout: React.FC = () => {
               </div>
             </div>
 
-            {/* Crucial Safety Warning Notice */}
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-center gap-2.5 text-amber-300 text-xs font-medium">
+            {/* Live Auto-Verification & Notice */}
+            <div className="pt-4 border-t border-[#F2ECE1] flex items-center justify-between text-xs text-[#6B4E3D]">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C59B27] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#C59B27]"></span>
+                </span>
+                <span className="text-[11px] font-bold text-[#2C1810]">
+                  Waiting for payment confirmation…
+                </span>
+              </div>
+              <span className="text-[10px] font-black text-[#9E6F10] uppercase tracking-widest bg-[#FFF9EE] border border-[#F2DEB0] px-2 py-0.5 rounded-full">
+                Auto Verify
+              </span>
+            </div>
+
+            <div className="p-3.5 bg-[#FFFBEB] border border-amber-200 rounded-2xl flex items-center gap-2.5 text-amber-900 text-xs font-medium">
               <span className="text-base shrink-0">⚠️</span>
               <p className="leading-snug">
                 Do not close or refresh this page while payment is processing.
               </p>
             </div>
           </div>
+        ) : (
+          /* Live Payment Status Card for non-waiting states (Detected, Verifying, Verified, Expired, Error) */
+          <PaymentStatusCard
+            paymentState={paymentState}
+            amount={totalPrice}
+            timeLeftSeconds={timeLeftSeconds}
+            errorStatus={errorStatus}
+            errorMessage={errorMessage}
+            onRetry={paymentState === 'ERROR' ? () => initializePaymentSession() : checkAuthoritativeStatus}
+            onViewOrder={handleViewOrder}
+            onRestartPayment={() => initializePaymentSession()}
+            onBackToCheckout={() => navigate('/checkout')}
+            reducedMotion={reducedMotion}
+            onLogin={() => openAuthModal('Sign In to Pay', 'Authentication is required to complete payment for this registered customer order.')}
+          />
         )}
 
         {/* Footer Badges */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
-            <BadgeCheck className="text-emerald-400" size={20} />
-            <p className="text-[10px] font-black text-white uppercase tracking-widest">Instant Detection</p>
-            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">FrostyPay Engine</p>
+          <div className="bg-white border border-[#EFE8DD] rounded-2xl p-4 flex flex-col items-center text-center space-y-1 shadow-[0_2px_12px_rgba(44,24,16,0.03)]">
+            <BadgeCheck className="text-[#C59B27]" size={20} />
+            <p className="text-[10px] font-black text-[#2C1810] uppercase tracking-widest">Instant Detection</p>
+            <p className="text-[8px] text-[#8C6D58] font-bold uppercase tracking-widest">FrostyPay Engine</p>
           </div>
-          <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center space-y-1">
-            <Lock className="text-primary" size={20} />
-            <p className="text-[10px] font-black text-white uppercase tracking-widest">256-Bit Encrypted</p>
-            <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">Bank Grade Security</p>
+          <div className="bg-white border border-[#EFE8DD] rounded-2xl p-4 flex flex-col items-center text-center space-y-1 shadow-[0_2px_12px_rgba(44,24,16,0.03)]">
+            <Lock className="text-[#C59B27]" size={20} />
+            <p className="text-[10px] font-black text-[#2C1810] uppercase tracking-widest">256-Bit Encrypted</p>
+            <p className="text-[8px] text-[#8C6D58] font-bold uppercase tracking-widest">Bank Grade Security</p>
           </div>
         </div>
 

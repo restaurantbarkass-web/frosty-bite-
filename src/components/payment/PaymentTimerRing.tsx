@@ -32,22 +32,22 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
   const phaseTheme = isUrgent
     ? {
         stroke: '#EF4444',
-        text: 'text-rose-400',
-        bgGlow: 'shadow-[0_0_24px_rgba(239,68,68,0.35)]',
-        pulseGlow: 'bg-rose-500/10 border-rose-500/30'
+        text: 'text-rose-600',
+        bgGlow: 'shadow-[0_0_20px_rgba(239,68,68,0.15)]',
+        pulseGlow: 'bg-rose-50 border-rose-200'
       }
     : isWarning
     ? {
-        stroke: '#F59E0B',
-        text: 'text-amber-400',
-        bgGlow: 'shadow-[0_0_20px_rgba(245,158,11,0.25)]',
-        pulseGlow: 'bg-amber-500/10 border-amber-500/30'
+        stroke: '#D97706',
+        text: 'text-amber-700',
+        bgGlow: 'shadow-[0_0_20px_rgba(217,119,6,0.15)]',
+        pulseGlow: 'bg-amber-50 border-amber-200'
       }
     : {
-        stroke: '#10B981',
-        text: 'text-emerald-400',
-        bgGlow: 'shadow-[0_0_20px_rgba(16,185,129,0.25)]',
-        pulseGlow: 'bg-emerald-500/10 border-emerald-500/30'
+        stroke: '#C59B27',
+        text: 'text-[#9E6F10]',
+        bgGlow: 'shadow-[0_0_20px_rgba(197,155,39,0.15)]',
+        pulseGlow: 'bg-[#FFF9EE] border-[#F2DEB0]'
       };
 
   const radius = 38;
@@ -75,7 +75,7 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
             cx="50"
             cy="50"
             r={radius}
-            className="stroke-zinc-800/80"
+            className="stroke-[#EFE8DE]"
             strokeWidth="5.5"
             fill="none"
           />
@@ -96,7 +96,7 @@ export const PaymentTimerRing: React.FC<PaymentTimerRingProps> = ({
 
         {/* Center Time Display */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">
+          <span className="text-[8px] font-black uppercase tracking-widest text-[#967B6C] mb-0.5">
             Time Left
           </span>
           <span className={cn(

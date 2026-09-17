@@ -99,7 +99,7 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api|ping|health|payment|auth|butler|avatar|config|notifications|validate-address|reviews|search|v2|geofencing|cities|pincodes|localities|service-areas|trending|migration-script|debug-address|assets|favicon.ico|manifest.json|sw.js|images|icons).*)",
+      "source": "/((?!api|ping|health|payment|auth|butler|avatar|config|notifications|validate-address|reviews|search|v2|geofencing|cities|pincodes|localities|service-areas|trending|migration-script|debug-address|assets|favicon.ico|manifest.json|sw.js|images|icons|robots.txt|sitemap.xml|google).*)",
       "destination": "/index.html"
     }
   ]
