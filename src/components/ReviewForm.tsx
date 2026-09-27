@@ -62,12 +62,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
         animate={{ opacity: 1, scale: 1 }}
         className="flex flex-col items-center justify-center py-12 text-center space-y-4"
       >
-        <div className="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center animate-bounce">
+        <div className="w-20 h-20 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center animate-bounce">
           <CheckCircle2 size={48} />
         </div>
         <div className="space-y-1">
-          <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Review Received!</h3>
-          <p className="text-zinc-500 font-medium">Thank you for helping us improve our bakes.</p>
+          <h3 className="text-2xl font-black text-stone-900 italic uppercase tracking-tight">Review Received!</h3>
+          <p className="text-stone-500 font-medium">Thank you for helping us improve our bakes.</p>
         </div>
       </motion.div>
     );
@@ -78,13 +78,13 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       onSubmit={handleSubmit} 
-      className="glass-dark rounded-3xl border-2 border-primary/20 p-8 space-y-8 relative overflow-hidden group"
+      className="bg-white rounded-3xl border-2 border-primary/20 p-8 space-y-8 relative overflow-hidden group shadow-md"
     >
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -translate-y-1/2 translate-x-1/2" />
       
       <div className="space-y-2 relative z-10">
-        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Rate Your Experience</h3>
-        <p className="text-zinc-500 text-sm font-medium">How was the Frosty Bite treat you ordered?</p>
+        <h3 className="text-2xl font-black text-stone-900 italic uppercase tracking-tighter">Rate Your Experience</h3>
+        <p className="text-stone-500 text-sm font-medium">How was the Frosty Bite treat you ordered?</p>
       </div>
 
       <div className="flex flex-col items-center space-y-4 relative z-10">
@@ -104,7 +104,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
                   "transition-all duration-300",
                   (hoverRating || rating) >= star 
                     ? "fill-primary text-primary drop-shadow-[0_0_8px_rgba(255,107,0,0.5)]" 
-                    : "text-zinc-800"
+                    : "text-stone-300"
                 )}
               />
             </button>
@@ -125,7 +125,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ orderId, onSuccess }) =>
             onChange={(e) => setComment(e.target.value)}
             required
             placeholder="Share your feedback..."
-            className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 pl-12 h-32 focus:border-primary/50 focus:ring-0 text-white placeholder:text-zinc-600 font-medium resize-none transition-all"
+            className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-4 pl-12 h-32 focus:border-primary focus:bg-white text-stone-900 placeholder:text-stone-400 font-medium resize-none transition-all shadow-xs"
           />
         </div>
 

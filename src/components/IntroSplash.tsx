@@ -56,7 +56,7 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
       exit={{ opacity: 0, scale: 1.05, filter: 'blur(8px)' }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       onClick={onComplete}
-      className="fixed inset-0 z-[1000] bg-black flex items-center justify-center overflow-hidden cursor-pointer"
+      className="fixed inset-0 z-[1000] bg-[#140e0b] flex items-center justify-center overflow-hidden cursor-pointer"
     >
       {/* Background Fallback Frame and Video */}
       <div className="absolute inset-0">
@@ -77,8 +77,8 @@ export const IntroSplash: React.FC<IntroSplashProps> = ({ onComplete }) => {
           <source src="https://www.image2url.com/r2/default/videos/1777129733458-51f20911-d45e-4ad3-acc5-92796570d181.mp4" type="video/mp4" />
         </video>
         {/* Cinematic Overlays */}
-        <div className="absolute inset-0 bg-black/60 z-20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/60 z-20" />
+        <div className="absolute inset-0 bg-[#140e0b]/70 z-20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#140e0b] via-transparent to-[#140e0b]/70 z-20" />
       </div>
 
       {/* Brand Overlay */}

@@ -75,8 +75,8 @@ export const LottieOfferButton: React.FC<LottieOfferButtonProps> = ({ active, on
         className={cn(
           "relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-[2rem] transition-all duration-700 overflow-hidden",
           active 
-            ? "bg-black shadow-[0_20px_50px_rgba(249,115,22,0.4)] border border-white/20"
-            : "bg-white/5 backdrop-blur-xl border border-white/10 hover:border-white/20"
+            ? "bg-stone-900 shadow-[0_15px_35px_rgba(231,106,84,0.35)] border border-primary/40 text-white"
+            : "bg-white hover:bg-stone-50 border border-stone-200 hover:border-stone-300 shadow-sm text-stone-700"
         )}
       >
         {/* Premium Mesh Gradient Background (Active Only) */}
@@ -84,17 +84,17 @@ export const LottieOfferButton: React.FC<LottieOfferButtonProps> = ({ active, on
           <div className="absolute inset-0 overflow-hidden rounded-[2rem]">
             <div 
               ref={meshRef}
-              className="absolute -inset-[100%] bg-gradient-to-tr from-orange-400 via-rose-500 to-amber-300 opacity-90 blur-[20px]"
+              className="absolute -inset-[100%] bg-gradient-to-tr from-primary via-orange-400 to-amber-300 opacity-90 blur-[20px]"
             />
             {/* Glossy Overlay */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.4),transparent_50%)]" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-stone-900/20" />
           </div>
         )}
 
         {/* Static Background for Inactive */}
         {!active && (
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-stone-50/50 to-transparent pointer-events-none" />
         )}
 
         {/* Lottie Animation */}

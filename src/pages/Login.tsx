@@ -158,7 +158,7 @@ const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
   };
 
   return (
-    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-[#040405]">
+    <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-[#18120e]">
       {urls.map((url, idx) => (
         <video
           key={`login-video-${idx}-${url}`}
@@ -174,9 +174,9 @@ const VideoBackground: React.FC<VideoBackgroundProps> = ({ urls }) => {
           style={{ opacity: idx === 0 ? 0.85 : 0 }}
         />
       ))}
-      {/* Premium dark gradient and soft overlay to ensure extreme readability and high-end feel */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#050505]/70 via-black/40 to-[#120904]/20 pointer-events-none" />
-      <div className="absolute inset-0 bg-black/15 pointer-events-none" />
+      {/* Premium warm bakery gradient and soft overlay to ensure extreme readability and high-end feel */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-[#18120e]/85 via-stone-950/50 to-[#E76A54]/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
     </div>
   );
 };
@@ -1138,12 +1138,12 @@ export const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#040405] text-white select-none">
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#140e0b] text-white select-none">
       {/* Visual background ambience */}
       <VideoBackground urls={BACKGROUND_VIDEOS} />
 
       {/* Animated glowing plasma blobs */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#ef4444]/10 rounded-full blur-[140px] animate-pulse" />
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#E76A54]/15 rounded-full blur-[140px] animate-pulse" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#f97316]/10 rounded-full blur-[140px] animate-pulse delay-1000" />
 
       {/* Main Glassmorphism 3.0 Container Card */}

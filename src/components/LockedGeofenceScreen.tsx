@@ -42,16 +42,16 @@ export const LockedGeofenceScreen: React.FC = () => {
   };
 
   return (
-    <div id="locked-geofence-screen" className="min-h-screen bg-zinc-950 text-white relative overflow-hidden flex flex-col items-center justify-center p-6 selection:bg-primary selection:text-white">
+    <div id="locked-geofence-screen" className="min-h-screen bg-[#FAF8F5] text-stone-900 relative overflow-hidden flex flex-col items-center justify-center p-6 selection:bg-primary/20 selection:text-primary">
       {/* Background Glows & Ambient Gradient */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-primary/20 via-orange-500/15 to-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-primary/10 via-orange-400/10 to-amber-400/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-amber-400/10 rounded-full blur-[100px] pointer-events-none" />
 
       {/* Floating Pastry Emojis */}
       {FLOATING_PASTRIES.map((item, index) => (
         <motion.div
           key={index}
-          className="absolute text-3xl md:text-5xl select-none opacity-25 pointer-events-none filter drop-shadow-[0_0_15px_rgba(255,165,0,0.3)]"
+          className="absolute text-3xl md:text-5xl select-none opacity-20 pointer-events-none filter drop-shadow-[0_0_15px_rgba(255,165,0,0.2)]"
           style={{ left: item.left, top: item.top }}
           animate={{
             y: [-15, 15, -15],
@@ -74,7 +74,7 @@ export const LockedGeofenceScreen: React.FC = () => {
         initial={{ opacity: 0, y: 25, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-xl bg-zinc-900/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-2xl relative z-10 text-center space-y-8"
+        className="w-full max-w-xl bg-white border border-stone-200/90 rounded-3xl p-8 md:p-12 shadow-2xl relative z-10 text-center space-y-8"
       >
         {/* Brand Logo Header */}
         <div className="flex flex-col items-center space-y-3">
@@ -82,7 +82,7 @@ export const LockedGeofenceScreen: React.FC = () => {
             <Sparkles size={32} className="text-white animate-pulse" />
           </div>
           <Logo size="lg" />
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-500/20 via-primary/20 to-amber-500/20 text-orange-400 text-xs font-black uppercase tracking-widest border border-orange-500/35 shadow-inner">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 text-orange-600 text-xs font-black uppercase tracking-widest border border-orange-200 shadow-xs">
             <Clock size={12} className="animate-spin" />
             <span>Service Geofence • Coming Soon</span>
           </div>
@@ -90,25 +90,25 @@ export const LockedGeofenceScreen: React.FC = () => {
 
         {/* Heading & Description */}
         <div className="space-y-3">
-          <h1 className="text-2xl md:text-4xl font-black tracking-tight text-white leading-tight">
+          <h1 className="text-2xl md:text-4xl font-black tracking-tight text-stone-900 leading-tight">
             Next-Gen GPS Geofencing <br />
-            <span className="bg-gradient-to-r from-orange-400 via-primary to-amber-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-orange-600 via-primary to-amber-600 bg-clip-text text-transparent">
               Is Under Construction 🚀
             </span>
           </h1>
-          <p className="text-sm md:text-base text-zinc-300 leading-relaxed max-w-md mx-auto">
+          <p className="text-sm md:text-base text-stone-600 leading-relaxed max-w-md mx-auto">
             We are upgrading our multi-zone delivery radius engine and precise coordinate polygon mapping to bring you an even faster, more delightful patisserie experience.
           </p>
         </div>
 
         {/* Status Callout Box */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-4.5 text-left flex items-start gap-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0 mt-0.5 border border-primary/30">
+        <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4.5 text-left flex items-start gap-3">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5 border border-primary/20">
             <Globe size={18} />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-white">Global Access Currently Active</h4>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-900">Global Access Currently Active</h4>
+            <p className="text-xs text-stone-600 leading-relaxed">
               While our geofencing service is temporarily deactivated for maintenance, all customer orders and deliveries are fully operational worldwide without location restrictions.
             </p>
           </div>
@@ -118,7 +118,7 @@ export const LockedGeofenceScreen: React.FC = () => {
         {!isSubmitted ? (
           <form onSubmit={handleNotifySubmit} className="space-y-4 pt-2">
             <div className="space-y-2 text-left">
-              <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+              <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
                 Get Notified When Live
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -127,14 +127,14 @@ export const LockedGeofenceScreen: React.FC = () => {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-zinc-950/80 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-primary transition-all shadow-inner"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all shadow-xs"
                 />
                 <input
                   type="tel"
                   placeholder="Enter your phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-zinc-950/80 border border-white/15 rounded-xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-primary transition-all shadow-inner"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all shadow-xs"
                 />
               </div>
             </div>
@@ -148,17 +148,17 @@ export const LockedGeofenceScreen: React.FC = () => {
             </button>
           </form>
         ) : (
-          <div className="bg-primary/15 border border-primary/30 rounded-2xl p-6 text-center space-y-2">
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 text-center space-y-2">
             <CheckCircle2 size={32} className="text-primary mx-auto animate-bounce" />
-            <h3 className="text-base font-extrabold text-white">You're on the VIP list!</h3>
-            <p className="text-xs text-zinc-300">We'll notify you the moment our advanced geofencing engine goes live.</p>
+            <h3 className="text-base font-extrabold text-stone-900">You're on the VIP list!</h3>
+            <p className="text-xs text-stone-600">We'll notify you the moment our advanced geofencing engine goes live.</p>
           </div>
         )}
 
         {/* Footer info */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-500 font-medium">
+        <div className="pt-4 border-t border-stone-100 flex items-center justify-between text-[11px] text-stone-400 font-medium">
           <span>Frosty Bite Patisserie</span>
-          <span className="flex items-center gap-1.5 text-emerald-400">
+          <span className="flex items-center gap-1.5 text-emerald-600">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Services Online
           </span>

@@ -201,12 +201,12 @@ export const OtpInput: React.FC<OtpInputProps> = ({
                 onPaste={handlePaste}
                 className={`absolute inset-0 w-full h-full text-center border rounded-2xl font-black font-mono focus:outline-none transition-all duration-200 cursor-text select-all disabled:opacity-40 disabled:cursor-not-allowed
                   ${isError
-                    ? 'border-red-500 bg-red-500/10 text-red-400 ring-2 ring-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.35)]'
+                    ? 'border-red-500 bg-red-50 text-red-600 ring-2 ring-red-500/20 shadow-xs'
                     : isFocused
-                      ? 'border-amber-400 bg-amber-500/[0.08] shadow-[0_0_20px_rgba(245,158,11,0.35)] scale-105 text-amber-300 ring-2 ring-amber-400/20'
+                      ? 'border-[#E76A54] bg-orange-50/50 shadow-md scale-105 text-[#E76A54] ring-2 ring-[#E76A54]/20'
                       : isFilled
-                        ? 'border-amber-500/40 text-white bg-white/[0.05]'
-                        : 'border-white/10 text-white hover:border-white/20'
+                        ? 'border-[#E76A54]/60 text-stone-900 bg-orange-50/30'
+                        : 'border-stone-200 text-stone-900 bg-stone-50 hover:border-stone-300'
                   }
                   ${inputClassName}
                 `}

@@ -422,7 +422,7 @@ export const OrderTracking: React.FC = () => {
                           "p-3.5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden",
                           isCurrent ? "bg-[#E76A54]/20 border-[#E76A54] text-white shadow-md shadow-[#E76A54]/20 ring-1 ring-[#E76A54]/40" :
                           isPassed ? "bg-white/10 border-white/20 text-white" :
-                          "bg-black/20 border-white/5 text-stone-500"
+                          "bg-stone-800/40 border-stone-800 text-stone-500"
                         )}
                       >
                         <div className="flex items-center justify-between mb-2">

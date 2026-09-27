@@ -17,9 +17,29 @@ export const preloadRoute = (path: string) => {
     import('../pages/ProductDetail').catch(() => {});
     return;
   }
+  if (cleanPath.startsWith('/campaign/') || cleanPath.startsWith('/promotions/')) {
+    import('../pages/CampaignPage').catch(() => {});
+    return;
+  }
+  if (cleanPath.startsWith('/feedback')) {
+    import('../pages/FeedbackPage').catch(() => {});
+    return;
+  }
+  if (cleanPath.startsWith('/upi-checkout/')) {
+    import('../pages/UPICheckout').catch(() => {});
+    return;
+  }
+  if (cleanPath.startsWith('/order-tracking') || cleanPath.startsWith('/track')) {
+    import('../pages/OrderTracking').catch(() => {});
+    return;
+  }
+
   switch (cleanPath) {
     case '/':
       import('../pages/HomePage').catch(() => {});
+      break;
+    case '/categories':
+      import('../pages/CategoriesPage').catch(() => {});
       break;
     case '/offers':
       import('../pages/Offers').catch(() => {});
@@ -33,6 +53,9 @@ export const preloadRoute = (path: string) => {
     case '/orders':
       import('../pages/Orders').catch(() => {});
       break;
+    case '/notifications':
+      import('../pages/Notifications').catch(() => {});
+      break;
     case '/profile':
       import('../pages/Profile').catch(() => {});
       break;
@@ -40,17 +63,16 @@ export const preloadRoute = (path: string) => {
       import('../pages/AdminLayout').catch(() => {});
       break;
     case '/login':
+    case '/signup':
       import('../pages/Login').catch(() => {});
       break;
     case '/forgot-password':
       import('../pages/ForgotPassword').catch(() => {});
       break;
+    case '/finish-sign-in':
+      import('../pages/FinishSignIn').catch(() => {});
+      break;
     default:
-      if (cleanPath.startsWith('/upi-checkout/')) {
-        import('../pages/UPICheckout').catch(() => {});
-      } else if (cleanPath.startsWith('/track-order/')) {
-        import('../pages/OrderTracking').catch(() => {});
-      }
       break;
   }
 };

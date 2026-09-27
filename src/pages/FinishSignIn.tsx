@@ -31,21 +31,21 @@ export const FinishSignIn: React.FC = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#050505] px-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5] text-stone-900 px-4">
       <motion.div 
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-10 text-center shadow-2xl"
+        className="max-w-md w-full bg-white border border-stone-200/90 rounded-[2.5rem] p-10 text-center shadow-lg"
       >
         {status === 'loading' && (
           <div className="flex flex-col items-center gap-6">
             <div className="relative">
-              <Loader2 className="text-orange-500 animate-spin" size={64} />
-              <div className="absolute inset-0 blur-xl bg-orange-500/20 rounded-full" />
+              <Loader2 className="text-[#E76A54] animate-spin" size={64} />
+              <div className="absolute inset-0 blur-xl bg-orange-500/10 rounded-full" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Verifying Session</h2>
-              <p className="text-gray-400 text-sm font-medium">Completing your secure sign-in process...</p>
+              <h2 className="text-2xl font-black text-stone-900 tracking-tight uppercase mb-2">Verifying Session</h2>
+              <p className="text-stone-500 text-sm font-medium">Completing your secure sign-in process...</p>
             </div>
           </div>
         )}
@@ -56,20 +56,20 @@ export const FinishSignIn: React.FC = () => {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-2xl shadow-green-500/20"
+              className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20"
             >
               <CheckCircle2 className="text-white" size={40} />
             </motion.div>
             <div>
-              <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase mb-2">Welcome Back!</h2>
-              <p className="text-gray-400 text-sm font-medium">Successfully signed in. Redirecting you home...</p>
+              <h2 className="text-2xl font-black text-stone-900 tracking-tight uppercase mb-2">Welcome Back!</h2>
+              <p className="text-stone-500 text-sm font-medium">Successfully signed in. Redirecting you home...</p>
               <div className="mt-8 flex justify-center">
-                <div className="w-12 h-1 bg-white/5 rounded-full overflow-hidden">
+                <div className="w-12 h-1 bg-stone-100 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ x: "-100%" }}
                     animate={{ x: "100%" }}
                     transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                    className="w-full h-full bg-green-500"
+                    className="w-full h-full bg-emerald-500"
                   />
                 </div>
               </div>

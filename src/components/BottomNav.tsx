@@ -246,8 +246,8 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
                       className="absolute inset-0 rounded-full bg-gradient-to-b from-[#FFF2ED] via-[#FFEBE4] to-[#FFE2D9] border border-[#E76A54]/35 shadow-[0_4px_16px_rgba(231,106,84,0.22),inset_0_1.5px_2px_rgba(255,255,255,1),inset_0_-1px_2px_rgba(231,106,84,0.22)]"
                       initial={false}
                       animate={{
-                        scaleX: [1, 1.2, 0.94, 1],
-                        scaleY: [1, 0.86, 1.08, 1],
+                        scaleX: [1.12, 1],
+                        scaleY: [0.92, 1],
                       }}
                       transition={{ 
                         type: 'spring', 

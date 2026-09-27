@@ -33,11 +33,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="fixed sm:absolute inset-x-2 top-24 sm:top-full sm:inset-auto sm:right-0 sm:mt-4 w-auto sm:w-80 bg-[#0b0b0b] border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[100] overflow-hidden backdrop-blur-3xl mx-auto sm:mx-0 max-w-[calc(100vw-1rem)]"
+            className="fixed sm:absolute inset-x-2 top-24 sm:top-full sm:inset-auto sm:right-0 sm:mt-4 w-auto sm:w-80 bg-white border border-stone-200/90 rounded-3xl shadow-2xl z-[100] overflow-hidden mx-auto sm:mx-0 max-w-[calc(100vw-1rem)]"
           >
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-black uppercase tracking-widest text-white">Notifications</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-stone-900">Notifications</h3>
                 {unreadCount > 0 && (
                   <span className="px-2 py-0.5 bg-primary text-white text-[8px] font-black rounded-full">
                     {unreadCount} NEW
@@ -46,7 +46,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
               </div>
               <button 
                 onClick={markAllAsRead}
-                className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors"
+                className="text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-700 transition-colors"
               >
                 Mark all read
               </button>
@@ -54,7 +54,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
 
             <div className="max-h-[400px] overflow-y-auto scrollbar-hide">
               {notifications.length > 0 ? (
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-stone-100">
                   {notifications.map((notif) => (
                     <motion.div
                       key={notif.id}
@@ -65,18 +65,18 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                           navigate(notif.link);
                         }
                       }}
-                      className={`p-5 hover:bg-white/5 transition-colors cursor-pointer relative group ${!notif.read ? 'bg-primary/5' : ''}`}
+                      className={`p-5 hover:bg-stone-50 transition-colors cursor-pointer relative group ${!notif.read ? 'bg-orange-50/50' : ''}`}
                     >
                       {!notif.read && (
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                       )}
                       <div className="flex gap-4">
-                        <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0`}>
+                        <div className={`w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center shrink-0 text-stone-700`}>
                           {getIcon(notif.type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <p className={`text-xs font-bold ${!notif.read ? 'text-white' : 'text-zinc-400'}`}>
+                            <p className={`text-xs font-bold ${!notif.read ? 'text-stone-900' : 'text-stone-600'}`}>
                               {notif.title}
                             </p>
                             {notif.type === 'order' && (
@@ -85,17 +85,17 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                                   e.stopPropagation();
                                   sendWhatsAppMessage(RESTAURANT_WHATSAPP, `Order: ${notif.title}\nDetails: ${notif.message}`);
                                 }}
-                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all"
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
                                 title="Share to WhatsApp"
                               >
                                 <MessageCircle size={10} />
                               </button>
                             )}
                           </div>
-                          <p className="text-[11px] text-zinc-500 line-clamp-2 mb-2">
+                          <p className="text-[11px] text-stone-500 line-clamp-2 mb-2">
                             {notif.message}
                           </p>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-600">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-stone-400">
                             {notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : 'Just now'}
                           </p>
                         </div>
@@ -105,22 +105,22 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ isOp
                 </div>
               ) : (
                 <div className="p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 text-zinc-700">
+                  <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-4 text-stone-400">
                     <Bell size={32} />
                   </div>
-                  <p className="text-xs font-bold text-zinc-500">No notifications yet</p>
+                  <p className="text-xs font-bold text-stone-500">No notifications yet</p>
                 </div>
               )}
             </div>
 
             {notifications.length > 0 && (
-              <div className="p-4 bg-white/5 text-center">
+              <div className="p-4 bg-stone-50 border-t border-stone-100 text-center">
                 <button 
                   onClick={() => {
                     onClose();
                     navigate('/notifications');
                   }}
-                  className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-colors"
+                  className="text-[10px] font-black uppercase tracking-widest text-stone-600 hover:text-stone-900 transition-colors"
                 >
                   View all activity
                 </button>

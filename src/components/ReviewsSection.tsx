@@ -4,7 +4,6 @@ import { Star, Quote, MessageSquareHeart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { diagnosticFetch } from '../utils/apiDiagnostics';
 
 interface Review {
   id: string;
@@ -53,7 +52,7 @@ export const ReviewsSection: React.FC = () => {
     let isMounted = true;
     const fetchReviews = async () => {
       try {
-        const res = await diagnosticFetch('/api/reviews').catch(() => fetch('/api/reviews'));
+        const res = await fetch('/api/reviews').catch(() => null);
         if (res && res.ok) {
           const data = await res.json();
           if (isMounted && Array.isArray(data) && data.length > 0) {

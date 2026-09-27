@@ -218,6 +218,7 @@ export const appConfigService = {
 
     if (!pollingInterval) {
       pollingInterval = setInterval(async () => {
+        if (typeof document !== 'undefined' && document.hidden) return;
         try {
           const fresh = await appConfigService.getConfig();
           if (fresh) {

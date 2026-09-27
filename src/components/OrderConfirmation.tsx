@@ -219,7 +219,7 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 z-[200] flex justify-center items-center p-0 sm:p-4 md:p-8 bg-black/75 backdrop-blur-md overflow-y-auto selection:bg-rose-100 selection:text-[#C96868]"
+        className="fixed inset-0 z-[200] flex justify-center items-center p-0 sm:p-4 md:p-8 bg-stone-900/60 backdrop-blur-sm overflow-y-auto selection:bg-rose-100 selection:text-[#C96868]"
       >
         <style>{`
           /* Smooth Luxury Animation Timers & Physics */

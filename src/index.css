@@ -150,11 +150,11 @@
 }
 
 .glass {
-  @apply bg-white/5 backdrop-blur-lg border border-white/10;
+  @apply bg-white/80 backdrop-blur-lg border border-stone-200/80;
 }
 
 .glass-dark {
-  @apply bg-black/40 backdrop-blur-xl border border-white/5;
+  @apply bg-stone-900/60 backdrop-blur-xl border border-stone-800;
 }
 
 .animate-shake {
@@ -170,7 +170,7 @@
 }
 
 .bakery-card {
-  @apply bg-zinc-900/50 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl;
+  @apply bg-white rounded-[2.5rem] border border-stone-200/80 shadow-md;
 }
 
 .btn-premium {
@@ -178,7 +178,7 @@
 }
 
 .glass-bakery {
-  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+  @apply bg-white/90 backdrop-blur-xl border border-stone-200/80 shadow-xl;
 }
 
 .custom-scrollbar::-webkit-scrollbar,

@@ -145,11 +145,11 @@ export const ButlerSelection: React.FC = React.memo(() => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="w-full min-h-[400px] rounded-[3rem] glass-dark border border-white/5 flex flex-col items-center justify-center p-12 text-center space-y-8"
+              className="w-full min-h-[400px] rounded-[3rem] bg-white border border-stone-200/90 shadow-xl flex flex-col items-center justify-center p-12 text-center space-y-8 text-stone-900"
             >
               <div className="relative">
                 <div className="absolute -inset-4 bg-primary/20 rounded-full blur-xl animate-pulse" />
-                <div className="w-24 h-24 rounded-3xl bg-black border border-primary/30 flex items-center justify-center relative overflow-hidden group">
+                <div className="w-24 h-24 rounded-3xl bg-primary/10 border border-primary/30 flex items-center justify-center relative overflow-hidden group">
                   <Cpu size={40} className="text-primary animate-spin-slow" />
                   <motion.div 
                     animate={{ rotate: 360 }}
@@ -159,8 +159,8 @@ export const ButlerSelection: React.FC = React.memo(() => {
                 </div>
               </div>
               <div className="space-y-3">
-                <h3 className="text-xl font-bold text-white tracking-tight">{thoughts[thoughtIndex]}</h3>
-                <p className="text-zinc-500 text-xs font-mono uppercase tracking-widest">Neural connection stable • Processing menu data</p>
+                <h3 className="text-xl font-bold text-stone-900 tracking-tight">{thoughts[thoughtIndex]}</h3>
+                <p className="text-stone-500 text-xs font-mono uppercase tracking-widest">Neural connection stable • Processing menu data</p>
               </div>
               <div className="flex items-center gap-1.5 justify-center">
                 {[0,1,2].map(i => (
@@ -197,23 +197,23 @@ export const ButlerSelection: React.FC = React.memo(() => {
 
                 {/* Sidebar Context */}
                 <div className="lg:col-span-4 space-y-6">
-                  <div className="p-8 rounded-[2.5rem] bg-zinc-900/50 border border-white/5 space-y-6">
+                  <div className="p-8 rounded-[2.5rem] bg-white border border-stone-200/90 shadow-xl space-y-6 text-stone-900">
                     <div className="flex items-center gap-3 mb-2">
                        <MessageSquare className="text-primary" size={20} />
-                       <h4 className="text-[10px] font-black uppercase tracking-widest text-white italic">Butler's Commentary</h4>
+                       <h4 className="text-[10px] font-black uppercase tracking-widest text-stone-900 italic">Butler's Commentary</h4>
                     </div>
-                    <p className="text-zinc-400 text-sm leading-relaxed italic">
+                    <p className="text-stone-600 text-sm leading-relaxed italic">
                       "I have observed a significant surge in appreciation for {recommendedItem.category} lately. This particular masterpiece represents the pinnacle of our baker's craftsmanship today."
                     </p>
-                    <div className="pt-6 border-t border-white/5 space-y-4">
-                       <h5 className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Why it matches:</h5>
+                    <div className="pt-6 border-t border-stone-100 space-y-4">
+                       <h5 className="text-[10px] font-black uppercase tracking-widest text-stone-500">Why it matches:</h5>
                        <ul className="space-y-3">
                           {[
                             "Complexity of flavor profile",
                             "Ingredient peak-freshness score: 98%",
                             "Visual presentation excellence"
                           ].map(point => (
-                            <li key={point} className="flex items-center gap-3 text-xs text-white/80 font-bold">
+                            <li key={point} className="flex items-center gap-3 text-xs text-stone-700 font-bold">
                                <div className="w-1 h-1 bg-primary rounded-full" />
                                {point}
                             </li>

@@ -24,9 +24,9 @@ export const InputField: React.FC<InputFieldProps> = ({
     <div className="w-full space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
       {label && (
         <motion.label 
-          animate={{ color: isFocused ? '#ff6b26' : '#cbd5e1' }}
+          animate={{ color: isFocused ? '#E76A54' : '#57534E' }}
           transition={{ duration: 0.2 }}
-          className="text-xs font-black uppercase tracking-widest text-gray-300 ml-1 block"
+          className="text-xs font-black uppercase tracking-widest text-stone-600 ml-1 block"
         >
           {label}
         </motion.label>
@@ -35,19 +35,19 @@ export const InputField: React.FC<InputFieldProps> = ({
         animate={{ 
           scale: isFocused ? 1.01 : 1,
           boxShadow: isFocused 
-            ? '0 0 24px 2px rgba(255, 107, 38, 0.12)' 
+            ? '0 0 20px 2px rgba(231, 106, 84, 0.12)' 
             : '0 0 0px 0px rgba(0,0,0,0)'
         }}
         transition={{ type: "spring", stiffness: 450, damping: 25 }}
-        className="relative rounded-xl overflow-hidden border border-white/10"
+        className="relative rounded-xl overflow-hidden border border-stone-200"
         style={{
-          borderColor: isFocused ? '#ff6b26' : 'rgba(255, 255, 255, 0.1)'
+          borderColor: isFocused ? '#E76A54' : '#E7E5E4'
         }}
       >
         {/* Animated slide background highlight */}
         <motion.div
           animate={{ opacity: isFocused ? 1 : 0 }}
-          className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 z-10"
+          className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-[#E76A54] via-amber-500 to-[#E76A54] z-10"
           transition={{ duration: 0.3 }}
         />
         
@@ -55,10 +55,10 @@ export const InputField: React.FC<InputFieldProps> = ({
           <motion.div 
             animate={{ 
               scale: isFocused ? 1.12 : 1,
-              color: isFocused ? '#ff6b26' : '#94a3b8'
+              color: isFocused ? '#E76A54' : '#78716C'
             }}
             transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none text-stone-500"
           >
             <Icon size={18} />
           </motion.div>
@@ -73,11 +73,11 @@ export const InputField: React.FC<InputFieldProps> = ({
             props.onBlur?.(e);
           }}
           className={cn(
-            "w-full bg-white/5 rounded-xl py-3.5 px-4 transition-all duration-300 outline-none text-white text-sm placeholder:text-gray-500 font-medium",
+            "w-full bg-stone-50 rounded-xl py-3.5 px-4 transition-all duration-300 outline-none text-stone-900 text-sm placeholder:text-stone-400 font-medium",
             Icon && "pl-12",
             rightElement && "pr-12",
-            isFocused && "bg-white/[0.08]",
-            error && "border-red-500/50 focus:border-red-500/50",
+            isFocused && "bg-white",
+            error && "border-red-500/50 focus:border-red-500/50 bg-red-50/50",
             className
           )}
           {...props}

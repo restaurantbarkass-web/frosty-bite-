@@ -316,21 +316,21 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[999] flex flex-col bg-black/95 backdrop-blur-2xl"
+          className="fixed inset-0 z-[999] flex flex-col bg-[#FAF8F5]/98 backdrop-blur-2xl text-stone-900"
         >
           {/* Header */}
-          <div className="flex items-center px-4 md:px-8 py-4 sm:py-6 border-b border-white/10 glass-dark">
+          <div className="flex items-center px-4 md:px-8 py-4 sm:py-6 border-b border-stone-200 bg-white/90 backdrop-blur-md">
             <div className="flex-1 max-w-4xl mx-auto flex items-center gap-4 relative">
               <div className="relative flex-1 group">
                 <Search className={cn(
                   "absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300",
-                  query ? "text-primary" : "text-gray-500"
+                  query ? "text-primary" : "text-stone-400"
                 )} size={20} />
                 <input
                   ref={inputRef}
                   type="text"
                   placeholder="Search for cakes, pastries, flavors..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-24 py-4 text-white text-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all placeholder:text-gray-600"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-12 pr-24 py-4 text-stone-900 text-lg focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white transition-all placeholder:text-stone-400 shadow-xs"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && performSearch(query)}
@@ -340,7 +340,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                     {query && (
                     <button 
                         onClick={clear}
-                        className="p-2 text-gray-500 hover:text-white transition-colors"
+                        className="p-2 text-stone-400 hover:text-stone-700 transition-colors"
                     >
                         <X size={18} />
                     </button>
@@ -349,7 +349,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         onClick={handleQRSearch}
                         className={cn(
                             "p-2 transition-colors",
-                            isScanning ? "text-primary bg-primary/10 rounded-lg" : "text-gray-500 hover:text-primary"
+                            isScanning ? "text-primary bg-primary/10 rounded-lg" : "text-stone-400 hover:text-primary"
                         )}
                     >
                         <QrCode size={20} />
@@ -358,7 +358,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         onClick={handleVoiceSearch}
                         className={cn(
                             "p-2 transition-colors",
-                            isListening ? "text-red-500 bg-red-500/10 rounded-lg scale-110" : "text-gray-500 hover:text-primary"
+                            isListening ? "text-red-500 bg-red-500/10 rounded-lg scale-110" : "text-stone-400 hover:text-primary"
                         )}
                     >
                         {isListening ? <Loader2 size={20} className="animate-spin" /> : <Mic size={20} />}
@@ -366,21 +366,21 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                 </div>
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-500 font-mono text-xs">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-stone-100 border border-stone-200 rounded-xl text-stone-500 font-mono text-xs">
                 <Command size={14} />
                 <span>K / ESC</span>
               </div>
 
               <button 
                 onClick={onClose}
-                className="p-3 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white transition-all sm:hidden"
+                className="p-3 hover:bg-stone-100 rounded-xl text-stone-500 hover:text-stone-900 transition-all sm:hidden"
               >
                 <X size={24} />
               </button>
               
               <button 
                 onClick={onClose}
-                className="hidden sm:flex px-6 py-4 bg-white/5 hover:bg-white/10 rounded-xl text-white font-bold uppercase tracking-widest text-[10px] transition-all"
+                className="hidden sm:flex px-6 py-4 bg-stone-100 hover:bg-stone-200 border border-stone-200 rounded-xl text-stone-700 font-bold uppercase tracking-widest text-[10px] transition-all"
               >
                 Close
               </button>
@@ -428,15 +428,15 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                     {/* Upgraded Recent Searches / Search History */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between text-gray-400">
+                      <div className="flex items-center justify-between text-stone-500">
                         <div className="flex items-center gap-2">
-                          <History size={16} className="text-primary/70" />
-                          <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">Search History</h3>
+                          <History size={16} className="text-primary" />
+                          <h3 className="text-[10px] font-black uppercase tracking-widest font-mono text-stone-700">Search History</h3>
                         </div>
                         {recent.length > 0 && (
                           <button
                             onClick={clearRecent}
-                            className="text-[9px] font-black uppercase tracking-wider text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1"
+                            className="text-[9px] font-black uppercase tracking-wider text-stone-400 hover:text-red-500 transition-colors flex items-center gap-1"
                           >
                             <Trash2 size={11} /> Clear All
                           </button>
@@ -448,21 +448,21 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           {recent.map((s, i) => (
                             <div
                               key={`recent-${s}-${i}`}
-                              className="flex items-center justify-between group p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/10 transition-all"
+                              className="flex items-center justify-between group p-2.5 rounded-xl bg-white border border-stone-200 hover:bg-stone-50 hover:border-stone-300 transition-all shadow-xs"
                             >
                               <button
                                 onClick={() => {
                                   setQuery(s);
                                   performSearch(s);
                                 }}
-                                className="flex-1 flex items-center gap-2 text-left text-sm text-gray-300 hover:text-white transition-colors min-w-0"
+                                className="flex-1 flex items-center gap-2 text-left text-sm text-stone-700 hover:text-stone-900 transition-colors min-w-0"
                               >
-                                <Clock size={13} className="text-gray-600 group-hover:text-primary transition-colors flex-shrink-0" />
+                                <Clock size={13} className="text-stone-400 group-hover:text-primary transition-colors flex-shrink-0" />
                                 <span className="truncate">{s}</span>
                               </button>
                               <button
                                 onClick={() => removeRecent(s)}
-                                className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-red-500/10"
+                                className="p-1 text-stone-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-red-50"
                                 title="Remove search"
                               >
                                 <X size={12} />
@@ -471,18 +471,18 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           ))}
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-8 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl text-center space-y-2">
-                          <History size={24} className="text-gray-700" />
-                          <p className="text-xs text-gray-500">Your recent searches will appear here.</p>
+                        <div className="flex flex-col items-center justify-center p-8 bg-white border border-dashed border-stone-200 rounded-2xl text-center space-y-2">
+                          <History size={24} className="text-stone-300" />
+                          <p className="text-xs text-stone-400">Your recent searches will appear here.</p>
                         </div>
                       )}
                     </div>
 
                     {/* Trending Searches */}
                     <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <TrendingUp size={16} className="text-accent" />
-                        <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">Trending Now</h3>
+                      <div className="flex items-center gap-2 text-stone-500">
+                        <TrendingUp size={16} className="text-primary" />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest font-mono text-stone-700">Trending Now</h3>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {trending.map((s, i) => (
@@ -494,7 +494,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                               setQuery(s);
                               performSearch(s);
                             }}
-                            className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-xs font-bold text-gray-400 hover:text-primary hover:border-primary/30 transition-all"
+                            className="px-4 py-2 bg-white border border-stone-200 rounded-full text-xs font-bold text-stone-600 hover:text-primary hover:border-primary/40 transition-all shadow-xs"
                           >
                             {s}
                           </motion.button>
@@ -508,11 +508,11 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         <Sparkles size={16} className="animate-pulse" />
                         <h3 className="text-[10px] font-black uppercase tracking-widest font-mono">AI Recommendations</h3>
                       </div>
-                      <div className="p-6 bg-primary/10 border border-primary/20 rounded-3xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                          <Sparkles size={80} />
+                      <div className="p-6 bg-orange-50 border border-orange-200 rounded-3xl relative overflow-hidden group shadow-xs">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                          <Sparkles size={80} className="text-primary" />
                         </div>
-                        <p className="text-sm text-gray-300 italic mb-4 leading-relaxed">
+                        <p className="text-sm text-stone-700 italic mb-4 leading-relaxed">
                           "I'm looking for a premium tiered chocolate cake for a 25th anniversary celebration..."
                         </p>
                         <button 
@@ -527,13 +527,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
                   {/* New Beautiful Trending Items Section */}
                   {trendingItems.length > 0 && (
-                    <div className="space-y-6 pt-6 border-t border-white/5">
+                    <div className="space-y-6 pt-6 border-t border-stone-200">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <TrendingUp size={16} className="text-primary" />
-                          <h3 className="text-[11px] font-black uppercase tracking-widest text-white font-mono">Trending Delicacies</h3>
+                          <h3 className="text-[11px] font-black uppercase tracking-widest text-stone-900 font-mono">Trending Delicacies</h3>
                         </div>
-                        <span className="text-[9px] font-mono text-gray-500 uppercase">Freshly Baked & Highly Rated</span>
+                        <span className="text-[9px] font-mono text-stone-400 uppercase">Freshly Baked & Highly Rated</span>
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -544,32 +544,32 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                               navigate(`/product/${item.id}`);
                               onClose();
                             }}
-                            className="group relative bg-zinc-950/80 border border-white/5 rounded-2xl overflow-hidden hover:border-primary/30 transition-all duration-300 flex flex-col cursor-pointer shadow-lg hover:shadow-primary/5"
+                            className="group relative bg-white border border-stone-200 rounded-2xl overflow-hidden hover:border-primary/40 transition-all duration-300 flex flex-col cursor-pointer shadow-sm hover:shadow-md"
                           >
-                            <div className="relative aspect-video w-full overflow-hidden bg-zinc-900 flex-shrink-0">
+                            <div className="relative aspect-video w-full overflow-hidden bg-stone-100 flex-shrink-0">
                               <OptimizedImage 
                                 src={item.image} 
                                 alt={item.name} 
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                               />
-                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3 pt-6" />
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-900/70 to-transparent p-3 pt-6" />
                               <div className="absolute top-2 right-2 flex gap-1">
                                 {item.is_ai_boosted && (
                                   <span className="px-2 py-0.5 bg-primary/20 backdrop-blur-md rounded-full text-[8px] font-black text-primary uppercase tracking-wider">
                                     AI Pick
                                   </span>
                                 )}
-                                <span className="px-2 py-0.5 bg-zinc-900/60 backdrop-blur-md rounded-full text-[8px] font-black text-amber-500 uppercase tracking-wider">
+                                <span className="px-2 py-0.5 bg-white/80 backdrop-blur-md rounded-full text-[8px] font-black text-amber-600 uppercase tracking-wider shadow-xs">
                                   ★ {item.rating.toFixed(1)}
                                 </span>
                               </div>
                             </div>
                             <div className="p-4 flex-1 flex flex-col justify-between">
                               <div>
-                                <h4 className="font-bold text-white text-sm group-hover:text-primary transition-colors line-clamp-1">{item.name}</h4>
-                                <p className="text-xs text-gray-500 line-clamp-2 mt-1 min-h-[2rem] leading-relaxed">{item.description}</p>
+                                <h4 className="font-bold text-stone-900 text-sm group-hover:text-primary transition-colors line-clamp-1">{item.name}</h4>
+                                <p className="text-xs text-stone-500 line-clamp-2 mt-1 min-h-[2rem] leading-relaxed">{item.description}</p>
                               </div>
-                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+                              <div className="flex items-center justify-between mt-3 pt-3 border-t border-stone-100">
                                 <span className="text-sm font-black text-primary">₹{item.price}</span>
                                 <button
                                   onClick={(e) => {
@@ -578,7 +578,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                     onClose();
                                     setIsCartOpen(true);
                                   }}
-                                  className="px-3 py-1.5 bg-white/5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white group-hover:bg-primary group-hover:text-white transition-all hover:scale-105"
+                                  className="px-3 py-1.5 bg-stone-100 rounded-lg text-[9px] font-black uppercase tracking-widest text-stone-700 group-hover:bg-primary group-hover:text-white transition-all hover:scale-105"
                                 >
                                   Quick Add
                                 </button>
@@ -599,23 +599,23 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-5 sm:p-6 bg-zinc-950/90 border border-primary/30 rounded-3xl shadow-2xl space-y-6 relative overflow-hidden group"
+                      className="p-5 sm:p-6 bg-white border border-orange-200/90 rounded-3xl shadow-xl space-y-6 relative overflow-hidden group"
                     >
                       {/* Background Ambient Glow */}
                       <div className="absolute -top-10 -right-10 w-48 h-48 bg-primary/10 blur-[80px] pointer-events-none" />
 
                       {/* Header */}
-                      <div className="flex items-center justify-between pb-3 border-b border-white/10 relative z-10">
+                      <div className="flex items-center justify-between pb-3 border-b border-stone-100 relative z-10">
                         <div className="flex items-center gap-2">
                           <Sparkles size={16} className="text-primary animate-pulse" />
-                          <h3 className="text-xs font-black uppercase tracking-widest text-white font-mono">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-stone-900 font-mono">
                             Real-Time Suggestions
                           </h3>
-                          <span className="px-2 py-0.5 bg-primary/20 border border-primary/30 text-primary text-[9px] font-black rounded-full font-mono uppercase tracking-wider">
+                          <span className="px-2 py-0.5 bg-primary/15 border border-primary/20 text-primary text-[9px] font-black rounded-full font-mono uppercase tracking-wider">
                             Instant
                           </span>
                         </div>
-                        <span className="text-[10px] text-gray-400 font-mono hidden sm:inline">
+                        <span className="text-[10px] text-stone-400 font-mono hidden sm:inline">
                           Matches updated live as you type
                         </span>
                       </div>
@@ -623,7 +623,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                       {/* 1. Keyword Auto-Complete Suggestions */}
                       {liveSuggestions.keywords.length > 0 && (
                         <div className="space-y-2.5 relative z-10">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5 font-mono">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5 font-mono">
                             <Search size={12} className="text-primary" />
                             Suggested Searches
                           </div>
@@ -637,10 +637,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   setQuery(kw);
                                   performSearch(kw);
                                 }}
-                                className="px-3.5 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 rounded-xl text-xs font-medium text-gray-200 hover:text-white transition-all flex items-center gap-2 group shadow-sm"
+                                className="px-3.5 py-1.5 bg-stone-50 hover:bg-orange-50 border border-stone-200 hover:border-orange-300 rounded-xl text-xs font-medium text-stone-700 hover:text-stone-900 transition-all flex items-center gap-2 group shadow-xs"
                               >
                                 <HighlightText text={kw} highlight={query} />
-                                <ArrowRight size={12} className="text-gray-500 group-hover:text-primary transition-colors" />
+                                <ArrowRight size={12} className="text-stone-400 group-hover:text-primary transition-colors" />
                               </motion.button>
                             ))}
                           </div>
@@ -649,13 +649,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
                       {/* 2. Most Ordered / Trending Hits matching search query */}
                       {liveSuggestions.mostOrdered.length > 0 && (
-                        <div className="space-y-3 pt-2 relative z-10 border-t border-white/5">
+                        <div className="space-y-3 pt-2 relative z-10 border-t border-stone-100">
                           <div className="flex items-center justify-between">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5 font-mono">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 flex items-center gap-1.5 font-mono">
                               <Flame size={14} className="text-amber-500 fill-amber-500/20 animate-bounce" />
                               Most Ordered & Trending Matches
                             </div>
-                            <span className="text-[9px] text-amber-500/80 font-mono uppercase tracking-wider">Top Customer Picks</span>
+                            <span className="text-[9px] text-amber-600/80 font-mono uppercase tracking-wider">Top Customer Picks</span>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -666,9 +666,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   navigate(`/product/${item.id}`);
                                   onClose();
                                 }}
-                                className="p-3 bg-zinc-900/80 hover:bg-zinc-800/90 border border-white/10 hover:border-amber-500/40 rounded-2xl transition-all cursor-pointer flex items-center gap-3 group relative overflow-hidden shadow-lg"
+                                className="p-3 bg-stone-50 hover:bg-white border border-stone-200 hover:border-orange-300 rounded-2xl transition-all cursor-pointer flex items-center gap-3 group relative overflow-hidden shadow-xs hover:shadow-sm"
                               >
-                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-black flex-shrink-0 relative">
+                                <div className="w-14 h-14 rounded-xl overflow-hidden bg-stone-100 flex-shrink-0 relative">
                                   <OptimizedImage
                                     src={item.image}
                                     alt={item.name}
@@ -677,16 +677,16 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 mb-0.5">
-                                    <span className="px-1.5 py-0.2 bg-amber-500/20 text-amber-400 text-[8px] font-black rounded uppercase font-mono">
+                                    <span className="px-1.5 py-0.2 bg-amber-100 text-amber-700 text-[8px] font-black rounded uppercase font-mono">
                                       ★ {item.rating.toFixed(1)}
                                     </span>
                                     {item.is_recommended && (
-                                      <span className="px-1.5 py-0.2 bg-primary/20 text-primary text-[8px] font-black rounded uppercase font-mono">
+                                      <span className="px-1.5 py-0.2 bg-orange-100 text-primary text-[8px] font-black rounded uppercase font-mono">
                                         Best Seller
                                       </span>
                                     )}
                                   </div>
-                                  <h4 className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                  <h4 className="text-xs font-bold text-stone-900 group-hover:text-primary transition-colors truncate">
                                     <HighlightText text={item.name} highlight={query} />
                                   </h4>
                                   <div className="flex items-center justify-between mt-1.5">
@@ -698,7 +698,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                         setAddedItemId(String(item.id));
                                         setTimeout(() => setAddedItemId(null), 1500);
                                       }}
-                                      className="px-2 py-1 bg-primary/20 hover:bg-primary text-primary hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                                      className="px-2 py-1 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shadow-xs"
                                     >
                                       {addedItemId === String(item.id) ? (
                                         <>
@@ -718,12 +718,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
                       {/* 3. Quick Direct Item Suggestions */}
                       {liveSuggestions.directMatches.length > 0 && (
-                        <div className="space-y-2 pt-2 relative z-10 border-t border-white/5">
-                          <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5 font-mono">
+                        <div className="space-y-2 pt-2 relative z-10 border-t border-stone-100">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-stone-500 flex items-center gap-1.5 font-mono">
                             <ChevronRight size={12} className="text-primary" />
                             Direct Matches ({liveSuggestions.directMatches.length})
                           </div>
-                          <div className="divide-y divide-white/5 rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
+                          <div className="divide-y divide-stone-100 rounded-2xl bg-stone-50 border border-stone-200 overflow-hidden">
                             {liveSuggestions.directMatches.map((item, idx) => (
                               <div
                                 key={item.id ? `direct-match-${item.id}` : `direct-match-${idx}`}
@@ -731,10 +731,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   navigate(`/product/${item.id}`);
                                   onClose();
                                 }}
-                                className="p-3 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between gap-3 group"
+                                className="p-3 hover:bg-white transition-colors cursor-pointer flex items-center justify-between gap-3 group"
                               >
                                 <div className="flex items-center gap-3 min-w-0">
-                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-900 flex-shrink-0">
+                                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0">
                                     <OptimizedImage
                                       src={item.image}
                                       alt={item.name}
@@ -742,13 +742,13 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                     />
                                   </div>
                                   <div className="min-w-0">
-                                    <div className="text-xs font-bold text-white group-hover:text-primary transition-colors truncate">
+                                    <div className="text-xs font-bold text-stone-900 group-hover:text-primary transition-colors truncate">
                                       <HighlightText text={item.name} highlight={query} />
                                     </div>
-                                    <div className="text-[10px] text-gray-500 truncate flex items-center gap-2">
+                                    <div className="text-[10px] text-stone-500 truncate flex items-center gap-2">
                                       <span className="capitalize">{item.category}</span>
                                       <span>•</span>
-                                      <span className="text-amber-400">★ {item.rating}</span>
+                                      <span className="text-amber-500">★ {item.rating}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -762,7 +762,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                       setAddedItemId(String(item.id));
                                       setTimeout(() => setAddedItemId(null), 1500);
                                     }}
-                                    className="px-2.5 py-1 bg-white/5 hover:bg-primary/20 text-gray-300 hover:text-primary border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                    className="px-2.5 py-1 bg-stone-100 hover:bg-primary text-stone-700 hover:text-white border border-stone-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
                                   >
                                     {addedItemId === String(item.id) ? '✓ Added' : '+ Add'}
                                   </button>
@@ -782,23 +782,23 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        className="p-1 rounded-[2.5rem] bg-gradient-to-br from-primary/30 via-white/5 to-accent/30 shadow-2xl overflow-hidden"
+                        className="p-1 rounded-[2.5rem] bg-gradient-to-br from-orange-400/20 via-amber-400/10 to-orange-400/20 shadow-xl overflow-hidden"
                       >
-                        <div className="relative p-6 sm:p-10 rounded-[2.4rem] bg-zinc-950/90 backdrop-blur-3xl overflow-hidden group">
+                        <div className="relative p-6 sm:p-10 rounded-[2.4rem] bg-white border border-stone-200/90 shadow-lg overflow-hidden group">
                           {/* Background Glow */}
-                          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] pointer-events-none" />
-                          <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/10 blur-[100px] pointer-events-none" />
+                          <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-[100px] pointer-events-none" />
+                          <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/10 blur-[100px] pointer-events-none" />
 
                           <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start relative z-10">
                             {/* AI Identity */}
                             <div className="flex-shrink-0 flex flex-col items-center">
-                              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary to-accent p-[2px] mb-4">
-                                <div className="w-full h-full rounded-[22px] bg-black flex items-center justify-center relative overflow-hidden">
+                              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary to-amber-500 p-[2px] mb-4">
+                                <div className="w-full h-full rounded-[22px] bg-primary flex items-center justify-center relative overflow-hidden">
                                   <Sparkles size={32} className="text-white animate-pulse" />
                                   <motion.div 
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                                    className="absolute inset-0 border border-white/10 rounded-full scale-150 border-dashed"
+                                    className="absolute inset-0 border border-white/20 rounded-full scale-150 border-dashed"
                                   />
                                 </div>
                               </div>
@@ -821,9 +821,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                             <div className="flex-1 text-center lg:text-left">
                               {isProcessingRec ? (
                                 <div className="space-y-4">
-                                  <h3 className="text-2xl font-black text-white italic">Analyzing your intent...</h3>
+                                  <h3 className="text-2xl font-black text-stone-900 italic">Analyzing your intent...</h3>
                                   <div className="space-y-2 max-w-lg mx-auto lg:mx-0">
-                                    <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden">
+                                    <div className="h-3 w-full bg-stone-100 rounded-full overflow-hidden">
                                       <motion.div 
                                         initial={{ x: "-100%" }}
                                         animate={{ x: "100%" }}
@@ -831,7 +831,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                         className="w-1/2 h-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" 
                                       />
                                     </div>
-                                    <p className="text-gray-500 text-xs font-mono">Personalizing recommendations based on "{query}"</p>
+                                    <p className="text-stone-500 text-xs font-mono">Personalizing recommendations based on "{query}"</p>
                                   </div>
                                 </div>
                               ) : smartRec ? (
@@ -841,16 +841,16 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   className="space-y-6"
                                 >
                                   <div>
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/20 border border-primary/30 rounded-full text-[10px] font-black text-primary uppercase tracking-widest mb-4">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full text-[10px] font-black text-primary uppercase tracking-widest mb-4">
                                       <Sparkles size={12} />
                                       AI concierge
                                     </div>
                                     {bestMatch ? (
-                                      <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500">
+                                      <h3 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tighter leading-tight">
                                         "{smartRec.reason}"
                                       </h3>
                                     ) : (
-                                      <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug">
+                                      <h3 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight leading-snug">
                                         {smartRec.butlerResponse}
                                       </h3>
                                     )}
@@ -862,26 +862,26 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                         navigate(`/product/${bestMatch.id}`);
                                         onClose();
                                       }}
-                                      className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-white/5 border border-white/10 rounded-3xl hover:bg-white/10 transition-all cursor-pointer"
+                                      className="flex flex-col sm:flex-row items-center gap-6 p-4 sm:p-6 bg-stone-50 border border-stone-200 rounded-3xl hover:bg-stone-100/80 transition-all cursor-pointer"
                                     >
-                                        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-2xl relative group">
+                                        <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl overflow-hidden flex-shrink-0 shadow-md relative group">
                                             <OptimizedImage 
                                               src={bestMatch.image} 
                                               alt={bestMatch.name} 
                                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                                             />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-stone-900/60 to-transparent" />
                                         </div>
                                         <div className="flex-1 text-center sm:text-left">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                                                <h4 className="text-xl font-black text-white">{bestMatch.name}</h4>
+                                                <h4 className="text-xl font-black text-stone-900">{bestMatch.name}</h4>
                                                 <span className="text-primary font-black text-lg">₹{bestMatch.price}</span>
                                             </div>
-                                            <p className="text-gray-400 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
+                                            <p className="text-stone-600 text-sm line-clamp-2 mb-4">{bestMatch.description}</p>
                                             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4">
                                                 <div className="flex gap-2">
                                                   {bestMatch.tags?.slice(0, 2).map((tag, tagIdx) => (
-                                                    <span key={`${tag}-${tagIdx}`} className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-gray-500">#{tag}</span>
+                                                    <span key={`${tag}-${tagIdx}`} className="px-3 py-1 bg-stone-200/60 rounded-lg text-[10px] font-bold text-stone-600">#{tag}</span>
                                                   ))}
                                                 </div>
                                                 
@@ -892,7 +892,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                                       navigate(`/product/${bestMatch.id}`);
                                                       onClose();
                                                     }}
-                                                    className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all"
+                                                    className="text-[10px] font-black text-stone-500 uppercase tracking-widest hover:text-stone-900 transition-all"
                                                   >
                                                       Details
                                                   </button>
@@ -914,7 +914,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                                   )}
 
                                   {!bestMatch && smartRec.butlerResponse && (
-                                    <p className="text-gray-400 text-sm italic">
+                                    <p className="text-stone-500 text-sm italic">
                                       I couldn't find a direct match for this specific request, but please explore our exquisite collection below.
                                     </p>
                                   )}
@@ -939,7 +939,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           <button
                             key={`ai-suggestion-${s}-${i}`}
                             onClick={() => setQuery(s)}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary/5 hover:bg-primary/20 border border-primary/10 rounded-xl text-xs font-medium text-primary transition-all"
+                            className="flex items-center gap-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-xs font-medium text-primary transition-all"
                           >
                             <Sparkles size={12} />
                             {s}
@@ -952,10 +952,10 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                   {/* Results Header with Categories */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                      <h2 className="text-2xl font-black text-stone-900 flex items-center gap-3">
                         <span className="text-primary">{results.length}</span> Results found
                       </h2>
-                      <p className="text-gray-500 text-sm">Showing top matches for "{query}"</p>
+                      <p className="text-stone-500 text-sm">Showing top matches for "{query}"</p>
                     </div>
 
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 no-scrollbar">
@@ -963,7 +963,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                         onClick={() => setSelectedCategory(null)}
                         className={cn(
                           "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                          !selectedCategory ? "bg-primary text-white" : "bg-white/5 text-gray-500 hover:text-white"
+                          !selectedCategory ? "bg-primary text-white" : "bg-white border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50"
                         )}
                       >
                         All
@@ -974,7 +974,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                           onClick={() => setSelectedCategory(cat)}
                           className={cn(
                             "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                            selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white/5 text-gray-500 hover:text-white"
+                            selectedCategory === cat ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-50"
                           )}
                         >
                           {cat}
@@ -1014,12 +1014,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                   ) : (
                     <div className="space-y-12">
                       <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-                        <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center text-gray-700">
+                        <div className="w-24 h-24 bg-stone-100 rounded-full flex items-center justify-center text-stone-400">
                           <Search size={48} />
                         </div>
                         <div className="space-y-2">
-                          <h3 className="text-xl font-bold text-white">No exact results found</h3>
-                          <p className="text-gray-500 max-w-sm">
+                          <h3 className="text-xl font-bold text-stone-900">No exact results found</h3>
+                          <p className="text-stone-500 max-w-sm">
                             We couldn't find an exact match for "{query}". <br/>
                             But you might love these instead.
                           </p>
@@ -1034,9 +1034,9 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 
                       {/* Fallback items: items in the same category or popular items */}
                       <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-gray-400">
+                        <div className="flex items-center gap-2 text-stone-600">
                           <Sparkles size={16} className="text-primary" />
-                          <h3 className="text-[10px] font-black uppercase tracking-widest">Recommended for you</h3>
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-stone-700">Recommended for you</h3>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                           {allItems.slice(0, 4).map((item, idx) => (
@@ -1057,12 +1057,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
           </div>
 
           {/* Footer Status */}
-          <div className="p-4 border-t border-white/5 bg-black/40 flex items-center justify-center gap-4 text-gray-600 text-[10px] font-medium uppercase tracking-[0.2em]">
+          <div className="p-4 border-t border-stone-200 bg-stone-100/90 flex items-center justify-center gap-4 text-stone-500 text-[10px] font-medium uppercase tracking-[0.2em]">
             <span className="flex items-center gap-1">
                 <Info size={12} />
                 Fast Intelligent Search Enabled
             </span>
-            <span className="w-1 h-1 bg-gray-800 rounded-full" />
+            <span className="w-1 h-1 bg-stone-300 rounded-full" />
             <span>Frosty AI v2.0</span>
           </div>
         </motion.div>

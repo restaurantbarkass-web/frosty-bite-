@@ -131,7 +131,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/80 backdrop-blur-md"
+          className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
         />
 
         {/* Modal Panel */}
@@ -140,21 +140,21 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 30 }}
           transition={{ type: "spring", damping: 25, stiffness: 350 }}
-          className="relative max-w-lg w-full bg-[#0d0d0d]/90 border border-white/10 rounded-[35px] shadow-2xl overflow-hidden backdrop-blur-3xl z-10"
+          className="relative max-w-lg w-full bg-white border border-stone-200/90 rounded-[35px] shadow-2xl overflow-hidden z-10"
         >
           {/* Header */}
-          <div className="p-6 md:p-8 flex items-center justify-between border-b border-white/5">
+          <div className="p-6 md:p-8 flex items-center justify-between border-b border-stone-100">
             <div>
               <span className="text-[10px] font-black tracking-widest uppercase text-primary bg-primary/10 px-3 py-1 rounded-full">
                 Order #{formatOrderId(order.id)}
               </span>
-              <h3 className="text-2xl font-black text-white italic tracking-tight uppercase mt-2">
+              <h3 className="text-2xl font-black text-stone-900 italic tracking-tight uppercase mt-2">
                 {step === 1 ? "Cancel Order" : "Double Confirmation"}
               </h3>
             </div>
             <button
               onClick={onClose}
-              className="p-3 bg-white/5 text-zinc-400 hover:text-white rounded-full hover:scale-105 transition-all"
+              className="p-3 bg-stone-100 text-stone-500 hover:text-stone-900 hover:bg-stone-200 rounded-full hover:scale-105 transition-all"
             >
               <X size={16} />
             </button>
@@ -168,8 +168,8 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                   <div className={cn(
                     "flex items-start gap-3 p-4 rounded-2xl text-xs border transition-all",
                     monthlyCount >= 3 
-                      ? "bg-rose-500/10 border-rose-500/20 text-rose-500" 
-                      : "bg-emerald-500/5 border-emerald-500/10 text-emerald-400"
+                      ? "bg-rose-500/10 border-rose-500/20 text-rose-600" 
+                      : "bg-emerald-50 border-emerald-200 text-emerald-700"
                   )}>
                     <AlertCircle size={16} className="shrink-0 mt-0.5" />
                     <div>
@@ -185,17 +185,17 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                 )}
 
                 {monthlyCount !== null && monthlyCount >= 3 ? (
-                  <div className="bg-rose-500/5 border border-rose-500/10 p-6 rounded-3xl text-center space-y-3">
-                    <p className="text-zinc-400 text-sm leading-relaxed">
-                      To safeguard baking ingredients and maintain fair service for all foodies, customers are <span className="text-rose-400 font-bold font-mono">strictly limited to 3 order cancellations per month</span>.
+                  <div className="bg-rose-50 border border-rose-200 p-6 rounded-3xl text-center space-y-3">
+                    <p className="text-stone-600 text-sm leading-relaxed">
+                      To safeguard baking ingredients and maintain fair service for all foodies, customers are <span className="text-rose-600 font-bold font-mono">strictly limited to 3 order cancellations per month</span>.
                     </p>
-                    <p className="text-zinc-500 text-xs">
+                    <p className="text-stone-500 text-xs">
                       If you need urgent assistance with change requests for your fresh items, please contact support immediately over WhatsApp.
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-start gap-3 bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-zinc-400">
+                    <div className="flex items-start gap-3 bg-stone-50 p-4 rounded-2xl border border-stone-200 text-xs text-stone-600">
                       <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
                         Orders can only be cancelled within 24 hours. Your bakery bakes fresh daily - cancelling immediately allows us to restock inventory!
@@ -203,7 +203,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] text-zinc-500 font-black uppercase tracking-widest block mb-2">
+                      <label className="text-[10px] text-stone-500 font-black uppercase tracking-widest block mb-2">
                         Why are you cancelling this order?
                       </label>
                       <div className="grid grid-cols-1 gap-2">
@@ -216,13 +216,13 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                               onClick={() => handleReasonSelect(r)}
                               className={`flex items-center justify-between p-4 rounded-2xl border text-sm font-bold text-left transition-all ${
                                 isSelected
-                                  ? 'bg-primary/10 border-primary text-white shadow-lg shadow-primary/5'
-                                  : 'bg-white/5 border-white/5 text-zinc-400 hover:border-white/10 hover:text-white'
+                                  ? 'bg-orange-50 border-primary text-stone-900 shadow-sm'
+                                  : 'bg-stone-50 border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-100 hover:text-stone-900'
                               }`}
                             >
                               <span>{r}</span>
                               <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                                isSelected ? 'border-primary bg-primary' : 'border-zinc-700'
+                                isSelected ? 'border-primary bg-primary' : 'border-stone-300'
                               }`}>
                                 {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                               </div>
@@ -243,7 +243,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                           value={otherReasonText}
                           onChange={(e) => setOtherReasonText(e.target.value)}
                           rows={3}
-                          className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-primary/50 transition-all placeholder:text-zinc-600"
+                          className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-4 text-stone-900 text-sm focus:outline-none focus:border-primary transition-all placeholder:text-stone-400"
                         />
                       </motion.div>
                     )}
@@ -253,30 +253,30 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
             ) : (
               // STEP 2: REFUND NOTIFICATION & DOUBLE CONFIRMATION
               <div className="space-y-6 text-center py-4">
-                <div className="w-20 h-20 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center justify-center text-rose-500 mx-auto animate-pulse">
+                <div className="w-20 h-20 bg-rose-50 border border-rose-200 rounded-full flex items-center justify-center text-rose-500 mx-auto animate-pulse">
                   <AlertCircle size={36} />
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-lg font-black text-rose-500 italic uppercase">Are you absolutely sure?</h4>
-                  <p className="text-zinc-400 text-sm leading-relaxed px-4">
+                  <h4 className="text-lg font-black text-rose-600 italic uppercase">Are you absolutely sure?</h4>
+                  <p className="text-stone-600 text-sm leading-relaxed px-4">
                     This action is irreversible. Once cancelled, we will automatically release your freshly reserved bakery items back to the shop, and update our baking schedule.
                   </p>
                 </div>
 
                 {isOnlinePayment ? (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 p-5 rounded-3xl text-left space-y-2">
-                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                  <div className="bg-emerald-50 border border-emerald-200 p-5 rounded-3xl text-left space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider">
                       <ShieldCheck size={16} />
                       Refund System Ready
                     </div>
-                    <p className="text-zinc-300 text-xs leading-relaxed">
+                    <p className="text-stone-600 text-xs leading-relaxed">
                       Since you paid ₹{order.total} online/UPI, a credit refund notice has been generated. The amount will be transferred back to your account within 24 hours.
                     </p>
                   </div>
                 ) : (
-                  <div className="bg-white/5 border border-white/5 p-5 rounded-3xl text-left space-y-2">
-                    <p className="text-zinc-400 text-xs leading-relaxed">
+                  <div className="bg-stone-50 border border-stone-200 p-5 rounded-3xl text-left space-y-2">
+                    <p className="text-stone-600 text-xs leading-relaxed">
                       This is a Cash on Delivery (COD) order. No financial transactions/refunds are required for this cancellation.
                     </p>
                   </div>
@@ -286,13 +286,13 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-6 md:p-8 border-t border-white/5 bg-black/50 flex gap-4">
+          <div className="p-6 md:p-8 border-t border-stone-100 bg-stone-50/80 flex gap-4">
             {step === 1 ? (
               <>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold uppercase tracking-widest text-xs transition-colors"
+                  className="flex-1 py-4 bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-2xl font-bold uppercase tracking-widest text-xs transition-colors"
                 >
                   Close
                 </button>
@@ -334,7 +334,7 @@ export const CancelOrderModal: React.FC<CancelOrderModalProps> = ({
                   type="button"
                   onClick={() => setStep(1)}
                   disabled={submitting}
-                  className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-50"
+                  className="flex-1 py-4 bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-2xl font-bold uppercase tracking-widest text-xs transition-colors disabled:opacity-50"
                 >
                   Go Back
                 </button>

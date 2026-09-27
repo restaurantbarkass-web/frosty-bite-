@@ -22,6 +22,7 @@ import { cn } from '../lib/utils';
 import { FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
 import { FoodCardSkeleton } from '../components/FoodCardSkeleton';
+import { CategoriesPageSkeleton } from '../components/CategoriesPageSkeleton';
 
 interface CategoryVisualMeta {
   image: string;
@@ -302,6 +303,10 @@ export const CategoriesPage: React.FC = () => {
       setIsRefreshing(false);
     }
   };
+
+  if (loading && (!items || items.length === 0)) {
+    return <CategoriesPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col selection:bg-[#E76A54]/20">

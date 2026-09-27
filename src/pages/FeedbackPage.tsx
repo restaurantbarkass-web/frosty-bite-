@@ -297,25 +297,25 @@ export const FeedbackPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070709] text-white selection:bg-amber-500/30 selection:text-amber-400 font-sans relative overflow-x-hidden pb-16">
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 selection:bg-[#E76A54]/20 selection:text-[#E76A54] font-sans relative overflow-x-hidden pb-16">
       {/* Ambient background glows */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-96 bg-gradient-to-b from-amber-500/10 via-rose-500/5 to-transparent blur-[120px] pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-96 bg-gradient-to-b from-orange-500/10 via-amber-500/5 to-transparent blur-[120px] pointer-events-none" />
 
       {/* Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-[#070709]/80 backdrop-blur-xl border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-xl border-b border-stone-200/80">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link
             to="/"
             id="feedback-nav-back-btn"
-            className="flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-xs font-bold text-stone-600 hover:text-stone-950 transition-colors"
           >
             <ArrowLeft size={16} />
             <span>Back to Bakery</span>
           </Link>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-xs font-bold text-amber-400 tracking-wider uppercase">Frosty Bite Feedback</span>
+            <span className="w-2 h-2 rounded-full bg-[#E76A54] animate-pulse" />
+            <span className="text-xs font-bold text-[#E76A54] tracking-wider uppercase">Frosty Bite Feedback</span>
           </div>
         </div>
       </header>
@@ -327,9 +327,9 @@ export const FeedbackPage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-[#E76A54] text-xs font-bold"
           >
-            <Sparkles size={14} className="text-amber-400" />
+            <Sparkles size={14} className="text-[#E76A54]" />
             <span>Customer Experience</span>
           </motion.div>
 
@@ -337,7 +337,7 @@ export const FeedbackPage: React.FC = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05 }}
-            className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight"
+            className="text-2xl sm:text-3xl lg:text-4xl font-black text-stone-900 tracking-tight leading-tight"
           >
             ✨ How was your Frosty Bite experience?
           </motion.h1>
@@ -346,10 +346,10 @@ export const FeedbackPage: React.FC = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-base text-zinc-400 font-medium"
+            className="text-base text-stone-600 font-medium"
           >
             We'd love to hear from you ❤️
-            <span className="block text-xs text-zinc-500 mt-1 font-normal">
+            <span className="block text-xs text-stone-500 mt-1 font-normal">
               Your feedback helps us make every order sweeter.
             </span>
           </motion.p>
@@ -360,14 +360,14 @@ export const FeedbackPage: React.FC = () => {
           <motion.section
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#0f0f13] border border-white/10 rounded-3xl p-6 shadow-xl space-y-4 text-center"
+            className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-4 text-center"
           >
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-200 text-[#E76A54] flex items-center justify-center mx-auto">
               <ShoppingBag size={24} />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-bold text-white">Find Your Order</h2>
-              <p className="text-xs text-zinc-400">
+              <h2 className="text-lg font-bold text-stone-900">Find Your Order</h2>
+              <p className="text-xs text-stone-500">
                 Enter your order ID from your receipt or WhatsApp message to leave feedback.
               </p>
             </div>
@@ -380,12 +380,12 @@ export const FeedbackPage: React.FC = () => {
                 value={orderSearchId}
                 onChange={(e) => setOrderSearchId(e.target.value)}
                 placeholder="e.g. FB1024 or full Order ID"
-                className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 transition-all font-mono"
+                className="flex-1 bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] focus:bg-white transition-all font-mono"
               />
               <button
                 type="submit"
                 id="feedback-find-order-btn"
-                className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer shadow-lg shadow-amber-500/20 flex items-center gap-2"
+                className="px-5 py-3 bg-[#E76A54] hover:bg-[#d65943] text-white font-bold text-xs uppercase tracking-wider rounded-2xl transition-all cursor-pointer shadow-md shadow-[#E76A54]/20 flex items-center gap-2"
               >
                 <Search size={16} />
                 <span>Verify</span>
@@ -396,18 +396,18 @@ export const FeedbackPage: React.FC = () => {
 
         {/* Loading state */}
         {loadingOrder && (
-          <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-10 text-center space-y-4">
-            <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-zinc-400 font-medium">Verifying order eligibility…</p>
+          <div className="bg-white border border-stone-200/80 rounded-3xl p-10 text-center space-y-4 shadow-sm">
+            <div className="w-10 h-10 border-4 border-[#E76A54] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-stone-600 font-medium">Verifying order eligibility…</p>
           </div>
         )}
 
         {/* Error state */}
         {!loadingOrder && orderError && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-6 text-center space-y-3">
-            <AlertCircle size={32} className="text-red-400 mx-auto" />
-            <h3 className="text-sm font-bold text-white">Order Check</h3>
-            <p className="text-xs text-red-300 max-w-md mx-auto">{orderError}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-3xl p-6 text-center space-y-3">
+            <AlertCircle size={32} className="text-rose-500 mx-auto" />
+            <h3 className="text-sm font-bold text-stone-900">Order Check</h3>
+            <p className="text-xs text-rose-700 max-w-md mx-auto">{orderError}</p>
             <button
               type="button"
               id="feedback-try-different-order-btn"
@@ -416,7 +416,7 @@ export const FeedbackPage: React.FC = () => {
                 setOrderSearchId('');
                 setOrderError(null);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer mt-2"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all cursor-pointer mt-2"
             >
               <span>Try a different Order ID</span>
             </button>
@@ -428,25 +428,25 @@ export const FeedbackPage: React.FC = () => {
           <div className="space-y-6">
 
             {/* Order Card Badge */}
-            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-5 shadow-lg flex items-center justify-between flex-wrap gap-3">
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-5 shadow-sm flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200 text-[#E76A54] flex items-center justify-center shrink-0">
                   <ShoppingBag size={20} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-white font-mono">
+                    <span className="text-sm font-extrabold text-stone-900 font-mono">
                       #{formatOrderId(order.id)}
                     </span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                       isPickup 
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
-                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     }`}>
                       {isPickup ? 'Bakery Pickup' : 'Delivery'}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs text-stone-500 mt-0.5">
                     {order.customer_name || 'Customer'} • ₹{order.total ?? order.total_amount ?? 0}
                   </p>
                 </div>
@@ -459,7 +459,7 @@ export const FeedbackPage: React.FC = () => {
                   setActiveOrderId('');
                   setOrder(null);
                 }}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors font-medium cursor-pointer"
+                className="text-xs text-stone-500 hover:text-stone-900 transition-colors font-medium cursor-pointer"
               >
                 Change Order
               </button>
@@ -470,13 +470,13 @@ export const FeedbackPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-amber-500/10 border border-amber-500/30 rounded-3xl p-6 text-center space-y-3"
+                className="bg-amber-50 border border-amber-200 rounded-3xl p-6 text-center space-y-3"
               >
-                <Clock size={36} className="text-amber-400 mx-auto animate-pulse" />
-                <h2 className="text-base font-bold text-white">
+                <Clock size={36} className="text-amber-500 mx-auto animate-pulse" />
+                <h2 className="text-base font-bold text-stone-900">
                   {isPickup ? 'Order Still Awaiting Collection' : 'Order On Its Way'}
                 </h2>
-                <p className="text-xs text-zinc-300 max-w-md mx-auto leading-relaxed">
+                <p className="text-xs text-stone-600 max-w-md mx-auto leading-relaxed">
                   {isPickup 
                     ? 'Your treats are being prepared with love at Frosty Bite Bakery! Feedback will open as soon as your order has been collected from the counter.'
                     : 'Your sweet treats are still being prepared or are out for delivery. Feedback unlocks once your order arrives safely at your doorstep.'}
@@ -485,7 +485,7 @@ export const FeedbackPage: React.FC = () => {
                   <Link
                     to={`/track/${order.id}`}
                     id="feedback-track-order-btn"
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold rounded-xl transition-all shadow-md shadow-amber-500/20"
+                    className="px-4 py-2 bg-[#E76A54] hover:bg-[#d65943] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
                   >
                     Track Live Order
                   </Link>
@@ -498,34 +498,34 @@ export const FeedbackPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-[#0f0f13] border border-amber-500/30 rounded-3xl p-8 text-center space-y-4 shadow-2xl relative overflow-hidden"
+                className="bg-white border border-stone-200/80 rounded-3xl p-8 text-center space-y-4 shadow-sm relative overflow-hidden"
               >
-                <div className="w-16 h-16 rounded-3xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
+                <div className="w-16 h-16 rounded-3xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
                   <CheckCircle2 size={32} />
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-xl font-black text-white">✨ Feedback Already Received</h2>
-                  <p className="text-sm text-zinc-400">
+                  <h2 className="text-xl font-black text-stone-900">✨ Feedback Already Received</h2>
+                  <p className="text-sm text-stone-500">
                     You have already submitted feedback for order #{formatOrderId(order.id)}. Thank you for supporting Frosty Bite Bakery! ❤️
                   </p>
                 </div>
 
                 {existingReviewData && (
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 max-w-md mx-auto text-left space-y-2">
+                  <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 max-w-md mx-auto text-left space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-400">Your Rating</span>
-                      <div className="flex gap-1 text-amber-400">
+                      <span className="text-xs text-stone-500">Your Rating</span>
+                      <div className="flex gap-1 text-amber-500">
                         {[1, 2, 3, 4, 5].map(s => (
                           <Star 
                             key={s} 
                             size={14} 
-                            className={s <= existingReviewData.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'} 
+                            className={s <= existingReviewData.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'} 
                           />
                         ))}
                       </div>
                     </div>
                     {existingReviewData.comment && (
-                      <p className="text-xs text-zinc-300 italic pt-1 border-t border-white/5">
+                      <p className="text-xs text-stone-700 italic pt-1 border-t border-stone-200">
                         "{existingReviewData.comment}"
                       </p>
                     )}
@@ -536,7 +536,7 @@ export const FeedbackPage: React.FC = () => {
                   <Link
                     to="/"
                     id="feedback-already-reviewed-home-btn"
-                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                    className="px-6 py-2.5 bg-[#E76A54] hover:bg-[#d65943] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm"
                   >
                     Explore Bakery Menu
                   </Link>
@@ -549,27 +549,27 @@ export const FeedbackPage: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-[#0f0f13] border border-amber-500/40 rounded-3xl p-8 sm:p-10 text-center space-y-5 shadow-2xl relative overflow-hidden"
+                className="bg-white border border-stone-200/80 rounded-3xl p-8 sm:p-10 text-center space-y-5 shadow-sm relative overflow-hidden"
               >
-                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
 
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-                  className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 text-black flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/30"
+                  className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#E76A54] to-amber-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20"
                 >
                   <Check size={40} className="stroke-[3]" />
                 </motion.div>
 
                 <div className="space-y-2">
-                  <h2 className="text-2xl sm:text-3xl font-black text-white">
+                  <h2 className="text-2xl sm:text-3xl font-black text-stone-900">
                     ✨ Thank You!
                   </h2>
-                  <p className="text-base text-zinc-300 font-medium">
+                  <p className="text-base text-stone-600 font-medium">
                     Your feedback means a lot to Frosty Bite Bakery. ❤️
                   </p>
-                  <p className="text-xs text-amber-400 font-bold">
+                  <p className="text-xs text-[#E76A54] font-bold">
                     See you again for something sweet! 🍰
                   </p>
                 </div>
@@ -578,14 +578,14 @@ export const FeedbackPage: React.FC = () => {
                   <Link
                     to="/"
                     id="feedback-success-home-btn"
-                    className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-amber-500/20"
+                    className="px-6 py-3 bg-[#E76A54] hover:bg-[#d65943] text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-[#E76A54]/20"
                   >
                     Explore Bakery Menu
                   </Link>
                   <Link
                     to="/orders"
                     id="feedback-success-orders-btn"
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider rounded-2xl transition-all"
+                    className="px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold uppercase tracking-wider rounded-2xl transition-all"
                   >
                     View My Orders
                   </Link>
@@ -599,12 +599,12 @@ export const FeedbackPage: React.FC = () => {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 onSubmit={handleSubmit}
-                className="bg-[#0f0f13] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"
+                className="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6"
               >
                 {/* Part 8: 1-5 Star Rating */}
                 <div className="space-y-3 text-center">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                    Rate Your Experience <span className="text-amber-400">*</span>
+                  <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                    Rate Your Experience <span className="text-[#E76A54]">*</span>
                   </span>
 
                   {/* Stars Group */}
@@ -619,15 +619,15 @@ export const FeedbackPage: React.FC = () => {
                           onClick={() => setRating(star)}
                           onMouseEnter={() => setHoverRating(star)}
                           onMouseLeave={() => setHoverRating(null)}
-                          className="p-1 sm:p-2 rounded-2xl hover:bg-white/5 transition-all transform hover:scale-115 active:scale-95 cursor-pointer focus:outline-none"
+                          className="p-1 sm:p-2 rounded-2xl hover:bg-stone-100 transition-all transform hover:scale-115 active:scale-95 cursor-pointer focus:outline-none"
                           aria-label={`${star} star rating - ${RATING_LABELS[star]}`}
                         >
                           <Star
                             size={36}
                             className={`transition-colors duration-150 ${
                               isFilled
-                                ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)]'
-                                : 'text-zinc-600 hover:text-zinc-400'
+                                ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                                : 'text-stone-300 hover:text-stone-400'
                             }`}
                           />
                         </button>
@@ -636,7 +636,7 @@ export const FeedbackPage: React.FC = () => {
                   </div>
 
                   {/* Visually Obvious Rating Indicator */}
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-sm">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-200 text-[#E76A54] font-extrabold text-sm">
                     <span>
                       {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
                     </span>
@@ -646,12 +646,12 @@ export const FeedbackPage: React.FC = () => {
                 </div>
 
                 {/* Part 9: Quick Feedback Tags */}
-                <div className="space-y-3 pt-2 border-t border-white/5">
+                <div className="space-y-3 pt-2 border-t border-stone-100">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-300">
-                      What made it special? <span className="text-zinc-500 font-normal">(Optional)</span>
+                    <span className="text-xs font-bold text-stone-700">
+                      What made it special? <span className="text-stone-400 font-normal">(Optional)</span>
                     </span>
-                    <span className="text-[10px] text-zinc-500">Tap to select</span>
+                    <span className="text-[10px] text-stone-400">Tap to select</span>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -665,8 +665,8 @@ export const FeedbackPage: React.FC = () => {
                           onClick={() => toggleTag(tag)}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
                             isSelected
-                              ? 'bg-amber-500 text-black border-amber-400 shadow-md shadow-amber-500/20 scale-105'
-                              : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:border-white/20'
+                              ? 'bg-[#E76A54] text-white border-[#E76A54] shadow-xs scale-105'
+                              : 'bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200/70'
                           }`}
                         >
                           {tag}
@@ -677,13 +677,13 @@ export const FeedbackPage: React.FC = () => {
                 </div>
 
                 {/* Part 10: Customer Name (Auto-populated from Checkout page) */}
-                <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="space-y-2 pt-2 border-t border-stone-100">
                   <div className="flex items-center justify-between">
-                    <label htmlFor={feedbackNameInputId} className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <User size={14} className="text-amber-400" />
+                    <label htmlFor={feedbackNameInputId} className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+                      <User size={14} className="text-[#E76A54]" />
                       <span>Your Name</span>
                     </label>
-                    <span className="text-[10px] font-semibold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                    <span className="text-[10px] font-semibold text-[#E76A54] bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200">
                       From Checkout Details
                     </span>
                   </div>
@@ -695,20 +695,20 @@ export const FeedbackPage: React.FC = () => {
                     value={customerNameInput}
                     onChange={(e) => setCustomerNameInput(e.target.value)}
                     placeholder="e.g. Swaleha, Wasif, Rahul"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 transition-all font-sans"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-3.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] focus:bg-white transition-all font-sans"
                   />
-                  <p className="text-[11px] text-zinc-400">
+                  <p className="text-[11px] text-stone-500">
                     Automatically retrieved from your checkout order details. Guest customers can confirm or adjust this name.
                   </p>
                 </div>
 
                 {/* Part 11: Written Feedback */}
-                <div className="space-y-2 pt-2 border-t border-white/5">
+                <div className="space-y-2 pt-2 border-t border-stone-100">
                   <div className="flex items-center justify-between">
-                    <label htmlFor={feedbackCommentInputId} className="text-xs font-bold text-zinc-300">
-                      Tell us more <span className="text-zinc-500 font-normal">(Optional)</span>
+                    <label htmlFor={feedbackCommentInputId} className="text-xs font-bold text-stone-700">
+                      Tell us more <span className="text-stone-400 font-normal">(Optional)</span>
                     </label>
-                    <span className={`text-[10px] font-mono ${comment.length > 450 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                    <span className={`text-[10px] font-mono ${comment.length > 450 ? 'text-[#E76A54]' : 'text-stone-400'}`}>
                       {comment.length} / 500
                     </span>
                   </div>
@@ -720,32 +720,32 @@ export const FeedbackPage: React.FC = () => {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="What did you love about your order?"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 transition-all resize-none font-sans leading-relaxed"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-3.5 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] focus:bg-white transition-all resize-none font-sans leading-relaxed"
                   />
                 </div>
 
                 {/* Part 12: Submission Button */}
-                <div className="pt-4 border-t border-white/5 space-y-3">
+                <div className="pt-4 border-t border-stone-100 space-y-3">
                   <button
                     type="submit"
                     id="feedback-submit-btn"
                     disabled={isSubmitting || !rating}
-                    className="w-full py-4 px-6 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 disabled:opacity-50 text-black font-black text-sm uppercase tracking-wider rounded-2xl transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                    className="w-full py-4 px-6 bg-gradient-to-r from-[#E76A54] to-amber-500 hover:from-[#d65943] hover:to-amber-600 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-[#E76A54]/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         <span>Sending your feedback…</span>
                       </>
                     ) : (
                       <>
-                        <Heart size={18} className="fill-black" />
+                        <Heart size={18} className="fill-white" />
                         <span>Submit Feedback</span>
                       </>
                     )}
                   </button>
 
-                  <p className="text-[11px] text-zinc-500 text-center">
+                  <p className="text-[11px] text-stone-500 text-center">
                     Your review will be associated with order #{formatOrderId(order.id)}. One review per completed order.
                   </p>
                 </div>

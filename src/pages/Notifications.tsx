@@ -48,11 +48,11 @@ export const Notifications: React.FC = () => {
     if (typeof window !== 'undefined') {
       const checkPermission = () => {
         if ('Notification' in window) {
-          setPermission(window.Notification.permission);
+          setPermission((prev) => window.Notification.permission !== prev ? window.Notification.permission : prev);
         }
       };
       checkPermission();
-      const interval = setInterval(checkPermission, 3000);
+      const interval = setInterval(checkPermission, 10000);
       return () => clearInterval(interval);
     }
   }, []);
@@ -343,35 +343,35 @@ export const Notifications: React.FC = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
-                className="mt-4 pt-4 border-t border-white/10 text-xs text-stone-300 space-y-2.5"
+                className="mt-4 pt-4 border-t border-stone-200 text-xs text-stone-600 space-y-2.5"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="bg-black/30 p-2.5 rounded-xl border border-white/10">
-                    <span className="text-[10px] text-stone-400 uppercase font-bold block mb-0.5">Platform</span>
-                    <span className="font-semibold text-white">{clientInfo.platform} ({clientInfo.browser})</span>
+                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold block mb-0.5">Platform</span>
+                    <span className="font-semibold text-stone-900">{clientInfo.platform} ({clientInfo.browser})</span>
                   </div>
-                  <div className="bg-black/30 p-2.5 rounded-xl border border-white/10">
-                    <span className="text-[10px] text-stone-400 uppercase font-bold block mb-0.5">Customer / Session ID</span>
-                    <span className="font-semibold text-white font-mono truncate block">
+                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold block mb-0.5">Customer / Session ID</span>
+                    <span className="font-semibold text-stone-900 font-mono truncate block">
                       {user?.uid ? `UID: ${user.uid.slice(0, 10)}...` : guestSession.slice(0, 14)}
                     </span>
                   </div>
-                  <div className="bg-black/30 p-2.5 rounded-xl border border-white/10">
-                    <span className="text-[10px] text-stone-400 uppercase font-bold block mb-0.5">FCM Service State</span>
-                    <span className="font-semibold text-emerald-400">Firebase Cloud Messaging Active</span>
+                  <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 uppercase font-bold block mb-0.5">FCM Service State</span>
+                    <span className="font-semibold text-emerald-600">Firebase Cloud Messaging Active</span>
                   </div>
                 </div>
 
                 {fcmToken && (
-                  <div className="bg-black/40 p-3 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                  <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 flex items-center justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] text-stone-400 uppercase font-bold block mb-0.5">FCM Registration Token</span>
-                      <p className="font-mono text-[11px] text-stone-300 truncate">{fcmToken}</p>
+                      <span className="text-[10px] text-stone-500 uppercase font-bold block mb-0.5">FCM Registration Token</span>
+                      <p className="font-mono text-[11px] text-stone-700 truncate">{fcmToken}</p>
                     </div>
                     <button
                       type="button"
                       onClick={handleCopyToken}
-                      className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white shrink-0 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-800 shrink-0 transition-colors cursor-pointer"
                       title="Copy FCM Token"
                     >
                       {copiedToken ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}

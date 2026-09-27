@@ -102,10 +102,10 @@ export const PWAInstallPrompt: React.FC = () => {
               onClick={handleInstallClick}
               className={`
                 flex items-center gap-3 px-6 py-3.5 rounded-full font-black text-xs uppercase tracking-widest text-white shadow-2xl transition-all active:scale-95
-                backdrop-blur-2xl border border-white/10 group
+                backdrop-blur-2xl border group
                 ${isInstalledState 
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-400 border-green-400/20 shadow-green-500/20' 
-                  : 'bg-zinc-950/90 border-white/10 hover:border-primary/40 text-white hover:scale-105'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-500 border-emerald-400/20 shadow-emerald-500/20' 
+                  : 'bg-stone-900/95 border-stone-800 hover:border-primary/40 text-stone-100 hover:scale-105'
                 }
               `}
             >
@@ -125,7 +125,7 @@ export const PWAInstallPrompt: React.FC = () => {
             {!isInstalledState && (
               <button 
                 onClick={handleClose}
-                className="p-3.5 bg-zinc-950/90 border border-white/10 rounded-full text-zinc-400 hover:text-white hover:border-white/20 active:scale-90 transition-all shadow-2xl"
+                className="p-3.5 bg-stone-900/95 border border-stone-800 rounded-full text-stone-400 hover:text-white hover:border-stone-700 active:scale-90 transition-all shadow-2xl"
                 aria-label="Dismiss standalone app invitation"
               >
                 <X size={12} />
@@ -145,7 +145,7 @@ export const PWAInstallPrompt: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
             />
 
             {/* Modal Box */}
@@ -153,7 +153,7 @@ export const PWAInstallPrompt: React.FC = () => {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-zinc-950 border border-white/10 rounded-[32px] p-6 text-white overflow-hidden shadow-2xl"
+              className="relative w-full max-w-md bg-white border border-stone-200/90 rounded-[32px] p-6 text-stone-900 overflow-hidden shadow-2xl"
             >
               {/* Aurora background accent */}
               <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -161,17 +161,17 @@ export const PWAInstallPrompt: React.FC = () => {
               {/* Header */}
               <div className="flex items-start justify-between mb-6 relative">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-white/5 border border-white/10 rounded-2xl text-primary">
+                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-2xl text-primary">
                     <Sparkles size={20} className="animate-pulse" />
                   </div>
                   <div>
-                    <h3 className="font-black text-lg uppercase tracking-tight italic">Frosty Bite App</h3>
-                    <p className="text-zinc-500 text-xs uppercase tracking-wider font-extrabold">Open In Standalone Mode</p>
+                    <h3 className="font-black text-lg uppercase tracking-tight italic text-stone-900">Frosty Bite App</h3>
+                    <p className="text-stone-500 text-xs uppercase tracking-wider font-extrabold">Open In Standalone Mode</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="p-2 hover:bg-white/5 border border-transparent hover:border-white/10 rounded-xl text-zinc-400 hover:text-white transition-all"
+                  className="p-2 hover:bg-stone-100 border border-transparent hover:border-stone-200 rounded-xl text-stone-400 hover:text-stone-700 transition-all"
                 >
                   <X size={16} />
                 </button>
@@ -179,52 +179,52 @@ export const PWAInstallPrompt: React.FC = () => {
 
               {/* Instructions Content */}
               <div className="space-y-6 relative mb-6">
-                <p className="text-sm text-zinc-400 leading-relaxed">
+                <p className="text-sm text-stone-600 leading-relaxed">
                   Run Frosty Bite as a standalone desktop or mobile application to enjoy fluid animations, native-like fullscreen tracking, and optimal culinary experiences without browser tabs.
                 </p>
 
                 {installMethod === 'ios' || isIOS ? (
                   // iOS Safari instructions
                   <div className="space-y-4">
-                    <div className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex gap-3 text-xs">
+                    <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl flex gap-3 text-xs">
                       <Smartphone size={16} className="text-primary mt-0.5" />
-                      <span className="text-zinc-300 font-bold uppercase tracking-wider">iOS App Installation</span>
+                      <span className="text-stone-700 font-bold uppercase tracking-wider">iOS App Installation</span>
                     </div>
 
                     <div className="space-y-3.5 pl-2">
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           1
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Open this store inside your iOS <strong className="text-white font-medium">Safari</strong> mobile browser.
+                        <div className="text-sm text-stone-700">
+                          Open this store inside your iOS <strong className="text-stone-900 font-semibold">Safari</strong> mobile browser.
                         </div>
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           2
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Tap the <strong className="text-white font-semibold inline-flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/5"><Share2 size={12} className="text-sky-400" /> Share button</strong> in Safari's bottom tab bar.
+                        <div className="text-sm text-stone-700">
+                          Tap the <strong className="text-stone-900 font-semibold inline-flex items-center gap-1 bg-stone-100 px-2 py-0.5 rounded border border-stone-200"><Share2 size={12} className="text-sky-600" /> Share button</strong> in Safari's bottom tab bar.
                         </div>
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           3
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Scroll down and select <strong className="text-white font-semibold inline-flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/5"><PlusSquare size={12} className="text-primary" /> Add to Home Screen</strong>.
+                        <div className="text-sm text-stone-700">
+                          Scroll down and select <strong className="text-stone-900 font-semibold inline-flex items-center gap-1 bg-stone-100 px-2 py-0.5 rounded border border-stone-200"><PlusSquare size={12} className="text-primary" /> Add to Home Screen</strong>.
                         </div>
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           4
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Launch <strong className="text-white font-semibold">Frosty Bite</strong> from your iPhone & iPad home screen!
+                        <div className="text-sm text-stone-700">
+                          Launch <strong className="text-stone-900 font-semibold">Frosty Bite</strong> from your iPhone & iPad home screen!
                         </div>
                       </div>
                     </div>
@@ -232,36 +232,36 @@ export const PWAInstallPrompt: React.FC = () => {
                 ) : (
                   // Desktop or Android Chrome/Edge instructions
                   <div className="space-y-4">
-                    <div className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex gap-3 text-xs">
+                    <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl flex gap-3 text-xs">
                       <Laptop size={16} className="text-primary mt-0.5" />
-                      <span className="text-zinc-300 font-bold uppercase tracking-wider">Browser App Installation</span>
+                      <span className="text-stone-700 font-bold uppercase tracking-wider">Browser App Installation</span>
                     </div>
 
                     <div className="space-y-3.5 pl-2">
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           1
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Locate the <strong className="text-white font-medium">App Install Icon</strong> standardly found in your browser's horizontal address bar (usually a downward-arrow, screen icon, or `⊕` symbol).
+                        <div className="text-sm text-stone-700">
+                          Locate the <strong className="text-stone-900 font-semibold">App Install Icon</strong> standardly found in your browser's horizontal address bar (usually a downward-arrow, screen icon, or `⊕` symbol).
                         </div>
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           2
                         </div>
-                        <div className="text-sm text-zinc-300 flex-1">
-                          If not visible in the address bar, click your browser's menu button <strong className="text-white inline-flex items-center gap-0.5 bg-white/5 px-1 rounded border border-white/5 border-dashed"><MoreVertical size={11} /> (three dots)</strong> at the upper-right section.
+                        <div className="text-sm text-stone-700 flex-1">
+                          If not visible in the address bar, click your browser's menu button <strong className="text-stone-900 inline-flex items-center gap-0.5 bg-stone-100 px-1 rounded border border-stone-200 border-dashed"><MoreVertical size={11} /> (three dots)</strong> at the upper-right section.
                         </div>
                       </div>
 
                       <div className="flex items-start gap-4">
-                        <div className="w-6.5 h-6.5 rounded-full bg-white/5 border border-white/10 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
+                        <div className="w-6.5 h-6.5 rounded-full bg-orange-50 border border-orange-200 text-xs font-black flex items-center justify-center text-primary flex-shrink-0">
                           3
                         </div>
-                        <div className="text-sm text-zinc-300">
-                          Select <strong className="text-white font-semibold">Install Frosty Bite</strong> or <strong className="text-white font-semibold">Add / Save to Device</strong> from the dropdown checklist.
+                        <div className="text-sm text-stone-700">
+                          Select <strong className="text-stone-900 font-semibold">Install Frosty Bite</strong> or <strong className="text-stone-900 font-semibold">Add / Save to Device</strong> from the dropdown checklist.
                         </div>
                       </div>
                     </div>

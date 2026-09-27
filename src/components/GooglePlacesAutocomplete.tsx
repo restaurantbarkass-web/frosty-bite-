@@ -129,11 +129,11 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
           }}
           onFocus={() => suggestions.length > 0 && setShowDropdown(true)}
           placeholder="Search location, area, or street (powered by MapLibre & OSM)..."
-          className={`w-full bg-zinc-900/90 border ${
-            isInvalid ? 'border-red-500/80 bg-red-950/10' : 'border-white/10'
-          } rounded-2xl px-4 py-3.5 pl-11 pr-10 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-primary/50 transition-all shadow-inner`}
+          className={`w-full bg-stone-50 border ${
+            isInvalid ? 'border-red-500 bg-red-50/50' : 'border-stone-200'
+          } rounded-2xl px-4 py-3.5 pl-11 pr-10 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-primary focus:bg-white transition-all shadow-xs`}
         />
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
 
         {isSearching ? (
           <Loader2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-primary" />
@@ -146,7 +146,7 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
               setShowDropdown(false);
               if (onManualStreetChange) onManualStreetChange('');
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
           >
             <X size={14} />
           </button>
@@ -155,20 +155,20 @@ export const GooglePlacesAutocomplete: React.FC<GooglePlacesAutocompleteProps> =
 
       {/* Nominatim Suggestions Dropdown */}
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/15 rounded-2xl overflow-hidden shadow-2xl z-[1050] max-h-60 overflow-y-auto divide-y divide-white/5">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 rounded-2xl overflow-hidden shadow-2xl z-[1050] max-h-60 overflow-y-auto divide-y divide-stone-100">
           {suggestions.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => handleSelect(item)}
-              className="w-full text-left px-4 py-3 hover:bg-white/10 transition-colors flex items-start gap-3 group"
+              className="w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors flex items-start gap-3 group"
             >
               <MapPin size={16} className="text-primary mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
               <div>
-                <p className="text-xs font-semibold text-white group-hover:text-primary transition-colors">
+                <p className="text-xs font-semibold text-stone-900 group-hover:text-primary transition-colors">
                   {item.text}
                 </p>
-                <p className="text-[10px] text-zinc-400 truncate">{item.place_name}</p>
+                <p className="text-[10px] text-stone-500 truncate">{item.place_name}</p>
               </div>
             </button>
           ))}

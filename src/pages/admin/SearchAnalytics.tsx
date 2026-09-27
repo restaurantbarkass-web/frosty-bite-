@@ -102,24 +102,24 @@ export const SearchAnalytics: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tight">Search Insights</h1>
-          <p className="text-gray-500">Analyze user behavior and trending flavors</p>
+          <h1 className="text-3xl font-black text-stone-900 uppercase tracking-tight">Search Insights</h1>
+          <p className="text-stone-600">Analyze user behavior and trending flavors</p>
         </div>
         <div className="flex items-center gap-2">
             <select 
                 value={timeRange}
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:ring-2 focus:ring-primary outline-none"
+                className="bg-white border border-stone-200 rounded-xl px-4 py-2 text-sm text-stone-800 shadow-sm focus:ring-2 focus:ring-[#E76A54] outline-none"
             >
                 <option value="24h">Last 24 Hours</option>
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
             </select>
-            <button className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white transition-all">
+            <button className="p-2 bg-white border border-stone-200 rounded-xl text-stone-500 hover:text-stone-900 shadow-sm transition-all cursor-pointer">
                 <Download size={20} />
             </button>
         </div>
@@ -138,32 +138,32 @@ export const SearchAnalytics: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="p-6 bg-white/5 border border-white/10 rounded-3xl group hover:border-primary/30 transition-all"
+            className="p-6 bg-white border border-stone-200/80 rounded-3xl group hover:border-[#E76A54]/30 shadow-sm transition-all"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-white/5 rounded-2xl text-primary group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-[#E76A54]/10 rounded-2xl text-[#E76A54] group-hover:scale-110 transition-transform">
                 <stat.icon size={24} />
               </div>
               <div className={cn(
                 "flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full",
-                stat.isUp ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                stat.isUp ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-rose-50 text-rose-600 border border-rose-200"
               )}>
                 {stat.isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                 {stat.trend}
               </div>
             </div>
-            <h4 className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-1">{stat.label}</h4>
-            <div className="text-2xl font-black text-white">{stat.value}</div>
+            <h4 className="text-stone-500 text-xs font-bold uppercase tracking-widest mb-1">{stat.label}</h4>
+            <div className="text-2xl font-black text-stone-900">{stat.value}</div>
           </motion.div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Trending Chart */}
-        <div className="lg:col-span-2 p-8 bg-white/5 border border-white/10 rounded-[32px]">
+        <div className="lg:col-span-2 p-8 bg-white border border-stone-200/80 rounded-[32px] shadow-sm">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-black text-white uppercase tracking-widest flex items-center gap-2">
-              <TrendingUp size={20} className="text-primary" />
+            <h3 className="text-lg font-black text-stone-900 uppercase tracking-widest flex items-center gap-2">
+              <TrendingUp size={20} className="text-[#E76A54]" />
               Volume by Query
             </h3>
           </div>
@@ -179,42 +179,43 @@ export const SearchAnalytics: React.FC = () => {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorSearches" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7dd3fc" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#7dd3fc" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#E76A54" stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor="#E76A54" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
                 <XAxis 
                   dataKey="name" 
-                  stroke="#6b7280" 
+                  stroke="#78716c" 
                   fontSize={10} 
                   fontWeight="bold" 
                   tickLine={false} 
                   axisLine={false} 
-                  tick={{ fill: '#6b7280' }}
+                  tick={{ fill: '#78716c' }}
                 />
                 <YAxis 
-                  stroke="#6b7280" 
+                  stroke="#78716c" 
                   fontSize={10} 
                   fontWeight="bold" 
                   tickLine={false} 
                   axisLine={false} 
-                  tick={{ fill: '#6b7280' }}
+                  tick={{ fill: '#78716c' }}
                 />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#18181b', 
-                    border: '1px solid #3f3f46', 
+                    backgroundColor: '#ffffff', 
+                    border: '1px solid #e7e5e4', 
                     borderRadius: '16px',
-                    color: '#fff'
+                    color: '#1c1917',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                   }}
-                  itemStyle={{ color: '#7dd3fc', fontWeight: 'bold' }}
+                  itemStyle={{ color: '#E76A54', fontWeight: 'bold' }}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="searches" 
-                  stroke="#7dd3fc" 
-                  strokeWidth={4}
+                  stroke="#E76A54" 
+                  strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorSearches)" 
                 />
@@ -224,29 +225,29 @@ export const SearchAnalytics: React.FC = () => {
         </div>
 
         {/* Real-time Log */}
-        <div className="p-8 bg-white/5 border border-white/10 rounded-[32px]">
-          <h3 className="text-lg font-black text-white uppercase tracking-widest mb-8 flex items-center gap-2">
-            <Clock size={20} className="text-primary" />
+        <div className="p-8 bg-white border border-stone-200/80 rounded-[32px] shadow-sm">
+          <h3 className="text-lg font-black text-stone-900 uppercase tracking-widest mb-8 flex items-center gap-2">
+            <Clock size={20} className="text-[#E76A54]" />
             Live Search Log
           </h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
             {recentHistory.map((item, i) => (
-              <div key={i} className="flex items-center gap-4 p-3 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-all">
-                <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-500">
+              <div key={i} className="flex items-center gap-4 p-3 bg-stone-50 rounded-2xl border border-stone-200/60 hover:border-stone-300 transition-all">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-stone-500 shadow-xs border border-stone-200/60">
                   <SearchIcon size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-white text-sm font-bold truncate">"{item.query}"</h4>
-                  <p className="text-[10px] text-gray-500 font-medium">User: {item.user_id.slice(0, 8)}...</p>
+                  <h4 className="text-stone-900 text-sm font-bold truncate">"{item.query}"</h4>
+                  <p className="text-[10px] text-stone-500 font-medium">User: {item.user_id.slice(0, 8)}...</p>
                 </div>
-                <div className="text-[10px] text-gray-600 font-bold whitespace-nowrap">
+                <div className="text-[10px] text-stone-400 font-bold whitespace-nowrap">
                   {formatDate(item.created_at)}
                 </div>
               </div>
             ))}
             {recentHistory.length === 0 && (
-                <div className="text-center py-12 text-gray-600">
-                    <HistoryIcon size={48} className="mx-auto mb-4 opacity-20" />
+                <div className="text-center py-12 text-stone-400">
+                    <HistoryIcon size={48} className="mx-auto mb-4 opacity-30" />
                     <p className="text-xs uppercase font-black">No search activity found</p>
                 </div>
             )}
@@ -255,34 +256,34 @@ export const SearchAnalytics: React.FC = () => {
       </div>
 
       {/* Top Keywords Table */}
-      <div className="p-8 bg-white/5 border border-white/10 rounded-[32px] overflow-hidden">
+      <div className="p-8 bg-white border border-stone-200/80 rounded-[32px] shadow-sm overflow-hidden">
         <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-black text-white uppercase tracking-widest">Keyword Efficiency</h3>
-            <button className="flex items-center gap-2 text-xs font-bold text-primary hover:underline">
+            <h3 className="text-lg font-black text-stone-900 uppercase tracking-widest">Keyword Efficiency</h3>
+            <button className="flex items-center gap-2 text-xs font-bold text-[#E76A54] hover:underline cursor-pointer">
                 View Full Report <ArrowRight size={14} />
             </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-white/10">
-                <th className="pb-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Keyword</th>
-                <th className="pb-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Volume</th>
-                <th className="pb-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Avg Result Size</th>
-                <th className="pb-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">CTR</th>
-                <th className="pb-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Last Peak</th>
+              <tr className="border-b border-stone-200">
+                <th className="pb-4 text-[10px] font-black text-stone-500 uppercase tracking-widest">Keyword</th>
+                <th className="pb-4 text-[10px] font-black text-stone-500 uppercase tracking-widest text-center">Volume</th>
+                <th className="pb-4 text-[10px] font-black text-stone-500 uppercase tracking-widest text-center">Avg Result Size</th>
+                <th className="pb-4 text-[10px] font-black text-stone-500 uppercase tracking-widest text-center">CTR</th>
+                <th className="pb-4 text-[10px] font-black text-stone-500 uppercase tracking-widest text-right">Last Peak</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-stone-100">
               {topSearches.map((item, i) => (
-                <tr key={i} className="group hover:bg-white/5 transition-colors">
-                  <td className="py-4 font-bold text-white uppercase text-sm tracking-wide">{item.query}</td>
+                <tr key={i} className="group hover:bg-stone-50/80 transition-colors">
+                  <td className="py-4 font-bold text-stone-900 uppercase text-sm tracking-wide">{item.query}</td>
                   <td className="py-4 text-center">
-                    <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-lg">{(item.count * 1.5).toFixed(0)}</span>
+                    <span className="px-2 py-1 bg-[#E76A54]/10 text-[#E76A54] text-[10px] font-black rounded-lg">{(item.count * 1.5).toFixed(0)}</span>
                   </td>
-                  <td className="py-4 text-center text-gray-400 text-sm font-medium">12.4</td>
-                  <td className="py-4 text-center text-emerald-500 text-sm font-bold">14.2%</td>
-                  <td className="py-4 text-right text-gray-500 text-[10px] font-bold">
+                  <td className="py-4 text-center text-stone-600 text-sm font-medium">12.4</td>
+                  <td className="py-4 text-center text-emerald-600 text-sm font-bold">14.2%</td>
+                  <td className="py-4 text-right text-stone-500 text-[10px] font-bold">
                     {formatFullDate(item.last_searched)}
                   </td>
                 </tr>

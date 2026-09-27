@@ -834,40 +834,40 @@ export const Profile: React.FC = () => {
 
   if (isGuest && !isCheckoutRegisteredGuest) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 pb-32">
-        <div className="relative w-full max-w-md bg-neutral-900 border border-white/10 rounded-3xl p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-center overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-orange-500/20 to-transparent blur-3xl rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col items-center justify-center p-6 pb-32">
+        <div className="relative w-full max-w-md bg-white border border-stone-200/90 rounded-3xl p-8 shadow-sm text-center overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-orange-500/10 to-transparent blur-3xl rounded-full pointer-events-none" />
 
-          <div className="relative mx-auto w-24 h-24 bg-gradient-to-tr from-orange-600 via-amber-500 to-pink-600 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-xl mb-5 border-4 border-white/10">
+          <div className="relative mx-auto w-24 h-24 bg-gradient-to-tr from-[#E76A54] via-amber-500 to-orange-400 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-md mb-5 border-4 border-white">
             G
-            <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border border-black">
+            <div className="absolute -bottom-1 -right-1 bg-[#E76A54] text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border-2 border-white">
               Guest
             </div>
           </div>
 
-          <h2 className="text-3xl font-black tracking-tight mb-2">Guest User</h2>
-          <p className="text-zinc-400 text-sm leading-relaxed mb-8">
+          <h2 className="text-3xl font-black text-stone-900 tracking-tight mb-2">Guest User</h2>
+          <p className="text-stone-500 text-sm leading-relaxed mb-8">
             Create an account to save your activity, orders, preferences and more.
           </p>
 
           <div className="space-y-3.5">
             <button
               onClick={() => navigate('/login', { state: { defaultMode: 'signup' } })}
-              className="w-full h-13 rounded-2xl bg-gradient-to-r from-primary to-amber-500 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full h-13 rounded-2xl bg-gradient-to-r from-[#E76A54] to-amber-500 text-white font-black text-sm uppercase tracking-wider shadow-md shadow-[#E76A54]/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
               Create Account
             </button>
 
             <button
               onClick={() => navigate('/login', { state: { defaultMode: 'signin' } })}
-              className="w-full h-13 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] text-white font-bold text-sm tracking-wide border border-white/10 hover:border-white/20 active:scale-[0.98] transition-all cursor-pointer"
+              className="w-full h-13 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-sm tracking-wide border border-stone-200 active:scale-[0.98] transition-all cursor-pointer"
             >
               Sign In
             </button>
 
             <button
               onClick={() => navigate('/')}
-              className="w-full py-3 text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer pt-2"
+              className="w-full py-3 text-stone-500 hover:text-stone-900 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer pt-2"
             >
               Continue Browsing
             </button>

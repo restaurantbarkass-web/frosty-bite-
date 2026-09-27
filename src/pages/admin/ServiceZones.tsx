@@ -834,33 +834,33 @@ export const ServiceZones: React.FC = () => {
               <Globe size={28} className="animate-spin" style={{ animationDuration: '10s' }} />
             </div>
             <div>
-              <h1 className="text-4xl font-black tracking-tighter text-white uppercase italic">
-                Service <span className="text-primary italic">Boundaries</span>
+              <h1 className="text-4xl font-black tracking-tighter text-stone-900 uppercase italic">
+                Service <span className="text-[#E76A54] italic">Boundaries</span>
               </h1>
-              <p className="text-gray-500 font-medium">Configure delivery zones, checkout boundaries, and active pincodes dynamically.</p>
+              <p className="text-stone-600 font-medium">Configure delivery zones, checkout boundaries, and active pincodes dynamically.</p>
             </div>
           </div>
         </div>
 
         {/* Tab switchers switcher */}
-        <div className="flex flex-wrap border border-white/5 p-1 bg-[#0a0a0c] rounded-2xl gap-1 w-fit">
+        <div className="flex flex-wrap border border-stone-200 p-1 bg-stone-100 rounded-2xl gap-1 w-fit">
           <button
             onClick={() => setActiveTab('v2')}
-            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'v2'
-                ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
-                : 'text-zinc-400 hover:text-white'
+                ? 'bg-[#E76A54] text-white shadow-sm'
+                : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <ShieldCheck size={12} className="text-orange-400" />
+            <ShieldCheck size={12} className={activeTab === 'v2' ? 'text-white' : 'text-[#E76A54]'} />
             Geofencing V2 Manager
           </button>
           <button
             onClick={() => setActiveTab('diagnostics')}
-            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'diagnostics'
-                ? 'bg-red-500 text-white shadow-lg shadow-red-500/25'
-                : 'text-[#e11d48]/70 hover:text-red-400'
+                ? 'bg-rose-600 text-white shadow-sm'
+                : 'text-rose-700/80 hover:text-rose-900'
             }`}
           >
             <ShieldCheck size={12} />
@@ -872,40 +872,40 @@ export const ServiceZones: React.FC = () => {
       {/* Metrics Banner */}
       {activeTab !== 'v2' && activeTab !== 'diagnostics' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+          <div className="bg-white border border-stone-200/80 p-6 rounded-3xl flex items-center justify-between shadow-sm">
             <div>
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest block text-left">
+              <span className="text-xs font-bold text-stone-500 uppercase tracking-widest block text-left">
                 {activeTab === 'zones' ? 'Total Zones' : activeTab === 'pincodes' ? 'Total Pincodes' : 'Total Localities'}
               </span>
-              <span className="text-3xl font-black text-white mt-1 block text-left">
+              <span className="text-3xl font-black text-stone-900 mt-1 block text-left">
                 {activeTab === 'zones' ? (isLoading ? '...' : zones.length) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : pincodes.length) : (isAreasLoading ? '...' : deliveryAreas.length)}
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] flex items-center justify-center text-primary font-bold">
+            <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-[#E76A54] font-bold">
               {activeTab === 'zones' ? <Map size={22} /> : activeTab === 'pincodes' ? <MapPin size={22} /> : <Sparkles size={22} />}
             </div>
           </div>
 
-          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+          <div className="bg-white border border-stone-200/80 p-6 rounded-3xl flex items-center justify-between shadow-sm">
             <div>
-              <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest block text-left">
+              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest block text-left">
                 Operational Active
               </span>
-              <span className="text-3xl font-black text-white mt-1 block text-left">
+              <span className="text-3xl font-black text-stone-900 mt-1 block text-left">
                 {activeTab === 'zones' ? (isLoading ? '...' : activeZonesCount) : activeTab === 'pincodes' ? (isPincodesLoading ? '...' : activePincodesCount) : (isAreasLoading ? '...' : activeAreasCount)}
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
               <Activity size={22} className="animate-pulse" />
             </div>
           </div>
 
-          <div className="bg-[#0c0c10] border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+          <div className="bg-white border border-stone-200/80 p-6 rounded-3xl flex items-center justify-between shadow-sm">
             <div>
-              <span className="text-xs font-bold text-amber-500 uppercase tracking-widest block text-left">
+              <span className="text-xs font-bold text-amber-700 uppercase tracking-widest block text-left">
                 Inactive / Excluded
               </span>
-              <span className="text-3xl font-black text-white mt-1 block text-left">
+              <span className="text-3xl font-black text-stone-900 mt-1 block text-left">
                 {activeTab === 'zones' 
                   ? (isLoading ? '...' : (zones.length - activeZonesCount)) 
                   : activeTab === 'pincodes'
@@ -913,7 +913,7 @@ export const ServiceZones: React.FC = () => {
                     : (isAreasLoading ? '...' : (deliveryAreas.length - activeAreasCount))}
               </span>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-700">
               <Settings size={22} />
             </div>
           </div>
@@ -922,38 +922,38 @@ export const ServiceZones: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left column depending on active tab */}
-        <div className="lg:col-span-8 bg-[#0a0a0c] border border-white/5 rounded-[32px] p-6 sm:p-8 space-y-6">
+        <div className="lg:col-span-8 bg-white border border-stone-200/80 rounded-[32px] p-6 sm:p-8 space-y-6 shadow-sm">
           {activeTab === 'v2' ? (
             <GeofencingV2Manager />
           ) : activeTab === 'zones' ? (
             <>
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-left">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <CheckCircle size={18} className="text-primary" />
+                  <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                    <CheckCircle size={18} className="text-[#E76A54]" />
                     Operational Delivery Coverage
                   </h2>
-                  <p className="text-xs text-zinc-500 font-medium font-sans">Zones are loaded dynamically by client apps on launch.</p>
+                  <p className="text-xs text-stone-500 font-medium font-sans">Zones are loaded dynamically by client apps on launch.</p>
                 </div>
                 <button 
                   onClick={fetchZones}
-                  className="text-xs font-bold text-primary hover:underline hover:text-primary-hover transition-all"
+                  className="text-xs font-bold text-[#E76A54] hover:underline hover:text-[#d65b45] transition-all cursor-pointer"
                 >
                   Force Refresh
                 </button>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-zinc-500 text-xs">Accessing cloud firestore backend...</p>
+                  <div className="w-10 h-10 border-4 border-[#E76A54] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-stone-500 text-xs">Accessing cloud firestore backend...</p>
                 </div>
               ) : zones.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
-                  <MapPin size={48} className="text-zinc-700 mx-auto animate-bounce" />
-                  <p className="text-zinc-500 text-sm max-w-sm mx-auto">
+                  <MapPin size={48} className="text-stone-300 mx-auto animate-bounce" />
+                  <p className="text-stone-500 text-sm max-w-sm mx-auto">
                     No custom delivery zones created. Client apps are currently using default fallback parameters.
                   </p>
                 </div>
@@ -962,18 +962,18 @@ export const ServiceZones: React.FC = () => {
                   {zones.map((zone) => (
                     <div 
                       key={zone.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-all gap-4"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-stone-50/80 border border-stone-200/80 hover:border-stone-300 hover:bg-stone-100/60 transition-all gap-4"
                     >
                       <div className="space-y-1 text-left">
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${zone.is_active ? 'bg-primary animate-pulse' : 'bg-[#27272a]'}`} />
-                          <h4 className="text-md font-bold text-white uppercase tracking-wide">{zone.city_name}</h4>
-                          <span className="text-[9px] font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{zone.id}</span>
+                          <span className={`w-2 h-2 rounded-full ${zone.is_active ? 'bg-[#E76A54] animate-pulse' : 'bg-stone-400'}`} />
+                          <h4 className="text-md font-bold text-stone-900 uppercase tracking-wide">{zone.city_name}</h4>
+                          <span className="text-[9px] font-mono text-stone-500 bg-stone-200/80 px-2 py-0.5 rounded-full">{zone.id}</span>
                         </div>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-400 font-medium font-mono">
-                          <span className="flex items-center gap-1"><Navigation size={12} className="text-zinc-650" /> Lat: {zone.latitude.toFixed(4)}°</span>
-                          <span className="flex items-center gap-1"><Navigation size={12} className="text-zinc-650" /> Lng: {zone.longitude.toFixed(4)}°</span>
-                          <span className="flex items-center gap-1 text-primary"><Sparkles size={12} /> Limit: {(zone.radius_meters / 1000).toFixed(1)} km</span>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600 font-medium font-mono">
+                          <span className="flex items-center gap-1"><Navigation size={12} className="text-stone-400" /> Lat: {zone.latitude.toFixed(4)}°</span>
+                          <span className="flex items-center gap-1"><Navigation size={12} className="text-stone-400" /> Lng: {zone.longitude.toFixed(4)}°</span>
+                          <span className="flex items-center gap-1 text-[#E76A54] font-semibold"><Sparkles size={12} /> Limit: {(zone.radius_meters / 1000).toFixed(1)} km</span>
                         </div>
                       </div>
 
@@ -982,27 +982,27 @@ export const ServiceZones: React.FC = () => {
                         <button
                           onClick={() => handleToggleActive(zone)}
                           title={zone.is_active ? "Set Inactive" : "Set Active"}
-                          className="text-zinc-400 hover:text-white transition-all flex items-center gap-1.5 p-1 rounded-lg hover:bg-white/5"
+                          className="text-stone-500 hover:text-stone-900 transition-all flex items-center gap-1.5 p-1 rounded-lg hover:bg-stone-200/50 cursor-pointer"
                         >
                           {zone.is_active ? (
-                            <div className="flex items-center gap-1 text-primary">
+                            <div className="flex items-center gap-1 text-[#E76A54]">
                               <span className="text-[10px] font-black tracking-widest uppercase">Active</span>
-                              <ToggleRight size={28} className="text-primary" />
+                              <ToggleRight size={28} className="text-[#E76A54]" />
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1 text-zinc-500">
+                            <div className="flex items-center gap-1 text-stone-400">
                               <span className="text-[10px] font-bold tracking-widest uppercase">Disabled</span>
-                              <ToggleLeft size={28} className="text-zinc-500" />
+                              <ToggleLeft size={28} className="text-stone-400" />
                             </div>
                           )}
                         </button>
 
-                        <div className="w-[1px] h-6 bg-white/10" />
+                        <div className="w-[1px] h-6 bg-stone-200" />
 
                         {/* Delete button */}
                         <button
                           onClick={() => handleDeleteZone(zone)}
-                          className="p-2 text-zinc-500 hover:text-red-400 rounded-xl hover:bg-red-500/10 transition-all"
+                          className="p-2 text-stone-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-all cursor-pointer"
                           title="Remove Zone"
                         >
                           <Trash2 size={16} />
@@ -1018,31 +1018,31 @@ export const ServiceZones: React.FC = () => {
               {/* Pincodes Tab List */}
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-left">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <MapPin size={18} className="text-primary" />
+                  <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                    <MapPin size={18} className="text-[#E76A54]" />
                     Operational Checkout Pincodes
                   </h2>
-                  <p className="text-xs text-zinc-500 font-medium font-sans">These active 6-digit postal codes are matched during checkout to verify delivery availability.</p>
+                  <p className="text-xs text-stone-500 font-medium font-sans">These active 6-digit postal codes are matched during checkout to verify delivery availability.</p>
                 </div>
                 <button 
                   onClick={fetchPincodes}
-                  className="text-xs font-bold text-primary hover:underline hover:text-primary-hover transition-all font-sans"
+                  className="text-xs font-bold text-[#E76A54] hover:underline hover:text-[#d65b45] transition-all font-sans cursor-pointer"
                 >
                   Force Refresh
                 </button>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               {isPincodesLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-zinc-500 text-xs text-sans">Accessing cloud firestore backend...</p>
+                  <div className="w-10 h-10 border-4 border-[#E76A54] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-stone-500 text-xs font-sans">Accessing cloud firestore backend...</p>
                 </div>
               ) : pincodes.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
-                  <MapPin size={48} className="text-zinc-700 mx-auto animate-pulse" />
-                  <p className="text-zinc-500 text-sm max-w-sm mx-auto font-sans">
+                  <MapPin size={48} className="text-stone-300 mx-auto animate-pulse" />
+                  <p className="text-stone-500 text-sm max-w-sm mx-auto font-sans">
                     No custom checkout pincodes found. System is currently running on original default presets.
                   </p>
                 </div>
@@ -1052,14 +1052,14 @@ export const ServiceZones: React.FC = () => {
                     {pincodes.map((pin) => (
                       <div 
                         key={pin.id}
-                        className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-all gap-4 text-left"
+                        className="flex items-center justify-between p-4 rounded-2xl bg-stone-50/80 border border-stone-200/80 hover:border-stone-300 hover:bg-stone-100/60 transition-all gap-4 text-left"
                       >
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${pin.active ? 'bg-primary animate-pulse' : 'bg-zinc-700'}`} />
-                            <span className="text-lg font-black text-white font-mono tracking-widest">{pin.pincode}</span>
+                            <span className={`w-2 h-2 rounded-full ${pin.active ? 'bg-[#E76A54] animate-pulse' : 'bg-stone-400'}`} />
+                            <span className="text-lg font-black text-stone-900 font-mono tracking-widest">{pin.pincode}</span>
                           </div>
-                          <span className="text-[9px] font-mono text-zinc-500 block uppercase tracking-wider">Cuttack Area ({pin.id})</span>
+                          <span className="text-[9px] font-mono text-stone-500 block uppercase tracking-wider">Cuttack Area ({pin.id})</span>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -1067,29 +1067,29 @@ export const ServiceZones: React.FC = () => {
                             onClick={() => handleTogglePincodeActive(pin)}
                             disabled={updatingPincodeIds.includes(pin.id)}
                             title={pin.active ? "Toggle Inactive" : "Toggle Active"}
-                            className="text-zinc-400 hover:text-white transition-all flex items-center p-1 rounded-lg hover:bg-white/5 disabled:opacity-75 disabled:pointer-events-none"
+                            className="text-stone-500 hover:text-stone-900 transition-all flex items-center p-1 rounded-lg hover:bg-stone-200/50 disabled:opacity-75 disabled:pointer-events-none cursor-pointer"
                           >
                             {updatingPincodeIds.includes(pin.id) ? (
-                              <div className="flex items-center gap-1.5 text-primary">
+                              <div className="flex items-center gap-1.5 text-[#E76A54]">
                                 <span className="text-[8px] font-black tracking-widest uppercase animate-pulse">Updating</span>
-                                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
+                                <div className="w-5 h-5 border-2 border-[#E76A54] border-t-transparent rounded-full animate-spin shrink-0" />
                               </div>
                             ) : pin.active ? (
-                              <div className="flex items-center gap-1 text-primary">
+                              <div className="flex items-center gap-1 text-[#E76A54]">
                                 <span className="text-[8px] font-black tracking-widest uppercase">Active</span>
-                                <ToggleRight size={26} className="text-primary" />
+                                <ToggleRight size={26} className="text-[#E76A54]" />
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-zinc-500">
+                              <div className="flex items-center gap-1 text-stone-400">
                                 <span className="text-[8px] font-bold tracking-widest uppercase font-sans">Disabled</span>
-                                <ToggleLeft size={26} className="text-zinc-500" />
+                                <ToggleLeft size={26} className="text-stone-400" />
                               </div>
                             )}
                           </button>
-                          <div className="w-[1px] h-5 bg-white/10" />
+                          <div className="w-[1px] h-5 bg-stone-200" />
                           <button
                             onClick={() => handleDeletePincode(pin)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-all"
+                            className="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
                             title="Remove Pincode"
                           >
                             <Trash2 size={13} />
@@ -1106,31 +1106,31 @@ export const ServiceZones: React.FC = () => {
               {/* Served Localities Areas Tab List */}
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-left">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Sparkles size={18} className="text-primary" />
+                  <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                    <Sparkles size={18} className="text-[#E76A54]" />
                     Operational Served Localities (Cuttack)
                   </h2>
-                  <p className="text-xs text-zinc-500 font-medium font-sans">These localized areas are suggested as users type their delivery address.</p>
+                  <p className="text-xs text-stone-500 font-medium font-sans">These localized areas are suggested as users type their delivery address.</p>
                 </div>
                 <button 
                   onClick={fetchDeliveryAreas}
-                  className="text-xs font-bold text-primary hover:underline hover:text-primary-hover transition-all font-sans"
+                  className="text-xs font-bold text-[#E76A54] hover:underline hover:text-[#d65b45] transition-all font-sans cursor-pointer"
                 >
                   Force Refresh
                 </button>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               {isAreasLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-zinc-500 text-xs text-sans">Accessing cloud firestore backend...</p>
+                  <div className="w-10 h-10 border-4 border-[#E76A54] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-stone-500 text-xs font-sans">Accessing cloud firestore backend...</p>
                 </div>
               ) : deliveryAreas.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
-                  <Sparkles size={48} className="text-zinc-700 mx-auto animate-pulse" />
-                  <p className="text-zinc-500 text-sm max-w-sm mx-auto font-sans">
+                  <Sparkles size={48} className="text-stone-300 mx-auto animate-pulse" />
+                  <p className="text-stone-500 text-sm max-w-sm mx-auto font-sans">
                     No custom delivery areas found. System is currently running on original default presets.
                   </p>
                 </div>
@@ -1140,38 +1140,38 @@ export const ServiceZones: React.FC = () => {
                     {deliveryAreas.map((area) => (
                       <div 
                         key={area.id}
-                        className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.03] transition-all gap-4 text-left"
+                        className="flex items-center justify-between p-4 rounded-2xl bg-stone-50/80 border border-stone-200/80 hover:border-stone-300 hover:bg-stone-100/60 transition-all gap-4 text-left"
                       >
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${area.is_deliverable ? 'bg-[#ff6b00]' : 'bg-[#e11d48]'}`} />
-                            <span className="text-md font-bold text-white tracking-tight">{area.area_name}</span>
+                            <span className={`w-2 h-2 rounded-full ${area.is_deliverable ? 'bg-[#E76A54]' : 'bg-rose-500'}`} />
+                            <span className="text-md font-bold text-stone-900 tracking-tight">{area.area_name}</span>
                           </div>
-                          <span className="text-[10px] font-mono text-zinc-500 block uppercase tracking-wider">Cuttack Area, PIN: {area.pincode} ({area.id})</span>
+                          <span className="text-[10px] font-mono text-stone-500 block uppercase tracking-wider">Cuttack Area, PIN: {area.pincode} ({area.id})</span>
                         </div>
 
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleToggleAreaDeliverable(area)}
                             title={area.is_deliverable ? "Mark Undeliverable" : "Mark Deliverable"}
-                            className="text-zinc-400 hover:text-white transition-all flex items-center p-1 rounded-lg hover:bg-white/5"
+                            className="text-stone-500 hover:text-stone-900 transition-all flex items-center p-1 rounded-lg hover:bg-stone-200/50 cursor-pointer"
                           >
                             {area.is_deliverable ? (
-                              <div className="flex items-center gap-1 text-primary">
+                              <div className="flex items-center gap-1 text-[#E76A54]">
                                 <span className="text-[8px] font-black tracking-widest uppercase">Served</span>
-                                <ToggleRight size={26} className="text-primary" />
+                                <ToggleRight size={26} className="text-[#E76A54]" />
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-red-500">
+                              <div className="flex items-center gap-1 text-rose-600">
                                 <span className="text-[8px] font-bold tracking-widest uppercase font-sans">No Service</span>
-                                <ToggleLeft size={26} className="text-red-500" />
+                                <ToggleLeft size={26} className="text-rose-600" />
                               </div>
                             )}
                           </button>
-                          <div className="w-[1px] h-5 bg-white/10" />
+                          <div className="w-[1px] h-5 bg-stone-200" />
                           <button
                             onClick={() => handleDeleteArea(area)}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg hover:bg-red-500/10 transition-all"
+                            className="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
                             title="Remove Locality"
                           >
                             <Trash2 size={13} />
@@ -1189,38 +1189,38 @@ export const ServiceZones: React.FC = () => {
         </div>
 
         {/* Right column: Create / Edit Form (4 spans) */}
-        <div className="lg:col-span-4 bg-[#0a0a0c] border border-white/5 rounded-[32px] p-6 sm:p-8 space-y-6">
+        <div className="lg:col-span-4 bg-white border border-stone-200/80 rounded-[32px] p-6 sm:p-8 space-y-6 shadow-sm">
           {activeTab === 'zones' ? (
             <>
               <div className="space-y-1 text-left">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus size={18} className="text-primary" />
+                <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Plus size={18} className="text-[#E76A54]" />
                   Add Delivery Zone
                 </h2>
-                <p className="text-xs text-zinc-500 font-medium">Establish a brand new coordinates central geofence.</p>
+                <p className="text-xs text-stone-500 font-medium">Establish a brand new coordinates central geofence.</p>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               {/* Quick presets helper */}
               <div className="space-y-2 text-left">
-                <span className="text-[10px] font-black uppercase text-zinc-500 tracking-wider block">🗺️ Autofill Odisha Presets</span>
+                <span className="text-[10px] font-black uppercase text-stone-500 tracking-wider block">🗺️ Autofill Odisha Presets</span>
                 <div className="flex flex-wrap gap-2">
                   <button 
                     onClick={() => autofillPreset('cuttack')}
-                    className="px-2.5 py-1.5 text-[10px] font-bold bg-[#0d0d12]/80 hover:bg-primary hover:text-white text-zinc-300 rounded-xl border border-white/5 transition-all uppercase tracking-wider"
+                    className="px-2.5 py-1.5 text-[10px] font-bold bg-stone-100 hover:bg-[#E76A54] hover:text-white text-stone-700 rounded-xl border border-stone-200 transition-all uppercase tracking-wider cursor-pointer"
                   >
                     Cuttack
                   </button>
                   <button 
                     onClick={() => autofillPreset('bhubaneswar')}
-                    className="px-2.5 py-1.5 text-[10px] font-bold bg-[#0d0d12]/80 hover:bg-primary hover:text-white text-zinc-300 rounded-xl border border-white/5 transition-all uppercase tracking-wider"
+                    className="px-2.5 py-1.5 text-[10px] font-bold bg-stone-100 hover:bg-[#E76A54] hover:text-white text-stone-700 rounded-xl border border-stone-200 transition-all uppercase tracking-wider cursor-pointer"
                   >
                     Bhubaneswar
                   </button>
                   <button 
                     onClick={() => autofillPreset('puri')}
-                    className="px-2.5 py-1.5 text-[10px] font-bold bg-[#0d0d12]/80 hover:bg-primary hover:text-white text-zinc-300 rounded-xl border border-white/5 transition-all uppercase tracking-wider"
+                    className="px-2.5 py-1.5 text-[10px] font-bold bg-stone-100 hover:bg-[#E76A54] hover:text-white text-stone-700 rounded-xl border border-stone-200 transition-all uppercase tracking-wider cursor-pointer"
                   >
                     Puri
                   </button>
@@ -1229,19 +1229,19 @@ export const ServiceZones: React.FC = () => {
 
               <form onSubmit={handleAddZone} className="space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono">City Name</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono">City Name</label>
                   <input
                     type="text"
                     required
                     value={cityName}
                     onChange={(e) => setCityName(e.target.value)}
                     placeholder="e.g. Cuttack Central"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-semibold"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-semibold"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono">Center Latitude</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono">Center Latitude</label>
                   <input
                     type="number"
                     step="any"
@@ -1249,12 +1249,12 @@ export const ServiceZones: React.FC = () => {
                     value={latitude}
                     onChange={(e) => setLatitude(e.target.value)}
                     placeholder="e.g. 20.4624"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-mono"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-mono"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono">Center Longitude</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono">Center Longitude</label>
                   <input
                     type="number"
                     step="any"
@@ -1262,40 +1262,40 @@ export const ServiceZones: React.FC = () => {
                     value={longitude}
                     onChange={(e) => setLongitude(e.target.value)}
                     placeholder="e.g. 85.8828"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-mono"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-mono"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono">Radius (Meters)</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono">Radius (Meters)</label>
                   <input
                     type="number"
                     required
                     value={radiusMeters}
                     onChange={(e) => setRadiusMeters(e.target.value)}
                     placeholder="e.g. 12000 (12 km)"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-mono"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-mono"
                   />
-                  <span className="text-[10px] text-zinc-500 font-bold tracking-wide italic block font-sans">
+                  <span className="text-[10px] text-stone-500 font-bold tracking-wide italic block font-sans">
                     {(parseInt(radiusMeters, 10) || 0) / 1000} km of operational delivery boundary cover
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <span className="text-[10px] font-black uppercase text-zinc-300 tracking-widest font-mono">Active Status</span>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[10px] font-black uppercase text-stone-700 tracking-widest font-mono">Active Status</span>
                   <button
                     type="button"
                     onClick={() => setIsActive(!isActive)}
-                    className="text-primary hover:scale-105 transition-transform"
+                    className="text-[#E76A54] hover:scale-105 transition-transform cursor-pointer"
                   >
-                    {isActive ? <ToggleRight size={32} /> : <ToggleLeft size={32} className="text-zinc-500" />}
+                    {isActive ? <ToggleRight size={32} className="text-[#E76A54]" /> : <ToggleLeft size={32} className="text-stone-400" />}
                   </button>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="w-full h-12 rounded-xl bg-[#E76A54] hover:bg-[#d65b45] text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md shadow-[#E76A54]/25 disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1309,9 +1309,9 @@ export const ServiceZones: React.FC = () => {
               </form>
 
               {/* Quick Info Box */}
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-3 text-left">
-                <Info size={16} className="text-zinc-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold">
+              <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200/60 flex items-start gap-3 text-left">
+                <Info size={16} className="text-[#E76A54] shrink-0 mt-0.5" />
+                <p className="text-[10px] text-stone-600 leading-relaxed font-semibold">
                   Clients periodically refresh geographic locations. When a service zone is Disabled (Inactive), it behaves as a fallback that is barred from active delivery matches. Ensure accurate central lat/lng markers.
                 </p>
               </div>
@@ -1320,18 +1320,18 @@ export const ServiceZones: React.FC = () => {
             <>
               {/* Dynamic Pincode Add Form */}
               <div className="space-y-1 text-left">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus size={18} className="text-primary" />
+                <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Plus size={18} className="text-[#E76A54]" />
                   Add Service Pincode
                 </h2>
-                <p className="text-xs text-zinc-500 font-medium">Register a valid 6-digit local postal dispatch area code.</p>
+                <p className="text-xs text-stone-500 font-medium">Register a valid 6-digit local postal dispatch area code.</p>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               <form onSubmit={handleAddPincode} className="space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono">Postal Pincode</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono">Postal Pincode</label>
                   <input
                     type="text"
                     required
@@ -1339,25 +1339,25 @@ export const ServiceZones: React.FC = () => {
                     value={newPincode}
                     onChange={(e) => setNewPincode(e.target.value.replace(/\D/g, ''))}
                     placeholder="e.g. 753001"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-mono tracking-widest text-sm font-bold"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-mono tracking-widest text-sm font-bold"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <span className="text-[10px] font-black uppercase text-zinc-300 tracking-widest font-mono font-sans">Active Status</span>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[10px] font-black uppercase text-stone-700 tracking-widest font-mono font-sans">Active Status</span>
                   <button
                     type="button"
                     onClick={() => setNewPincodeActive(!newPincodeActive)}
-                    className="text-primary hover:scale-105 transition-transform"
+                    className="text-[#E76A54] hover:scale-105 transition-transform cursor-pointer"
                   >
-                    {newPincodeActive ? <ToggleRight size={32} className="text-primary" /> : <ToggleLeft size={32} className="text-zinc-500" />}
+                    {newPincodeActive ? <ToggleRight size={32} className="text-[#E76A54]" /> : <ToggleLeft size={32} className="text-stone-400" />}
                   </button>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmittingPincode}
-                  className="w-full h-12 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="w-full h-12 rounded-xl bg-[#E76A54] hover:bg-[#d65b45] text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md shadow-[#E76A54]/25 disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmittingPincode ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1371,9 +1371,9 @@ export const ServiceZones: React.FC = () => {
               </form>
 
               {/* Quick Info Box */}
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-3 text-left">
-                <Info size={16} className="text-zinc-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold">
+              <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200/60 flex items-start gap-3 text-left">
+                <Info size={16} className="text-[#E76A54] shrink-0 mt-0.5" />
+                <p className="text-[10px] text-stone-600 leading-relaxed font-semibold">
                   This pincode list serves as a reliable checkout gate. When customers fill out their address during billing, the system verifies Cuttack as the city and parses this exact register. Feel free to toggle or add anytime.
                 </p>
               </div>
@@ -1382,30 +1382,30 @@ export const ServiceZones: React.FC = () => {
             <>
               {/* Served Locality Add Form */}
               <div className="space-y-1 text-left">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus size={18} className="text-primary" />
+                <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                  <Plus size={18} className="text-[#E76A54]" />
                   Add Served Locality
                 </h2>
-                <p className="text-xs text-zinc-500 font-medium">Add served area names for checkout autocomplete suggestions.</p>
+                <p className="text-xs text-stone-500 font-medium">Add served area names for checkout autocomplete suggestions.</p>
               </div>
 
-              <div className="w-full h-[1px] bg-white/5" />
+              <div className="w-full h-[1px] bg-stone-200/80" />
 
               <form onSubmit={handleAddArea} className="space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono font-sans font-black">Area / Locality Name</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono font-sans font-black">Area / Locality Name</label>
                   <input
                     type="text"
                     required
                     value={newAreaName}
                     onChange={(e) => setNewAreaName(e.target.value)}
                     placeholder="e.g. CDA Sector 9"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-bold tracking-wide"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-bold tracking-wide"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest block font-mono font-sans font-black">Matching Pincode</label>
+                  <label className="text-[10px] font-black uppercase text-stone-600 tracking-widest block font-mono font-sans font-black">Matching Pincode</label>
                   <input
                     type="text"
                     required
@@ -1413,25 +1413,25 @@ export const ServiceZones: React.FC = () => {
                     value={newAreaPincode}
                     onChange={(e) => setNewAreaPincode(e.target.value.replace(/\D/g, ''))}
                     placeholder="e.g. 753014"
-                    className="w-full h-12 px-4 rounded-xl bg-[#0d0d12] border border-white/5 text-white placeholder-zinc-700 text-xs focus:outline-none focus:border-primary/50 transition-all font-mono tracking-widest text-sm font-bold"
+                    className="w-full h-12 px-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 placeholder-stone-400 text-xs focus:outline-none focus:border-[#E76A54] transition-all font-mono tracking-widest text-sm font-bold"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <span className="text-[10px] font-black uppercase text-zinc-300 tracking-widest font-mono font-sans font-bold font-black">Served Status</span>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
+                  <span className="text-[10px] font-black uppercase text-stone-700 tracking-widest font-mono font-sans font-bold font-black">Served Status</span>
                   <button
                     type="button"
                     onClick={() => setNewAreaDeliverable(!newAreaDeliverable)}
-                    className="text-primary hover:scale-105 transition-transform"
+                    className="text-[#E76A54] hover:scale-105 transition-transform cursor-pointer"
                   >
-                    {newAreaDeliverable ? <ToggleRight size={32} className="text-primary" /> : <ToggleLeft size={32} className="text-zinc-500" />}
+                    {newAreaDeliverable ? <ToggleRight size={32} className="text-[#E76A54]" /> : <ToggleLeft size={32} className="text-stone-400" />}
                   </button>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSubmittingArea}
-                  className="w-full h-12 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  className="w-full h-12 rounded-xl bg-[#E76A54] hover:bg-[#d65b45] text-white font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md shadow-[#E76A54]/25 disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmittingArea ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1445,9 +1445,9 @@ export const ServiceZones: React.FC = () => {
               </form>
 
               {/* Quick Info Box */}
-              <div className="p-4 rounded-2xl bg-white/[0.01] border border-white/5 flex items-start gap-3 text-left">
-                <Info size={16} className="text-zinc-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-zinc-500 leading-relaxed font-semibold">
+              <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200/60 flex items-start gap-3 text-left">
+                <Info size={16} className="text-[#E76A54] shrink-0 mt-0.5" />
+                <p className="text-[10px] text-stone-600 leading-relaxed font-semibold">
                   This collection feeds the high-velocity address autocomplete on checkout. When users search for deliveries, they are immediately shown if Frosty Bite serves their neighborhood. Ensure matching pincodes are activated in the Active Pincodes tab for smooth processing.
                 </p>
               </div>
@@ -1468,27 +1468,27 @@ export const ServiceZones: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => { if (!isDeletingPincode) setPincodeToDelete(null); }}
-              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
+              className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
             />
             {/* Modal Body */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-[#0d0d12]/95 p-6 shadow-2xl text-left z-10"
+              className="relative w-full max-w-sm overflow-hidden rounded-[28px] border border-stone-200 bg-white p-6 shadow-2xl text-left z-10"
             >
-              <div className="flex items-center gap-3 text-red-400 mb-3">
-                <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20">
-                  <ShieldAlert size={20} className="stroke-2 text-[#FF4D6D]" />
+              <div className="flex items-center gap-3 text-rose-600 mb-3">
+                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200">
+                  <ShieldAlert size={20} className="stroke-2 text-rose-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Remove Pincode?</h3>
-                  <p className="text-[9px] text-[#FF4D6D] font-black uppercase tracking-wider">Destructive Operation</p>
+                  <h3 className="text-base font-black text-stone-900">Remove Pincode?</h3>
+                  <p className="text-[9px] text-rose-600 font-black uppercase tracking-wider">Destructive Operation</p>
                 </div>
               </div>
               
-              <p className="text-zinc-400 text-xs leading-relaxed mb-6">
-                Are you sure you want to delete the operational pincode <span className="text-white font-mono font-black text-sm tracking-widest bg-white/5 px-2 py-0.5 rounded border border-white/10">{pincodeToDelete.pincode}</span>? Users in this area will immediately lose geofenced access. This action cannot be undone.
+              <p className="text-stone-600 text-xs leading-relaxed mb-6">
+                Are you sure you want to delete the operational pincode <span className="text-stone-900 font-mono font-black text-sm tracking-widest bg-stone-100 px-2 py-0.5 rounded border border-stone-200">{pincodeToDelete.pincode}</span>? Users in this area will immediately lose geofenced access. This action cannot be undone.
               </p>
 
               <div className="flex gap-3">
@@ -1496,7 +1496,7 @@ export const ServiceZones: React.FC = () => {
                   type="button"
                   disabled={isDeletingPincode}
                   onClick={() => setPincodeToDelete(null)}
-                  className="flex-1 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="flex-1 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1504,7 +1504,7 @@ export const ServiceZones: React.FC = () => {
                   type="button"
                   disabled={isDeletingPincode}
                   onClick={performDeletePincode}
-                  className="flex-1 h-10 rounded-xl bg-[#FF4D6D] hover:bg-[#FF4D6D]/95 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 h-10 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-rose-600/20"
                 >
                   {isDeletingPincode ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1687,38 +1687,38 @@ $$ LANGUAGE plpgsql;`
         </button>
       </div>
 
-      <div className="w-full h-[1px] bg-white/5" />
+      <div className="w-full h-[1px] bg-stone-200/80" />
 
       {/* Grid status matrix */}
-      <div className="bg-[#0e0e12] border border-white/5 rounded-2xl overflow-hidden">
+      <div className="bg-stone-50 border border-stone-200/80 rounded-2xl overflow-hidden shadow-xs">
         <div className="max-h-[350px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left border-collapse font-sans">
             <thead>
-              <tr className="border-b border-white/5 bg-white/[0.01]">
-                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">Database Table Name</th>
-                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">SELECT (Read Access)</th>
-                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">INSERT (Write Access)</th>
-                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-zinc-500">Security State</th>
+              <tr className="border-b border-stone-200 bg-stone-100/70">
+                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-stone-600">Database Table Name</th>
+                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-stone-600">SELECT (Read Access)</th>
+                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-stone-600">INSERT (Write Access)</th>
+                <th className="p-4 text-[10px] uppercase font-black tracking-widest text-stone-600">Security State</th>
               </tr>
             </thead>
             <tbody>
               {testResults.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-zinc-500 text-xs">
+                  <td colSpan={4} className="p-8 text-center text-stone-500 text-xs">
                     Initializing assessment scan...
                   </td>
                 </tr>
               ) : (
                 testResults.map((res) => (
-                  <tr key={res.table} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors">
-                    <td className="p-4 font-mono text-xs font-bold text-white">{res.table}</td>
+                  <tr key={res.table} className="border-b border-stone-200/60 hover:bg-stone-100/40 transition-colors">
+                    <td className="p-4 font-mono text-xs font-bold text-stone-900">{res.table}</td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                         res.select.includes('✅') 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                           : res.select.includes('❓')
-                            ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/10'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            ? 'bg-stone-100 text-stone-600 border border-stone-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}>
                         {res.select}
                       </span>
@@ -1726,10 +1726,10 @@ $$ LANGUAGE plpgsql;`
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                         res.insert.includes('✅') 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                           : res.insert.includes('❓')
-                            ? 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/10'
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            ? 'bg-stone-100 text-stone-600 border border-stone-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}>
                         {res.insert}
                       </span>
@@ -1737,17 +1737,17 @@ $$ LANGUAGE plpgsql;`
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${
                         res.status === 'ok' 
-                          ? 'text-emerald-400' 
+                          ? 'text-emerald-700' 
                           : res.status === 'missing'
-                            ? 'text-zinc-500'
-                            : 'text-red-400'
+                            ? 'text-stone-500'
+                            : 'text-rose-600'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           res.status === 'ok' 
-                            ? 'bg-emerald-400' 
+                            ? 'bg-emerald-500' 
                             : res.status === 'missing'
-                              ? 'bg-zinc-500'
-                              : 'bg-red-500'
+                            ? 'bg-stone-400'
+                            : 'bg-rose-500'
                         }`} />
                         {res.status === 'ok' 
                           ? 'Access Permissive' 
@@ -1767,47 +1767,47 @@ $$ LANGUAGE plpgsql;`
       {/* SQL Remedy Section */}
       <div className="space-y-4">
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">🛠️ SQL Recovery Terminal Remedies</h3>
-          <p className="text-[11px] text-zinc-500">
+          <h3 className="text-sm font-bold text-stone-900 uppercase tracking-wider">🛠️ SQL Recovery Terminal Remedies</h3>
+          <p className="text-[11px] text-stone-500">
             If any table fails testing, toggle its security options or deploy active permissive policies using your Supabase SQL Editor.
           </p>
         </div>
 
         {/* Tab Selection */}
-        <div className="flex border border-white/5 space-x-1 p-1 bg-[#121218] rounded-xl w-fit">
+        <div className="flex border border-stone-200 space-x-1 p-1 bg-stone-100 rounded-xl w-fit">
           <button
             onClick={() => setActiveSqlTab('rules')}
-            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all ${
-              activeSqlTab === 'rules' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-350'
+            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all cursor-pointer ${
+              activeSqlTab === 'rules' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
             }`}
           >
             Deploy RLS Rules
           </button>
           <button
             onClick={() => setActiveSqlTab('bypass')}
-            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all ${
-              activeSqlTab === 'bypass' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-350'
+            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all cursor-pointer ${
+              activeSqlTab === 'bypass' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
             }`}
           >
             Bypass / Disable RLS
           </button>
           <button
             onClick={() => setActiveSqlTab('rpc')}
-            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all ${
-              activeSqlTab === 'rpc' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-350'
+            className={`px-3 py-1.5 rounded-lg font-bold text-[9px] uppercase tracking-wider transition-all cursor-pointer ${
+              activeSqlTab === 'rpc' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-500 hover:text-stone-800'
             }`}
           >
             Policy Checker SQL View
           </button>
         </div>
 
-        <div className="relative bg-[#07070a] border border-white/5 rounded-2xl p-4 font-mono text-[10px] leading-relaxed text-zinc-400 overflow-x-auto text-left">
-          <pre className="whitespace-pre overflow-x-auto max-h-[160px] custom-scrollbar selection:bg-primary/30">
+        <div className="relative bg-[#1C1917] border border-stone-800 rounded-2xl p-4 font-mono text-[10px] leading-relaxed text-stone-300 overflow-x-auto text-left shadow-inner">
+          <pre className="whitespace-pre overflow-x-auto max-h-[160px] custom-scrollbar selection:bg-[#E76A54]/30">
             <code>{sqlSnippets[activeSqlTab]}</code>
           </pre>
           <button
             onClick={() => copySqlToClipboard(sqlSnippets[activeSqlTab])}
-            className="absolute top-3 right-3 px-2.5 py-1.5 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-xs text-white border border-white/10 font-sans font-bold flex items-center justify-center gap-1 cursor-pointer transition-all uppercase tracking-widest text-[9px]"
+            className="absolute top-3 right-3 px-2.5 py-1.5 h-7 rounded-lg bg-stone-800 hover:bg-stone-700 active:scale-95 text-xs text-stone-200 border border-stone-700 font-sans font-bold flex items-center justify-center gap-1 cursor-pointer transition-all uppercase tracking-widest text-[9px]"
           >
             {copiedText ? 'Copied!' : 'Copy SQL'}
           </button>

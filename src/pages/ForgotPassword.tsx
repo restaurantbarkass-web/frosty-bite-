@@ -152,20 +152,20 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#050505] px-4 py-12">
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-[#FAF8F5] text-stone-900 px-4 py-12">
       {/* Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-600/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-900/10 rounded-full blur-[120px]" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-500/10 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/10 rounded-full blur-[120px]" />
 
       {/* Back Button */}
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         onClick={() => navigate('/login')}
-        className="absolute top-8 left-8 z-20 flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
+        className="absolute top-8 left-8 z-20 flex items-center gap-2 text-stone-600 hover:text-stone-950 transition-colors group cursor-pointer"
       >
-        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 transition-all">
-          <ArrowLeft size={20} />
+        <div className="w-10 h-10 rounded-full bg-white border border-stone-200 shadow-xs flex items-center justify-center group-hover:bg-stone-50 transition-all">
+          <ArrowLeft size={18} />
         </div>
         <span className="text-xs font-black uppercase tracking-widest hidden sm:block">Back to Login</span>
       </motion.button>
@@ -178,16 +178,16 @@ const ForgotPassword = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="bg-white border border-stone-200/90 rounded-3xl p-8 sm:p-10 shadow-sm space-y-8"
             >
               <div className="text-center">
-                <div id="forgot_icon_card" className="w-20 h-20 bg-primary/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-primary/20">
-                  <KeyRound className="text-primary animate-pulse" size={40} />
+                <div id="forgot_icon_card" className="w-20 h-20 bg-orange-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-orange-200">
+                  <KeyRound className="text-[#E76A54] animate-pulse" size={38} />
                 </div>
-                <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">
+                <h1 className="text-3xl font-black text-stone-900 uppercase tracking-tight mb-2">
                   Reset Password
                 </h1>
-                <p className="text-zinc-500 font-medium">
+                <p className="text-stone-600 text-sm font-medium">
                   Enter your email address to receive a secure recovery code to reset your password.
                 </p>
               </div>
@@ -208,7 +208,7 @@ const ForgotPassword = () => {
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs py-3 px-4 rounded-xl font-bold italic"
+                    className="bg-red-50 border border-red-200 text-red-600 text-xs py-3 px-4 rounded-xl font-bold"
                     id="forgot_error_msg"
                   >
                     {error}
@@ -218,7 +218,7 @@ const ForgotPassword = () => {
                 <Button
                   id="forgot_send_btn"
                   type="submit"
-                  className="w-full"
+                  className="w-full bg-[#E76A54] hover:bg-[#d65943] text-white shadow-md shadow-[#E76A54]/20"
                   disabled={loading || !email.trim()}
                 >
                   {loading ? (
@@ -234,7 +234,7 @@ const ForgotPassword = () => {
                 <div className="text-center">
                   <Link
                     to="/login"
-                    className="inline-flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-xs font-black uppercase tracking-widest py-2"
+                    className="inline-flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-xs font-black uppercase tracking-widest py-2"
                   >
                     <ArrowLeft size={14} />
                     Back to login
@@ -250,23 +250,23 @@ const ForgotPassword = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="bg-white border border-stone-200/90 rounded-3xl p-8 sm:p-10 shadow-sm space-y-8"
             >
               <div className="text-center">
-                <div id="verify_otp_icon" className="w-20 h-20 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-emerald-500/20 animate-bounce">
-                  <ShieldCheck className="text-emerald-500" size={40} />
+                <div id="verify_otp_icon" className="w-20 h-20 bg-emerald-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 border border-emerald-200">
+                  <ShieldCheck className="text-emerald-600" size={40} />
                 </div>
-                <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">
+                <h1 className="text-3xl font-black text-stone-900 uppercase tracking-tight mb-2">
                   Check Your Inbox
                 </h1>
-                <p className="text-zinc-500 font-medium">
-                  We sent a 6-digit verification code to <span className="text-white font-bold">{email}</span>. Please enter the code along with your new password below.
+                <p className="text-stone-600 text-sm font-medium">
+                  We sent a 6-digit verification code to <span className="text-stone-900 font-bold">{email}</span>. Please enter the code along with your new password below.
                 </p>
               </div>
 
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="block text-xs font-black uppercase tracking-wider text-zinc-400 text-center">
+                  <label className="block text-xs font-black uppercase tracking-wider text-stone-600 text-center">
                     6-Digit Verification Code
                   </label>
                   <OtpInput
@@ -297,7 +297,7 @@ const ForgotPassword = () => {
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="bg-red-500/10 border border-red-500/20 text-red-500 text-xs py-3 px-4 rounded-xl font-bold italic"
+                    className="bg-red-50 border border-red-200 text-red-600 text-xs py-3 px-4 rounded-xl font-bold"
                     id="reset_error_msg"
                   >
                     {error}
@@ -307,7 +307,7 @@ const ForgotPassword = () => {
                 <Button
                   id="forgot_reset_btn"
                   type="submit"
-                  className="w-full mt-2"
+                  className="w-full mt-2 bg-[#E76A54] hover:bg-[#d65943] text-white shadow-md shadow-[#E76A54]/20"
                   disabled={loading || otpCode.length < 6 || newPassword.length < 6}
                 >
                   {loading ? (
@@ -320,11 +320,11 @@ const ForgotPassword = () => {
                   )}
                 </Button>
 
-                <div className="flex items-center justify-between text-xs font-bold pt-4 text-zinc-500 uppercase tracking-wider">
+                <div className="flex items-center justify-between text-xs font-bold pt-4 text-stone-500 uppercase tracking-wider">
                   <button
                     type="button"
                     onClick={() => setStep('send_otp')}
-                    className="hover:text-white transition-colors"
+                    className="hover:text-stone-900 transition-colors cursor-pointer"
                   >
                     Change Email
                   </button>
@@ -333,7 +333,7 @@ const ForgotPassword = () => {
                     type="button"
                     onClick={handleResendOtp}
                     disabled={resendTimer > 0 || loading}
-                    className="flex items-center gap-1.5 hover:text-white transition-colors disabled:opacity-40 disabled:hover:text-zinc-500"
+                    className="flex items-center gap-1.5 hover:text-stone-900 transition-colors disabled:opacity-40 disabled:hover:text-stone-400 cursor-pointer"
                   >
                     <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
                     {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
@@ -348,20 +348,20 @@ const ForgotPassword = () => {
               key="reset-success-container"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="glass p-8 rounded-3xl border border-emerald-500/20 text-center space-y-6"
+              className="bg-white p-8 rounded-3xl border border-emerald-200 shadow-sm text-center space-y-6"
             >
-              <div id="success_tick_circle" className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
-                <CheckCircle2 className="text-emerald-500" size={32} />
+              <div id="success_tick_circle" className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto border border-emerald-200">
+                <CheckCircle2 className="text-emerald-600" size={32} />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-black text-white uppercase italic tracking-tight">Password Reset Complete!</h3>
-                <p className="text-zinc-400 text-sm leading-relaxed">
+                <h3 className="text-2xl font-black text-stone-900 uppercase tracking-tight">Password Reset Complete!</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">
                   Your customized password has been securely updated and stored in your profile registry. You can now sign in immediately using your new credentials.
                 </p>
               </div>
               <Button
                 id="forgot_success_login_btn"
-                className="w-full"
+                className="w-full bg-[#E76A54] hover:bg-[#d65943] text-white shadow-md shadow-[#E76A54]/20"
                 onClick={() => navigate('/login')}
               >
                 Go to Login

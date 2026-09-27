@@ -204,34 +204,34 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
   const currStatusStyle = statusColors[status] || statusColors.pending;
 
   return (
-    <div className="fixed inset-0 z-[120] bg-[#09090b] text-zinc-100 flex flex-col overflow-hidden font-sans">
+    <div className="fixed inset-0 z-[120] bg-[#FAF8F5] text-stone-900 flex flex-col overflow-hidden font-sans">
       {/* Top Header Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-[#0d0d12]/90 backdrop-blur-xl border-b border-white/10 px-4 sm:px-8 py-4 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-xl border-b border-stone-200/80 px-4 sm:px-8 py-4 flex items-center justify-between gap-4 shadow-xs">
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white transition-all active:scale-95 flex items-center gap-2 group"
+            className="p-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 transition-all active:scale-95 flex items-center gap-2 group cursor-pointer"
           >
             <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
             <span className="text-sm font-semibold hidden sm:inline">Back to Dashboard</span>
           </button>
 
-          <div className="h-6 w-[1px] bg-white/10 hidden sm:block" />
+          <div className="h-6 w-[1px] bg-stone-200 hidden sm:block" />
 
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                Order <span className="font-mono text-primary">#{formatOrderId(order.id)}</span>
+              <h1 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight flex items-center gap-2">
+                Order <span className="font-mono text-[#E76A54]">#{formatOrderId(order.id)}</span>
               </h1>
               <span className={`px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider rounded-full border ${currStatusStyle.bg} ${currStatusStyle.text} ${currStatusStyle.border}`}>
                 {status.replace(/_/g, ' ')}
               </span>
-              <span className="px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider rounded-full border bg-white/5 border-white/10 text-zinc-300 flex items-center gap-1">
-                {orderType === 'pickup' ? <ShoppingBag size={12} className="text-amber-400" /> : <Truck size={12} className="text-cyan-400" />}
+              <span className="px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider rounded-full border bg-stone-100 border-stone-200 text-stone-700 flex items-center gap-1">
+                {orderType === 'pickup' ? <ShoppingBag size={12} className="text-amber-600" /> : <Truck size={12} className="text-teal-600" />}
                 {orderType.toUpperCase()}
               </span>
             </div>
-            <p className="text-xs text-zinc-400 hidden sm:block mt-0.5">
+            <p className="text-xs text-stone-500 hidden sm:block mt-0.5">
               Created: {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
             </p>
           </div>
@@ -243,7 +243,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
             <button
               type="button"
               onClick={() => onPrintKOT(order)}
-              className="p-2.5 sm:px-4 sm:py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 hover:text-white text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
+              className="p-2.5 sm:px-4 sm:py-2.5 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 text-xs font-bold transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
               title="Print Receipt / KOT"
             >
               <Printer size={16} />
@@ -254,7 +254,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           <button
             type="button"
             onClick={handleWhatsAppCustomer}
-            className="p-2.5 sm:px-4 sm:py-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all active:scale-95 flex items-center gap-2"
+            className="p-2.5 sm:px-4 sm:py-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-xs font-bold transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
             title="WhatsApp Customer"
           >
             <MessageSquare size={16} />
@@ -265,10 +265,10 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
             type="button"
             onClick={() => handleSave()}
             disabled={saving}
-            className={`px-5 py-2.5 rounded-2xl font-bold text-xs shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
+            className={`px-5 py-2.5 rounded-2xl font-bold text-xs shadow-md transition-all active:scale-95 flex items-center gap-2 cursor-pointer ${
               hasChanges 
-                ? 'bg-primary text-white hover:bg-orange-600 shadow-primary/20 animate-pulse' 
-                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                ? 'bg-[#E76A54] text-white hover:bg-[#d85842] shadow-[#E76A54]/20 animate-pulse' 
+                : 'bg-stone-800 text-white hover:bg-stone-700'
             }`}
           >
             {saving ? (
@@ -290,15 +290,15 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center justify-between gap-4"
+              className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between gap-4"
             >
               <div className="flex items-center gap-3 text-xs sm:text-sm font-semibold">
-                <AlertTriangle size={18} className="shrink-0 text-amber-400" />
+                <AlertTriangle size={18} className="shrink-0 text-amber-600" />
                 <span>You have unsaved changes to this order. Remember to click <strong>"Save Changes"</strong>.</span>
               </div>
               <button
                 onClick={() => handleSave()}
-                className="px-4 py-1.5 rounded-xl bg-amber-500 text-black font-bold text-xs hover:bg-amber-400 transition-all shrink-0"
+                className="px-4 py-1.5 rounded-xl bg-[#E76A54] text-white font-bold text-xs hover:bg-[#d85842] transition-all shrink-0 cursor-pointer shadow-xs"
               >
                 Save Now
               </button>
@@ -313,14 +313,14 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           <div className="lg:col-span-8 space-y-8">
             
             {/* Order Lifecycle Status Interactive Stepper */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#111116] border border-white/10 shadow-2xl space-y-6">
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-stone-200/80 shadow-sm space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles size={18} className="text-primary" />
+                  <h2 className="text-base font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                    <Sparkles size={18} className="text-[#E76A54]" />
                     Order Status Management
                   </h2>
-                  <p className="text-xs text-zinc-400 mt-1">
+                  <p className="text-xs text-stone-500 mt-1">
                     Select a status to advance this order's live progress for the customer.
                   </p>
                 </div>
@@ -343,13 +343,13 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                       key={st.key}
                       type="button"
                       onClick={() => handleFieldChange(setStatus, st.key)}
-                      className={`p-3 rounded-2xl border text-left flex flex-col gap-1.5 transition-all active:scale-95 ${
+                      className={`p-3 rounded-2xl border text-left flex flex-col gap-1.5 transition-all active:scale-95 cursor-pointer ${
                         isSelected 
-                          ? 'bg-primary/20 border-primary text-white shadow-lg shadow-primary/10' 
-                          : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white hover:bg-white/10'
+                          ? 'bg-[#E76A54]/10 border-[#E76A54] text-[#E76A54] shadow-xs' 
+                          : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-100'
                       }`}
                     >
-                      <Icon size={18} className={isSelected ? 'text-primary' : 'text-zinc-500'} />
+                      <Icon size={18} className={isSelected ? 'text-[#E76A54]' : 'text-stone-400'} />
                       <span className="text-xs font-bold">{st.label}</span>
                     </button>
                   );
@@ -358,17 +358,17 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               {/* Ready for Pickup WhatsApp Action Banner (Pickup Orders Only) */}
               {orderType === 'pickup' && (status === 'out_for_delivery' || (status as string) === 'ready') && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                        <ShoppingBag size={14} />
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
+                        <ShoppingBag size={14} className="text-amber-600" />
                         ✓ Order Ready for Pickup
                       </p>
-                      <p className="text-[11px] text-zinc-300 mt-0.5">
+                      <p className="text-[11px] text-stone-700 mt-0.5">
                         Customer: {customerName} • Order #{formatOrderId(order.id)}
                       </p>
-                      <p className="text-[10px] text-zinc-400 mt-0.5">
+                      <p className="text-[10px] text-stone-500 mt-0.5">
                         Send the "Ready for Pickup" notification directly to the customer via WhatsApp.
                       </p>
                     </div>
@@ -377,13 +377,13 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowReadyPickupWhatsAppModal(true)}
-                        className="min-h-[44px] px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20 shrink-0 active:scale-95"
+                        className="min-h-[44px] px-5 py-3 rounded-xl bg-[#E76A54] hover:bg-[#d85842] text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm shrink-0 active:scale-95"
                       >
-                        <MessageSquare size={16} className="fill-current text-black" />
+                        <MessageSquare size={16} className="fill-current text-white" />
                         <span>📱 Notify Customer on WhatsApp</span>
                       </button>
                     ) : (
-                      <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl px-3.5 py-2 text-center text-amber-300 text-xs font-bold">
+                      <div className="bg-amber-100 border border-amber-200 rounded-xl px-3.5 py-2 text-center text-amber-900 text-xs font-bold">
                         ⚠️ No customer phone number available.
                       </div>
                     )}
@@ -393,9 +393,9 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               {/* Cancellation Reason if Cancelled */}
               {status === 'cancelled' && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-3">
-                  <label className="text-xs font-bold text-rose-400 uppercase tracking-widest flex items-center gap-2">
-                    <ShieldAlert size={14} />
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 space-y-3">
+                  <label className="text-xs font-bold text-rose-700 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldAlert size={14} className="text-rose-600" />
                     Cancellation Reason
                   </label>
                   <input
@@ -403,7 +403,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                     value={cancellationReason}
                     onChange={(e) => handleFieldChange(setCancellationReason, e.target.value)}
                     placeholder="e.g. Out of stock ingredients, Customer requested cancellation"
-                    className="w-full bg-black/40 border border-rose-500/30 rounded-xl py-3 px-4 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-rose-500"
+                    className="w-full bg-white border border-rose-300 rounded-xl py-3 px-4 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-rose-500"
                   />
                   <div className="pt-2">
                     <SlideToConfirm
@@ -422,21 +422,21 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               {/* Ready for Pickup WhatsApp Action (Pickup Orders Only) */}
               {(status === 'out_for_delivery' || status === 'ready') && orderType === 'pickup' && (
-                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                        <ShoppingBag size={14} />
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-widest flex items-center gap-2">
+                        <ShoppingBag size={14} className="text-amber-600" />
                         Order Ready for Pickup
                       </p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                      <p className="text-[11px] text-stone-600 mt-0.5">
                         Notify customer with official bakery pickup location and map directions via WhatsApp.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowReadyPickupWhatsAppModal(true)}
-                      className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/20 shrink-0"
+                      className="px-4 py-2.5 rounded-xl bg-[#E76A54] hover:bg-[#d85842] text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm shrink-0"
                     >
                       <MessageSquare size={14} />
                       <span>📱 Send Ready for Pickup WhatsApp</span>
@@ -447,21 +447,21 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               {/* Delivery WhatsApp Action if Delivered */}
               {status === 'delivered' && (
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                        <CheckCircle2 size={14} />
+                      <p className="text-xs font-bold text-emerald-800 uppercase tracking-widest flex items-center gap-2">
+                        <CheckCircle2 size={14} className="text-emerald-600" />
                         Order Marked as Delivered
                       </p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                      <p className="text-[11px] text-stone-600 mt-0.5">
                         Send delivery confirmation notification directly to customer via WhatsApp.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowDeliveryWhatsAppModal(true)}
-                      className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 shrink-0"
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm shrink-0"
                     >
                       <MessageSquare size={14} />
                       <span>📱 Send Delivery Confirmation</span>
@@ -472,38 +472,38 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
             </div>
 
             {/* Customer & Fulfillment Information Editor */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#111116] border border-white/10 shadow-2xl space-y-6">
-              <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <UserIcon size={18} className="text-primary" />
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-stone-200/80 shadow-sm space-y-6">
+              <h2 className="text-base font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                <UserIcon size={18} className="text-[#E76A54]" />
                 Customer & Delivery Details
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Customer Name</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Customer Name</label>
                   <input
                     type="text"
                     required
                     value={customerName}
                     onChange={(e) => handleFieldChange(setCustomerName, e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3.5 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Phone Number</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Phone Number</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       required
                       value={phone}
                       onChange={(e) => handleFieldChange(setPhone, e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                      className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3.5 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all"
                     />
                     {phone && (
                       <a
                         href={`tel:${phone}`}
-                        className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-400 flex items-center justify-center transition-all"
+                        className="p-3.5 rounded-2xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-emerald-600 flex items-center justify-center transition-all"
                         title="Call Customer"
                       >
                         <Phone size={18} />
@@ -515,24 +515,24 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Email Address</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Email Address</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => handleFieldChange(setEmail, e.target.value)}
                     placeholder="customer@example.com"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3.5 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Fulfillment Type</label>
-                  <div className="flex bg-white/5 border border-white/10 p-1 rounded-2xl">
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Fulfillment Type</label>
+                  <div className="flex bg-stone-100 border border-stone-200 p-1 rounded-2xl">
                     <button
                       type="button"
                       onClick={() => handleFieldChange(setOrderType, 'delivery')}
-                      className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                        orderType === 'delivery' ? 'bg-primary text-white shadow-md' : 'text-zinc-400 hover:text-white'
+                      className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        orderType === 'delivery' ? 'bg-[#E76A54] text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
                       }`}
                     >
                       <Truck size={14} /> Delivery
@@ -540,8 +540,8 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                     <button
                       type="button"
                       onClick={() => handleFieldChange(setOrderType, 'pickup')}
-                      className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                        orderType === 'pickup' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'
+                      className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        orderType === 'pickup' ? 'bg-amber-600 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
                       }`}
                     >
                       <ShoppingBag size={14} /> Pickup
@@ -553,21 +553,21 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
               {/* Delivery Address Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">
                     {orderType === 'pickup' ? 'Store Pickup Location' : 'Delivery Address'}
                   </label>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={handleCopyAddress}
-                      className="text-xs text-primary hover:underline flex items-center gap-1 font-bold"
+                      className="text-xs text-[#E76A54] hover:underline flex items-center gap-1 font-bold cursor-pointer"
                     >
                       <Copy size={12} /> Copy
                     </button>
                     <button
                       type="button"
                       onClick={handleOpenMaps}
-                      className="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-bold"
+                      className="text-xs text-teal-600 hover:underline flex items-center gap-1 font-bold cursor-pointer"
                     >
                       <MapPin size={12} /> Open Maps
                     </button>
@@ -578,26 +578,26 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   rows={2}
                   value={address}
                   onChange={(e) => handleFieldChange(setAddress, e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all resize-none"
                 />
               </div>
 
               {/* Kitchen / Order Notes */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Kitchen & Preparation Notes</label>
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Kitchen & Preparation Notes</label>
                 <textarea
                   rows={2}
                   value={notes}
                   onChange={(e) => handleFieldChange(setNotes, e.target.value)}
                   placeholder="e.g. Less sugar, Eggless preparation, Birthday candle required..."
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:outline-none focus:border-primary/50 transition-all resize-none"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all resize-none"
                 />
               </div>
 
               {/* Estimated Delivery Time Editor */}
-              <div className="space-y-3 pt-2 border-t border-white/5">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                  <Clock size={14} className="text-amber-400" />
+              <div className="space-y-3 pt-2 border-t border-stone-100">
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-widest flex items-center gap-2">
+                  <Clock size={14} className="text-amber-600" />
                   Estimated Delivery / Readiness Time
                 </label>
 
@@ -607,7 +607,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                     value={estimatedDeliveryTime}
                     onChange={(e) => handleFieldChange(setEstimatedDeliveryTime, e.target.value)}
                     placeholder="e.g. 30, 45 mins, 1-2 Days"
-                    className="flex-1 bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white font-mono focus:outline-none focus:border-primary/50"
+                    className="flex-1 bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 font-mono focus:outline-none focus:border-[#E76A54]"
                   />
                 </div>
 
@@ -618,10 +618,10 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                       key={preset}
                       type="button"
                       onClick={() => handleFieldChange(setEstimatedDeliveryTime, preset)}
-                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                         String(estimatedDeliveryTime) === preset
-                          ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                          : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                          ? 'bg-amber-50 border-amber-300 text-amber-800'
+                          : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900'
                       }`}
                     >
                       {preset}
@@ -632,10 +632,10 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
             </div>
 
             {/* Order Items Breakdown & Live Item Management */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#111116] border border-white/10 shadow-2xl space-y-6">
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-stone-200/80 shadow-sm space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <ShoppingBag size={18} className="text-primary" />
+                <h2 className="text-base font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                  <ShoppingBag size={18} className="text-[#E76A54]" />
                   Ordered Items ({items.length})
                 </h2>
               </div>
@@ -649,7 +649,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden"
+                      className="p-4 rounded-2xl bg-stone-50 border border-stone-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden"
                     >
                       {/* Left: Product Thumbnail & Name & Unit Price */}
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -657,35 +657,35 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                           <img
                             src={item.image}
                             alt={item.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0"
+                            className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                            <ShoppingBag size={20} className="text-zinc-500" />
+                          <div className="w-12 h-12 rounded-xl bg-stone-200 flex items-center justify-center shrink-0">
+                            <ShoppingBag size={20} className="text-stone-400" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-sm font-bold text-white truncate">{item.name || 'Treat Item'}</h4>
-                          <p className="text-xs text-zinc-400 font-mono mt-0.5">₹{price} each</p>
+                          <h4 className="text-sm font-bold text-stone-900 truncate">{item.name || 'Treat Item'}</h4>
+                          <p className="text-xs text-stone-500 font-mono mt-0.5">₹{price} each</p>
                         </div>
                       </div>
 
                       {/* Right: Quantity Controls, Total & Delete Action */}
-                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-200/60">
                         {/* Quantity Counter */}
-                        <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 rounded-xl p-1">
+                        <div className="flex items-center gap-1.5 bg-white border border-stone-200 rounded-xl p-1 shadow-2xs">
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(idx, qty - 1)}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 flex items-center justify-center font-bold text-xs transition-all"
+                            className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 flex items-center justify-center font-bold text-xs transition-all cursor-pointer"
                           >
                             -
                           </button>
-                          <span className="w-7 text-center font-mono font-bold text-xs text-white">{qty}</span>
+                          <span className="w-7 text-center font-mono font-bold text-xs text-stone-900">{qty}</span>
                           <button
                             type="button"
                             onClick={() => handleQuantityChange(idx, qty + 1)}
-                            className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 text-zinc-300 flex items-center justify-center font-bold text-xs transition-all"
+                            className="w-7 h-7 rounded-lg bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 flex items-center justify-center font-bold text-xs transition-all cursor-pointer"
                           >
                             +
                           </button>
@@ -693,14 +693,14 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
 
                         {/* Total Price */}
                         <div className="text-right min-w-[64px]">
-                          <span className="text-sm font-black text-amber-400 font-mono">₹{lineTotal}</span>
+                          <span className="text-sm font-black text-amber-700 font-mono">₹{lineTotal}</span>
                         </div>
 
                         {/* Remove Action */}
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(idx)}
-                          className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all shrink-0 flex items-center justify-center"
+                          className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shrink-0 flex items-center justify-center cursor-pointer"
                           title="Remove item"
                         >
                           <XCircle size={16} />
@@ -718,62 +718,62 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           <div className="lg:col-span-4 space-y-8">
             
             {/* Payment Verification & Status Panel */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#111116] border border-white/10 shadow-2xl space-y-6">
-              <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <DollarSign size={18} className="text-emerald-400" />
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-stone-200/80 shadow-sm space-y-6">
+              <h2 className="text-base font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                <DollarSign size={18} className="text-emerald-600" />
                 Payment Info
               </h2>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Payment Status</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Payment Status</label>
                   <select
                     value={paymentStatus}
                     onChange={(e) => handleFieldChange(setPaymentStatus, e.target.value as any)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:outline-none focus:border-primary/50"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54]"
                   >
-                    <option value="pending" className="bg-zinc-900">Pending</option>
-                    <option value="pending_verification" className="bg-zinc-900">Pending Verification (UTR Submitted)</option>
-                    <option value="paid" className="bg-zinc-900">Paid ✅</option>
-                    <option value="failed" className="bg-zinc-900">Failed ❌</option>
+                    <option value="pending" className="bg-white text-stone-900">Pending</option>
+                    <option value="pending_verification" className="bg-white text-stone-900">Pending Verification (UTR Submitted)</option>
+                    <option value="paid" className="bg-white text-stone-900">Paid ✅</option>
+                    <option value="failed" className="bg-white text-stone-900">Failed ❌</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Payment Method</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Payment Method</label>
                   <select
                     value={paymentMethod}
                     onChange={(e) => handleFieldChange(setPaymentMethod, e.target.value as any)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white focus:outline-none focus:border-primary/50"
+                    className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:border-[#E76A54]"
                   >
-                    <option value="upi" className="bg-zinc-900">UPI Direct</option>
-                    <option value="cod" className="bg-zinc-900">Cash on Delivery (COD)</option>
-                    <option value="online" className="bg-zinc-900">Online Gateway</option>
+                    <option value="upi" className="bg-white text-stone-900">UPI Direct</option>
+                    <option value="cod" className="bg-white text-stone-900">Cash on Delivery (COD)</option>
+                    <option value="online" className="bg-white text-stone-900">Online Gateway</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">UTR / Reference No.</label>
+                  <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">UTR / Reference No.</label>
                   <div className="relative">
                     <input
                       type="text"
                       value={utr}
                       onChange={(e) => handleFieldChange(setUtr, e.target.value)}
                       placeholder="e.g. 4231238910"
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-sm text-white font-mono focus:outline-none focus:border-primary/50"
+                      className="w-full bg-stone-50 border border-stone-200 rounded-2xl py-3 px-4 text-sm text-stone-900 font-mono focus:outline-none focus:border-[#E76A54]"
                     />
-                    <Hash size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                    <Hash size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400" />
                   </div>
                 </div>
 
                 {order.payment_screenshot && (
                   <div className="space-y-2 pt-2">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Payment Screenshot</label>
+                    <label className="text-xs font-bold text-stone-500 uppercase tracking-widest">Payment Screenshot</label>
                     <a
                       href={order.payment_screenshot}
                       target="_blank"
                       rel="noreferrer"
-                      className="block p-3 rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 transition-all text-xs font-bold text-primary flex items-center justify-between"
+                      className="p-3 rounded-2xl bg-stone-50 border border-stone-200 hover:border-[#E76A54] transition-all text-xs font-bold text-[#E76A54] flex items-center justify-between"
                     >
                       <span>View Payment Proof</span>
                       <ExternalLink size={14} />
@@ -784,43 +784,43 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
             </div>
 
             {/* Financial Summary & Adjustments */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#111116] border border-white/10 shadow-2xl space-y-6">
-              <h2 className="text-base font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <FileText size={18} className="text-primary" />
+            <div className="p-6 sm:p-8 rounded-3xl bg-white border border-stone-200/80 shadow-sm space-y-6">
+              <h2 className="text-base font-bold text-stone-900 uppercase tracking-wider flex items-center gap-2">
+                <FileText size={18} className="text-[#E76A54]" />
                 Financial Summary
               </h2>
 
               <div className="space-y-3 text-xs">
-                <div className="flex justify-between items-center text-zinc-400">
+                <div className="flex justify-between items-center text-stone-500">
                   <span>Items Subtotal</span>
-                  <span className="font-mono font-bold text-white text-sm">₹{computedSubtotal}</span>
+                  <span className="font-mono font-bold text-stone-900 text-sm">₹{computedSubtotal}</span>
                 </div>
 
-                <div className="flex justify-between items-center text-zinc-400 gap-4">
+                <div className="flex justify-between items-center text-stone-500 gap-4">
                   <span>Delivery Charge</span>
                   <input
                     type="number"
                     min="0"
                     value={deliveryCharge}
                     onChange={(e) => handleFieldChange(setDeliveryCharge, Number(e.target.value))}
-                    className="w-24 bg-white/5 border border-white/10 rounded-xl py-1 px-2 text-right font-mono text-sm text-white focus:outline-none focus:border-primary"
+                    className="w-24 bg-stone-50 border border-stone-200 rounded-xl py-1 px-2 text-right font-mono text-sm text-stone-900 focus:outline-none focus:border-[#E76A54]"
                   />
                 </div>
 
-                <div className="flex justify-between items-center text-zinc-400 gap-4">
+                <div className="flex justify-between items-center text-stone-500 gap-4">
                   <span>Discount</span>
                   <input
                     type="number"
                     min="0"
                     value={discount}
                     onChange={(e) => handleFieldChange(setDiscount, Number(e.target.value))}
-                    className="w-24 bg-white/5 border border-white/10 rounded-xl py-1 px-2 text-right font-mono text-sm text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    className="w-24 bg-stone-50 border border-stone-200 rounded-xl py-1 px-2 text-right font-mono text-sm text-emerald-600 focus:outline-none focus:border-emerald-500"
                   />
                 </div>
 
-                <div className="pt-4 border-t border-white/10 flex justify-between items-center">
-                  <span className="text-sm font-black uppercase text-white">Grand Total</span>
-                  <span className="text-xl font-black font-mono text-primary">₹{computedTotal}</span>
+                <div className="pt-4 border-t border-stone-100 flex justify-between items-center">
+                  <span className="text-sm font-black uppercase text-stone-900">Grand Total</span>
+                  <span className="text-xl font-black font-mono text-[#E76A54]">₹{computedTotal}</span>
                 </div>
               </div>
 
@@ -829,7 +829,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
                   type="button"
                   onClick={() => handleSave()}
                   disabled={saving}
-                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-sm shadow-xl shadow-primary/20 hover:bg-orange-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-2xl bg-[#E76A54] text-white font-bold text-sm shadow-md hover:bg-[#d85842] transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {saving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
                   <span>{saving ? 'Saving Changes...' : 'Save Order Changes'}</span>

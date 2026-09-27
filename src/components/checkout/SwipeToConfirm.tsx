@@ -143,8 +143,8 @@ export const SwipeToConfirm: React.FC<SwipeToConfirmProps> = ({
           disabled
             ? "bg-stone-100 border-stone-200 cursor-not-allowed opacity-75"
             : isUpi
-              ? "bg-[#1E1B18] border-stone-800 shadow-stone-900/10"
-              : "bg-[#18181B] border-zinc-800 shadow-zinc-900/10"
+              ? "bg-[#241c19] border-[#382d29] shadow-stone-900/10"
+              : "bg-[#1c221e] border-[#29342d] shadow-stone-900/10"
         )}
         role="slider"
         aria-label={primaryText}

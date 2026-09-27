@@ -38,39 +38,39 @@ const CustomToast: React.FC<CustomToastProps> = ({ t }) => {
   // Custom icon selection
   const getIcon = () => {
     if (isLoading) {
-      return <Loader2 className="w-4 h-4 text-orange-400 animate-spin" />;
+      return <Loader2 className="w-4 h-4 text-orange-600 animate-spin" />;
     }
     if (isCoupon) {
-      return <Tag className={`w-4 h-4 ${isError ? 'text-rose-400' : 'text-amber-400'}`} />;
+      return <Tag className={`w-4 h-4 ${isError ? 'text-rose-600' : 'text-amber-600'}`} />;
     }
     if (isSuccess) {
-      return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+      return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
     }
     if (isError) {
-      return <XCircle className="w-4 h-4 text-rose-400" />;
+      return <XCircle className="w-4 h-4 text-rose-600" />;
     }
-    return <Sparkles className="w-4 h-4 text-orange-400" />;
+    return <Sparkles className="w-4 h-4 text-primary" />;
   };
 
   // Color theme classes
   const getBorderAndGlow = () => {
     if (isLoading) {
-      return 'border-orange-500/30 bg-[#121118]/95 shadow-[0_12px_32px_-8px_rgba(249,115,22,0.3)]';
+      return 'border-orange-200 bg-white/98 shadow-[0_12px_32px_-8px_rgba(231,106,84,0.25)]';
     }
     if (isSuccess) {
-      return 'border-emerald-500/30 bg-[#0c1812]/95 shadow-[0_12px_32px_-8px_rgba(34,197,94,0.3)]';
+      return 'border-emerald-200 bg-white/98 shadow-[0_12px_32px_-8px_rgba(16,185,129,0.2)]';
     }
     if (isError) {
-      return 'border-rose-500/30 bg-[#1a0a0d]/95 shadow-[0_12px_32px_-8px_rgba(244,63,94,0.35)]';
+      return 'border-rose-200 bg-white/98 shadow-[0_12px_32px_-8px_rgba(244,63,94,0.25)]';
     }
-    return 'border-amber-500/30 bg-[#18140c]/95 shadow-[0_12px_32px_-8px_rgba(245,158,11,0.3)]';
+    return 'border-amber-200 bg-white/98 shadow-[0_12px_32px_-8px_rgba(245,158,11,0.2)]';
   };
 
   const getIconBg = () => {
-    if (isLoading) return 'bg-orange-500/20 ring-1 ring-orange-500/40';
-    if (isSuccess) return 'bg-emerald-500/20 ring-1 ring-emerald-500/40';
-    if (isError) return 'bg-rose-500/20 ring-1 ring-rose-500/40';
-    return 'bg-amber-500/20 ring-1 ring-amber-500/40';
+    if (isLoading) return 'bg-orange-50 ring-1 ring-orange-200';
+    if (isSuccess) return 'bg-emerald-50 ring-1 ring-emerald-200';
+    if (isError) return 'bg-rose-50 ring-1 ring-rose-200';
+    return 'bg-amber-50 ring-1 ring-amber-200';
   };
 
   return (
@@ -88,7 +88,7 @@ const CustomToast: React.FC<CustomToastProps> = ({ t }) => {
         damping: 20,
         stiffness: 380,
       }}
-      className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-xl text-white font-sans max-w-md w-full sm:w-auto ${getBorderAndGlow()}`}
+      className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl border text-stone-900 font-sans max-w-md w-full sm:w-auto ${getBorderAndGlow()}`}
     >
       {/* Icon Pill */}
       <div className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${getIconBg()}`}>
@@ -96,14 +96,14 @@ const CustomToast: React.FC<CustomToastProps> = ({ t }) => {
       </div>
 
       {/* Message Content */}
-      <div className="flex-1 text-xs font-bold leading-relaxed text-zinc-100 pr-1 tracking-wide">
+      <div className="flex-1 text-xs font-bold leading-relaxed text-stone-900 pr-1 tracking-wide">
         {resolveValue(t.message, t)}
       </div>
 
       {/* Dismiss Button */}
       <button
         onClick={() => toast.dismiss(t.id)}
-        className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+        className="p-1 rounded-lg text-stone-400 hover:text-stone-800 hover:bg-stone-100 transition-colors shrink-0"
         aria-label="Dismiss toast"
       >
         <X className="w-3.5 h-3.5" />

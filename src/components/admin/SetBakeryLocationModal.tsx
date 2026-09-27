@@ -197,24 +197,24 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
   });
 
   return (
-    <div id="set-bakery-location-modal" className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto custom-scrollbar">
+    <div id="set-bakery-location-modal" className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm overflow-y-auto custom-scrollbar font-sans">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        className="w-full max-w-2xl bg-[#0f0f13] border border-amber-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative my-8"
+        className="w-full max-w-2xl bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative my-8 text-stone-900"
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-white/10 pb-4">
+        <div className="flex items-start justify-between border-b border-stone-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
               <MapPin size={22} />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider mb-1">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-black uppercase tracking-wider mb-1">
                 Admin Configuration
               </div>
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight">
                 📍 Set Frosty Bite Bakery Location
               </h2>
             </div>
@@ -224,29 +224,29 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
             id="btn-close-bakery-location-modal"
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-all cursor-pointer"
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-800 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Safety Note Banner */}
-        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-start gap-3">
-          <Info size={18} className="text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-zinc-300 leading-relaxed">
-            <strong className="text-amber-400">Important:</strong> The saved location below is the <strong className="text-white">official customer pickup point</strong> included in all Ready for Pickup WhatsApp notifications. The admin's current device GPS is only used as a suggestion and is never saved without explicit confirmation.
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+          <Info size={18} className="text-amber-700 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 leading-relaxed">
+            <strong className="text-amber-800">Important:</strong> The saved location below is the <strong className="text-stone-900">official customer pickup point</strong> included in all Ready for Pickup WhatsApp notifications. The admin's current device GPS is only used as a suggestion and is never saved without explicit confirmation.
           </p>
         </div>
 
         {/* Option 1: Browser GPS Capture */}
-        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4">
+        <div className="bg-stone-50 border border-stone-200/70 rounded-2xl p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Navigation size={16} className="text-amber-400" />
+              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                <Navigation size={16} className="text-amber-700" />
                 Option 1: Use Current Device GPS
               </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-stone-500 mt-0.5">
                 If you are currently physically located at the bakery counter.
               </p>
             </div>
@@ -256,7 +256,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
               type="button"
               onClick={handleDetectDeviceLocation}
               disabled={isDetectingGps}
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 shadow-lg shadow-amber-500/20"
+              className="px-4 py-2.5 rounded-xl bg-[#E76A54] hover:bg-[#d85842] disabled:opacity-50 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 shadow-sm"
             >
               {isDetectingGps ? (
                 <>
@@ -274,32 +274,32 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
 
           {/* GPS Error Notification */}
           {gpsError && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-300 text-xs">
-              <AlertTriangle size={15} className="text-red-400 shrink-0" />
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs">
+              <AlertTriangle size={15} className="text-rose-600 shrink-0" />
               <span>{gpsError} Please enter the bakery address or coordinates manually below.</span>
             </div>
           )}
 
           {/* Detected Coordinates Box */}
           {detectedCoords && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/40 rounded-2xl space-y-3">
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
                   <CheckCircle2 size={15} /> Coordinates Detected from Device
                 </span>
-                <span className="text-[11px] font-mono text-zinc-300">
+                <span className="text-[11px] font-mono text-stone-700">
                   {detectedCoords.lat}, {detectedCoords.lng}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-black/40 p-2.5 rounded-xl border border-white/5">
-                  <span className="text-[10px] text-zinc-500 block uppercase font-bold">Latitude</span>
-                  <span className="font-mono text-amber-300 font-bold">{detectedCoords.lat}</span>
+                <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                  <span className="text-[10px] text-stone-500 block uppercase font-bold">Latitude</span>
+                  <span className="font-mono text-stone-900 font-bold">{detectedCoords.lat}</span>
                 </div>
-                <div className="bg-black/40 p-2.5 rounded-xl border border-white/5">
-                  <span className="text-[10px] text-zinc-500 block uppercase font-bold">Longitude</span>
-                  <span className="font-mono text-amber-300 font-bold">{detectedCoords.lng}</span>
+                <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                  <span className="text-[10px] text-stone-500 block uppercase font-bold">Longitude</span>
+                  <span className="font-mono text-stone-900 font-bold">{detectedCoords.lng}</span>
                 </div>
               </div>
 
@@ -308,7 +308,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   id="btn-confirm-detected-location"
                   type="button"
                   onClick={handleApplyDetectedCoords}
-                  className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                 >
                   <Check size={14} />
                   <span>Confirm Bakery Location</span>
@@ -317,7 +317,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleDetectDeviceLocation}
-                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border border-stone-200"
                 >
                   <RefreshCw size={13} />
                   <span>Recalculate</span>
@@ -327,7 +327,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   href={`https://www.google.com/maps/search/?api=1&query=${detectedCoords.lat},${detectedCoords.lng}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-400 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ml-auto"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-teal-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ml-auto border border-stone-200"
                 >
                   <ExternalLink size={13} />
                   <span>Preview on Maps</span>
@@ -338,15 +338,15 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
         </div>
 
         {/* Option 2: Manual Location & Address Entry */}
-        <form onSubmit={handleManualSaveTrigger} className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Building2 size={16} className="text-amber-400" />
+        <form onSubmit={handleManualSaveTrigger} className="bg-stone-50 border border-stone-200/70 rounded-2xl p-5 space-y-4">
+          <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+            <Building2 size={16} className="text-amber-700" />
             Option 2: Enter Bakery Location Manually
           </h3>
 
           <div className="space-y-3">
             <div>
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+              <label className="text-[11px] font-bold text-stone-500 uppercase tracking-widest block mb-1">
                 Bakery Display Name
               </label>
               <input
@@ -356,12 +356,12 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                 value={bakeryName}
                 onChange={(e) => setBakeryName(e.target.value)}
                 placeholder="Frosty Bite Bakery"
-                className="w-full bg-[#111116] border border-white/10 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54]"
               />
             </div>
 
             <div>
-              <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+              <label className="text-[11px] font-bold text-stone-500 uppercase tracking-widest block mb-1">
                 Bakery Street Address (Customer Pickup Point)
               </label>
               <textarea
@@ -371,13 +371,13 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                 value={bakeryAddress}
                 onChange={(e) => setBakeryAddress(e.target.value)}
                 placeholder="Frosty Bite Bakery, Main Road, Buxi Bazaar, Cuttack, Odisha - 753001"
-                className="w-full bg-[#111116] border border-white/10 rounded-xl py-2.5 px-3.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 resize-none"
+                className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] resize-none"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                <label className="text-[11px] font-bold text-stone-500 uppercase tracking-widest block mb-1">
                   Latitude (-90 to 90)
                 </label>
                 <input
@@ -388,12 +388,12 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   value={bakeryLat}
                   onChange={(e) => setBakeryLat(e.target.value)}
                   placeholder="20.4625"
-                  className="w-full bg-[#111116] border border-white/10 rounded-xl py-2.5 px-3.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-xs font-mono text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                <label className="text-[11px] font-bold text-stone-500 uppercase tracking-widest block mb-1">
                   Longitude (-180 to 180)
                 </label>
                 <input
@@ -404,14 +404,14 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   value={bakeryLng}
                   onChange={(e) => setBakeryLng(e.target.value)}
                   placeholder="85.8828"
-                  className="w-full bg-[#111116] border border-white/10 rounded-xl py-2.5 px-3.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-xs font-mono text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54]"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">
+                <label className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">
                   Custom Google Maps Link (Optional)
                 </label>
                 {previewMapUrl && (
@@ -419,7 +419,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                     href={previewMapUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-bold"
+                    className="text-[11px] text-[#E76A54] hover:underline flex items-center gap-1 font-bold cursor-pointer"
                   >
                     <ExternalLink size={12} /> Test Directions Link
                   </a>
@@ -431,10 +431,10 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                 value={bakeryMapUrl}
                 onChange={(e) => setBakeryMapUrl(e.target.value)}
                 placeholder="Leave blank to auto-generate from Latitude & Longitude"
-                className="w-full bg-[#111116] border border-white/10 rounded-xl py-2.5 px-3.5 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                className="w-full bg-white border border-stone-200 rounded-xl py-2.5 px-3.5 text-xs font-mono text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54]"
               />
-              <p className="text-[10px] text-zinc-500 mt-1">
-                Default format: <code className="text-zinc-400">https://www.google.com/maps/search/?api=1&amp;query=&lt;LAT&gt;,&lt;LNG&gt;</code> (No Google Maps API key needed).
+              <p className="text-[10px] text-stone-400 mt-1">
+                Default format: <code className="text-stone-600">https://www.google.com/maps/search/?api=1&amp;query=&lt;LAT&gt;,&lt;LNG&gt;</code> (No Google Maps API key needed).
               </p>
             </div>
           </div>
@@ -443,7 +443,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
             <button
               id="btn-submit-save-bakery-location"
               type="submit"
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-950/40"
+              className="w-full py-3.5 px-4 rounded-xl bg-[#E76A54] hover:bg-[#d85842] text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
             >
               <Check size={16} />
               <span>Save Bakery Location</span>
@@ -454,25 +454,25 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
         {/* Explicit Confirmation Dialog Overlay */}
         <AnimatePresence>
           {showConfirmDialog && pendingLocationToSave && (
-            <div id="bakery-location-confirm-dialog" className="absolute inset-0 z-30 bg-black/95 rounded-3xl p-6 sm:p-8 flex flex-col justify-center items-center text-center space-y-5">
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+            <div id="bakery-location-confirm-dialog" className="absolute inset-0 z-30 bg-white/95 rounded-3xl p-6 sm:p-8 flex flex-col justify-center items-center text-center space-y-5 border border-stone-200 shadow-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
                 <ShieldCheck size={32} />
               </div>
 
               <div className="space-y-2 max-w-md">
-                <h3 className="text-xl font-black text-white tracking-tight">
+                <h3 className="text-xl font-black text-stone-900 tracking-tight">
                   Are you sure?
                 </h3>
-                <p className="text-xs text-zinc-300 leading-relaxed">
-                  This location will be saved and sent to customers as the official <strong className="text-amber-400">Pickup Location &amp; Map Directions</strong> in WhatsApp notifications.
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  This location will be saved and sent to customers as the official <strong className="text-amber-800">Pickup Location &amp; Map Directions</strong> in WhatsApp notifications.
                 </p>
               </div>
 
               {/* Summary card */}
-              <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-4 text-left text-xs space-y-1.5 font-mono">
-                <p className="text-white font-bold font-sans text-sm">{pendingLocationToSave.bakeryName}</p>
-                <p className="text-zinc-300 text-[11px] font-sans">{pendingLocationToSave.bakeryAddress}</p>
-                <p className="text-amber-400 text-[11px] pt-1">
+              <div className="w-full max-w-md bg-stone-50 border border-stone-200 rounded-2xl p-4 text-left text-xs space-y-1.5 font-mono">
+                <p className="text-stone-900 font-bold font-sans text-sm">{pendingLocationToSave.bakeryName}</p>
+                <p className="text-stone-600 text-[11px] font-sans">{pendingLocationToSave.bakeryAddress}</p>
+                <p className="text-amber-700 text-[11px] pt-1">
                   Coords: {pendingLocationToSave.bakeryLatitude}, {pendingLocationToSave.bakeryLongitude}
                 </p>
               </div>
@@ -482,7 +482,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   type="button"
                   onClick={() => setShowConfirmDialog(false)}
                   disabled={isSaving}
-                  className="flex-1 py-3 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                  className="flex-1 py-3 px-4 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border border-stone-200"
                 >
                   Cancel
                 </button>
@@ -492,7 +492,7 @@ export const SetBakeryLocationModal: React.FC<SetBakeryLocationModalProps> = ({
                   type="button"
                   onClick={handleExecuteSave}
                   disabled={isSaving}
-                  className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/30"
+                  className="flex-1 py-3 px-4 rounded-xl bg-[#E76A54] hover:bg-[#d85842] disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
                 >
                   {isSaving ? (
                     <>

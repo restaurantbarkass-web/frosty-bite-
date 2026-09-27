@@ -57,7 +57,7 @@ export const NotificationPermissionBanner: React.FC = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 30, scale: 0.95 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="fixed bottom-6 right-6 left-6 sm:left-auto sm:max-w-md z-[80] bg-[#121212]/95 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 shadow-2xl shadow-black/80 text-white"
+          className="fixed bottom-6 right-6 left-6 sm:left-auto sm:max-w-md z-[80] bg-white border border-stone-200/90 rounded-2xl p-4 shadow-2xl shadow-stone-900/15 text-stone-900"
         >
           <div className="flex items-start gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0 shadow-lg shadow-orange-500/20 text-white">
@@ -66,14 +66,14 @@ export const NotificationPermissionBanner: React.FC = () => {
 
             <div className="flex-1 min-w-0 pr-2">
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                   Live Order Alerts
                 </span>
               </div>
-              <h4 className="text-sm font-bold text-white tracking-tight leading-snug">
+              <h4 className="text-sm font-bold text-stone-900 tracking-tight leading-snug">
                 Stay updated on your sweetest moments 🍰
               </h4>
-              <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+              <p className="text-xs text-stone-600 mt-1 leading-relaxed">
                 Get instant push notifications as your treats are prepared, packed, and delivered to your doorstep.
               </p>
 
@@ -95,7 +95,7 @@ export const NotificationPermissionBanner: React.FC = () => {
 
                 <button
                   onClick={handleDismiss}
-                  className="text-xs text-gray-400 hover:text-white py-2.5 px-3 rounded-xl hover:bg-white/5 transition-colors font-medium"
+                  className="text-xs text-stone-500 hover:text-stone-900 py-2.5 px-3 rounded-xl hover:bg-stone-100 transition-colors font-medium"
                 >
                   Later
                 </button>
@@ -104,7 +104,7 @@ export const NotificationPermissionBanner: React.FC = () => {
 
             <button
               onClick={handleDismiss}
-              className="text-gray-500 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors shrink-0"
+              className="text-stone-400 hover:text-stone-700 p-1 rounded-lg hover:bg-stone-100 transition-colors shrink-0"
               aria-label="Close"
             >
               <X className="w-4 h-4" />

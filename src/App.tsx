@@ -18,6 +18,8 @@ import { BottomNav } from './components/BottomNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoadingScreen } from './components/LoadingScreen';
 import { LocalErrorBoundary } from './components/LocalErrorBoundary';
+import { CategoriesPageSkeleton } from './components/CategoriesPageSkeleton';
+import { ProductPageSkeleton } from './components/ProductPageSkeleton';
 import { IntroSplash } from './components/IntroSplash';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { AppUpdateScreen } from './components/AppUpdateScreen';
@@ -39,19 +41,20 @@ import { requestForToken, subscribeToMessages } from './utils/messaging';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
 import Home from './pages/HomePage';
-import CategoriesPage from './pages/CategoriesPage';
-import Offers from './pages/Offers';
-import Checkout from './pages/Checkout';
-import Profile from './pages/Profile';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import FinishSignIn from './pages/FinishSignIn';
-import ProductDetail from './pages/ProductDetail';
-import Orders from './pages/Orders';
-import Notifications from './pages/Notifications';
-import FAQ from './pages/FAQ';
-import NotFound from './pages/NotFound';
-import CartSidebar from './components/CartSidebar';
+
+const CategoriesPage = lazyWithRetry(() => import('./pages/CategoriesPage'));
+const Offers = lazyWithRetry(() => import('./pages/Offers'));
+const Checkout = lazyWithRetry(() => import('./pages/Checkout'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const FinishSignIn = lazyWithRetry(() => import('./pages/FinishSignIn'));
+const ProductDetail = lazyWithRetry(() => import('./pages/ProductDetail'));
+const Orders = lazyWithRetry(() => import('./pages/Orders'));
+const Notifications = lazyWithRetry(() => import('./pages/Notifications'));
+const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'));
+const CartSidebar = lazyWithRetry(() => import('./components/CartSidebar'));
 
 const UPICheckout = lazyWithRetry(() => import('./pages/UPICheckout'));
 const OrderTracking = lazyWithRetry(() => import('./pages/OrderTracking'));
@@ -363,7 +366,13 @@ function AppContent() {
               <Routes location={location}>
                 <Route path="/" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
                 <Route path="/index.html" element={<LocalErrorBoundary fallbackName="Home Page"><Home /></LocalErrorBoundary>} />
-                <Route path="/categories" element={<LocalErrorBoundary fallbackName="Categories Page"><CategoriesPage /></LocalErrorBoundary>} />
+                <Route path="/categories" element={
+                  <LocalErrorBoundary fallbackName="Categories Page">
+                    <Suspense fallback={<CategoriesPageSkeleton />}>
+                      <CategoriesPage />
+                    </Suspense>
+                  </LocalErrorBoundary>
+                } />
                 <Route path="/cart" element={
                   <LocalErrorBoundary fallbackName="Cart Page">
                     <CartPageRoute />
@@ -433,7 +442,13 @@ function AppContent() {
                 <Route path="/campaign/:id" element={<LocalErrorBoundary fallbackName="Campaign Page"><CampaignPage /></LocalErrorBoundary>} />
                 <Route path="/promotions/:id" element={<LocalErrorBoundary fallbackName="Campaign Page"><CampaignPage /></LocalErrorBoundary>} />
                 <Route path="/faq" element={<LocalErrorBoundary fallbackName="FAQ Page"><FAQ /></LocalErrorBoundary>} />
-                <Route path="/product/:id" element={<LocalErrorBoundary fallbackName="Product Detail Page"><ProductDetail /></LocalErrorBoundary>} />
+                <Route path="/product/:id" element={
+                  <LocalErrorBoundary fallbackName="Product Detail Page">
+                    <Suspense fallback={<ProductPageSkeleton />}>
+                      <ProductDetail />
+                    </Suspense>
+                  </LocalErrorBoundary>
+                } />
                 <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
               </Routes>
             </motion.div>

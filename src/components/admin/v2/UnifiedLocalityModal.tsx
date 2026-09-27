@@ -52,16 +52,16 @@ export const UnifiedLocalityModal: React.FC<UnifiedLocalityModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col md:flex-row p-4 gap-4 items-center justify-center">
-      <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col h-auto max-h-full overflow-y-auto shrink-0">
-        <h3 className="text-lg font-bold text-white mb-4">
+    <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm flex flex-col md:flex-row p-4 gap-4 items-center justify-center font-sans">
+      <div className="bg-white border border-stone-200 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col h-auto max-h-full overflow-y-auto shrink-0">
+        <h3 className="text-lg font-black text-stone-900 mb-1">
           {existingLocality ? 'Edit Locality' : 'Add New Locality'}
         </h3>
-        <p className="text-xs text-orange-400 mb-4">City: {cityContext.name}</p>
+        <p className="text-xs font-bold text-[#E76A54] mb-4">City: {cityContext.name}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 flex-1">
           <div>
-            <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Search or Enter Locality Name</label>
+            <label className="block text-xs font-bold text-stone-600 uppercase mb-1">Search or Enter Locality Name</label>
             <AdminLocationAutocomplete
               type="locality"
               value={form.name}
@@ -74,69 +74,70 @@ export const UnifiedLocalityModal: React.FC<UnifiedLocalityModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Fee (₹)</label>
+              <label className="block text-xs font-bold text-stone-600 uppercase mb-1">Fee (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={form.delivery_fee}
                 onChange={(e) => setForm({ ...form, delivery_fee: Number(e.target.value) })}
-                className="w-full bg-zinc-950 text-white rounded-xl px-3 py-2 border border-white/10 text-xs focus:outline-none focus:border-orange-500"
+                className="w-full bg-stone-50 text-stone-900 placeholder:text-stone-400 rounded-xl px-3 py-2 border border-stone-200 text-xs focus:outline-none focus:border-[#E76A54]"
                 required
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">Min Order (₹)</label>
+              <label className="block text-xs font-bold text-stone-600 uppercase mb-1">Min Order (₹)</label>
               <input
                 type="number"
                 min="0"
                 value={form.minimum_order}
                 onChange={(e) => setForm({ ...form, minimum_order: Number(e.target.value) })}
-                className="w-full bg-zinc-950 text-white rounded-xl px-3 py-2 border border-white/10 text-xs focus:outline-none focus:border-orange-500"
+                className="w-full bg-stone-50 text-stone-900 placeholder:text-stone-400 rounded-xl px-3 py-2 border border-stone-200 text-xs focus:outline-none focus:border-[#E76A54]"
                 required
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-400 uppercase mb-1">ETA (Minutes)</label>
+            <label className="block text-xs font-bold text-stone-600 uppercase mb-1">ETA (Minutes)</label>
             <input
               type="number"
               min="1"
               value={form.estimated_delivery_minutes || ''}
               onChange={(e) => setForm({ ...form, estimated_delivery_minutes: Number(e.target.value) })}
-              className="w-full bg-zinc-950 text-white rounded-xl px-3 py-2 border border-white/10 text-xs focus:outline-none focus:border-orange-500"
+              className="w-full bg-stone-50 text-stone-900 placeholder:text-stone-400 rounded-xl px-3 py-2 border border-stone-200 text-xs focus:outline-none focus:border-[#E76A54]"
             />
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-zinc-950 rounded-xl border border-white/5">
-            <span className="text-xs font-bold text-zinc-300">Locality Active</span>
+          <div className="flex items-center justify-between p-3 bg-stone-50 rounded-xl border border-stone-200">
+            <span className="text-xs font-bold text-stone-700">Locality Active</span>
             <button
               type="button"
               onClick={() => setForm({ ...form, is_active: !form.is_active })}
+              className="cursor-pointer"
             >
               {form.is_active ? (
-                <ToggleRight size={28} className="text-emerald-500" />
+                <ToggleRight size={28} className="text-[#E76A54]" />
               ) : (
-                <ToggleLeft size={28} className="text-zinc-600" />
+                <ToggleLeft size={28} className="text-stone-400" />
               )}
             </button>
           </div>
           
-          <p className="text-[10px] text-zinc-500">
+          <p className="text-[10px] text-stone-500">
             Draw the boundary on the map to define the precise locality service area limits.
           </p>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10 mt-auto">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-200 mt-auto">
             <button
               type="button"
               onClick={onCancel}
-              className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-semibold"
+              className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold transition-colors cursor-pointer border border-stone-200"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-orange-500 text-white text-xs font-bold flex items-center gap-1"
+              className="px-5 py-2 rounded-xl bg-[#E76A54] hover:bg-[#d65b45] text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-[#E76A54]/20"
             >
               <Check size={14} /> Save Locality
             </button>
@@ -145,7 +146,7 @@ export const UnifiedLocalityModal: React.FC<UnifiedLocalityModalProps> = ({
       </div>
       
       {/* Map Side */}
-      <div className="flex flex-1 w-full h-[40vh] md:h-full md:max-h-[80vh] rounded-2xl overflow-hidden border border-white/10">
+      <div className="flex flex-1 w-full h-[40vh] md:h-full md:max-h-[80vh] rounded-2xl overflow-hidden border border-stone-200 shadow-xl">
         <MapLibreBoundaryEditor
           title="Locality Boundary"
           hideHeader={true}

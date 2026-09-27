@@ -32,7 +32,7 @@ const StatusBadge = ({ order, isPickupOnlyActive }: { order: Order; isPickupOnly
   
   if ((payment_method === 'upi' || payment_method === 'online') && order.utr && payment_status !== 'paid') {
     return (
-      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-500 border-amber-500/20">
+      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-50 text-amber-800 border-amber-200 shadow-xs">
         <Clock size={14} />
         {payment_status === 'pending_verification' ? 'Awaiting Verification' : 'Awaiting Payment'}
       </div>
@@ -42,7 +42,7 @@ const StatusBadge = ({ order, isPickupOnlyActive }: { order: Order; isPickupOnly
   // Handle Pickup Ready status badge
   if (isPickup && (status === 'out_for_delivery' || (status as string) === 'ready')) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-sm">
+      <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold bg-amber-50 text-amber-800 border-amber-200 shadow-xs">
         <ShoppingBag size={14} />
         Ready for Pickup
       </div>
@@ -50,15 +50,15 @@ const StatusBadge = ({ order, isPickupOnlyActive }: { order: Order; isPickupOnly
   }
 
   const styles = {
-    'awaiting_payment': 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20 shadow-sm',
-    'pending': 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-sm',
-    'confirmed': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm',
-    'assigned': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
-    'preparing': 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-sm',
-    'out_for_delivery': 'bg-purple-500/10 text-purple-500 border-purple-500/20 shadow-sm',
-    'ready': 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-sm',
-    'delivered': 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30 shadow-sm',
-    'cancelled': 'bg-red-500/10 text-red-500 border-red-500/20 shadow-sm',
+    'awaiting_payment': 'bg-stone-100 text-stone-600 border-stone-200 shadow-xs',
+    'pending': 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-xs',
+    'confirmed': 'bg-emerald-50 text-emerald-800 border-emerald-200/80 shadow-xs',
+    'assigned': 'bg-sky-50 text-sky-800 border-sky-200/80 shadow-xs',
+    'preparing': 'bg-sky-50 text-sky-800 border-sky-200/80 shadow-xs',
+    'out_for_delivery': 'bg-purple-50 text-purple-800 border-purple-200/80 shadow-xs',
+    'ready': 'bg-amber-50 text-amber-800 border-amber-200/80 shadow-xs',
+    'delivered': 'bg-emerald-50 text-emerald-800 border-emerald-200/80 shadow-xs',
+    'cancelled': 'bg-rose-50 text-rose-800 border-rose-200/80 shadow-xs',
   };
 
   const icons = {
@@ -634,36 +634,36 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl p-20 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        <p className="text-zinc-500 font-bold animate-pulse">Loading orders...</p>
+      <div className="bg-white border border-stone-200/80 rounded-3xl p-16 sm:p-20 flex flex-col items-center justify-center gap-3 shadow-xs">
+        <div className="w-10 h-10 border-4 border-[#E76A54]/20 border-t-[#E76A54] rounded-full animate-spin" />
+        <p className="text-stone-500 font-bold animate-pulse text-xs uppercase tracking-wider">Loading orders...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#111111]/80 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-      <div className="p-6 sm:p-8 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01]">
+    <div className="bg-white border border-stone-200/80 rounded-3xl overflow-hidden shadow-xs">
+      <div className="p-5 sm:p-7 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-stone-50/50">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-black text-white tracking-tight uppercase italic">Recent Orders</h3>
-            <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-mono font-bold">
+            <h3 className="text-xl font-black text-stone-900 tracking-tight uppercase">Recent Orders</h3>
+            <span className="px-2.5 py-0.5 rounded-full bg-[#E76A54]/10 border border-[#E76A54]/20 text-[#E76A54] text-xs font-mono font-bold">
               {orders.length} orders
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-1 font-medium">Manage and process active customer orders in real-time</p>
+          <p className="text-xs text-stone-500 mt-1 font-medium">Manage and process active customer orders in real-time</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {orders.some(o => o.status === 'pending') && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full animate-pulse">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200/80 rounded-full animate-pulse">
               <div className="w-2 h-2 bg-amber-500 rounded-full" />
-              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">New Orders Pending</span>
+              <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">New Orders Pending</span>
             </div>
           )}
           {notificationPermission !== 'granted' && (
             <button 
               onClick={requestNotificationPermission}
-              className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-all hover:scale-105"
+              className="p-2.5 sm:p-3 rounded-2xl bg-stone-100 border border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200 transition-all hover:scale-105 cursor-pointer shadow-xs"
               title="Enable Browser Notifications"
             >
               <Bell size={18} />
@@ -671,17 +671,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           )}
           <button 
             onClick={() => setIsMuted(!isMuted)}
-            className={`p-3 rounded-2xl border transition-all hover:scale-105 ${isMuted ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}
+            className={`p-2.5 sm:p-3 rounded-2xl border transition-all hover:scale-105 cursor-pointer shadow-xs ${isMuted ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-stone-100 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200'}`}
             title={isMuted ? "Unmute Alarm" : "Mute Alarm"}
           >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           <button 
             onClick={() => setAutoPrint(!autoPrint)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-all hover:scale-105 ${autoPrint ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'}`}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl border transition-all hover:scale-105 cursor-pointer shadow-xs ${autoPrint ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-stone-100 border-stone-200 text-stone-700 hover:bg-stone-200'}`}
             title={autoPrint ? "Disable Auto-print" : "Enable Auto-print"}
           >
-            <Printer size={18} />
+            <Printer size={16} />
             <span className="text-xs font-bold uppercase tracking-widest">{autoPrint ? "Auto-print ON" : "Auto-print OFF"}</span>
           </button>
         </div>
@@ -691,9 +691,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       <div className="hidden lg:block overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-white/[0.02] border-b border-white/5">
+            <tr className="bg-stone-50/80 border-b border-stone-200">
               <th 
-                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest cursor-pointer group"
                 onClick={() => requestSort('id')}
               >
                 <div className="flex items-center gap-2">
@@ -702,7 +702,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </div>
               </th>
               <th 
-                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest cursor-pointer group"
                 onClick={() => requestSort('customer_name')}
               >
                 <div className="flex items-center gap-2">
@@ -711,7 +711,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </div>
               </th>
               <th 
-                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest cursor-pointer group"
                 onClick={() => requestSort('created_at')}
               >
                 <div className="flex items-center gap-2">
@@ -719,9 +719,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   {getSortIcon('created_at')}
                 </div>
               </th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Items</th>
+              <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest">Items</th>
               <th 
-                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest cursor-pointer group"
                 onClick={() => requestSort('total')}
               >
                 <div className="flex items-center gap-2">
@@ -730,7 +730,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </div>
               </th>
               <th 
-                className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest cursor-pointer group"
+                className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest cursor-pointer group"
                 onClick={() => requestSort('status')}
               >
                 <div className="flex items-center gap-2">
@@ -738,61 +738,59 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   {getSortIcon('status')}
                 </div>
               </th>
-              <th className="px-8 py-5 text-xs font-bold text-gray-500 uppercase tracking-widest">Actions</th>
+              <th className="px-6 py-4 text-[10px] font-black text-stone-500 uppercase tracking-widest">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-stone-100">
             {sortedOrders.map((order) => {
               if (cancellingOrder?.id === order.id) {
                 return (
-                  <tr key={order.id} className="bg-rose-950/20 border-y-2 border-rose-500/40">
+                  <tr key={order.id} className="bg-rose-50/70 border-y-2 border-rose-200">
                     <td colSpan={8} className="p-4 sm:p-5">
                       <motion.div
                         initial={{ opacity: 0, scale: 0.98, y: -4 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.98, y: -4 }}
                         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        className="flex flex-col gap-4 bg-[#16141a] border border-rose-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                        className="flex flex-col gap-4 bg-white border border-rose-200 rounded-2xl p-5 shadow-lg relative overflow-hidden"
                       >
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
-
                         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 w-full relative z-10">
                           <div className="flex items-center gap-4">
                             <button
                               type="button"
                               onClick={() => setCancellingOrder(null)}
-                              className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
+                              className="flex items-center gap-2 px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-xs font-bold transition-all border border-stone-200 hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
                             >
                               <ArrowLeft size={14} />
                               <span>Back</span>
                             </button>
 
-                            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+                            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 shrink-0">
                               <AlertCircle size={22} />
                             </div>
 
                             <div className="flex flex-col text-left">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-rose-400 uppercase tracking-widest">Cancel Order</span>
-                                <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
+                                <span className="text-xs font-black text-rose-700 uppercase tracking-widest">Cancel Order</span>
+                                <span className="text-xs font-mono font-bold text-stone-900 bg-stone-100 border border-stone-200 px-2.5 py-0.5 rounded-md">
                                   #{formatOrderId(order.id)}
                                 </span>
                               </div>
-                              <p className="text-xs text-zinc-300 font-medium mt-0.5">
-                                Cancel order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) &amp; restore inventory
+                              <p className="text-xs text-stone-600 font-medium mt-0.5">
+                                Cancel order for <strong className="text-stone-900">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total}) &amp; restore inventory
                               </p>
                             </div>
                           </div>
                         </div>
 
                         {/* Mandatory Input Field for Cancellation Reason */}
-                        <div className="bg-black/50 border border-rose-500/30 rounded-2xl p-4 space-y-3 relative z-10">
+                        <div className="bg-rose-50/60 border border-rose-200 rounded-2xl p-4 space-y-3 relative z-10">
                           <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <label className="text-xs font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
                               <span>Cancellation Reason</span>
-                              <span className="text-rose-400 font-extrabold text-sm">*</span>
+                              <span className="text-rose-600 font-extrabold text-sm">*</span>
                             </label>
-                            <span className="text-[10px] text-zinc-400 font-medium">Mandatory for audit &amp; WhatsApp dispatch</span>
+                            <span className="text-[10px] text-stone-500 font-medium">Mandatory for audit &amp; WhatsApp dispatch</span>
                           </div>
 
                           <div className="flex flex-col sm:flex-row gap-3">
@@ -801,7 +799,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               value={cancellingReason}
                               onChange={(e) => setCancellingReason(e.target.value)}
                               placeholder="Enter cancellation reason (e.g. Out of stock, Kitchen overload)..."
-                              className="flex-1 bg-[#0f0f13] text-white text-xs px-4 py-2.5 rounded-xl border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium transition-colors"
+                              className="flex-1 bg-white text-stone-900 text-xs px-4 py-2.5 rounded-xl border border-stone-300 focus:border-rose-500 focus:outline-none placeholder:text-stone-400 font-medium transition-colors shadow-2xs"
                             />
                             
                             <div className="w-full sm:w-72 shrink-0">
@@ -826,7 +824,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
                           {/* Quick Preset Reason Pills */}
                           <div className="flex items-center gap-2 flex-wrap pt-1">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Quick Presets:</span>
+                            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider">Quick Presets:</span>
                             {['Out of Stock', 'Kitchen Busy', 'Store Closed', 'Customer Request', 'Invalid Address'].map((preset) => (
                               <button
                                 key={preset}
@@ -834,8 +832,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                 onClick={() => setCancellingReason(preset)}
                                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                                   cancellingReason === preset
-                                    ? 'bg-rose-500 text-white shadow-md shadow-rose-950 border border-rose-400'
-                                    : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10'
+                                    ? 'bg-rose-600 text-white shadow-xs'
+                                    : 'bg-white hover:bg-stone-100 text-stone-700 border border-stone-200'
                                 }`}
                               >
                                 {preset}
@@ -844,7 +842,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           </div>
 
                           {!cancellingReason.trim() && (
-                            <p className="text-[11px] font-bold text-rose-400 animate-pulse">
+                            <p className="text-[11px] font-bold text-rose-600 animate-pulse">
                               ⚠️ Cancellation reason is required to slide &amp; cancel this order.
                             </p>
                           )}
@@ -857,40 +855,38 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
               if (deletingId === order.id) {
                 return (
-                  <tr key={order.id} className="bg-red-950/20 border-y-2 border-red-500/40">
+                  <tr key={order.id} className="bg-rose-50/70 border-y-2 border-rose-200">
                     <td colSpan={8} className="p-4 sm:p-5">
                       <motion.div
                         initial={{ opacity: 0, scale: 0.98, y: -4 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.98, y: -4 }}
                         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                        className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-[#16141a] border border-red-500/40 rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                        className="flex flex-col lg:flex-row items-center justify-between gap-6 bg-white border border-rose-200 rounded-2xl p-5 shadow-lg relative overflow-hidden"
                       >
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
-
                         <div className="flex items-center gap-4 w-full lg:w-auto relative z-10">
                           <button
                             type="button"
                             onClick={() => setDeletingId(null)}
-                            className="flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 shrink-0"
+                            className="flex items-center gap-2 px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-xs font-bold transition-all border border-stone-200 hover:scale-105 active:scale-95 shrink-0"
                           >
                             <ArrowLeft size={14} />
                             <span>Back</span>
                           </button>
 
-                          <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 shrink-0">
+                          <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 shrink-0">
                             <Trash2 size={22} />
                           </div>
 
                           <div className="flex flex-col text-left">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-red-400 uppercase tracking-widest">Delete Order</span>
-                              <span className="text-xs font-mono font-bold text-white bg-white/10 px-2.5 py-0.5 rounded-md">
+                              <span className="text-xs font-black text-rose-700 uppercase tracking-widest">Delete Order</span>
+                              <span className="text-xs font-mono font-bold text-stone-900 bg-stone-100 border border-stone-200 px-2.5 py-0.5 rounded-md">
                                 #{formatOrderId(order.id)}
                               </span>
                             </div>
-                            <p className="text-xs text-zinc-300 font-medium mt-0.5">
-                              Permanently remove <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong>'s order (₹{order.total})
+                            <p className="text-xs text-stone-600 font-medium mt-0.5">
+                              Permanently remove <strong className="text-stone-900">{order.customer_name || order.customerName || 'Customer'}</strong>'s order (₹{order.total})
                             </p>
                           </div>
                         </div>
@@ -918,11 +914,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   key={order.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.02)' }}
-                  className="group transition-colors"
+                  whileHover={{ backgroundColor: 'rgba(250, 248, 245, 0.8)' }}
+                  className="group transition-colors border-b border-stone-100"
                 >
                 <td className="px-8 py-6">
-                  <span className="text-sm font-bold text-white font-mono tracking-tight">{formatOrderId(order.id)}</span>
+                  <span className="text-sm font-bold text-stone-900 font-mono tracking-tight">{formatOrderId(order.id)}</span>
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex items-center gap-3">
@@ -930,13 +926,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       <User size={14} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-200">
+                      <span className="text-sm font-bold text-stone-900">
                         {order.customer_name || order.customerName || 'Guest Customer'}
                       </span>
                       {order.phone && (
                         <button 
                           onClick={() => sendWhatsAppMessage(order.phone, `Hello ${order.customer_name || order.customerName}, this is Frosty Bite regarding your order #${formatOrderId(order.id)}.`)}
-                          className="flex items-center gap-1 text-[10px] text-emerald-500 hover:text-emerald-400 font-bold"
+                          className="flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-700 font-bold"
                         >
                           <MessageCircle size={10} />
                           {order.phone}
@@ -962,7 +958,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       )}
                       {order.notes && (
                         <div className="mt-1 max-w-[200px]">
-                          <p className="text-[10px] text-amber-500 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10 italic">
+                          <p className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded-md border border-amber-200 italic">
                             NB: {order.notes}
                           </p>
                         </div>
@@ -972,10 +968,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex flex-col">
-                    <span className="text-xs text-white">
+                    <span className="text-xs font-semibold text-stone-800">
                       {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                     </span>
-                    <span className="text-[10px] text-zinc-500">
+                    <span className="text-[10px] text-stone-500 font-medium">
                       {order.created_at ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </span>
                   </div>
@@ -983,7 +979,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <td className="px-8 py-6">
                   <div className="flex flex-wrap gap-1 max-w-[200px]">
                     {order.items.map((item, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-400 rounded-md border border-white/5">
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-stone-100 text-stone-700 rounded-md border border-stone-200 font-medium">
                         {typeof item === 'string' ? item : item.name}
                       </span>
                     ))}
@@ -991,9 +987,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </td>
                 <td className="px-8 py-6">
                   <div className="flex flex-col">
-                    <span className="text-sm font-bold text-white">₹{order.total}</span>
+                    <span className="text-sm font-black text-stone-900">₹{order.total}</span>
                     {order.delivery_charge !== undefined && order.delivery_charge > 0 && (
-                      <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                      <span className="text-[9px] text-stone-500 font-bold uppercase tracking-widest mt-1">
                         Delivery: ₹{order.delivery_charge}
                       </span>
                     )}
@@ -1009,12 +1005,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </td>
                 <td className="px-8 py-6">
                   {isOrderPickup(order) ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-[10px] font-black uppercase tracking-wider">
                       <ShoppingBag size={12} />
                       Bakery Pickup
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[10px] font-black uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-700 text-[10px] font-black uppercase tracking-wider">
                       <Truck size={12} />
                       Home Delivery
                     </span>
@@ -1034,11 +1030,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                       <ImageZoom 
                                         src={order.payment_screenshot} 
                                         alt={`Proof: ${order.utr || order.id}`} 
-                                        className="w-12 h-12 object-cover rounded-lg border border-white/10 shadow-lg cursor-zoom-in"
+                                        className="w-12 h-12 object-cover rounded-lg border border-stone-200 shadow-xs cursor-zoom-in"
                                         triggerClassName="w-12 h-12"
                                       />
                                       <div className="flex flex-col">
-                                        <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Payment Proof</span>
+                                        <span className="text-[10px] text-stone-500 font-black uppercase tracking-widest">Payment Proof</span>
                                         <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'Pending'}</span>
                                       </div>
                                     </div>
@@ -1050,14 +1046,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                       <div className="flex items-center gap-2">
                                         <button 
                                           onClick={() => verifyPayment(order.id)}
-                                          className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                          className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
                                         >
                                           <CheckCircle2 size={12} />
                                           Approve Payment
                                         </button>
                                         <button 
                                           onClick={() => rejectPayment(order.id)}
-                                          className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                          className="px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer"
                                           title="Reject Payment"
                                         >
                                           <X size={12} />
@@ -1066,9 +1062,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                     </div>
                                 </>
                               ) : (
-                                <div className="px-4 py-2 bg-white/5 border border-dashed border-white/10 rounded-xl flex items-center justify-center gap-2">
+                                <div className="px-4 py-2 bg-stone-50 border border-dashed border-stone-300 rounded-xl flex items-center justify-center gap-2">
                                   <Clock size={12} className="text-amber-500 animate-pulse" />
-                                  <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest italic">Awaiting Payment...</span>
+                                  <span className="text-[9px] text-stone-500 font-bold uppercase tracking-widest italic">Awaiting Payment...</span>
                                 </div>
                               )}
                             </div>
@@ -1076,14 +1072,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                             <div className="flex items-center gap-2">
                               <button 
                                 onClick={() => updateStatus(order.id, 'confirmed')}
-                                className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-600 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
                               >
                                 <CheckCircle2 size={12} />
                                 Accept Order
                               </button>
                               <button 
                                 onClick={() => updateStatus(order.id, 'cancelled')}
-                                className="px-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all"
+                                className="px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer"
                                 title="Reject Order"
                               >
                                 <X size={12} />
@@ -1095,11 +1091,11 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       
                       {order.status === 'confirmed' && (
                         <div className="flex flex-col gap-2">
-                          <span className="text-[9px] text-zinc-500 font-black uppercase tracking-widest ml-1">Next Step:</span>
+                          <span className="text-[9px] text-stone-500 font-black uppercase tracking-widest ml-1">Next Step:</span>
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => updateStatus(order.id, 'preparing')}
-                              className="flex-1 px-3 py-2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20 flex items-center justify-center gap-1.5"
+                              className="flex-1 px-3 py-2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <Package size={12} />
                               Start Preparing
@@ -1219,7 +1215,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <div className="flex items-center gap-1.5 ml-auto">
                       <button 
                         onClick={() => handlePrintKOT(order)}
-                        className="p-2.5 rounded-xl bg-white/5 text-gray-400 hover:text-emerald-500 hover:bg-white/10 transition-all"
+                        className="p-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer shadow-2xs"
                         title="Print KOT"
                       >
                         <Printer size={16} />
@@ -1235,14 +1231,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                             estimated_delivery_time: order.estimated_delivery_time || 30
                           });
                         }}
-                        className="p-2.5 rounded-xl bg-white/5 text-gray-400 hover:text-primary hover:bg-white/10 transition-all"
+                        className="p-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 hover:text-[#E76A54] hover:bg-orange-50 transition-all cursor-pointer shadow-2xs"
                         title="Edit Order"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button 
                         onClick={() => setDeletingId(order.id)}
-                        className="p-2.5 rounded-xl bg-white/5 text-gray-400 hover:text-red-500 hover:bg-white/10 transition-all"
+                        className="p-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-600 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer shadow-2xs"
                         title="Delete Order"
                       >
                         <Trash2 size={16} />
@@ -1250,7 +1246,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       <div className="relative">
                         <button 
                           onClick={() => setSelectedOrder(selectedOrder === order.id ? null : order.id)}
-                          className={`p-2.5 rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all ${selectedOrder === order.id ? 'bg-primary/10 text-primary' : ''}`}
+                          className={`p-2.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${selectedOrder === order.id ? 'bg-[#E76A54] border-[#E76A54] text-white' : 'bg-stone-100 border-stone-200 text-stone-600 hover:text-stone-900 hover:bg-stone-200'}`}
                         >
                           <MoreVertical size={16} />
                         </button>
@@ -1260,7 +1256,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                               initial={{ opacity: 0, scale: 0.95, y: 10 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
                               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                              className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                              className="absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden"
                             >
                               {[
                                 { id: 'pending', label: 'Pending' },
@@ -1277,7 +1273,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                                       updateStatus(order.id, s.id as Order['status']);
                                       setSelectedOrder(null);
                                     }}
-                                    className={`w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${order.status === s.id ? 'text-primary bg-primary/5' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                    className={`w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${order.status === s.id ? 'text-[#E76A54] bg-orange-50 font-black' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}
                                   >
                                     Mark as {s.label}
                                   </button>
@@ -1295,7 +1291,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           })}
             {sortedOrders.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-8 py-20 text-center text-zinc-500 font-bold">
+                <td colSpan={8} className="px-8 py-20 text-center text-stone-500 font-bold">
                   No orders found.
                 </td>
               </tr>
@@ -1307,7 +1303,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       {/* Mobile Card View */}
       <div className="lg:hidden p-4 space-y-4">
         {sortedOrders.map((order) => (
-          <div key={order.id} className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 relative overflow-hidden">
+          <div key={order.id} className="bg-white border border-stone-200/80 rounded-3xl p-5 space-y-4 relative overflow-hidden shadow-xs">
             {/* Inline Overlapping Delete / Cancel Card Overlay */}
             <AnimatePresence>
               {cancellingOrder?.id === order.id && (
@@ -1316,39 +1312,39 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-[#141218] border-2 border-rose-500/50 rounded-2xl p-3.5 sm:p-4 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-rose-950/80 overflow-y-auto custom-scrollbar space-y-2.5"
+                  className="absolute inset-0 bg-white border-2 border-rose-300 rounded-3xl p-3.5 sm:p-4 z-40 flex flex-col justify-between shadow-xl overflow-y-auto custom-scrollbar space-y-2.5"
                 >
                   <div className="flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
                         <AlertCircle size={15} />
                       </div>
-                      <h4 className="text-xs font-black text-white uppercase italic tracking-tight">
+                      <h4 className="text-xs font-black text-stone-900 uppercase italic tracking-tight">
                         Cancel Order #{formatOrderId(order.id)}
                       </h4>
                     </div>
                     <button
                       type="button"
                       onClick={() => setCancellingOrder(null)}
-                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full shrink-0"
+                      className="p-1.5 text-stone-400 hover:text-stone-700 bg-stone-100 rounded-full shrink-0 cursor-pointer"
                     >
                       <X size={15} />
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-zinc-300 font-medium px-1 shrink-0">
-                    Cancel for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
+                  <p className="text-[11px] text-stone-600 font-medium px-1 shrink-0">
+                    Cancel for <strong className="text-stone-900">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
                   </p>
 
                   {/* Mandatory Cancellation Reason Input */}
-                  <div className="space-y-1.5 bg-black/40 p-2.5 rounded-xl border border-rose-500/30 shrink-0">
+                  <div className="space-y-1.5 bg-rose-50/60 p-2.5 rounded-xl border border-rose-200 shrink-0">
                     <div className="flex items-center justify-between text-left">
-                      <label className="text-[10px] font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                      <label className="text-[10px] font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">
                         <span>Reason</span>
-                        <span className="text-rose-400 font-extrabold">*</span>
+                        <span className="text-rose-600 font-extrabold">*</span>
                       </label>
                       {!cancellingReason.trim() && (
-                        <span className="text-[9px] font-bold text-rose-400">
+                        <span className="text-[9px] font-bold text-rose-600">
                           Required
                         </span>
                       )}
@@ -1359,7 +1355,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       value={cancellingReason}
                       onChange={(e) => setCancellingReason(e.target.value)}
                       placeholder="Enter reason..."
-                      className="w-full bg-[#1c1a24] text-white text-xs px-2.5 py-1.5 rounded-lg border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium"
+                      className="w-full bg-white text-stone-900 text-xs px-2.5 py-1.5 rounded-lg border border-stone-300 focus:border-rose-500 focus:outline-none placeholder:text-stone-400 font-medium"
                     />
 
                     <div className="flex flex-wrap gap-1">
@@ -1370,8 +1366,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           onClick={() => setCancellingReason(preset)}
                           className={`px-2 py-0.5 rounded-md text-[9px] font-bold transition-all cursor-pointer ${
                             cancellingReason === preset
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-white/5 text-zinc-300 border border-white/10'
+                              ? 'bg-rose-600 text-white'
+                              : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
                           }`}
                         >
                           {preset}
@@ -1400,7 +1396,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button
                       type="button"
                       onClick={() => setCancellingOrder(null)}
-                      className="w-full py-1.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                      className="w-full py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-stone-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <ArrowLeft size={12} />
                       <span>Back to Order</span>
@@ -1415,13 +1411,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-[#141218] border-2 border-red-500/50 rounded-2xl p-4 z-40 flex flex-col justify-between backdrop-blur-2xl shadow-2xl shadow-red-950/80 overflow-y-auto custom-scrollbar space-y-2"
+                  className="absolute inset-0 bg-white border-2 border-red-300 rounded-3xl p-4 z-40 flex flex-col justify-between shadow-xl overflow-y-auto custom-scrollbar space-y-2"
                 >
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
                       onClick={() => setDeletingId(null)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-xs font-bold transition-all border border-stone-200 hover:scale-105 active:scale-95 cursor-pointer"
                     >
                       <ArrowLeft size={14} />
                       <span>Back</span>
@@ -1429,21 +1425,21 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button
                       type="button"
                       onClick={() => setDeletingId(null)}
-                      className="p-1.5 text-zinc-400 hover:text-white bg-white/5 rounded-full"
+                      className="p-1.5 text-stone-400 hover:text-stone-700 bg-stone-100 rounded-full cursor-pointer"
                     >
                       <X size={16} />
                     </button>
                   </div>
 
                   <div className="flex flex-col items-center text-center space-y-2 my-2">
-                    <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-200 text-red-500 flex items-center justify-center">
                       <Trash2 size={22} />
                     </div>
-                    <h4 className="text-sm font-black text-white uppercase italic tracking-tight">
+                    <h4 className="text-sm font-black text-stone-900 uppercase italic tracking-tight">
                       Delete Order #{formatOrderId(order.id)}?
                     </h4>
-                    <p className="text-xs text-zinc-300 font-medium px-2">
-                      Permanently remove order for <strong className="text-white">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
+                    <p className="text-xs text-stone-600 font-medium px-2">
+                      Permanently remove order for <strong className="text-stone-900">{order.customer_name || order.customerName || 'Customer'}</strong> (₹{order.total})
                     </p>
                   </div>
 
@@ -1461,7 +1457,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button
                       type="button"
                       onClick={() => setDeletingId(null)}
-                      className="w-full py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-1.5 transition-all"
+                      className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-[10px] font-extrabold uppercase tracking-widest border border-stone-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <ArrowLeft size={12} />
                       <span>Back to Order</span>
@@ -1474,12 +1470,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black text-primary uppercase font-mono">#{formatOrderId(order.id)}</span>
                 {isOrderPickup(order) ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[9px] font-black uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-700 text-[9px] font-black uppercase tracking-wider">
                     <ShoppingBag size={10} />
                     Pickup
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-400 text-[9px] font-black uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-700 text-[9px] font-black uppercase tracking-wider">
                     <Truck size={10} />
                     Delivery
                   </span>
@@ -1493,10 +1489,10 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <User size={18} />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-black text-white">
+                <span className="text-sm font-black text-stone-900">
                   {order.customer_name || order.customerName || 'Guest Customer'}
                 </span>
-                <span className="text-xs text-gray-500">{order.phone}</span>
+                <span className="text-xs text-stone-500">{order.phone}</span>
                 {order.utr && (
                   <div className="mt-1 flex flex-col gap-1">
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-md w-fit">
@@ -1515,7 +1511,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   </div>
                 )}
                 {order.notes && (
-                  <p className="mt-2 text-[10px] text-amber-500 font-bold bg-amber-500/5 px-2 py-1 rounded-md border border-amber-500/10 italic">
+                  <p className="mt-2 text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-1 rounded-md border border-amber-200 italic">
                     Note: {order.notes}
                   </p>
                 )}
@@ -1524,16 +1520,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
 
             <div className="flex flex-wrap gap-2">
               {order.items.map((item, i) => (
-                <span key={i} className="text-[10px] px-2 py-1 bg-white/5 text-gray-400 rounded-md border border-white/5">
+                <span key={i} className="text-[10px] px-2 py-1 bg-stone-100 text-stone-700 rounded-md border border-stone-200 font-medium">
                   {typeof item === 'string' ? item : item.name}
                 </span>
               ))}
             </div>
 
-            <div className="flex flex-col gap-3 pt-4 border-t border-white/5">
+            <div className="flex flex-col gap-3 pt-4 border-t border-stone-100">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-lg font-black text-white">₹{order.total}</span>
+                  <span className="text-lg font-black text-stone-900">₹{order.total}</span>
                   {order.discount && order.discount > 0 && (
                     <span className="text-[10px] text-primary font-black uppercase tracking-widest">
                       -₹{order.discount} ({order.coupon_code})
@@ -1543,7 +1539,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handlePrintKOT(order)}
-                    className="p-3.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center min-w-[44px] min-h-[44px]"
+                    className="p-3.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-700 hover:bg-stone-200 transition-all flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer"
                     title="Print"
                   >
                     <Printer size={18} />
@@ -1559,7 +1555,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         estimated_delivery_time: order.estimated_delivery_time || 30
                       });
                     }}
-                    className="p-3.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center min-w-[44px] min-h-[44px]"
+                    className="p-3.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-700 hover:bg-stone-200 transition-all flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer"
                     title="Edit Info"
                   >
                     <Edit2 size={18} />
@@ -1568,7 +1564,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     onClick={() => {
                       setSelectedOrder(selectedOrder === order.id ? null : order.id);
                     }}
-                    className={`p-3.5 rounded-xl transition-all flex items-center justify-center min-w-[44px] min-h-[44px] ${selectedOrder === order.id ? 'bg-primary text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                    className={`p-3.5 rounded-xl transition-all flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer border ${selectedOrder === order.id ? 'bg-[#E76A54] border-[#E76A54] text-white' : 'bg-stone-100 border-stone-200 hover:bg-stone-200 text-stone-700'}`}
                     title="Update Status"
                   >
                     <MoreVertical size={18} />
@@ -1579,7 +1575,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
               {/* Direct Labeled Delete Button for Touch Accessibility */}
               <button 
                 onClick={() => setDeletingId(order.id)}
-                className="w-full py-3.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-500 font-bold text-xs uppercase tracking-widest border border-red-500/20 transition-all flex items-center justify-center gap-2 min-h-[44px]"
+                className="w-full py-3.5 px-4 rounded-xl bg-red-50 hover:bg-red-100 active:bg-red-200 text-red-600 font-bold text-xs uppercase tracking-widest border border-red-200 transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
                 title="Delete Order"
               >
                 <Trash2 size={16} />
@@ -1594,12 +1590,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="space-y-4 pt-4 border-t border-white/5 overflow-hidden"
+                  className="space-y-4 pt-4 border-t border-stone-100 overflow-hidden"
                 >
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { id: 'preparing', label: 'Preparing', color: 'bg-blue-500' },
-                      { id: 'out_for_delivery', label: isOrderPickup(order) ? 'Ready for Pickup' : 'Dispatch', color: isOrderPickup(order) ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black font-black' : 'bg-purple-500' },
+                      { id: 'out_for_delivery', label: isOrderPickup(order) ? 'Ready for Pickup' : 'Dispatch', color: isOrderPickup(order) ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black' : 'bg-purple-500' },
                       { id: 'delivered', label: isOrderPickup(order) ? 'Collected' : 'Delivered', color: 'bg-emerald-500' },
                       { id: 'cancelled', label: 'Cancel', color: 'bg-red-500' }
                     ].map((s) => {
@@ -1610,7 +1606,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                             updateStatus(order.id, s.id as Order['status']);
                             setSelectedOrder(null);
                           }}
-                          className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all ${s.color} ${order.status === s.id ? 'ring-2 ring-white ring-inset' : 'opacity-80'}`}
+                          className={`py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white transition-all cursor-pointer ${s.color} ${order.status === s.id ? 'ring-2 ring-stone-900 ring-inset' : 'opacity-90'}`}
                         >
                           {s.label}
                         </button>
@@ -1630,13 +1626,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         {order.payment_screenshot && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Payment Proof:</p>
+                              <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest ml-1">Payment Proof:</p>
                               <span className="text-[10px] text-primary font-bold">Ref: {order.utr || 'N/A'}</span>
                             </div>
                             <ImageZoom 
                               src={order.payment_screenshot} 
                               alt={`Proof: ${order.utr || order.id}`} 
-                              className="w-full h-48 object-cover rounded-2xl border border-white/10"
+                              className="w-full h-48 object-cover rounded-2xl border border-stone-200"
                               triggerClassName="w-full h-48"
                             />
                           </div>
@@ -1648,14 +1644,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                           <div className="flex gap-2">
                             <button 
                               onClick={() => verifyPayment(order.id)}
-                              className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                              className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
                             >
                               <CheckCircle2 size={16} />
                               Approve Payment
                             </button>
                             <button 
                               onClick={() => rejectPayment(order.id)}
-                              className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
+                              className="w-14 h-14 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-center justify-center cursor-pointer"
                             >
                               <X size={20} />
                             </button>
@@ -1663,13 +1659,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                         </div>
                       </>
                     ) : (
-                      <div className="py-8 bg-white/5 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3">
+                      <div className="py-8 bg-stone-50 border border-dashed border-stone-300 rounded-2xl flex flex-col items-center justify-center gap-3">
                          <div className="w-10 h-10 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 animate-pulse">
                            <Clock size={20} />
                          </div>
                          <div className="text-center">
-                           <p className="text-xs font-black text-white uppercase tracking-widest">Awaiting Payment</p>
-                           <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1 italic">Waiting for customer proof</p>
+                           <p className="text-xs font-black text-stone-900 uppercase tracking-widest">Awaiting Payment</p>
+                           <p className="text-[9px] text-stone-500 font-bold uppercase tracking-widest mt-1 italic">Waiting for customer proof</p>
                          </div>
                       </div>
                     )}
@@ -1678,14 +1674,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <div className="flex gap-2">
                     <button 
                       onClick={() => updateStatus(order.id, 'confirmed')}
-                      className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <CheckCircle2 size={16} />
                       Accept Order
                     </button>
                     <button 
                       onClick={() => updateStatus(order.id, 'cancelled')}
-                      className="w-14 h-14 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl flex items-center justify-center"
+                      className="w-14 h-14 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-center justify-center cursor-pointer"
                     >
                       <X size={20} />
                     </button>
@@ -1699,7 +1695,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 <div className="flex gap-2">
                   <button 
                      onClick={() => updateStatus(order.id, 'preparing')}
-                     className="flex-1 py-4 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2"
+                     className="flex-1 py-4 bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Package size={16} />
                     Start Preparing
@@ -1708,7 +1704,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button 
                       id={`mobile-btn-quick-ready-${order.id}`}
                       onClick={() => updateStatus(order.id, 'out_for_delivery')}
-                      className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer font-extrabold"
+                      className="flex-1 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer font-extrabold"
                     >
                       <ShoppingBag size={16} />
                       Mark Ready
@@ -1717,7 +1713,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 </div>
                 <button 
                    onClick={() => setConfirmedOrderForWhatsApp(order)}
-                   className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                   className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
                 >
                   <MessageSquare size={14} />
                   📱 Send Confirmation via WhatsApp
@@ -1731,7 +1727,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <button 
                     id={`mobile-btn-ready-pickup-${order.id}`}
                     onClick={() => updateStatus(order.id, 'out_for_delivery')}
-                    className="w-full min-h-[44px] py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-black text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+                    className="w-full min-h-[44px] py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
                   >
                     <ShoppingBag size={16} />
                     Mark Ready for Pickup
@@ -1740,7 +1736,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <button 
                     id={`mobile-btn-dispatch-${order.id}`}
                     onClick={() => updateStatus(order.id, 'out_for_delivery')}
-                    className="w-full min-h-[44px] py-4 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full min-h-[44px] py-4 bg-purple-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
                   >
                     <Truck size={16} />
                     Dispatch Order
@@ -1756,7 +1752,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     <button 
                       id={`mobile-btn-mark-collected-${order.id}`}
                       onClick={() => updateStatus(order.id, 'delivered')}
-                      className="w-full min-h-[44px] py-3.5 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                      className="w-full min-h-[44px] py-3.5 bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                     >
                       <CheckCircle2 size={16} />
                       Mark Collected / Delivered
@@ -1766,13 +1762,13 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                       <button 
                         id={`mobile-btn-pickup-whatsapp-${order.id}`}
                         onClick={() => setReadyPickupOrderForWhatsApp(order)}
-                        className="w-full min-h-[44px] py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                        className="w-full min-h-[44px] py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
                       >
                         <MessageSquare size={14} />
                         📱 Notify Customer on WhatsApp
                       </button>
                     ) : (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center text-amber-300/80 text-[11px] font-medium">
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-center text-amber-700 text-[11px] font-medium">
                         ⚠️ No customer phone number available.
                       </div>
                     )}
@@ -1781,7 +1777,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <button 
                     id={`mobile-btn-mark-delivered-${order.id}`}
                     onClick={() => updateStatus(order.id, 'delivered')}
-                    className="w-full min-h-[44px] py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full min-h-[44px] py-4 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCircle2 size={16} />
                     Mark Delivered
@@ -1796,7 +1792,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                   <button 
                     id={`mobile-btn-collected-whatsapp-${order.id}`}
                     onClick={() => setCollectedOrderForWhatsApp(order)}
-                    className="w-full py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    className="w-full py-3 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
                     <MessageSquare size={14} />
                     <span>📱 Send Collection Confirmation</span>
@@ -1804,7 +1800,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                 ) : (
                   <button 
                     onClick={() => setDeliveredOrderForWhatsApp(order)}
-                    className="w-full py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all"
                   >
                     <MessageSquare size={14} />
                     📱 Send Delivery Confirmation

@@ -143,22 +143,22 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
   };
 
   return (
-    <div id="order-ready-pickup-view" className={`min-h-screen bg-[#070709] text-white selection:bg-amber-500/30 font-sans p-4 sm:p-6 lg:p-8 relative overflow-x-hidden ${isStandalonePage ? 'pt-6' : ''}`}>
+    <div id="order-ready-pickup-view" className={`min-h-screen bg-[#FAF8F5] text-stone-900 selection:bg-[#E76A54]/20 selection:text-[#E76A54] font-sans p-4 sm:p-6 lg:p-8 relative overflow-x-hidden ${isStandalonePage ? 'pt-6' : ''}`}>
       {/* Background Ambient Glows */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-[#E76A54]/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="max-w-6xl mx-auto space-y-6 relative z-10">
         
         {/* Top Header Navigation Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.02] border border-white/10 rounded-3xl p-5 sm:p-6 backdrop-blur-2xl shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-stone-200/80 rounded-3xl p-5 sm:p-6 shadow-sm">
           <div className="flex items-center gap-4">
             {onBack && (
               <button
                 id="btn-back-to-orders"
                 type="button"
                 onClick={onBack}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-2xl text-xs font-bold transition-all border border-white/10 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                className="flex items-center gap-2 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-stone-900 rounded-2xl text-xs font-bold transition-all border border-stone-200 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
               >
                 <ArrowLeft size={16} />
                 <span>Back to Orders</span>
@@ -167,18 +167,18 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
 
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-extrabold uppercase tracking-wider">
-                  <ShoppingBag size={14} className="text-amber-400" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-extrabold uppercase tracking-wider">
+                  <ShoppingBag size={14} className="text-amber-600" />
                   ✓ Ready for Pickup
                 </span>
-                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-mono font-bold">
+                <span className="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-stone-700 text-xs font-mono font-bold">
                   #{orderIdShort}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-400/30">
+                <span className="px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-700 text-[10px] font-black uppercase tracking-wider border border-stone-200">
                   PICKUP ORDER ONLY
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white mt-1.5">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-stone-900 mt-1.5">
                 Ready for Pickup &amp; WhatsApp Notification
               </h1>
             </div>
@@ -189,9 +189,9 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
               id="btn-open-set-bakery-location-header"
               type="button"
               onClick={() => setShowLocationModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-amber-400 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
             >
-              <MapPin size={14} />
+              <MapPin size={14} className="text-amber-600" />
               <span>Configure Bakery Location</span>
             </button>
 
@@ -200,7 +200,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                 id="btn-done-pickup-modal"
                 type="button"
                 onClick={onBack}
-                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer border border-stone-200"
               >
                 Done
               </button>
@@ -210,9 +210,9 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
 
         {/* Non-Pickup Order Safeguard Banner */}
         {!isActuallyPickup && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center justify-between gap-3 text-rose-300">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between gap-3 text-rose-800">
             <div className="flex items-center gap-2 text-xs font-bold">
-              <AlertTriangle size={18} className="text-rose-400 shrink-0" />
+              <AlertTriangle size={18} className="text-rose-600 shrink-0" />
               <span>Note: This order is marked as Delivery. Ready for Pickup notification is strictly designed for in-store pickup orders.</span>
             </div>
           </div>
@@ -220,14 +220,14 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
 
         {/* Bakery Location Status Banner */}
         {!isLocationConfigured ? (
-          <div id="missing-bakery-location-warning" className="p-5 bg-amber-500/10 border border-amber-500/40 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div id="missing-bakery-location-warning" className="p-5 bg-amber-50 border border-amber-200 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
                 <AlertTriangle size={20} />
               </div>
               <div>
-                <h4 className="text-sm font-bold text-amber-400">⚠️ Bakery pickup location is not fully configured.</h4>
-                <p className="text-xs text-zinc-300 mt-0.5">
+                <h4 className="text-sm font-bold text-amber-900">⚠️ Bakery pickup location is not fully configured.</h4>
+                <p className="text-xs text-amber-800/80 mt-0.5">
                   Set the bakery location to automatically include Google Maps directions in the WhatsApp notification.
                 </p>
               </div>
@@ -238,7 +238,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                 id="btn-set-bakery-location-warning"
                 type="button"
                 onClick={() => setShowLocationModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-all"
+                className="px-4 py-2.5 rounded-xl bg-[#E76A54] hover:bg-[#d85842] text-white font-extrabold text-xs flex items-center gap-2 shadow-sm cursor-pointer transition-all"
               >
                 <MapPin size={14} />
                 <span>Set Bakery Location</span>
@@ -246,21 +246,21 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
             </div>
           </div>
         ) : (
-          <div id="bakery-location-info-card" className="p-4 sm:p-5 bg-white/[0.02] border border-amber-500/20 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div id="bakery-location-info-card" className="p-4 sm:p-5 bg-white border border-stone-200/80 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
                 <MapPin size={18} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-amber-700">
                     Official Pickup Location
                   </span>
-                  <span className="text-[10px] font-mono text-zinc-400">
+                  <span className="text-[10px] font-mono text-stone-500">
                     ({resolvedBakery.bakeryLatitude}, {resolvedBakery.bakeryLongitude})
                   </span>
                 </div>
-                <p className="text-xs font-bold text-white truncate">{resolvedBakery.bakeryName} — {resolvedBakery.bakeryAddress}</p>
+                <p className="text-xs font-bold text-stone-900 truncate">{resolvedBakery.bakeryName} — {resolvedBakery.bakeryAddress}</p>
               </div>
             </div>
 
@@ -270,9 +270,9 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                   href={bakeryMapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-cyan-400 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold flex items-center gap-1.5 transition-all border border-stone-200"
                 >
-                  <Navigation size={13} />
+                  <Navigation size={13} className="text-teal-600" />
                   <span>Test Directions Link</span>
                 </a>
               )}
@@ -281,7 +281,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                 id="btn-edit-bakery-location-banner"
                 type="button"
                 onClick={() => setShowLocationModal(true)}
-                className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-stone-900 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-stone-200"
               >
                 <Settings size={13} />
                 <span>Update Location</span>
@@ -297,22 +297,22 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
           <div className="lg:col-span-7 space-y-6">
 
             {/* Main Action Box */}
-            <div className="bg-[#0f0f13] border border-amber-500/40 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-6 sm:p-7 shadow-sm space-y-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
                     <MessageSquare size={20} />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-white">Customer Notification</h3>
-                    <p className="text-xs text-zinc-400">Notify {customerName} that order #{orderIdShort} is ready</p>
+                    <h3 className="text-base font-extrabold text-stone-900">Customer Notification</h3>
+                    <p className="text-xs text-stone-500">Notify {customerName} that order #{orderIdShort} is ready</p>
                   </div>
                 </div>
 
                 {hasValidPhone && (
-                  <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-mono font-bold border border-amber-500/20">
+                  <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-mono font-bold border border-amber-200">
                     +{normalizedPhone}
                   </span>
                 )}
@@ -325,19 +325,19 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                     id="btn-notify-pickup-whatsapp"
                     type="button"
                     onClick={handleOpenWhatsApp}
-                    className="w-full min-h-[56px] py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-black font-black text-base flex items-center justify-center gap-3 transition-all shadow-xl shadow-amber-950/60 active:scale-[0.98] cursor-pointer group border border-amber-400/40"
+                    className="w-full min-h-[56px] py-4 px-6 rounded-2xl bg-[#E76A54] hover:bg-[#d85842] text-white font-black text-base flex items-center justify-center gap-3 transition-all shadow-md active:scale-[0.98] cursor-pointer group"
                   >
-                    <MessageSquare size={22} className="fill-current text-black group-hover:rotate-6 transition-transform" />
+                    <MessageSquare size={22} className="fill-current text-white group-hover:rotate-6 transition-transform" />
                     <span>📱 {hasOpenedWhatsApp ? 'WhatsApp Opened — Resend Message' : 'Notify Customer on WhatsApp'}</span>
                     <ExternalLink size={18} className="opacity-80 ml-auto group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </button>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-zinc-400 px-1">
-                    <span className="flex items-center gap-1 text-amber-400 font-medium">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-stone-500 px-1">
+                    <span className="flex items-center gap-1 text-emerald-600 font-medium">
                       <CheckCircle2 size={14} />
                       WhatsApp opens with the pickup notification
                     </span>
-                    <span className="text-zinc-500">Admin manually presses Send</span>
+                    <span className="text-stone-400">Admin manually presses Send</span>
                   </div>
 
                   {/* Quick Action Tools */}
@@ -346,9 +346,9 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                       id="btn-copy-pickup-message"
                       type="button"
                       onClick={handleCopyMessage}
-                      className="min-h-[44px] py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="min-h-[44px] py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
-                      {copiedMessage ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      {copiedMessage ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
                       <span>{copiedMessage ? 'Copied Text!' : 'Copy Text'}</span>
                     </button>
 
@@ -356,9 +356,9 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                       id="btn-copy-pickup-phone"
                       type="button"
                       onClick={handleCopyPhone}
-                      className="min-h-[44px] py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="min-h-[44px] py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
-                      {copiedPhone ? <Check size={14} className="text-emerald-400" /> : <Phone size={14} />}
+                      {copiedPhone ? <Check size={14} className="text-emerald-600" /> : <Phone size={14} />}
                       <span>{copiedPhone ? 'Copied Phone!' : 'Copy Phone'}</span>
                     </button>
 
@@ -366,21 +366,21 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                       <a
                         id="btn-call-pickup-customer"
                         href={`tel:${displayOrder.phone}`}
-                        className="min-h-[44px] py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all col-span-2 sm:col-span-1"
+                        className="min-h-[44px] py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-700 hover:text-stone-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all col-span-2 sm:col-span-1"
                       >
-                        <Phone size={14} className="text-amber-400" />
+                        <Phone size={14} className="text-amber-600" />
                         <span>Call Customer</span>
                       </a>
                     )}
                   </div>
                 </div>
               ) : (
-                <div id="pickup-no-phone-warning" className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 space-y-2 text-amber-200">
-                  <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
+                <div id="pickup-no-phone-warning" className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-2 text-amber-900">
+                  <div className="flex items-center gap-2 font-bold text-amber-700 text-sm">
                     <AlertTriangle size={18} />
                     <span>⚠️ No customer phone number is available.</span>
                   </div>
-                  <p className="text-xs text-amber-300/80 leading-relaxed">
+                  <p className="text-xs text-amber-800/80 leading-relaxed">
                     WhatsApp notification cannot be opened directly. Please contact the customer manually when they arrive at the counter.
                   </p>
                 </div>
@@ -388,11 +388,11 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
             </div>
 
             {/* WhatsApp Message Previewer & Customizer */}
-            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-400" />
-                  <h4 className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider">
+                  <Sparkles size={16} className="text-amber-600" />
+                  <h4 className="text-xs font-extrabold text-stone-700 uppercase tracking-wider">
                     Ready for Pickup Message Preview
                   </h4>
                 </div>
@@ -401,7 +401,7 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                   id="btn-toggle-edit-pickup-message"
                   type="button"
                   onClick={() => setIsEditingMessage(!isEditingMessage)}
-                  className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-colors cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold flex items-center gap-1.5 border border-stone-200 transition-colors cursor-pointer"
                 >
                   <Edit3 size={13} />
                   <span>{isEditingMessage ? 'Done Editing' : 'Edit Message'}</span>
@@ -458,47 +458,47 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
           <div className="lg:col-span-5 space-y-6">
 
             {/* Pickup Info Banner */}
-            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-5">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/10 pb-3">
-                <ShoppingBag size={16} className="text-amber-400" />
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-5">
+              <h3 className="text-sm font-black text-stone-900 uppercase tracking-wider flex items-center gap-2 border-b border-stone-100 pb-3">
+                <ShoppingBag size={16} className="text-amber-600" />
                 Pickup Order Information
               </h3>
 
               <div className="space-y-4">
                 {/* Customer Info */}
-                <div className="flex items-center gap-3.5 bg-white/5 p-3.5 rounded-2xl border border-white/5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <div className="flex items-center gap-3.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200/60">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
                     <User size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Customer Name</p>
-                    <p className="text-sm font-bold text-white truncate">{customerName}</p>
+                    <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Customer Name</p>
+                    <p className="text-sm font-bold text-stone-900 truncate">{customerName}</p>
                     {displayOrder.phone && (
-                      <p className="text-xs text-zinc-400 font-mono mt-0.5">{displayOrder.phone}</p>
+                      <p className="text-xs text-stone-500 font-mono mt-0.5">{displayOrder.phone}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Pickup Location */}
-                <div className="flex items-start gap-3.5 bg-white/5 p-3.5 rounded-2xl border border-white/5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                <div className="flex items-start gap-3.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200/60">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0 mt-0.5">
                     <MapPin size={18} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pickup Location</p>
+                      <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Pickup Location</p>
                       <button
                         type="button"
                         onClick={() => setShowLocationModal(true)}
-                        className="text-[10px] text-amber-400 font-bold hover:underline"
+                        className="text-[10px] text-[#E76A54] font-bold hover:underline cursor-pointer"
                       >
                         Change
                       </button>
                     </div>
-                    <p className="text-xs font-semibold text-zinc-200 leading-relaxed mt-0.5">
+                    <p className="text-xs font-semibold text-stone-800 leading-relaxed mt-0.5">
                       {resolvedBakery.bakeryName}
                     </p>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    <p className="text-[11px] text-stone-500 leading-relaxed">
                       {resolvedBakery.bakeryAddress}
                     </p>
                   </div>
@@ -506,13 +506,13 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
 
                 {/* Scheduled Time if Available */}
                 {(displayOrder.delivery_date || displayOrder.delivery_time || displayOrder.estimated_delivery_time) && (
-                  <div className="flex items-center gap-3.5 bg-white/5 p-3.5 rounded-2xl border border-white/5">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                  <div className="flex items-center gap-3.5 bg-stone-50 p-3.5 rounded-2xl border border-stone-200/60">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
                       <Clock size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pickup Schedule</p>
-                      <p className="text-xs font-bold text-amber-300 mt-0.5">
+                      <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Pickup Schedule</p>
+                      <p className="text-xs font-bold text-amber-800 mt-0.5">
                         {[displayOrder.delivery_date, displayOrder.delivery_time].filter(Boolean).join(' at ') || displayOrder.estimated_delivery_time}
                       </p>
                     </div>
@@ -520,43 +520,43 @@ export const OrderReadyPickupPage: React.FC<OrderReadyPickupPageProps> = ({
                 )}
 
                 {/* Payment Summary */}
-                <div className="flex items-center justify-between bg-white/5 p-3.5 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between bg-stone-50 p-3.5 rounded-2xl border border-stone-200/60">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
                       <CreditCard size={18} />
                     </div>
                     <div>
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Payment</p>
-                      <p className="text-xs font-extrabold text-white uppercase">
+                      <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Payment</p>
+                      <p className="text-xs font-extrabold text-stone-900 uppercase">
                         {displayOrder.payment_method || 'Online'} • {displayOrder.payment_status || 'Paid'}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Total</p>
-                    <p className="text-base font-black text-amber-400">₹{amount}</p>
+                    <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">Total</p>
+                    <p className="text-base font-black text-[#E76A54]">₹{amount}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Items Summary */}
-            <div className="bg-[#0f0f13] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-4">
-              <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/10 pb-3">
-                <Receipt size={16} className="text-amber-400" />
+            <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-sm space-y-4">
+              <h3 className="text-sm font-black text-stone-900 uppercase tracking-wider flex items-center gap-2 border-b border-stone-100 pb-3">
+                <Receipt size={16} className="text-amber-600" />
                 Ordered Items ({displayOrder.items?.length || 0})
               </h3>
 
               <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                 {displayOrder.items?.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 text-xs">
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200/60 text-xs">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center font-bold text-amber-400 text-[11px] shrink-0">
+                      <span className="w-6 h-6 rounded-lg bg-stone-200/80 flex items-center justify-center font-bold text-stone-800 text-[11px] shrink-0">
                         {item.quantity}x
                       </span>
-                      <span className="font-semibold text-zinc-200 truncate">{item.name}</span>
+                      <span className="font-semibold text-stone-800 truncate">{item.name}</span>
                     </div>
-                    <span className="font-bold text-white shrink-0 ml-2">₹{item.price * item.quantity}</span>
+                    <span className="font-bold text-stone-900 shrink-0 ml-2">₹{item.price * item.quantity}</span>
                   </div>
                 ))}
               </div>

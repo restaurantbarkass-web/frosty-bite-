@@ -85,9 +85,9 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
         transition={{ type: "spring", damping: 20, stiffness: 320 }}
         className="fixed bottom-8 right-4 sm:right-8 z-[100] w-full max-w-[400px]"
       >
-        <div className="mx-4 sm:mx-0 bg-[#111] border border-orange-500/30 rounded-[2.5rem] shadow-2xl shadow-orange-500/20 overflow-hidden">
+        <div className="mx-4 sm:mx-0 bg-white border border-stone-200/90 rounded-[2.5rem] shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-orange-500 p-6 flex items-center justify-between">
+          <div className="bg-[#E76A54] p-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
                 <ShoppingCart className="text-white" size={20} />
@@ -107,25 +107,25 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
           <div className="p-6 space-y-4">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Customer</p>
-                <p className="text-white font-black">{order.customer_name || 'Guest'}</p>
+                <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mb-1">Customer</p>
+                <p className="text-stone-900 font-black">{order.customer_name || 'Guest'}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Amount</p>
-                <p className="text-orange-500 text-xl font-black italic">₹{order.total}</p>
+                <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mb-1">Amount</p>
+                <p className="text-[#E76A54] text-xl font-black italic">₹{order.total}</p>
               </div>
             </div>
 
-            <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-              <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-2">Order Items</p>
+            <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/60">
+              <p className="text-[9px] text-stone-500 font-bold uppercase tracking-widest mb-2">Order Items</p>
               <div className="space-y-1">
                 {order.items.slice(0, 2).map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between text-xs text-gray-300">
+                  <div key={idx} className="flex justify-between text-xs text-stone-700">
                     <span className="font-bold">{item.quantity}x {item.name}</span>
                   </div>
                 ))}
                 {order.items.length > 2 && (
-                  <p className="text-[10px] text-orange-500 font-bold italic">+ {order.items.length - 2} more items</p>
+                  <p className="text-[10px] text-[#E76A54] font-bold italic">+ {order.items.length - 2} more items</p>
                 )}
               </div>
             </div>
@@ -133,13 +133,13 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
             {/* Actions */}
             {showSlideCancel ? (
               <div className="pt-2 space-y-3">
-                <div className="bg-black/40 border border-rose-500/30 rounded-2xl p-3.5 space-y-2.5">
+                <div className="bg-rose-50/70 border border-rose-200 rounded-2xl p-3.5 space-y-2.5">
                   <div className="flex items-center justify-between text-left">
-                    <label className="text-[11px] font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1">
+                    <label className="text-[11px] font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">
                       <span>Rejection Reason</span>
-                      <span className="text-rose-400 font-extrabold">*</span>
+                      <span className="text-rose-600 font-extrabold">*</span>
                     </label>
-                    <span className="text-[9px] text-zinc-400 font-medium">Mandatory</span>
+                    <span className="text-[9px] text-stone-500 font-medium">Mandatory</span>
                   </div>
 
                   <input
@@ -147,7 +147,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
                     placeholder="Type reason (e.g. Out of stock)..."
-                    className="w-full bg-[#18161f] text-white text-xs px-3 py-2 rounded-xl border border-white/15 focus:border-rose-500 focus:outline-none placeholder:text-zinc-500 font-medium"
+                    className="w-full bg-white text-stone-900 text-xs px-3 py-2 rounded-xl border border-stone-300 focus:border-rose-500 focus:outline-none placeholder:text-stone-400 font-medium"
                   />
 
                   <div className="flex flex-wrap gap-1">
@@ -158,8 +158,8 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                         onClick={() => setRejectionReason(preset)}
                         className={`px-2 py-1 rounded-lg text-[9px] font-bold transition-all cursor-pointer ${
                           rejectionReason === preset
-                            ? 'bg-rose-500 text-white'
-                            : 'bg-white/5 text-zinc-300 border border-white/10'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-white text-stone-700 border border-stone-200 hover:bg-stone-50'
                         }`}
                       >
                         {preset}
@@ -168,7 +168,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                   </div>
 
                   {!rejectionReason.trim() && (
-                    <p className="text-[10px] font-bold text-rose-400 text-left">
+                    <p className="text-[10px] font-bold text-rose-600 text-left">
                       ⚠️ Rejection reason is required
                     </p>
                   )}
@@ -193,7 +193,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                 <button
                   type="button"
                   onClick={() => setShowSlideCancel(false)}
-                  className="w-full py-2 bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white rounded-full text-xs font-extrabold uppercase tracking-widest border border-white/10 flex items-center justify-center gap-2 group transition-all cursor-pointer"
+                  className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full text-xs font-extrabold uppercase tracking-widest border border-stone-200 flex items-center justify-center gap-2 group transition-all cursor-pointer"
                 >
                   <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" />
                   <span>Back</span>
@@ -204,7 +204,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                 <button
                   disabled={isProcessing}
                   onClick={() => handleAction('confirmed')}
-                  className="flex-1 bg-white hover:bg-gray-100 text-black py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 bg-[#E76A54] hover:bg-[#d85943] text-white py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Check size={16} />
                   Accept
@@ -212,7 +212,7 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
                 <button
                   disabled={isProcessing}
                   onClick={() => setShowSlideCancel(true)}
-                  className="flex-1 bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 bg-stone-100 hover:bg-red-50 text-stone-700 hover:text-red-600 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all border border-stone-200 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <X size={16} />
                   Reject
@@ -222,19 +222,19 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
             
             <button 
               onClick={onClose}
-              className="w-full text-center text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em] pt-2 hover:text-white transition-colors cursor-pointer"
+              className="w-full text-center text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em] pt-2 hover:text-stone-700 transition-colors cursor-pointer"
             >
               Dismiss for now
             </button>
           </div>
           
           {/* Progress Bar */}
-          <div className="h-1 bg-white/5 w-full">
+          <div className="h-1 bg-stone-100 w-full">
             <motion.div 
               initial={{ width: '100%' }}
               animate={{ width: '0%' }}
               transition={{ duration: 60, ease: 'linear' }}
-              className="h-full bg-orange-500"
+              className="h-full bg-[#E76A54]"
             />
           </div>
         </div>

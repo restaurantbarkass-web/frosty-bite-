@@ -82,7 +82,7 @@ export const FlyingCartOverlay: React.FC = () => {
                 ease: [0.25, 1, 0.5, 1] // Super smooth deceleration profile
               }}
               onAnimationComplete={() => handleAnimationComplete(p.id)}
-              className="fixed w-12 h-12 rounded-full border-2 border-primary bg-zinc-950 p-1 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)]"
+              className="fixed w-12 h-12 rounded-full border-2 border-primary bg-white p-1 flex items-center justify-center shadow-[0_0_25px_rgba(249,115,22,0.4)]"
             >
               <img
                 src={p.image}

@@ -56,7 +56,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = React.memo(({ banne
     >
       <div 
         {...handlers}
-        className="relative h-[280px] sm:h-[320px] w-full overflow-hidden rounded-[2.5rem] shadow-xl border border-white/10 bg-[#0A0A0A] touch-pan-y"
+        className="relative h-[280px] sm:h-[320px] w-full overflow-hidden rounded-[2.5rem] shadow-xl border border-stone-200/20 bg-[#18120e] touch-pan-y"
       >
         <div
           className="flex h-full w-full transition-transform duration-700 ease-in-out"
