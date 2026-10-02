@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+﻿import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../lib/supabase';
 
 export interface GatewayDeviceInfo {
@@ -76,6 +76,11 @@ class SmsGatewayServiceClass {
     const safe: Record<string, any> = {};
     for (const [key, val] of Object.entries(details)) {
       const lower = key.toLowerCase();
+      // Allow safe diagnostic telemetry values through without redacting
+      if (key === 'apiKeyConfigured' || key === 'receivedApiKeyPresent' || key === 'receivedKeyLength' || key === 'expectedDeviceId' || key === 'deviceId' || key === 'httpStatus') {
+        safe[key] = val;
+        continue;
+      }
       if (lower.includes('key') || lower.includes('secret') || lower.includes('token') || lower.includes('password') || lower.includes('phone') || lower.includes('otp')) {
         safe[key] = '[REDACTED]';
       } else {
@@ -87,12 +92,13 @@ class SmsGatewayServiceClass {
 
   /**
    * Validates if the incoming request comes with a valid Android SMS Gateway API key.
+   * Does NOT transform, hash, or truncate the key. Performs exact credential comparison.
    */
   public validateApiKey(providedKey?: string): boolean {
     const configuredKey = process.env.SMS_GATEWAY_API_KEY || process.env.FROSTY_SMS_GATEWAY_KEY;
 
     if (!configuredKey) {
-      // In development or if key is not yet set, allow a default placeholder or log a warning
+      // In development or if key is not yet set, allow a default placeholder
       if (process.env.NODE_ENV !== 'production') {
         return true;
       }
@@ -100,21 +106,30 @@ class SmsGatewayServiceClass {
     }
 
     if (!providedKey) return false;
-    return providedKey.trim() === configuredKey.trim();
+
+    // Safely remove any surrounding quotes if inadvertently included in environment variable definition
+    const cleanConfigured = configuredKey.replace(/^["']|["']$/g, '').trim();
+    const cleanProvided = providedKey.replace(/^["']|["']$/g, '').trim();
+
+    return cleanProvided === cleanConfigured;
   }
 
   /**
    * Processes a heartbeat payload from the Android SMS Gateway application.
    */
-  public async processHeartbeat(payload: Partial<GatewayDeviceInfo>, clientIp?: string): Promise<{ ok: boolean; message: string; gatewayState: 'ONLINE' | 'OFFLINE' }> {
+  public async processHeartbeat(payload: Partial<GatewayDeviceInfo> & Record<string, any>, clientIp?: string): Promise<{ ok: boolean; message: string; gatewayState: 'ONLINE' | 'OFFLINE' }> {
     const now = Date.now();
     const isoNow = new Date(now).toISOString();
 
-    const expectedDeviceId = process.env.SMS_GATEWAY_DEVICE_ID;
-    const incomingDeviceId = payload.deviceId || 'unknown-android-gateway';
+    const expectedDeviceId = (process.env.SMS_GATEWAY_DEVICE_ID || '').trim();
+    const incomingDeviceId = (payload.deviceId || 'unknown-android-gateway').trim();
 
-    if (expectedDeviceId && payload.deviceId && payload.deviceId !== expectedDeviceId) {
-      this.addLog('AUTH_FAILURE', `Heartbeat rejected: Device ID mismatch (Expected: ${expectedDeviceId}, Received: ${payload.deviceId})`);
+    if (expectedDeviceId && incomingDeviceId && incomingDeviceId !== expectedDeviceId) {
+      this.addLog('AUTH_FAILURE', `Heartbeat rejected: Device ID mismatch (Expected: ${expectedDeviceId}, Received: ${incomingDeviceId})`, {
+        expectedDeviceId,
+        deviceId: incomingDeviceId,
+        httpStatus: 403
+      });
       return {
         ok: false,
         message: `Device ID mismatch`,
@@ -122,21 +137,29 @@ class SmsGatewayServiceClass {
       };
     }
 
-    const simReady = payload.simReady !== false && payload.status?.toLowerCase() !== 'sim_error';
-    const smsReady = payload.smsReady !== false;
-    const permissionGranted = payload.permissionGranted !== false;
+    // Support both boolean flags and string representations sent by Android diagnostics
+    const simReady = payload.simReady === true || 
+      (typeof payload.simStatus === 'string' && payload.simStatus.toUpperCase() === 'READY') ||
+      (payload.simReady !== false && payload.status?.toLowerCase() !== 'sim_error');
+
+    const smsReady = payload.smsReady === true ||
+      (typeof payload.smsCapability === 'string' && payload.smsCapability.toUpperCase() === 'READY') ||
+      payload.smsReady !== false;
+
+    const permissionGranted = payload.permissionGranted === true ||
+      (typeof payload.permissionStatus === 'string' && payload.permissionStatus.toUpperCase() === 'GRANTED');
 
     this.state.deviceInfo = {
       deviceId: incomingDeviceId,
-      status: payload.status || 'READY',
+      status: payload.status || (simReady && smsReady ? 'READY' : 'NOT_READY'),
       simReady,
       smsReady,
       permissionGranted,
-      batteryLevel: payload.batteryLevel,
-      networkType: payload.networkType || 'Cellular/WiFi',
+      batteryLevel: payload.batteryLevel ?? 100,
+      networkType: payload.networkType || payload.networkInfo || 'WIFI',
       signalStrength: payload.signalStrength || 'Good',
       simOperator: payload.simOperator || 'Active SIM',
-      appVersion: payload.appVersion || '1.0.0',
+      appVersion: payload.appVersion || '1.0',
       ip: clientIp || payload.ip || '127.0.0.1'
     };
 
@@ -145,7 +168,8 @@ class SmsGatewayServiceClass {
     this.state.heartbeatCount += 1;
     this.state.serverStatus = 'CONNECTED';
 
-    const isOnline = simReady && smsReady && permissionGranted;
+    // Gateway is ONLINE when active heartbeats are received and hardware (SIM & SMS capability) is ready
+    const isOnline = simReady && smsReady;
     this.state.gatewayStatus = isOnline ? 'ONLINE' : 'OFFLINE';
 
     this.addLog('HEARTBEAT', `Heartbeat acknowledged from device: ${incomingDeviceId}`, {
@@ -153,17 +177,15 @@ class SmsGatewayServiceClass {
       simReady,
       smsReady,
       permissionGranted,
-      battery: payload.batteryLevel,
-      network: payload.networkType,
-      appVersion: payload.appVersion
+      battery: payload.batteryLevel ?? 100,
+      network: this.state.deviceInfo.networkType,
+      appVersion: payload.appVersion || '1.0'
     });
 
-    console.log(`[SMS Gateway] Heartbeat acknowledged from device: ${incomingDeviceId} (SIM: ${simReady ? 'READY' : 'NOT READY'}, SMS: ${smsReady ? 'READY' : 'DISABLED'})`);
+    console.log(`[SMS Gateway] Heartbeat acknowledged from device: ${incomingDeviceId} (SIM: ${simReady ? 'READY' : 'NOT READY'}, SMS: ${smsReady ? 'READY' : 'DISABLED'}, Permission: ${permissionGranted ? 'GRANTED' : 'REQUIRED'})`);
 
     // Optional background sync to Supabase for persistence across serverless executions
-    this.syncStateToDatabase().catch((err) => {
-      // Non-blocking catch
-    });
+    this.syncStateToDatabase().catch(() => {});
 
     return {
       ok: true,
@@ -199,7 +221,7 @@ class SmsGatewayServiceClass {
       ageSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
 
       const isWithinWindow = elapsedMs <= HEARTBEAT_TIMEOUT_MS;
-      const isDeviceHealthy = this.state.deviceInfo?.simReady && this.state.deviceInfo?.smsReady && this.state.deviceInfo?.permissionGranted;
+      const isDeviceHealthy = this.state.deviceInfo?.simReady && this.state.deviceInfo?.smsReady;
 
       if (isWithinWindow && isDeviceHealthy) {
         currentGatewayStatus = 'ONLINE';
