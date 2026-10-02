@@ -37,6 +37,7 @@ import searchRouter from "./routes/search.routes";
 import v2GeofencingRouter from "./routes/v2geofencing.routes";
 import paymentRouter from "./routes/payment.routes";
 import campaignsRouter from "./routes/campaigns.routes";
+import smsGatewayRouter from "./routes/smsGateway.routes";
 
 import { V2GeofencingService } from "./services/v2Geofencing.service";
 import { supabase } from "./lib/supabase";
@@ -220,6 +221,7 @@ app.use(["/search", "/api/search"], searchRouter);
 app.use(["/v2", "/api/v2", "/api/geofencing", "/geofencing"], v2GeofencingRouter);
 app.use(["/payment", "/api/payment"], paymentRouter);
 app.use(["/campaigns", "/api/campaigns"], campaignsRouter);
+app.use(["/sms-gateway", "/api/sms-gateway", "/sms", "/api/sms"], smsGatewayRouter);
 app.use(["/coupons/validate", "/api/coupons/validate"], (req, res, next) => {
   req.url = "/validate-coupon";
   campaignsRouter(req, res, next);

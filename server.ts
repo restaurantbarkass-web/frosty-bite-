@@ -44,9 +44,9 @@ async function startServer() {
   console.log(`[Server] Mode: ${isProduction ? 'Production' : 'Development'}`);
   console.log(`[Server] Dist folder exists: ${hasDist}`);
 
-  // Mounting baseApp which contains all /api routes
+  // Mounting baseApp which contains all /api routes and feature handlers
   // It's important to mount this BEFORE Vite or static middlewares
-  app.use("/api", baseApp);
+  app.use(baseApp);
 
   // Mount preload middleware for critical assets (fonts, main CSS, core JS chunks)
   app.use(createPreloadMiddleware(distPath));

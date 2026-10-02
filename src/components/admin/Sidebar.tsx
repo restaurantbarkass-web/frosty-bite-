@@ -20,7 +20,8 @@ import {
   Database,
   Bell,
   MessageSquareHeart,
-  Sparkles
+  Sparkles,
+  Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -37,6 +38,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'sms-gateway', label: 'SMS Gateway', icon: Smartphone },
   { id: 'notifications', label: 'Push Notifications', icon: Bell },
   { id: 'rewards', label: 'Rewards Engine', icon: Award },
   { id: 'customers', label: 'Customers', icon: Users },

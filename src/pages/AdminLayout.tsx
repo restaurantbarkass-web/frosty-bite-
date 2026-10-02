@@ -24,6 +24,7 @@ const RlsDiagnostics = lazy(() => import('./admin/RlsDiagnostics').then(m => ({ 
 const BannerManager = lazy(() => import('../components/admin/BannerManager').then(m => ({ default: m.BannerManager })));
 const CampaignManager = lazy(() => import('../components/admin/CampaignManager').then(m => ({ default: m.CampaignManager })));
 const NotificationCenter = lazy(() => import('./admin/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
+const SmsGatewayPage = lazy(() => import('./admin/SmsGatewayPage').then(m => ({ default: m.SmsGatewayPage })));
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
@@ -83,6 +84,7 @@ export const AdminLayout: React.FC = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'orders': return <Orders />;
+      case 'sms-gateway': return <SmsGatewayPage />;
       case 'notifications': return <NotificationCenter />;
       case 'customers': return <Customers />;
       case 'feedback': return <FeedbackManagement />;
