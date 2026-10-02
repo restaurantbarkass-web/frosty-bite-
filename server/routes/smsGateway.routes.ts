@@ -1,4 +1,4 @@
-﻿import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { SmsGatewayService } from '../services/smsGateway.service';
 import { requireAdmin } from '../middleware/auth';
 
@@ -89,6 +89,32 @@ export const requireGatewayAuth = (req: Request, res: Response, next: NextFuncti
 
   console.log(`[SMS Gateway Auth] API key configured: YES | Received API key present: YES | Received key length: ${receivedKeyLength} | Device ID: ${incomingDeviceId || expectedDeviceId || 'default'} | HTTP status: 200`);
   next();
+};
+
+/**
+ * Authentication middleware for Queue creation.
+ * Accepts either physical Gateway credentials (X-API-Key) or Admin Bearer Token.
+ * Never allows unauthenticated requests.
+ */
+export const requireGatewayOrAdminAuth = (req: Request, res: Response, next: NextFunction) => {
+  const hasGatewayKey = !!(
+    req.headers['x-api-key'] ||
+    req.headers['x-gateway-key'] ||
+    req.headers['x-sms-key'] ||
+    req.body?.apiKey
+  );
+
+  const authHeader = req.headers.authorization;
+
+  if (hasGatewayKey) {
+    return requireGatewayAuth(req, res, next);
+  }
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return requireAdmin(req, res, next);
+  }
+
+  return requireGatewayAuth(req, res, next);
 };
 
 /**
@@ -232,6 +258,169 @@ router.post('/test-connection', async (req: Request, res: Response) => {
       });
     }
   });
+});
+
+/**
+ * 5. Create SMS Job in Queue
+ * POST /api/sms-gateway/queue
+ * Requires Gateway API Key or Admin Token.
+ */
+router.post('/queue', requireGatewayOrAdminAuth, async (req: Request, res: Response) => {
+  try {
+    const { to, message, type, orderId, priority } = req.body || {};
+
+    if (!to) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing recipient phone number'
+      });
+    }
+
+    if (!message || (typeof message === 'string' && message.trim().length === 0)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Message content cannot be empty'
+      });
+    }
+
+    const result = await SmsGatewayService.createSmsJob({
+      to,
+      message,
+      type,
+      orderId,
+      priority
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({
+        ok: false,
+        error: result.error || 'Failed to queue SMS job'
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      job: result.job
+    });
+  } catch (err: any) {
+    console.error('[SMS Gateway] Error queuing SMS job:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'Internal Server Error',
+      message: err.message || 'Failed to queue SMS'
+    });
+  }
+});
+
+/**
+ * 6. Poll for Next Eligible SMS Job
+ * GET /api/sms-gateway/poll
+ * POST /api/sms-gateway/poll (supported for Android Gateway client compatibility)
+ * Requires X-API-Key and X-Device-ID.
+ */
+const handlePoll = async (req: Request, res: Response) => {
+  try {
+    const incomingDeviceId = ((req.headers['x-device-id'] as string) || req.body?.deviceId || 'frosty-sms-gateway-01').trim();
+    const result = await SmsGatewayService.pollNextJob(incomingDeviceId);
+
+    if (!result.ok) {
+      return res.status(500).json({
+        ok: false,
+        error: 'Failed to poll SMS queue'
+      });
+    }
+
+    const job = result.job;
+
+    // Return hybrid response compatible with BOTH Android (messages array)
+    // AND test/admin clients (job object)
+    if (!job) {
+      return res.status(200).json({
+        ok: true,
+        job: null,
+        messages: []
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      job: {
+        id: job.id,
+        to: job.to,
+        message: job.message,
+        type: job.type,
+        orderId: job.orderId,
+        attempts: job.attempts
+      },
+      messages: [
+        {
+          id: job.id,
+          phoneNumber: job.to,
+          message: job.message
+        }
+      ]
+    });
+  } catch (err: any) {
+    console.error('[SMS Gateway] Error polling SMS job:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'Internal Server Error',
+      message: err.message || 'Failed to poll queue'
+    });
+  }
+};
+
+router.get('/poll', requireGatewayAuth, handlePoll);
+router.post('/poll', requireGatewayAuth, handlePoll);
+
+/**
+ * 7. Report SMS Delivery Result
+ * POST /api/sms-gateway/report
+ * Handled by Android Gateway after attempting SMS dispatch.
+ * Requires X-API-Key and X-Device-ID.
+ */
+router.post('/report', requireGatewayAuth, async (req: Request, res: Response) => {
+  try {
+    const { jobId, messageId, status, details, errorCode, errorMessage } = req.body || {};
+    const targetId = jobId || messageId;
+
+    if (!targetId) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing jobId or messageId'
+      });
+    }
+
+    if (!status || !['SENT', 'FAILED'].includes(String(status).toUpperCase())) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid status. Must be 'SENT' or 'FAILED'"
+      });
+    }
+
+    const deviceId = details?.deviceId || req.body?.deviceId || (req.headers['x-device-id'] as string) || 'frosty-sms-gateway-01';
+
+    const result = await SmsGatewayService.reportJobResult({
+      jobId: targetId,
+      status: String(status).toUpperCase() as 'SENT' | 'FAILED',
+      deviceId: String(deviceId).trim(),
+      errorCode,
+      errorMessage
+    });
+
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json(result);
+  } catch (err: any) {
+    console.error('[SMS Gateway] Error reporting SMS result:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'Internal Server Error',
+      message: err.message || 'Failed to process SMS report'
+    });
+  }
 });
 
 export default router;
