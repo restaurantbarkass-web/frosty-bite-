@@ -81,15 +81,6 @@ export interface GatewayState {
 }
 
 /**
- * Validates phone numbers: accepts international (+91...) or standard 10-15 digit formats.
- */
-export function isValidPhoneNumber(phone: string): boolean {
-  if (!phone || typeof phone !== 'string') return false;
-  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
-  return /^\+?[0-9]{10,15}$/.test(cleaned);
-}
-
-/**
  * Maximum elapsed milliseconds before the Android Gateway is considered OFFLINE.
  * Android Gateway sends periodic heartbeats (e.g. every 15-30s). 
  * 90s grace threshold allows for intermittent cellular reconnects.
