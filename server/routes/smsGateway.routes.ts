@@ -30,12 +30,18 @@ const orderEventRateLimiter = rateLimit({
 
 /**
  * Authentication middleware for the physical Android SMS Gateway device.
- * Checks for API key in 'x-api-key', 'x-gateway-key', 'x-sms-key', 'Authorization: Bearer <key>', or request body.
+ * Checks for API key in 'x-api-key', 'x-gateway-key', 'x-sms-key', 'x-apikey', 'Authorization: Bearer <key>', or request body.
  */
 const requireGatewayAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  const apiKeyHeader = (req.headers['x-api-key'] || req.headers['x-gateway-key'] || req.headers['x-sms-key']) as string | undefined;
-  const bodyApiKey = req.body?.apiKey;
+  const apiKeyHeader = (
+    req.headers['x-api-key'] || 
+    req.headers['x-gateway-key'] || 
+    req.headers['x-sms-key'] || 
+    req.headers['x-apikey'] ||
+    req.headers['apikey']
+  ) as string | undefined;
+  const bodyApiKey = req.body?.apiKey || req.body?.api_key || req.body?.key;
 
   let providedKey: string | undefined = undefined;
 
@@ -45,6 +51,10 @@ const requireGatewayAuth = (req: Request, res: Response, next: NextFunction) => 
     providedKey = authHeader.split('Bearer ')[1]?.trim();
   } else if (bodyApiKey) {
     providedKey = String(bodyApiKey);
+  }
+
+  if (providedKey) {
+    providedKey = providedKey.trim().replace(/^["']|["']$/g, '');
   }
 
   const isValid = SmsGatewayService.validateApiKey(providedKey);
@@ -59,6 +69,24 @@ const requireGatewayAuth = (req: Request, res: Response, next: NextFunction) => 
       ok: false,
       error: 'Unauthorized',
       message: 'Invalid or missing SMS Gateway API key'
+    });
+  }
+
+  const incomingDeviceId = ((req.headers['x-device-id'] as string) || req.body?.deviceId || req.body?.device_id || '').trim();
+  const expectedDeviceId = (process.env.SMS_GATEWAY_DEVICE_ID || '').trim();
+
+  // 2. Validate Device ID (if configured on server)
+  if (expectedDeviceId && incomingDeviceId && incomingDeviceId !== expectedDeviceId) {
+    SmsGatewayService.addLog('AUTH_FAILURE', `Gateway request rejected: Device ID mismatch (Expected: ${expectedDeviceId}, Received: ${incomingDeviceId})`, {
+      ip: req.ip || req.headers['x-forwarded-for'],
+      deviceId: incomingDeviceId,
+      expectedDeviceId,
+      httpStatus: 403
+    });
+    return res.status(403).json({
+      ok: false,
+      error: 'Forbidden',
+      message: 'Device ID mismatch'
     });
   }
 
@@ -264,7 +292,7 @@ router.post('/heartbeat', requireGatewayAuth, async (req: Request, res: Response
     const payload = req.body || {};
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.ip;
 
-    const result = await SmsGatewayService.processHeartbeat(payload, clientIp);
+    const result = await SmsGatewayService.processHeartbeat(payload, clientIp, req.headers);
 
     if (!result.ok) {
       return res.status(400).json(result);
@@ -295,11 +323,18 @@ router.post('/heartbeat', requireGatewayAuth, async (req: Request, res: Response
  * GET /api/sms-gateway/ping
  */
 router.get('/ping', (_req: Request, res: Response) => {
+  const configuredKey = process.env.SMS_GATEWAY_API_KEY || process.env.FROSTY_SMS_GATEWAY_KEY;
   return res.status(200).json({
     ok: true,
     service: 'frosty-bite-sms-server',
     status: 'CONNECTED',
-    serverTime: new Date().toISOString()
+    serverTime: new Date().toISOString(),
+    diagnostics: {
+      serverApiKeyConfigured: configuredKey ? 'YES' : 'NO',
+      serverApiKeyLength: configuredKey ? configuredKey.trim().length : 0,
+      serverDeviceId: process.env.SMS_GATEWAY_DEVICE_ID || 'frosty-sms-gateway-01',
+      serverGatewayUrlConfigured: process.env.SMS_GATEWAY_URL ? 'YES' : 'NO'
+    }
   });
 });
 
@@ -307,9 +342,9 @@ router.get('/ping', (_req: Request, res: Response) => {
  * 7. Connection Status Endpoint (Admin Only)
  * GET /api/sms-gateway/status
  */
-router.get('/status', requireAdmin, (_req: Request, res: Response) => {
+router.get('/status', requireAdmin, async (_req: Request, res: Response) => {
   try {
-    const status = SmsGatewayService.getStatus();
+    const status = await SmsGatewayService.getStatus();
     return res.status(200).json({
       ok: true,
       ...status
@@ -324,31 +359,64 @@ router.get('/status', requireAdmin, (_req: Request, res: Response) => {
 });
 
 /**
- * 8. Admin Diagnostic Test Connection Endpoint
+ * 8. Diagnostic Test Connection Endpoint
  * POST /api/sms-gateway/test-connection
+ * Can be called by:
+ * - Android SMS Gateway: uses X-API-Key and X-Device-ID (same auth as heartbeat)
+ * - Admin Web UI: uses Authorization: Bearer <token>
  */
-router.post('/test-connection', requireAdmin, async (_req: Request, res: Response) => {
-  try {
-    const diagnostic = await SmsGatewayService.testConnection();
-    return res.status(200).json(diagnostic);
-  } catch (err: any) {
-    console.error('[SMS Gateway] Test connection failed:', err);
-    return res.status(500).json({
-      ok: false,
-      status: 'GATEWAY OFFLINE',
-      serverStatus: 'CONNECTED',
-      gatewayStatus: 'OFFLINE',
-      simReady: false,
-      smsReady: false,
-      permissionGranted: false,
-      latencyMs: 0,
-      lastHeartbeat: null,
-      lastHeartbeatAgeSeconds: null,
-      pendingQueueCount: 0,
-      device: null,
-      message: `Diagnostic test error: ${err.message || 'Unknown error'}`
+router.post('/test-connection', async (req: Request, res: Response) => {
+  const hasGatewayApiKey = !!(
+    req.headers['x-api-key'] ||
+    req.headers['x-gateway-key'] ||
+    req.headers['x-sms-key'] ||
+    req.headers['x-apikey'] ||
+    req.headers['apikey'] ||
+    req.body?.apiKey ||
+    req.body?.api_key ||
+    req.body?.key
+  );
+
+  // If called by Android Gateway with API Key (or gateway headers)
+  if (hasGatewayApiKey) {
+    return requireGatewayAuth(req, res, () => {
+      const incomingDeviceId = ((req.headers['x-device-id'] as string) || req.body?.deviceId || req.body?.device_id || 'frosty-sms-gateway-01').trim();
+      return res.status(200).json({
+        ok: true,
+        service: 'frosty-bite-sms-server',
+        status: 'CONNECTED',
+        auth: 'PASS',
+        message: 'PING: PASS\nAUTHENTICATION: PASS\nSERVER: CONNECTED',
+        deviceId: incomingDeviceId,
+        serverTime: new Date().toISOString()
+      });
     });
   }
+
+  // Otherwise, Admin Web UI diagnostic call
+  return requireAdmin(req, res, async () => {
+    try {
+      const diagnostic = await SmsGatewayService.testConnection();
+      return res.status(200).json(diagnostic);
+    } catch (err: any) {
+      console.error('[SMS Gateway] Test connection failed:', err);
+      return res.status(500).json({
+        ok: false,
+        status: 'GATEWAY OFFLINE',
+        serverStatus: 'CONNECTED',
+        gatewayStatus: 'OFFLINE',
+        simReady: false,
+        smsReady: false,
+        permissionGranted: false,
+        latencyMs: 0,
+        lastHeartbeat: null,
+        lastHeartbeatAgeSeconds: null,
+        pendingQueueCount: 0,
+        device: null,
+        message: `Diagnostic test error: ${err.message || 'Unknown error'}`
+      });
+    }
+  });
 });
 
 export default router;

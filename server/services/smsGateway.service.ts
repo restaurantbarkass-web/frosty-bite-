@@ -85,8 +85,8 @@ export interface GatewayState {
  */
 export function isValidPhoneNumber(phone: string): boolean {
   if (!phone || typeof phone !== 'string') return false;
-  const clean = phone.replace(/[\s\-\(\)]/g, '');
-  return /^\+?[1-9]\d{7,14}$/.test(clean);
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  return /^\+?[0-9]{10,15}$/.test(cleaned);
 }
 
 /**
@@ -525,15 +525,25 @@ class SmsGatewayServiceClass {
   /**
    * Processes a heartbeat payload from the Android SMS Gateway application.
    */
-  public async processHeartbeat(payload: Partial<GatewayDeviceInfo>, clientIp?: string): Promise<{ ok: boolean; message: string; gatewayState: 'ONLINE' | 'OFFLINE' }> {
+  public async processHeartbeat(
+    payload: Partial<GatewayDeviceInfo> & Record<string, any>,
+    clientIp?: string,
+    headers?: Record<string, any>
+  ): Promise<{ ok: boolean; message: string; gatewayState: 'ONLINE' | 'OFFLINE' }> {
     const now = Date.now();
     const isoNow = new Date(now).toISOString();
 
     const expectedDeviceId = process.env.SMS_GATEWAY_DEVICE_ID;
-    const incomingDeviceId = payload.deviceId || 'frosty-sms-gateway-01';
+    const incomingDeviceId = String(
+      payload.deviceId || 
+      payload.device_id || 
+      headers?.['x-device-id'] || 
+      headers?.['x-device'] || 
+      'frosty-sms-gateway-01'
+    ).trim();
 
-    if (expectedDeviceId && payload.deviceId && payload.deviceId !== expectedDeviceId) {
-      this.addLog('AUTH_FAILURE', `Heartbeat rejected: Device ID mismatch (Expected: ${expectedDeviceId}, Received: ${payload.deviceId})`);
+    if (expectedDeviceId && incomingDeviceId !== expectedDeviceId.trim()) {
+      this.addLog('AUTH_FAILURE', `Heartbeat rejected: Device ID mismatch (Expected: ${expectedDeviceId}, Received: ${incomingDeviceId})`);
       return {
         ok: false,
         message: `Device ID mismatch`,
@@ -541,21 +551,44 @@ class SmsGatewayServiceClass {
       };
     }
 
-    const simReady = payload.simReady !== false && payload.status?.toLowerCase() !== 'sim_error';
-    const smsReady = payload.smsReady !== false;
-    const permissionGranted = payload.permissionGranted !== false;
+    const simReady = payload.simReady === true || 
+                     payload.sim_ready === true || 
+                     String(payload.simState || '').toUpperCase() === 'READY' || 
+                     String(payload.sim_state || '').toUpperCase() === 'READY' || 
+                     (payload.simReady !== false && payload.sim_ready !== false && String(payload.status || '').toLowerCase() !== 'sim_error');
+
+    const smsReady = payload.smsReady === true || 
+                     payload.sms_ready === true || 
+                     String(payload.smsCapability || '').toUpperCase() === 'READY' || 
+                     String(payload.sms_capability || '').toUpperCase() === 'READY' || 
+                     (payload.smsReady !== false && payload.sms_ready !== false);
+
+    const permissionGranted = payload.permissionGranted === true || 
+                              payload.permission_granted === true || 
+                              String(payload.permission || '').toUpperCase() === 'GRANTED' || 
+                              String(payload.permissions || '').toUpperCase() === 'GRANTED' || 
+                              (payload.permissionGranted !== false && payload.permission_granted !== false);
+
+    const batteryLevel = typeof payload.batteryLevel === 'number' 
+      ? payload.batteryLevel 
+      : (typeof payload.battery_level === 'number' ? payload.battery_level : (typeof payload.battery === 'number' ? payload.battery : undefined));
+
+    const networkType = payload.networkType || payload.network_type || payload.network || 'Cellular/WiFi';
+    const signalStrength = payload.signalStrength || payload.signal_strength || payload.signal || 'Good';
+    const simOperator = payload.simOperator || payload.sim_operator || payload.operator || 'Active SIM';
+    const appVersion = payload.appVersion || payload.app_version || payload.version || '1.0.0';
 
     this.state.deviceInfo = {
       deviceId: incomingDeviceId,
-      status: payload.status || 'READY',
+      status: payload.status || (simReady && smsReady && permissionGranted ? 'READY' : 'OFFLINE'),
       simReady,
       smsReady,
       permissionGranted,
-      batteryLevel: payload.batteryLevel,
-      networkType: payload.networkType || 'Cellular/WiFi',
-      signalStrength: payload.signalStrength || 'Good',
-      simOperator: payload.simOperator || 'Active SIM',
-      appVersion: payload.appVersion || '1.0.0',
+      batteryLevel,
+      networkType,
+      signalStrength,
+      simOperator,
+      appVersion,
       ip: clientIp || payload.ip || '127.0.0.1'
     };
 
@@ -572,14 +605,15 @@ class SmsGatewayServiceClass {
       simReady,
       smsReady,
       permissionGranted,
-      battery: payload.batteryLevel,
-      network: payload.networkType,
-      appVersion: payload.appVersion
+      battery: batteryLevel,
+      network: networkType,
+      appVersion
     });
 
-    console.log(`[SMS Gateway] Heartbeat acknowledged from device: ${incomingDeviceId} (SIM: ${simReady ? 'READY' : 'NOT READY'}, SMS: ${smsReady ? 'READY' : 'DISABLED'})`);
+    console.log(`[SMS Gateway] 💓 Heartbeat acknowledged from device: ${incomingDeviceId} (SIM: ${simReady ? 'READY' : 'NOT READY'}, SMS: ${smsReady ? 'READY' : 'DISABLED'})`);
 
-    this.syncStateToDatabase().catch(() => {});
+    // Await database persistence for cross-instance serverless synchronization
+    await this.syncStateToDatabase();
 
     return {
       ok: true,
@@ -590,8 +624,9 @@ class SmsGatewayServiceClass {
 
   /**
    * Computes the real-time status of the SMS Server & Android Gateway.
+   * Asynchronously synchronizes with persistent database state across serverless instances.
    */
-  public getStatus(): {
+  public async getStatus(): Promise<{
     server: 'CONNECTED' | 'OFFLINE';
     gateway: 'ONLINE' | 'OFFLINE';
     lastHeartbeat: string | null;
@@ -606,8 +641,72 @@ class SmsGatewayServiceClass {
       expectedDeviceId?: string;
     };
     logs: GatewayHeartbeatLog[];
-  } {
+  }> {
     const now = Date.now();
+
+    // 1. If in-memory state is empty or expired, hydrate from persistent Supabase database
+    if (!this.state.lastHeartbeatTimestampMs || (now - this.state.lastHeartbeatTimestampMs) > HEARTBEAT_TIMEOUT_MS) {
+      try {
+        // Try app_settings table first
+        const { data: settingRow } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('id', 'sms_gateway_state')
+          .maybeSingle();
+
+        if (settingRow?.value && typeof settingRow.value === 'object') {
+          const val = settingRow.value;
+          const persistedTs = val.lastHeartbeatTimestampMs || (val.lastHeartbeat ? new Date(val.lastHeartbeat).getTime() : null);
+          if (persistedTs) {
+            this.state.lastHeartbeat = val.lastHeartbeat || new Date(persistedTs).toISOString();
+            this.state.lastHeartbeatTimestampMs = persistedTs;
+            this.state.heartbeatCount = Math.max(this.state.heartbeatCount, val.heartbeatCount || 1);
+            this.state.deviceInfo = {
+              deviceId: val.deviceId || 'frosty-sms-gateway-01',
+              status: val.status || 'READY',
+              simReady: val.simReady !== false,
+              smsReady: val.smsReady !== false,
+              permissionGranted: val.permissionGranted !== false,
+              batteryLevel: val.batteryLevel,
+              networkType: val.networkType || 'Cellular/WiFi',
+              signalStrength: val.signalStrength || 'Good',
+              simOperator: val.simOperator || 'Active SIM',
+              appVersion: val.appVersion || '1.0.0',
+              ip: val.ip || '127.0.0.1'
+            };
+          }
+        } else {
+          // Fallback check sms_gateway_state table
+          const { data: stateRow } = await supabase
+            .from('sms_gateway_state')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (stateRow) {
+            const persistedTs = stateRow.last_heartbeat ? new Date(stateRow.last_heartbeat).getTime() : new Date(stateRow.updated_at).getTime();
+            this.state.lastHeartbeat = stateRow.last_heartbeat || stateRow.updated_at;
+            this.state.lastHeartbeatTimestampMs = persistedTs;
+            this.state.heartbeatCount = Math.max(this.state.heartbeatCount, 1);
+            this.state.deviceInfo = {
+              deviceId: stateRow.device_id || 'frosty-sms-gateway-01',
+              status: stateRow.status || 'READY',
+              simReady: stateRow.sim_ready !== false,
+              smsReady: stateRow.sms_ready !== false,
+              permissionGranted: stateRow.permission_granted !== false,
+              batteryLevel: stateRow.battery_level,
+              networkType: stateRow.network_type || 'Cellular/WiFi',
+              simOperator: stateRow.sim_operator || 'Active SIM',
+              appVersion: stateRow.app_version || '1.0.0'
+            };
+          }
+        }
+      } catch (_) {
+        // Fallback to in-memory state
+      }
+    }
+
     let currentGatewayStatus: 'ONLINE' | 'OFFLINE' = 'OFFLINE';
     let ageSeconds: number | null = null;
 
@@ -665,7 +764,7 @@ class SmsGatewayServiceClass {
     message: string;
   }> {
     const startTime = Date.now();
-    const currentStatus = this.getStatus();
+    const currentStatus = await this.getStatus();
     const latencyMs = Math.max(1, Date.now() - startTime);
 
     const isOnline = currentStatus.gateway === 'ONLINE';
@@ -741,13 +840,41 @@ class SmsGatewayServiceClass {
   }
 
   /**
-   * Persists gateway state to Supabase table if it exists (fails gracefully if table not created).
+   * Persists gateway state to Supabase table (app_settings & sms_gateway_state) for cross-instance durability.
    */
   private async syncStateToDatabase(): Promise<void> {
     try {
       const device = this.state.deviceInfo;
       if (!device) return;
 
+      const statePayload = {
+        deviceId: device.deviceId,
+        status: this.state.gatewayStatus,
+        simReady: device.simReady,
+        smsReady: device.smsReady,
+        permissionGranted: device.permissionGranted,
+        batteryLevel: device.batteryLevel,
+        networkType: device.networkType,
+        signalStrength: device.signalStrength,
+        simOperator: device.simOperator,
+        appVersion: device.appVersion,
+        ip: device.ip,
+        lastHeartbeat: this.state.lastHeartbeat,
+        lastHeartbeatTimestampMs: this.state.lastHeartbeatTimestampMs,
+        heartbeatCount: this.state.heartbeatCount,
+        gatewayStatus: this.state.gatewayStatus,
+        updatedAt: new Date().toISOString()
+      };
+
+      // 1. Persist to standard app_settings table
+      await supabase
+        .from('app_settings')
+        .upsert({
+          id: 'sms_gateway_state',
+          value: statePayload
+        }, { onConflict: 'id' });
+
+      // 2. Also persist to dedicated sms_gateway_state table
       await supabase
         .from('sms_gateway_state')
         .upsert({
@@ -764,7 +891,7 @@ class SmsGatewayServiceClass {
           updated_at: new Date().toISOString()
         }, { onConflict: 'device_id' });
     } catch (_) {
-      // Optional persistence
+      // Gracefully silent
     }
   }
 }

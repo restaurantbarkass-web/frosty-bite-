@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import smsGatewayRouter from '../server/routes/smsGateway.routes';
 import { SmsGatewayService } from '../server/services/smsGateway.service';
 
@@ -149,7 +149,7 @@ async function runTests() {
     );
 
     // 10. Check Admin status updated from heartbeat telemetry
-    const statusData = SmsGatewayService.getStatus();
+    const statusData = await SmsGatewayService.getStatus();
     assert(
       statusData.device?.deviceId === TEST_DEVICE_ID &&
       statusData.device?.simReady === true &&
