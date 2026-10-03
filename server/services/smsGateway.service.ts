@@ -70,6 +70,17 @@ export interface GatewayHeartbeatLog {
   details?: Record<string, any>;
 }
 
+export interface DispatchTelemetry {
+  jobId: string;
+  type: SmsType;
+  orderId?: string;
+  status: SmsStatus;
+  queueLatencyMs: number;
+  dispatchLatencyMs: number;
+  totalGatewayMs: number;
+  timestamp: string;
+}
+
 export interface GatewayState {
   serverStatus: 'CONNECTED' | 'OFFLINE';
   gatewayStatus: 'ONLINE' | 'OFFLINE';
@@ -77,6 +88,7 @@ export interface GatewayState {
   lastHeartbeatTimestampMs: number | null;
   heartbeatCount: number;
   deviceInfo: GatewayDeviceInfo | null;
+  lastDispatchTelemetry: DispatchTelemetry | null;
   logs: GatewayHeartbeatLog[];
 }
 
@@ -95,6 +107,7 @@ class SmsGatewayServiceClass {
     lastHeartbeatTimestampMs: null,
     heartbeatCount: 0,
     deviceInfo: null,
+    lastDispatchTelemetry: null,
     logs: []
   };
 
@@ -283,10 +296,8 @@ class SmsGatewayServiceClass {
 
       console.log(`[SMS Gateway] 📨 SMS queued successfully: ID=${jobId}, Type=${params.type}, Order=#${cleanOrderId || 'N/A'}`);
 
-      // 3. Optional non-blocking persistence to Supabase sms_queue table
-      this.persistJobToDatabase(newJob).catch((err) => {
-        // Non-blocking catch
-      });
+      // 3. Await database persistence for cross-instance serverless durability
+      await this.persistJobToDatabase(newJob);
 
       return {
         ok: true,
@@ -452,14 +463,71 @@ class SmsGatewayServiceClass {
 
   /**
    * Retrieves all pending jobs for Android SMS Gateway polling.
+   * Hydrates from in-memory queue, Supabase sms_queue table, and app_settings fallback store.
    */
-  public getPendingJobs(): SmsJob[] {
-    const jobs: SmsJob[] = [];
+  public async getPendingJobs(): Promise<SmsJob[]> {
+    const jobsMap = new Map<string, SmsJob>();
+
+    // 1. In-memory queue
     for (const job of this.queue.values()) {
       if (job.status === 'QUEUED') {
-        jobs.push(job);
+        jobsMap.set(job.id, job);
       }
     }
+
+    // 2. Hydrate from Supabase app_settings key-value store (guaranteed cross-instance sync)
+    try {
+      const { data: row } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', 'sms_queue_jobs')
+        .maybeSingle();
+
+      if (Array.isArray(row?.value)) {
+        for (const job of row.value) {
+          if (job.status === 'QUEUED' && !jobsMap.has(job.id)) {
+            jobsMap.set(job.id, job);
+            this.queue.set(job.idempotencyKey, job);
+          }
+        }
+      }
+    } catch (_) {}
+
+    // 3. Hydrate from Supabase sms_queue table
+    try {
+      const { data: dbJobs } = await supabase
+        .from('sms_queue')
+        .select('*')
+        .eq('status', 'QUEUED')
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (Array.isArray(dbJobs)) {
+        for (const row of dbJobs) {
+          const job: SmsJob = {
+            id: row.id,
+            recipient: row.recipient,
+            message: row.message,
+            type: row.type,
+            orderId: row.order_id,
+            status: row.status,
+            priority: row.priority || 'HIGH',
+            idempotencyKey: row.idempotency_key || `job:${row.id}`,
+            createdAt: row.created_at || new Date().toISOString(),
+            updatedAt: row.updated_at || new Date().toISOString(),
+            retryCount: row.retry_count || 0,
+            error: row.error,
+            sentAt: row.sent_at
+          };
+          if (!jobsMap.has(job.id)) {
+            jobsMap.set(job.id, job);
+            this.queue.set(job.idempotencyKey, job);
+          }
+        }
+      }
+    } catch (_) {}
+
+    const jobs = Array.from(jobsMap.values());
 
     // Sort: HIGH priority first, then FIFO by createdAt
     const priorityOrder = { HIGH: 0, NORMAL: 1, LOW: 2 };
@@ -506,11 +574,47 @@ class SmsGatewayServiceClass {
         });
       }
 
-      this.persistJobToDatabase(foundJob).catch(() => {});
+      await this.persistJobToDatabase(foundJob);
       return { ok: true, message: `Job ${jobId} marked as ${status}` };
     }
 
-    return { ok: true, message: `Job ${jobId} acknowledged` };
+    // Also update directly in database if not found in memory
+    const updatePayload: any = {
+      status,
+      updated_at: nowIso
+    };
+    if (status === 'SENT') {
+      updatePayload.sent_at = nowIso;
+    } else {
+      updatePayload.error = error || 'Delivery failed on Android SIM device';
+    }
+
+    try {
+      await supabase
+        .from('sms_queue')
+        .update(updatePayload)
+        .eq('id', jobId);
+
+      const { data: row } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', 'sms_queue_jobs')
+        .maybeSingle();
+
+      if (Array.isArray(row?.value)) {
+        const jobsList = row.value.map((j: SmsJob) => {
+          if (j.id === jobId) {
+            return { ...j, ...updatePayload };
+          }
+          return j;
+        });
+        await supabase
+          .from('app_settings')
+          .upsert({ id: 'sms_queue_jobs', value: jobsList }, { onConflict: 'id' });
+      }
+    } catch (_) {}
+
+    return { ok: true, message: `Job ${jobId} acknowledged as ${status}` };
   }
 
   /**
@@ -723,7 +827,7 @@ class SmsGatewayServiceClass {
       lastHeartbeat: this.state.lastHeartbeat,
       lastHeartbeatAgeSeconds: ageSeconds,
       heartbeatCount: this.state.heartbeatCount,
-      pendingQueueCount: this.getPendingJobs().length,
+      pendingQueueCount: (await this.getPendingJobs()).length,
       device: this.state.deviceInfo,
       config: {
         hasApiKey: !!(process.env.SMS_GATEWAY_API_KEY || process.env.FROSTY_SMS_GATEWAY_KEY),
@@ -805,7 +909,7 @@ class SmsGatewayServiceClass {
   }
 
   /**
-   * Non-blocking persistence to Supabase sms_queue table if table is provisioned
+   * Persists job to Supabase (sms_queue table & app_settings fallback) for guaranteed cross-instance durability.
    */
   private async persistJobToDatabase(job: SmsJob): Promise<void> {
     try {
@@ -826,7 +930,37 @@ class SmsGatewayServiceClass {
           created_at: job.createdAt
         }, { onConflict: 'id' });
     } catch (_) {
-      // Graceful fallback to memory store
+      // Graceful fallback
+    }
+
+    try {
+      const { data: row } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('id', 'sms_queue_jobs')
+        .maybeSingle();
+
+      let jobsList: SmsJob[] = Array.isArray(row?.value) ? row.value : [];
+      const idx = jobsList.findIndex(j => j.id === job.id);
+      if (idx >= 0) {
+        jobsList[idx] = job;
+      } else {
+        jobsList.push(job);
+      }
+
+      // Retain latest 100 jobs
+      if (jobsList.length > 100) {
+        jobsList = jobsList.slice(-100);
+      }
+
+      await supabase
+        .from('app_settings')
+        .upsert({
+          id: 'sms_queue_jobs',
+          value: jobsList
+        }, { onConflict: 'id' });
+    } catch (_) {
+      // Graceful fallback
     }
   }
 

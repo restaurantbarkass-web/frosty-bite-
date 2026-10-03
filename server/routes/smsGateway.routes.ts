@@ -207,14 +207,39 @@ router.post('/order-event', orderEventRateLimiter, async (req: Request, res: Res
  * Phase 2 standard: GET /api/sms-gateway/poll, POST /api/sms-gateway/poll
  * Phase 3 aliases: GET /api/sms-gateway/pending-jobs, GET /api/sms-gateway/queue
  */
-const handleGetPendingJobs = (req: Request, res: Response) => {
+const handleGetPendingJobs = async (req: Request, res: Response) => {
   try {
-    const jobs = SmsGatewayService.getPendingJobs();
+    const rawJobs = await SmsGatewayService.getPendingJobs();
+
+    // Map each job with all compatible field aliases for Android APKs
+    const formattedJobs = rawJobs.map(job => ({
+      id: job.id,
+      jobId: job.id,
+      job_id: job.id,
+      recipient: job.recipient,
+      phone: job.recipient,
+      phoneNumber: job.recipient,
+      to: job.recipient,
+      message: job.message,
+      text: job.message,
+      body: job.message,
+      type: job.type,
+      smsType: job.type,
+      sms_type: job.type,
+      orderId: job.orderId,
+      order_id: job.orderId,
+      status: job.status,
+      priority: job.priority,
+      idempotencyKey: job.idempotencyKey,
+      createdAt: job.createdAt
+    }));
+
     return res.status(200).json({
       ok: true,
-      count: jobs.length,
-      jobs,
-      data: jobs
+      count: formattedJobs.length,
+      jobs: formattedJobs,
+      messages: formattedJobs,
+      data: formattedJobs
     });
   } catch (err: any) {
     console.error('[SMS Gateway] Error fetching pending jobs:', err);
@@ -284,7 +309,7 @@ router.post('/heartbeat', requireGatewayAuth, async (req: Request, res: Response
       return res.status(400).json(result);
     }
 
-    const pendingJobs = SmsGatewayService.getPendingJobs();
+    const pendingJobs = await SmsGatewayService.getPendingJobs();
 
     console.log(`[SMS Gateway Heartbeat] ✅ Heartbeat successfully processed and persisted. HTTP 200 returned. Gateway state: ${result.gatewayState}`);
 
