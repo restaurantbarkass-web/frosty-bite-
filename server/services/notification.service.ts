@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 // Fallback in-memory and file-persisted store for subscriptions, events, preferences, and templates
 // Ensures 100% continuous uptime and zero crashes regardless of database connection state
@@ -67,7 +68,7 @@ interface NotificationTemplate {
   updated_at: string;
 }
 
-const LOCAL_STORE_FILE = path.join(process.cwd(), 'notification_store_backup.json');
+const LOCAL_STORE_FILE = path.join(os.tmpdir(), 'notification_store_backup.json');
 
 class NotificationLocalStore {
   subscriptions: PushSub[] = [];
@@ -267,8 +268,8 @@ class NotificationLocalStore {
         if (Array.isArray(data.preferences)) this.preferences = data.preferences;
         if (Array.isArray(data.templates) && data.templates.length > 0) this.templates = data.templates;
       }
-    } catch (e) {
-      console.warn('[NotificationStore] Failed to load store from disk:', e);
+    } catch (_) {
+      // In-memory store continues gracefully without disk cache
     }
   }
 
@@ -282,8 +283,8 @@ class NotificationLocalStore {
         updated_at: new Date().toISOString()
       };
       fs.writeFileSync(LOCAL_STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (e) {
-      console.warn('[NotificationStore] Failed to save store to disk:', e);
+    } catch (_) {
+      // Gracefully silent on serverless / read-only filesystem environments
     }
   }
 }

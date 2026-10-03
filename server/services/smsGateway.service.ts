@@ -79,6 +79,7 @@ export interface GatewayState {
   deviceInfo: GatewayDeviceInfo | null;
   logs: GatewayHeartbeatLog[];
 }
+
 /**
  * Validates phone numbers: accepts international (+91...) or standard 10-15 digit formats.
  */
@@ -350,26 +351,25 @@ class SmsGatewayServiceClass {
         };
       }
 
-      // 1. Resolve Order Phone and Type from database if not fully passed
+      // 1. Resolve Order Phone and Type from trusted Supabase database
       let resolvedPhone = params.phone;
       let resolvedType = orderType;
       let resolvedOrder: any = null;
 
-      if (!resolvedPhone || !resolvedType) {
-        try {
-          const { data: orderData } = await supabase
-            .from('orders')
-            .select('id, phone, customer_name, order_type, address')
-            .eq('id', cleanOrderId)
-            .maybeSingle();
+      try {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('id, phone, customer_name, order_type, address')
+          .eq('id', cleanOrderId)
+          .maybeSingle();
 
-          if (orderData) {
-            resolvedOrder = orderData;
-            resolvedPhone = resolvedPhone || orderData.phone;
-            resolvedType = resolvedType || orderData.order_type;
-          }
-        } catch (_) {}
-      }
+        if (orderData) {
+          resolvedOrder = orderData;
+          // Strictly prioritize phone and order details recorded in database
+          resolvedPhone = orderData.phone || resolvedPhone;
+          resolvedType = orderData.order_type || resolvedType;
+        }
+      } catch (_) {}
 
       const isPickup = resolvedType === 'pickup' || 
                        resolvedOrder?.order_type === 'pickup' || 

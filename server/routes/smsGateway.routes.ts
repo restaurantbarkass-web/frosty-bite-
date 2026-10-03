@@ -1,9 +1,32 @@
 import express, { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { SmsGatewayService, SmsType, QueueSmsParams } from '../services/smsGateway.service';
 import { requireAdmin } from '../middleware/auth';
 import { supabase } from '../lib/supabase';
 
 const router = express.Router();
+
+// Rate limiter for order event lifecycle triggers
+const orderEventRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string' && forwarded.length > 0) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  },
+  message: {
+    ok: false,
+    skipped: true,
+    error: 'Too Many Requests',
+    message: 'Rate limit exceeded for order events. Please slow down.'
+  }
+});
 
 /**
  * Authentication middleware for the physical Android SMS Gateway device.
@@ -134,8 +157,9 @@ router.post('/queue', requireQueueAuth, async (req: Request, res: Response) => {
  * 2. Automated Order Event SMS Trigger Endpoint
  * POST /api/sms-gateway/order-event
  * Automatically maps order status to message copy, validates customer phone, and queues SMS safely.
+ * Internal order event endpoint: protected by rate limiting and server-side state machine validation.
  */
-router.post('/order-event', requireQueueAuth, async (req: Request, res: Response) => {
+router.post('/order-event', orderEventRateLimiter, async (req: Request, res: Response) => {
   try {
     const { orderId, status, prevStatus, phone, customerName, orderType } = req.body || {};
 

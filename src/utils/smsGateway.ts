@@ -1,4 +1,5 @@
 import { safeFetchJson } from './safeFetch';
+import { supabase } from '../supabase';
 
 export interface TriggerOrderSmsParams {
   orderId: string;
@@ -27,6 +28,17 @@ export const triggerOrderSms = async (params: TriggerOrderSmsParams): Promise<{
       return { success: false, reason: 'orderId and status are required' };
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+    } catch (_) {}
+
     const res = await safeFetchJson<{
       ok: boolean;
       job?: { id: string };
@@ -35,7 +47,7 @@ export const triggerOrderSms = async (params: TriggerOrderSmsParams): Promise<{
       reason?: string;
     }>('/api/sms-gateway/order-event', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         orderId,
         status,
