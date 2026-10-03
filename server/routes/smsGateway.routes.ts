@@ -203,13 +203,14 @@ router.post('/order-event', orderEventRateLimiter, async (req: Request, res: Res
 });
 
 /**
- * 3. Retrieve Pending SMS Jobs for Android Device Dispatch
+ * 3. Retrieve and Atomically Claim Pending SMS Jobs for Android Device Dispatch
  * Phase 2 standard: GET /api/sms-gateway/poll, POST /api/sms-gateway/poll
  * Phase 3 aliases: GET /api/sms-gateway/pending-jobs, GET /api/sms-gateway/queue
  */
 const handleGetPendingJobs = async (req: Request, res: Response) => {
   try {
-    const rawJobs = await SmsGatewayService.getPendingJobs();
+    const deviceIdentifier = (req.headers['x-device-id'] as string) || req.body?.deviceId || req.body?.device_id || 'frosty-sms-gateway-01';
+    const rawJobs = await SmsGatewayService.claimPendingJobs(deviceIdentifier);
 
     // Map each job with all compatible field aliases for Android APKs
     const formattedJobs = rawJobs.map(job => ({
@@ -231,7 +232,8 @@ const handleGetPendingJobs = async (req: Request, res: Response) => {
       status: job.status,
       priority: job.priority,
       idempotencyKey: job.idempotencyKey,
-      createdAt: job.createdAt
+      createdAt: job.createdAt,
+      attempts: job.attempts || 1
     }));
 
     return res.status(200).json({
@@ -242,7 +244,7 @@ const handleGetPendingJobs = async (req: Request, res: Response) => {
       data: formattedJobs
     });
   } catch (err: any) {
-    console.error('[SMS Gateway] Error fetching pending jobs:', err);
+    console.error('[SMS Gateway] Error fetching/claiming pending jobs:', err);
     return res.status(500).json({
       ok: false,
       error: 'Failed to fetch pending SMS jobs'
