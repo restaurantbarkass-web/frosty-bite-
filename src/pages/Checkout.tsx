@@ -58,6 +58,7 @@ import { SwipeToConfirm } from '../components/checkout/SwipeToConfirm';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
 import { geocode } from '../lib/geocoder';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
+import { triggerOrderSms } from '../utils/smsGateway';
 
 export const DELIVERY_TIME_SLOTS = [
   { id: 'morning', label: 'Morning', range: '09:00 AM - 12:00 PM', icon: '🌅', hint: 'Fresh Morning Bake' },
@@ -898,6 +899,15 @@ export const Checkout: React.FC = () => {
 
         await supabaseService.insertData('orders', orderData);
         haptic.checkout();
+
+        // Trigger Phase 3 Automated ORDER_RECEIVED SMS (Non-blocking background dispatch)
+        triggerOrderSms({
+          orderId,
+          status: 'pending',
+          phone: formData.phone,
+          customerName: formData.name,
+          orderType: isPickupOnly ? 'pickup' : 'delivery'
+        }).catch(err => console.warn('[SMS Gateway] Non-blocking order creation SMS catch:', err));
         
         // Clear saved checkout draft inputs on success
         try {

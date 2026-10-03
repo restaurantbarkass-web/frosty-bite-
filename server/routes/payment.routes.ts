@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { supabase } from '../lib/supabase';
 import { ADMIN_EMAILS } from '../middleware/auth';
+import { SmsGatewayService } from '../services/smsGateway.service';
 
 const router = express.Router();
 
@@ -948,6 +949,15 @@ router.post(['/device-event', '/api/payment/device-event'], paymentDeviceEventLi
       processed: true,
       match_reason: 'matched_single_order'
     });
+
+    // Trigger Phase 3 Automated ORDER_ACCEPTED SMS (Non-blocking background dispatch)
+    SmsGatewayService.handleOrderStatusTransition({
+      orderId: matchedCandidate.order.id,
+      status: 'confirmed',
+      prevStatus: matchedCandidate.order.status,
+      phone: (matchedCandidate.order as any).phone,
+      orderType: (matchedCandidate.order as any).order_type
+    }).catch(err => console.warn('[PaymentDeviceEvent] Non-blocking order confirmation SMS catch:', err));
 
     return res.status(200).json({
       success: true,

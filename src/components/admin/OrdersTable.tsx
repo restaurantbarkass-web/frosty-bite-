@@ -20,6 +20,7 @@ import { ConfirmationModal } from '../ui/ConfirmationModal';
 import { SlideConfirmModal } from '../ui/SlideConfirmModal';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { showDeviceNotification, triggerOrderStatusNotification } from '../../utils/messaging';
+import { triggerOrderSms } from '../../utils/smsGateway';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { AdminDeliverySuccessModal } from './AdminDeliverySuccessModal';
 import { AdminConfirmationSuccessModal } from './AdminConfirmationSuccessModal';
@@ -320,6 +321,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       }
 
       toast.success('Payment verified & Order confirmed!', { id: loadingToast });
+      
+      // Trigger Phase 3 Automated ORDER_ACCEPTED SMS (Non-blocking background dispatch)
+      triggerOrderSms({
+        orderId,
+        status: 'confirmed',
+        prevStatus: prevOrder?.status,
+        phone: prevOrder?.phone,
+        customerName: prevOrder?.customer_name,
+        orderType: prevOrder?.order_type
+      }).catch(err => console.warn('[SMS Gateway] Non-blocking verifyPayment SMS catch:', err));
+
       if (prevOrder) {
         const finalConfirmedOrder = { ...prevOrder, payment_status: 'paid' as const, status: 'confirmed' as const } as Order;
         setConfirmedOrderForWhatsApp(finalConfirmedOrder);
@@ -475,6 +487,16 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         customReason: reasonToUse,
         refundAmount: order?.total
       }).catch(err => console.warn('Push notification trigger error:', err));
+
+      // Trigger Phase 3 Automated Order Status SMS (Non-blocking background dispatch)
+      triggerOrderSms({
+        orderId: id,
+        status: newStatus,
+        prevStatus: prevOrder?.status,
+        phone: order?.phone || prevOrder?.phone,
+        customerName: order?.customer_name || prevOrder?.customer_name,
+        orderType: order?.order_type || prevOrder?.order_type
+      }).catch(err => console.warn('[SMS Gateway] Non-blocking status transition SMS catch:', err));
 
       if (order && order.user_id !== 'guest' && order.user_id) {
         const statusMessages: Record<string, string> = {

@@ -195,8 +195,8 @@ export const SmsGatewayPage: React.FC = () => {
                 <h1 className="text-xl sm:text-2xl font-bold font-serif text-stone-900">
                   Android SMS Gateway
                 </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-                  Phase 1 • Connection Layer
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Phase 3 • Order SMS Automation Active
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-stone-500 font-medium">
