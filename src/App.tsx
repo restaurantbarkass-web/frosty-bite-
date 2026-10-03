@@ -431,6 +431,11 @@ function AppContent() {
                     </LocalErrorBoundary>
                   </ProtectedRoute>
                 } />
+                <Route path="/orders/:orderId" element={
+                  <LocalErrorBoundary fallbackName="Order Tracking Page">
+                    <OrderTracking />
+                  </LocalErrorBoundary>
+                } />
                 <Route path="/notifications" element={
                   <ProtectedRoute>
                     <LocalErrorBoundary fallbackName="Notifications Page">

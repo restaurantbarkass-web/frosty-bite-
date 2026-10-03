@@ -9,6 +9,7 @@ export type SmsType =
   | 'ORDER_PREPARING' 
   | 'OUT_FOR_DELIVERY' 
   | 'ORDER_DELIVERED' 
+  | 'ORDER_CANCELLED'
   | 'FEEDBACK' 
   | 'PROMOTIONAL' 
   | 'TEST';
@@ -463,7 +464,10 @@ class SmsGatewayServiceClass {
                        resolvedOrder?.order_type === 'pickup' || 
                        String(resolvedOrder?.address || '').toLowerCase().includes('in-store pickup');
 
-      const formattedOrderId = cleanOrderId.length > 8 ? cleanOrderId.substring(0, 8).toUpperCase() : cleanOrderId.toUpperCase();
+      // Authoritative customer-facing order code from DB record or orderId
+      const rawCode = resolvedOrder?.id ? String(resolvedOrder.id).trim() : cleanOrderId;
+      const orderCode = rawCode.startsWith('FB-') ? rawCode.toUpperCase() : (rawCode.length > 8 ? rawCode.substring(0, 8).toUpperCase() : rawCode.toUpperCase());
+      const orderUrl = `https://frosty-bite.vercel.app/orders/${orderCode}`;
 
       // 2. Map Order Status to SMS Type and Message Template
       let smsType: SmsType | null = null;
@@ -474,36 +478,42 @@ class SmsGatewayServiceClass {
         case 'created':
         case 'awaiting_payment':
           smsType = 'ORDER_RECEIVED';
-          message = `Frosty Bite: Your order #${formattedOrderId} has been received successfully. We will update you when your order is confirmed.`;
+          message = `Frosty Bite: Your order #${orderCode} has been received successfully.\n\nView Order:\n${orderUrl}`;
           break;
 
         case 'confirmed':
           smsType = 'ORDER_ACCEPTED';
-          message = `Frosty Bite: Your order #${formattedOrderId} has been confirmed and accepted. Thank you for ordering with us!`;
+          message = `Frosty Bite: Your order #${orderCode} has been confirmed and accepted.\n\nView Order:\n${orderUrl}`;
           break;
 
         case 'preparing':
           smsType = 'ORDER_PREPARING';
-          message = `Frosty Bite: Your order #${formattedOrderId} is now being prepared.`;
+          message = `Frosty Bite: Your order #${orderCode} is now being prepared.\n\nView Order:\n${orderUrl}`;
           break;
 
         case 'out_for_delivery':
         case 'ready':
           smsType = 'OUT_FOR_DELIVERY';
           if (isPickup) {
-            message = `Frosty Bite: Your order #${formattedOrderId} is ready for pickup at our bakery. We look forward to serving you!`;
+            message = `Frosty Bite: Your order #${orderCode} is ready for pickup.\n\nView Order:\n${orderUrl}`;
           } else {
-            message = `Frosty Bite: Your order #${formattedOrderId} is out for delivery. It will reach you soon.`;
+            message = `Frosty Bite: Your order #${orderCode} is out for delivery.\n\nView Order:\n${orderUrl}`;
           }
           break;
 
         case 'delivered':
           smsType = 'ORDER_DELIVERED';
           if (isPickup) {
-            message = `Frosty Bite: Your order #${formattedOrderId} has been picked up successfully. Thank you for choosing Frosty Bite!`;
+            message = `Frosty Bite: Your order #${orderCode} has been picked up successfully. Thank you for choosing Frosty Bite!\n\nView Order:\n${orderUrl}`;
           } else {
-            message = `Frosty Bite: Your order #${formattedOrderId} has been delivered successfully. Thank you for choosing Frosty Bite!`;
+            message = `Frosty Bite: Your order #${orderCode} has been delivered. Thank you for ordering with us.\n\nView Order:\n${orderUrl}`;
           }
+          break;
+
+        case 'cancelled':
+        case 'canceled':
+          smsType = 'ORDER_CANCELLED';
+          message = `Frosty Bite: Your order #${orderCode} has been cancelled successfully. If you have any questions, please contact us.\n\nView Order:\n${orderUrl}`;
           break;
 
         default:
