@@ -56,9 +56,10 @@ export class CustomOtpService {
 
   /**
    * Request an OTP: validates cooldown, invalidates old active OTPs, creates new hashed OTP, queues SMS.
-   * Single authoritative production OTP table: otp_verifications (with otp_codes schema sync).
+   * Single authoritative production OTP table: otp_verifications.
    */
   public static async requestOtp(params: OtpRequestParams): Promise<{ ok: boolean; message: string; expiresIn: number; retryAfter: number; requestId: string }> {
+    const t0 = Date.now();
     const normalizedPhone = this.normalizePhone(params.phone);
     if (!normalizedPhone || normalizedPhone.replace(/\D/g, '').length < 10) {
       throw new Error('Please enter a valid mobile number.');
@@ -74,7 +75,7 @@ export class CustomOtpService {
     try {
       const { data: recentOtps } = await supabase
         .from('otp_verifications')
-        .select('*')
+        .select('created_at')
         .eq('phone', normalizedPhone)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -87,24 +88,6 @@ export class CustomOtpService {
           const remainingSec = Math.ceil((this.COOLDOWN_MS - elapsed) / 1000);
           throw new Error(`Please wait ${remainingSec} seconds before requesting another OTP.`);
         }
-      } else {
-        // Query otp_codes table if otp_verifications is aliased/re-routed
-        const { data: codeOtps } = await supabase
-          .from('otp_codes')
-          .select('*')
-          .eq('phone', normalizedPhone)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (codeOtps && codeOtps.length > 0) {
-          const lastOtp = codeOtps[0];
-          const createdAtMs = new Date(lastOtp.created_at).getTime();
-          const elapsed = nowMs - createdAtMs;
-          if (elapsed < this.COOLDOWN_MS) {
-            const remainingSec = Math.ceil((this.COOLDOWN_MS - elapsed) / 1000);
-            throw new Error(`Please wait ${remainingSec} seconds before requesting another OTP.`);
-          }
-        }
       }
     } catch (err: any) {
       if (err.message && err.message.includes('Please wait')) {
@@ -113,80 +96,43 @@ export class CustomOtpService {
       console.warn('[CustomOtpService] Cooldown check warning:', err.message);
     }
 
-    // 2. Invalidate previous active OTPs for same phone
-    try {
-      await supabase
-        .from('otp_verifications')
-        .update({ invalidated_at: now.toISOString() })
-        .eq('phone', normalizedPhone)
-        .is('verified_at', null)
-        .is('invalidated_at', null);
-
-      await supabase
-        .from('otp_codes')
-        .delete()
-        .eq('phone', normalizedPhone);
-    } catch (err: any) {
-      console.warn('[CustomOtpService] Invalidation warning:', err.message);
-    }
-
-    // 3. Generate 6-digit secure OTP
+    // 2. Generate 6-digit secure OTP and hash
+    const t1 = Date.now();
     const rawOtp = this.generateSecureOtp();
     const codeHash = this.hashOtp(rawOtp);
 
-    // 4. Store hashed OTP exclusively in authoritative production OTP table (otp_verifications / otp_codes)
-    let savedSuccessfully = false;
+    // 3. Invalidate previous active OTPs AND insert new OTP row concurrently
+    const t2Start = Date.now();
+    const invalidationPromise = supabase
+      .from('otp_verifications')
+      .update({ invalidated_at: now.toISOString() })
+      .eq('phone', normalizedPhone)
+      .is('verified_at', null)
+      .is('invalidated_at', null);
 
-    // Primary: otp_verifications
-    try {
-      const { error: vErr } = await supabase
-        .from('otp_verifications')
-        .insert({
-          phone: normalizedPhone,
-          purpose,
-          code_hash: codeHash,
-          expires_at: expiresAt,
-          attempts: 0,
-          max_attempts: this.MAX_ATTEMPTS,
-          request_id: requestId,
-          metadata: params.metadata || {}
-        });
+    const insertPromise = supabase
+      .from('otp_verifications')
+      .insert({
+        phone: normalizedPhone,
+        purpose,
+        code_hash: codeHash,
+        expires_at: expiresAt,
+        attempts: 0,
+        max_attempts: this.MAX_ATTEMPTS,
+        request_id: requestId,
+        metadata: params.metadata || {}
+      });
 
-      if (!vErr) {
-        savedSuccessfully = true;
-      } else {
-        console.error(`[CustomOtpService] DB insert into otp_verifications failed: code=${vErr.code || 'UNKNOWN'}, message=${vErr.message}, details=${vErr.details || 'null'}, hint=${vErr.hint || 'null'}, operation=otp_verifications_insert`);
-      }
-    } catch (err: any) {
-      console.error('[CustomOtpService] DB insert exception:', err.message || err);
+    const [, insertRes] = await Promise.all([invalidationPromise, insertPromise]);
+    const t2 = Date.now();
+
+    if (insertRes.error) {
+      console.error(`[CustomOtpService] DB insert into otp_verifications failed: code=${insertRes.error.code}, message=${insertRes.error.message}`);
+      throw new Error('Failed to generate verification code. Please try again.');
     }
 
-    // Secondary Production Table: otp_codes (recognised in PostgREST schema cache)
-    if (!savedSuccessfully) {
-      try {
-        const { error: cErr } = await supabase
-          .from('otp_codes')
-          .insert({
-            phone: normalizedPhone,
-            otp_hash: codeHash,
-            expires_at: expiresAt,
-            attempts: 0
-          });
-
-        if (!cErr) {
-          savedSuccessfully = true;
-        } else {
-          console.error(`[CustomOtpService] DB insert into otp_codes failed: code=${cErr.code || 'UNKNOWN'}, message=${cErr.message}, details=${cErr.details || 'null'}, hint=${cErr.hint || 'null'}, operation=otp_codes_insert`);
-          throw new Error('Failed to generate verification code. Please try again.');
-        }
-      } catch (cEx: any) {
-        if (cEx.message && cEx.message.includes('Please try again')) throw cEx;
-        console.error('[CustomOtpService] otp_codes insert exception:', cEx.message || cEx);
-        throw new Error('Failed to generate verification code. Please try again.');
-      }
-    }
-
-    // 5. Queue SMS via existing physical-SIM SMS Gateway (type = 'OTP', high priority)
+    // 4. Queue SMS via physical-SIM SMS Gateway (type = 'OTP', high priority)
+    const t3 = Date.now();
     const smsMessage = `Frosty Bite: Your verification code is ${rawOtp}. It expires in 5 minutes. Do not share this code with anyone.`;
     const idempotencyKey = `otp:${normalizedPhone}:${purpose}:${requestId}`;
 
@@ -201,6 +147,9 @@ export class CustomOtpService {
     } catch (smsErr: any) {
       console.error('[CustomOtpService] Failed to queue OTP SMS:', smsErr);
     }
+
+    const t4 = Date.now();
+    console.log(`[OTP TIMING] requestId=${requestId} T0_to_T1=${t1 - t0}ms T1_to_T2(DB_Insert)=${t2 - t2Start}ms T3_to_T4(Queue_SMS)=${t4 - t3}ms Total_API=${t4 - t0}ms`);
 
     return {
       ok: true,

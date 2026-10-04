@@ -350,73 +350,77 @@ class SmsGatewayServiceClass {
         };
       }
 
-      // 2. Durable Supabase sms_queue database table check (UUID primary key)
-      try {
-        const { data: existingDbJob } = await supabase
-          .from('sms_queue')
-          .select('*')
-          .eq('id', deterministicJobId)
-          .maybeSingle();
+      // 2. Fast-path for OTP & unique jobs: Skip preliminary SELECT query and persist directly
+      const isUniqueFastPath = params.type === 'OTP' || idempotencyKey.startsWith('otp:');
 
-        if (existingDbJob) {
-          const parsedJob: SmsJob = {
-            id: existingDbJob.id,
-            recipient: existingDbJob.to || existingDbJob.recipient || normalizedPhone,
-            message: existingDbJob.message,
-            type: existingDbJob.type,
-            orderId: existingDbJob.order_id || cleanOrderId,
-            status: existingDbJob.status,
-            priority: this.integerToPriority(existingDbJob.priority),
-            idempotencyKey,
-            createdAt: existingDbJob.created_at || new Date().toISOString(),
-            updatedAt: existingDbJob.updated_at || new Date().toISOString(),
-            claimedAt: existingDbJob.claimed_at,
-            claimedBy: existingDbJob.claimed_by,
-            attempts: existingDbJob.attempts ?? existingDbJob.retry_count ?? 0,
-            retryCount: existingDbJob.retry_count || 0,
-            error: existingDbJob.error_message || existingDbJob.error,
-            sentAt: existingDbJob.sent_at,
-            orderEventAt: params.orderEventAt
-          };
+      if (!isUniqueFastPath) {
+        try {
+          const { data: existingDbJob } = await supabase
+            .from('sms_queue')
+            .select('*')
+            .eq('id', deterministicJobId)
+            .maybeSingle();
 
-          // If the job previously failed, revive it to QUEUED so it can be re-dispatched
-          if (existingDbJob.status === 'FAILED') {
-            console.log(`[SMS Gateway] 🔄 Reviving database FAILED SMS job ${existingDbJob.id} for Order #${cleanOrderId || 'N/A'}`);
-            parsedJob.status = 'QUEUED';
-            parsedJob.attempts = 0;
-            parsedJob.error = undefined;
-            parsedJob.claimedAt = undefined;
-            parsedJob.claimedBy = undefined;
-            parsedJob.updatedAt = new Date().toISOString();
+          if (existingDbJob) {
+            const parsedJob: SmsJob = {
+              id: existingDbJob.id,
+              recipient: existingDbJob.to || existingDbJob.recipient || normalizedPhone,
+              message: existingDbJob.message,
+              type: existingDbJob.type,
+              orderId: existingDbJob.order_id || cleanOrderId,
+              status: existingDbJob.status,
+              priority: this.integerToPriority(existingDbJob.priority),
+              idempotencyKey,
+              createdAt: existingDbJob.created_at || new Date().toISOString(),
+              updatedAt: existingDbJob.updated_at || new Date().toISOString(),
+              claimedAt: existingDbJob.claimed_at,
+              claimedBy: existingDbJob.claimed_by,
+              attempts: existingDbJob.attempts ?? existingDbJob.retry_count ?? 0,
+              retryCount: existingDbJob.retry_count || 0,
+              error: existingDbJob.error_message || existingDbJob.error,
+              sentAt: existingDbJob.sent_at,
+              orderEventAt: params.orderEventAt
+            };
+
+            // If the job previously failed, revive it to QUEUED so it can be re-dispatched
+            if (existingDbJob.status === 'FAILED') {
+              console.log(`[SMS Gateway] 🔄 Reviving database FAILED SMS job ${existingDbJob.id} for Order #${cleanOrderId || 'N/A'}`);
+              parsedJob.status = 'QUEUED';
+              parsedJob.attempts = 0;
+              parsedJob.error = undefined;
+              parsedJob.claimedAt = undefined;
+              parsedJob.claimedBy = undefined;
+              parsedJob.updatedAt = new Date().toISOString();
+              this.queue.set(idempotencyKey, parsedJob);
+              await supabase
+                .from('sms_queue')
+                .update({
+                  status: 'QUEUED',
+                  attempts: 0,
+                  error_message: null,
+                  claimed_at: null,
+                  claimed_by: null,
+                  updated_at: parsedJob.updatedAt
+                })
+                .eq('id', deterministicJobId);
+              return {
+                ok: true,
+                job: parsedJob,
+                reason: 'Re-queued previously failed SMS job'
+              };
+            }
+
             this.queue.set(idempotencyKey, parsedJob);
-            await supabase
-              .from('sms_queue')
-              .update({
-                status: 'QUEUED',
-                attempts: 0,
-                error_message: null,
-                claimed_at: null,
-                claimed_by: null,
-                updated_at: parsedJob.updatedAt
-              })
-              .eq('id', deterministicJobId);
+            console.log(`[SMS Gateway] 📋 Job State: jobId=${parsedJob.id}, orderId=${cleanOrderId || 'N/A'}, type=${params.type}, status=${parsedJob.status}, attempt=${parsedJob.attempts}, deviceId=${parsedJob.claimedBy || 'N/A'}, timestamp=${new Date().toISOString()} (Duplicate DB Table)`);
             return {
               ok: true,
+              duplicate: true,
               job: parsedJob,
-              reason: 'Re-queued previously failed SMS job'
+              reason: `Duplicate SMS job already recorded in database (${parsedJob.status})`
             };
           }
-
-          this.queue.set(idempotencyKey, parsedJob);
-          console.log(`[SMS Gateway] 📋 Job State: jobId=${parsedJob.id}, orderId=${cleanOrderId || 'N/A'}, type=${params.type}, status=${parsedJob.status}, attempt=${parsedJob.attempts}, deviceId=${parsedJob.claimedBy || 'N/A'}, timestamp=${new Date().toISOString()} (Duplicate DB Table)`);
-          return {
-            ok: true,
-            duplicate: true,
-            job: parsedJob,
-            reason: `Duplicate SMS job already recorded in database (${parsedJob.status})`
-          };
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
       // 3. Create new durable SMS Job (Optimized single-pass insertion)
       const nowIso = new Date().toISOString();
@@ -740,48 +744,54 @@ class SmsGatewayServiceClass {
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
 
-    // 2. Gather all potential pending jobs from memory and sms_queue
+    // 2. Gather all potential pending jobs from memory
     const candidateJobsMap = new Map<string, SmsJob>();
 
     // In-memory
+    let hasQueuedInMemory = false;
     for (const job of this.queue.values()) {
       candidateJobsMap.set(job.id, job);
+      if (job.status === 'QUEUED' && !this.currentlyProcessingJobIds.has(job.id)) {
+        hasQueuedInMemory = true;
+      }
     }
 
-    // Direct indexed query on relational sms_queue table
-    try {
-      const { data: dbJobs } = await supabase
-        .from('sms_queue')
-        .select('*')
-        .in('status', ['QUEUED', 'SENDING'])
-        .order('created_at', { ascending: true })
-        .limit(50);
+    // Only query database table if in-memory queue does not have immediate QUEUED jobs
+    if (!hasQueuedInMemory) {
+      try {
+        const { data: dbJobs } = await supabase
+          .from('sms_queue')
+          .select('*')
+          .in('status', ['QUEUED', 'SENDING'])
+          .order('created_at', { ascending: true })
+          .limit(50);
 
-      if (Array.isArray(dbJobs)) {
-        for (const row of dbJobs) {
-          const j: SmsJob = {
-            id: row.id,
-            recipient: row.to || row.recipient || '',
-            message: row.message,
-            type: row.type,
-            orderId: row.order_id,
-            status: row.status,
-            priority: this.integerToPriority(row.priority),
-            idempotencyKey: row.order_id ? `order:${row.order_id}:${row.type}` : `job:${row.id}`,
-            createdAt: row.created_at || nowIso,
-            updatedAt: row.updated_at || nowIso,
-            claimedAt: row.claimed_at,
-            claimedBy: row.claimed_by,
-            attempts: row.attempts ?? row.retry_count ?? 0,
-            retryCount: row.retry_count || 0,
-            error: row.error_message || row.error,
-            sentAt: row.sent_at
-          };
-          candidateJobsMap.set(j.id, j);
-          this.queue.set(j.idempotencyKey, j);
+        if (Array.isArray(dbJobs)) {
+          for (const row of dbJobs) {
+            const j: SmsJob = {
+              id: row.id,
+              recipient: row.to || row.recipient || '',
+              message: row.message,
+              type: row.type,
+              orderId: row.order_id,
+              status: row.status,
+              priority: this.integerToPriority(row.priority),
+              idempotencyKey: row.order_id ? `order:${row.order_id}:${row.type}` : `job:${row.id}`,
+              createdAt: row.created_at || nowIso,
+              updatedAt: row.updated_at || nowIso,
+              claimedAt: row.claimed_at,
+              claimedBy: row.claimed_by,
+              attempts: row.attempts ?? row.retry_count ?? 0,
+              retryCount: row.retry_count || 0,
+              error: row.error_message || row.error,
+              sentAt: row.sent_at
+            };
+            candidateJobsMap.set(j.id, j);
+            this.queue.set(j.idempotencyKey, j);
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // 3. Filter strictly eligible jobs for claiming
     const claimableJobs: SmsJob[] = [];
@@ -895,6 +905,7 @@ class SmsGatewayServiceClass {
               updated_at: nowIso
             })
             .eq('id', job.id)
+            .eq('status', 'QUEUED')
         )
       );
 
@@ -902,11 +913,7 @@ class SmsGatewayServiceClass {
       for (const job of batchToClaim) {
         this.persistJobToDatabase(job).catch(() => {});
       }
-    } finally {
-      for (const job of batchToClaim) {
-        this.currentlyProcessingJobIds.delete(job.id);
-      }
-    }
+    } catch (_) {}
 
     if (claimedResults.length > 0) {
       this.state.metrics.lastJobReceivedTime = nowIso;
@@ -983,6 +990,8 @@ class SmsGatewayServiceClass {
     }
 
     if (targetJob) {
+      this.currentlyProcessingJobIds.delete(targetJob.id);
+      this.currentlyProcessingJobIds.delete(jobId);
       // If already SENT, it is terminal and idempotent
       if (targetJob.status === 'SENT' && status === 'SENT') {
         return { ok: true, message: `Job ${jobId} was already confirmed SENT` };
@@ -1009,7 +1018,21 @@ class SmsGatewayServiceClass {
         });
       }
 
+      for (const [key, job] of this.queue.entries()) {
+        if (job.id === targetJob.id || job.idempotencyKey === targetJob.idempotencyKey) {
+          job.status = status;
+          job.updatedAt = nowIso;
+          if (status === 'SENT') {
+            job.sentAt = targetJob.sentAt;
+            job.error = undefined;
+          } else {
+            job.error = targetJob.error;
+          }
+          this.queue.set(key, job);
+        }
+      }
       this.queue.set(targetJob.idempotencyKey, targetJob);
+      this.queue.set(targetJob.id, targetJob);
 
       // Latency Calculations: T2 -> T4 -> T5 -> T6 -> T7
       const queuedTimeMs = new Date(targetJob.createdAt).getTime();
@@ -1163,7 +1186,8 @@ class SmsGatewayServiceClass {
 
     console.log(`[SMS Gateway] 💓 Heartbeat acknowledged from device: ${incomingDeviceId} (SIM: ${simReady ? 'READY' : 'NOT READY'}, SMS: ${smsReady ? 'READY' : 'DISABLED'})`);
 
-    await this.syncStateToDatabase();
+    // Asynchronously sync state in background so heartbeat response is sub-200ms
+    this.syncStateToDatabase().catch(() => {});
 
     return {
       ok: true,
