@@ -210,7 +210,9 @@ router.post('/order-event', orderEventRateLimiter, async (req: Request, res: Res
 const handleGetPendingJobs = async (req: Request, res: Response) => {
   try {
     const deviceIdentifier = (req.headers['x-device-id'] as string) || req.body?.deviceId || req.body?.device_id || 'frosty-sms-gateway-01';
-    const rawJobs = await SmsGatewayService.claimPendingJobs(deviceIdentifier);
+    const parsedLimit = parseInt((req.query.limit as string) || (req.body?.limit as string) || '1', 10);
+    const limit = isNaN(parsedLimit) ? 1 : Math.max(1, Math.min(parsedLimit, 5));
+    const rawJobs = await SmsGatewayService.claimPendingJobs(deviceIdentifier, limit);
 
     // Map each job with all compatible field aliases for Android APKs
     const formattedJobs = rawJobs.map(job => ({
@@ -239,6 +241,7 @@ const handleGetPendingJobs = async (req: Request, res: Response) => {
     return res.status(200).json({
       ok: true,
       count: formattedJobs.length,
+      job: formattedJobs[0] || null,
       jobs: formattedJobs,
       messages: formattedJobs,
       data: formattedJobs

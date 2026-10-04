@@ -8,6 +8,8 @@ import { cn } from '../../lib/utils';
 import { SlideToConfirm } from '../ui/SlideToConfirm';
 import { AdminCancellationSuccessModal } from './AdminCancellationSuccessModal';
 import { formatOrderId } from '../../utils/orderUtils';
+import { triggerOrderSms } from '../../utils/smsGateway';
+import { isPickupOrder } from '../../utils/whatsapp';
 
 interface OrderActionPopupProps {
   order: Order | null;
@@ -62,6 +64,17 @@ export const OrderActionPopup: React.FC<OrderActionPopupProps> = ({ order, onClo
 
       if (error) throw error;
       
+      // Trigger Phase 3 Automated Order Status SMS
+      const isTargetPickup = isPickupOrder(order) || String(order.address || '').toLowerCase().includes('pickup');
+      triggerOrderSms({
+        orderId: order.id,
+        status,
+        prevStatus: order.status,
+        phone: order.phone || (order as any)?.customer_phone,
+        customerName: order.customer_name || order.customerName,
+        orderType: isTargetPickup ? 'pickup' : 'delivery'
+      }).catch(err => console.warn('[SMS Gateway] Non-blocking popup action SMS catch:', err));
+
       toast.success(status === 'confirmed' ? 'Order accepted!' : 'Order rejected.');
       if (status === 'cancelled') {
         setShowWhatsAppModal(true);

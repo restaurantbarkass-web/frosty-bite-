@@ -15,6 +15,7 @@ import { AdminReadyPickupSuccessModal } from '../../components/admin/AdminReadyP
 import { normalizePhoneNumber, openCancellationWhatsApp, isPickupOrder } from '../../utils/whatsapp';
 import { formatOrderId } from '../../utils/orderUtils';
 import { triggerOrderStatusNotification } from '../../utils/messaging';
+import { triggerOrderSms } from '../../utils/smsGateway';
 import toast from 'react-hot-toast';
 
 interface OrderEditPageProps {
@@ -160,7 +161,7 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
       toast.success('Order details updated successfully!');
       setHasChanges(false);
 
-      // Dispatch Authoritative Push Notification
+      // Dispatch Authoritative Push Notification & Automated SMS
       if (order.status !== status) {
         triggerOrderStatusNotification({
           orderId: order.id,
@@ -169,6 +170,17 @@ export const OrderEditPage: React.FC<OrderEditPageProps> = ({
           refundAmount: computedTotal,
           deliveryEta: estimatedDeliveryTime ? String(estimatedDeliveryTime) : undefined
         }).catch(err => console.warn('Push notification trigger error:', err));
+
+        // Trigger Phase 3 Automated Order Status SMS
+        const isTargetPickup = orderType === 'pickup' || isPickupOrder(order) || String(finalAddress || '').toLowerCase().includes('pickup');
+        triggerOrderSms({
+          orderId: order.id,
+          status: status,
+          prevStatus: order.status,
+          phone: phone || order.phone,
+          customerName: customerName || order.customer_name,
+          orderType: isTargetPickup ? 'pickup' : 'delivery'
+        }).catch(err => console.warn('[SMS Gateway] Non-blocking OrderEditPage status SMS catch:', err));
       }
 
       const mergedOrder = { ...order, ...updatePayload };

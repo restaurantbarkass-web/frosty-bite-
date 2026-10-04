@@ -44,9 +44,35 @@ async function startServer() {
   console.log(`[Server] Mode: ${isProduction ? 'Production' : 'Development'}`);
   console.log(`[Server] Dist folder exists: ${hasDist}`);
 
-  // Mounting baseApp which contains all /api routes and feature handlers
-  // It's important to mount this BEFORE Vite or static middlewares
-  app.use(baseApp);
+  // Route API and backend requests to baseApp, allowing frontend routes to hit Vite/static middleware
+  app.use((req, res, next) => {
+    if (
+      req.url.startsWith('/api') || 
+      req.url.startsWith('/butler') || 
+      req.url.startsWith('/avatar') || 
+      req.url.startsWith('/auth') || 
+      req.url.startsWith('/config') || 
+      req.url.startsWith('/notifications') || 
+      req.url.startsWith('/validate-address') || 
+      req.url.startsWith('/reviews') || 
+      req.url.startsWith('/search') || 
+      req.url.startsWith('/v2') || 
+      req.url.startsWith('/geofencing') || 
+      req.url.startsWith('/payment') || 
+      req.url.startsWith('/campaigns') || 
+      req.url.startsWith('/sms-gateway') || 
+      req.url.startsWith('/sms') || 
+      req.url.startsWith('/health') || 
+      req.url.startsWith('/ping') || 
+      req.url.startsWith('/migration-script') ||
+      req.url.startsWith('/cities') ||
+      req.url.startsWith('/pincodes') ||
+      req.url.startsWith('/localities')
+    ) {
+      return baseApp(req, res, next);
+    }
+    next();
+  });
 
   // Mount preload middleware for critical assets (fonts, main CSS, core JS chunks)
   app.use(createPreloadMiddleware(distPath));

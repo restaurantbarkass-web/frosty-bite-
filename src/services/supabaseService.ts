@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { CacheOrchestrator } from '../core/orchestrator/CacheOrchestrator';
+import { triggerOrderSms } from '../utils/smsGateway';
 
 export const supabaseService = {
   // Improved error handler
@@ -237,7 +238,22 @@ export const supabaseService = {
   // Centralized Order Cancellation with inventory restoration & logging
   async cancelOrder(orderId: string, reason: string, cancelledBy: 'customer' | 'admin', userId: string) {
     // 1. Fetch order details to know what items and total are there
-    const order = await supabaseService.fetchSingle<any>('orders', orderId);
+    let order: any = null;
+    try {
+      const cleanId = String(orderId).trim();
+      const withoutPrefix = cleanId.replace(/^FB-/i, '').trim();
+      const withPrefix = `FB-${withoutPrefix}`;
+      const { data } = await supabase
+        .from('orders')
+        .select('*')
+        .or(`id.eq.${cleanId},id.ilike.${cleanId},id.ilike.${withPrefix},id.ilike.${withoutPrefix}`)
+        .maybeSingle();
+      order = data;
+    } catch (_) {
+      try {
+        order = await supabaseService.fetchSingle<any>('orders', orderId);
+      } catch (_) {}
+    }
     if (!order) throw new Error('Order not found');
 
     const totalAmount = order.total || order.subtotal || 0;
@@ -270,9 +286,24 @@ export const supabaseService = {
         total_amount: totalAmount,
         updated_at: new Date().toISOString()
       })
-      .eq('id', orderId);
+      .eq('id', order.id || orderId);
 
     if (updateError) throw updateError;
+
+    // Trigger Phase 3 Automated ORDER_CANCELLED SMS
+    const isPickup = Boolean(
+      order.order_type === 'pickup' ||
+      (order.address && String(order.address).toLowerCase().includes('pickup')) ||
+      (order.delivery_address && String(order.delivery_address).toLowerCase().includes('pickup'))
+    );
+    triggerOrderSms({
+      orderId: order.id || orderId,
+      status: 'cancelled',
+      prevStatus: order.status,
+      phone: order.phone || order.customer_phone,
+      customerName: order.customer_name,
+      orderType: isPickup ? 'pickup' : 'delivery'
+    }).catch(err => console.warn('[SMS Gateway] Non-blocking cancelOrder SMS catch:', err));
 
     // 3. Restore inventory (stock_quantity in products table)
     if (order.items && Array.isArray(order.items)) {

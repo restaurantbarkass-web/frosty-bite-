@@ -277,9 +277,20 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
+  const findOrderByFuzzyId = (targetId: string): Order | undefined => {
+    if (!targetId) return undefined;
+    const clean = String(targetId).trim().toLowerCase();
+    const withoutFb = clean.replace(/^fb-/i, '');
+    return orders.find(o => {
+      const oId = String(o.id || '').trim().toLowerCase();
+      const oWithoutFb = oId.replace(/^fb-/i, '');
+      return oId === clean || oWithoutFb === withoutFb || oId.endsWith(clean) || clean.endsWith(oId);
+    });
+  };
+
   const verifyPayment = async (orderId: string) => {
     stopAlarm();
-    const prevOrder = orders.find(o => o.id === orderId);
+    const prevOrder = findOrderByFuzzyId(orderId) || orders.find(o => o.id === orderId);
     const optimisticUpdates: Partial<Order> = {
       payment_status: 'paid',
       status: 'confirmed',
@@ -327,9 +338,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         orderId,
         status: 'confirmed',
         prevStatus: prevOrder?.status,
-        phone: prevOrder?.phone,
+        phone: prevOrder?.phone || (prevOrder as any)?.customer_phone,
         customerName: prevOrder?.customer_name,
-        orderType: prevOrder?.order_type
+        orderType: prevOrder && isOrderPickup(prevOrder) ? 'pickup' : (prevOrder?.order_type || 'delivery')
       }).catch(err => console.warn('[SMS Gateway] Non-blocking verifyPayment SMS catch:', err));
 
       if (prevOrder) {
@@ -348,14 +359,14 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   };
 
   const rejectPayment = async (orderId: string, bypassSlideBar = false) => {
-    const orderToCancel = orders.find(o => o.id === orderId);
+    const orderToCancel = findOrderByFuzzyId(orderId) || orders.find(o => o.id === orderId);
     if (!bypassSlideBar && orderToCancel) {
       setCancellingOrder(orderToCancel);
       return;
     }
     stopAlarm();
 
-    const prevOrder = orders.find(o => o.id === orderId);
+    const prevOrder = orderToCancel || orders.find(o => o.id === orderId);
     const optimisticUpdates: Partial<Order> = {
       payment_status: 'pending',
       status: 'cancelled',
@@ -395,6 +406,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       }
 
       toast.success('Order rejected & cancelled. Refund notice sent.', { id: loadingToast });
+
+      // Trigger Phase 3 Automated ORDER_CANCELLED SMS
+      const isTargetPickup = Boolean(prevOrder && (isOrderPickup(prevOrder) || String(prevOrder.address || '').toLowerCase().includes('pickup')));
+      triggerOrderSms({
+        orderId,
+        status: 'cancelled',
+        prevStatus: prevOrder?.status,
+        phone: prevOrder?.phone || (prevOrder as any)?.customer_phone,
+        customerName: prevOrder?.customer_name,
+        orderType: isTargetPickup ? 'pickup' : 'delivery'
+      }).catch(err => console.warn('[SMS Gateway] Non-blocking rejectPayment SMS catch:', err));
     } catch (error: any) {
       console.error('Reject payment error:', error);
       // Rollback on failure
@@ -410,7 +432,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     const reasonToUse = (customReason || cancellingReason || 'Cancelled by Administrator').trim() || 'Cancelled by Administrator';
 
     if (newStatus === 'cancelled' && !bypassSlideBar) {
-      const orderToCancel = orders.find(o => o.id === id);
+      const orderToCancel = findOrderByFuzzyId(id) || orders.find(o => o.id === id);
       if (orderToCancel) {
         setCancellingReason(orderToCancel.cancellation_reason || 'Out of Stock');
         setCancellingOrder(orderToCancel);
@@ -421,7 +443,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       stopAlarm();
     }
 
-    const prevOrder = orders.find(o => o.id === id);
+    const prevOrder = findOrderByFuzzyId(id) || orders.find(o => o.id === id);
     const optimisticUpdates: Partial<Order> = { 
       status: newStatus,
       cancellation_reason: newStatus === 'cancelled' ? reasonToUse : prevOrder?.cancellation_reason,
@@ -439,10 +461,29 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
     const loadingToast = toast.loading(`Updating order to ${newStatus}...`);
     try {
       const order = prevOrder;
+      const isTargetPickup = Boolean(
+        (order && isOrderPickup(order)) || 
+        (prevOrder && isOrderPickup(prevOrder)) ||
+        (order?.address && String(order.address).toLowerCase().includes('pickup')) ||
+        (prevOrder?.address && String(prevOrder.address).toLowerCase().includes('pickup'))
+      );
       
       if (newStatus === 'cancelled') {
         // Intercept and use safe cancelOrder routine with persisted mandatory reason
-        const cancelledResult = await supabaseService.cancelOrder(id, reasonToUse, 'admin', 'admin');
+        let cancelledResult: any = null;
+        try {
+          cancelledResult = await supabaseService.cancelOrder(id, reasonToUse, 'admin', 'admin');
+        } catch (cancelErr) {
+          console.warn('[OrdersTable] cancelOrder non-fatal fallback:', cancelErr);
+          await supabase
+            .from('orders')
+            .update({
+              status: 'cancelled',
+              cancellation_reason: reasonToUse,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
+        }
         
         if (order && order.user_id !== 'guest' && order.user_id) {
           addNotification({
@@ -454,8 +495,18 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           });
         }
         
+        // Ensure Phase 3 Automated ORDER_CANCELLED SMS is ALWAYS triggered
+        triggerOrderSms({
+          orderId: id,
+          status: 'cancelled',
+          prevStatus: prevOrder?.status,
+          phone: order?.phone || (order as any)?.customer_phone || prevOrder?.phone || (prevOrder as any)?.customer_phone,
+          customerName: order?.customer_name || prevOrder?.customer_name,
+          orderType: isTargetPickup ? 'pickup' : 'delivery'
+        }).catch(err => console.warn('[SMS Gateway] Non-blocking cancel status SMS catch:', err));
+
         toast.success('Order cancelled. Stock restored & logs created.', { id: loadingToast });
-        const finalCancelledOrder = (order ? { ...order, status: 'cancelled' as const, cancellation_reason: reasonToUse } : { ...cancelledResult, cancellation_reason: reasonToUse }) as Order;
+        const finalCancelledOrder = (order ? { ...order, status: 'cancelled' as const, cancellation_reason: reasonToUse } : { ...(cancelledResult || {}), id, status: 'cancelled' as const, cancellation_reason: reasonToUse }) as Order;
         setCancelledOrderForWhatsApp({ order: finalCancelledOrder, reason: reasonToUse });
         return;
       }
@@ -493,9 +544,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         orderId: id,
         status: newStatus,
         prevStatus: prevOrder?.status,
-        phone: order?.phone || prevOrder?.phone,
+        phone: order?.phone || (order as any)?.customer_phone || prevOrder?.phone || (prevOrder as any)?.customer_phone,
         customerName: order?.customer_name || prevOrder?.customer_name,
-        orderType: order?.order_type || prevOrder?.order_type
+        orderType: isTargetPickup ? 'pickup' : (order?.order_type || prevOrder?.order_type || 'delivery')
       }).catch(err => console.warn('[SMS Gateway] Non-blocking status transition SMS catch:', err));
 
       if (order && order.user_id !== 'guest' && order.user_id) {

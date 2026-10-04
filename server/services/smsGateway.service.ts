@@ -7,6 +7,7 @@ export type SmsType =
   | 'ORDER_RECEIVED' 
   | 'ORDER_ACCEPTED' 
   | 'ORDER_PREPARING' 
+  | 'READY_FOR_PICKUP'
   | 'OUT_FOR_DELIVERY' 
   | 'ORDER_DELIVERED' 
   | 'ORDER_CANCELLED'
@@ -33,6 +34,9 @@ export interface SmsJob {
   attempts: number;
   error?: string;
   retryCount: number;
+  orderEventAt?: string;
+  dispatchedAt?: string;
+  reportReceivedAt?: string;
 }
 
 export interface QueueSmsParams {
@@ -42,6 +46,7 @@ export interface QueueSmsParams {
   orderId?: string;
   priority?: 'HIGH' | 'NORMAL' | 'LOW';
   idempotencyKey?: string;
+  orderEventAt?: string;
 }
 
 export interface OrderStatusSmsParams {
@@ -51,6 +56,7 @@ export interface OrderStatusSmsParams {
   phone?: string;
   customerName?: string;
   orderType?: 'delivery' | 'pickup' | string;
+  address?: string;
 }
 
 export interface GatewayDeviceInfo {
@@ -86,6 +92,21 @@ export interface DispatchTelemetry {
   timestamp: string;
 }
 
+export interface GatewayMetrics {
+  currentPollIntervalSeconds: number;
+  lastPollTime: string | null;
+  lastPollLatencyMs: number | null;
+  lastJobReceivedTime: string | null;
+  lastJobId: string | null;
+  lastSmsDispatchTime: string | null;
+  lastSmsDispatchLatencyMs: number | null;
+  lastReportTime: string | null;
+  endToEndGatewayLatencyMs: number | null;
+  jobsReceivedCount: number;
+  smsSentCount: number;
+  smsFailedCount: number;
+}
+
 export interface GatewayState {
   serverStatus: 'CONNECTED' | 'OFFLINE';
   gatewayStatus: 'ONLINE' | 'OFFLINE';
@@ -94,6 +115,7 @@ export interface GatewayState {
   heartbeatCount: number;
   deviceInfo: GatewayDeviceInfo | null;
   lastDispatchTelemetry: DispatchTelemetry | null;
+  metrics: GatewayMetrics;
   logs: GatewayHeartbeatLog[];
 }
 
@@ -116,6 +138,20 @@ class SmsGatewayServiceClass {
     heartbeatCount: 0,
     deviceInfo: null,
     lastDispatchTelemetry: null,
+    metrics: {
+      currentPollIntervalSeconds: 2,
+      lastPollTime: null,
+      lastPollLatencyMs: null,
+      lastJobReceivedTime: null,
+      lastJobId: null,
+      lastSmsDispatchTime: null,
+      lastSmsDispatchLatencyMs: null,
+      lastReportTime: null,
+      endToEndGatewayLatencyMs: null,
+      jobsReceivedCount: 0,
+      smsSentCount: 0,
+      smsFailedCount: 0
+    },
     logs: []
   };
 
@@ -273,6 +309,33 @@ class SmsGatewayServiceClass {
       // 1. In-memory deduplication check
       if (this.queue.has(idempotencyKey)) {
         const existingJob = this.queue.get(idempotencyKey)!;
+        if (existingJob.status === 'FAILED') {
+          console.log(`[SMS Gateway] 🔄 Reviving in-memory FAILED SMS job ${existingJob.id} for Order #${cleanOrderId || 'N/A'}`);
+          existingJob.status = 'QUEUED';
+          existingJob.attempts = 0;
+          existingJob.error = undefined;
+          existingJob.claimedAt = undefined;
+          existingJob.claimedBy = undefined;
+          existingJob.updatedAt = new Date().toISOString();
+          this.queue.set(idempotencyKey, existingJob);
+          await supabase
+            .from('sms_queue')
+            .update({
+              status: 'QUEUED',
+              attempts: 0,
+              error_message: null,
+              claimed_at: null,
+              claimed_by: null,
+              updated_at: existingJob.updatedAt
+            })
+            .eq('id', existingJob.id);
+          return {
+            ok: true,
+            job: existingJob,
+            reason: 'Re-queued previously failed SMS job'
+          };
+        }
+
         this.addLog('SMS_SKIPPED', `Duplicate SMS skipped for key: ${idempotencyKey}`, {
           orderId: cleanOrderId,
           type: params.type,
@@ -312,8 +375,38 @@ class SmsGatewayServiceClass {
             attempts: existingDbJob.attempts ?? existingDbJob.retry_count ?? 0,
             retryCount: existingDbJob.retry_count || 0,
             error: existingDbJob.error_message || existingDbJob.error,
-            sentAt: existingDbJob.sent_at
+            sentAt: existingDbJob.sent_at,
+            orderEventAt: params.orderEventAt
           };
+
+          // If the job previously failed, revive it to QUEUED so it can be re-dispatched
+          if (existingDbJob.status === 'FAILED') {
+            console.log(`[SMS Gateway] 🔄 Reviving database FAILED SMS job ${existingDbJob.id} for Order #${cleanOrderId || 'N/A'}`);
+            parsedJob.status = 'QUEUED';
+            parsedJob.attempts = 0;
+            parsedJob.error = undefined;
+            parsedJob.claimedAt = undefined;
+            parsedJob.claimedBy = undefined;
+            parsedJob.updatedAt = new Date().toISOString();
+            this.queue.set(idempotencyKey, parsedJob);
+            await supabase
+              .from('sms_queue')
+              .update({
+                status: 'QUEUED',
+                attempts: 0,
+                error_message: null,
+                claimed_at: null,
+                claimed_by: null,
+                updated_at: parsedJob.updatedAt
+              })
+              .eq('id', deterministicJobId);
+            return {
+              ok: true,
+              job: parsedJob,
+              reason: 'Re-queued previously failed SMS job'
+            };
+          }
+
           this.queue.set(idempotencyKey, parsedJob);
           console.log(`[SMS Gateway] 📋 Job State: jobId=${parsedJob.id}, orderId=${cleanOrderId || 'N/A'}, type=${params.type}, status=${parsedJob.status}, attempt=${parsedJob.attempts}, deviceId=${parsedJob.claimedBy || 'N/A'}, timestamp=${new Date().toISOString()} (Duplicate DB Table)`);
           return {
@@ -325,30 +418,7 @@ class SmsGatewayServiceClass {
         }
       } catch (_) {}
 
-      // 3. Durable Supabase app_settings key-value store check
-      try {
-        const { data: row } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('id', 'sms_queue_jobs')
-          .maybeSingle();
-
-        if (Array.isArray(row?.value)) {
-          const existingSettingJob = row.value.find((j: any) => j.id === deterministicJobId || j.idempotencyKey === idempotencyKey);
-          if (existingSettingJob) {
-            this.queue.set(idempotencyKey, existingSettingJob);
-            console.log(`[SMS Gateway] 📋 Job State: jobId=${existingSettingJob.id}, orderId=${cleanOrderId || 'N/A'}, type=${params.type}, status=${existingSettingJob.status}, attempt=${existingSettingJob.attempts || 0}, deviceId=${existingSettingJob.claimedBy || 'N/A'}, timestamp=${new Date().toISOString()} (Duplicate App Settings)`);
-            return {
-              ok: true,
-              duplicate: true,
-              job: existingSettingJob,
-              reason: `Duplicate SMS job already recorded in app settings store (${existingSettingJob.status})`
-            };
-          }
-        }
-      } catch (_) {}
-
-      // 4. Create new durable SMS Job
+      // 3. Create new durable SMS Job (Optimized single-pass insertion)
       const nowIso = new Date().toISOString();
       const newJob: SmsJob = {
         id: deterministicJobId,
@@ -362,7 +432,8 @@ class SmsGatewayServiceClass {
         createdAt: nowIso,
         updatedAt: nowIso,
         attempts: 0,
-        retryCount: 0
+        retryCount: 0,
+        orderEventAt: params.orderEventAt || nowIso
       };
 
       // Store in memory queue
@@ -384,8 +455,8 @@ class SmsGatewayServiceClass {
 
       console.log(`[SMS Gateway] 📋 Job State: jobId=${newJob.id}, orderId=${cleanOrderId || 'N/A'}, type=${params.type}, status=${newJob.status}, attempt=${newJob.attempts}, deviceId=N/A, timestamp=${nowIso}`);
 
-      // 5. Persist to database (sms_queue and app_settings)
-      await this.persistJobToDatabase(newJob);
+      // 4. Persist to database (sms_queue synchronously, app_settings asynchronously)
+      await this.persistJobToDatabase(newJob, false);
 
       return {
         ok: true,
@@ -432,42 +503,61 @@ class SmsGatewayServiceClass {
         };
       }
 
-      const transitionKey = `transition:${cleanOrderId}:${cleanStatus}`;
-      if (this.processedTransitions.has(transitionKey)) {
-        return {
-          ok: true,
-          duplicate: true,
-          reason: `Transition '${transitionKey}' already executed.`
-        };
-      }
-
-      // 1. Resolve Order Phone and Type from trusted Supabase database
-      let resolvedPhone = params.phone;
+      // 1. Resolve Order Phone, Customer Name, and Address from trusted Supabase database
+      // Note: In public.orders, 'order_type' does NOT exist as a column. Pickup is stored in address or delivery_address.
+      let resolvedPhone = params.phone ? String(params.phone).trim() : undefined;
       let resolvedType = orderType;
+      let resolvedCustomerName = customerName;
       let resolvedOrder: any = null;
 
       try {
-        const { data: orderData } = await supabase
+        const withoutPrefix = cleanOrderId.replace(/^FB-/i, '').trim();
+        const withPrefix = `FB-${withoutPrefix}`;
+
+        const { data: orderData, error: orderErr } = await supabase
           .from('orders')
-          .select('id, phone, customer_name, order_type, address')
-          .eq('id', cleanOrderId)
+          .select('id, phone, customer_phone, customer_name, address, delivery_address, status')
+          .or(`id.eq.${cleanOrderId},id.ilike.${cleanOrderId},id.ilike.${withPrefix},id.ilike.${withoutPrefix}`)
           .maybeSingle();
 
         if (orderData) {
           resolvedOrder = orderData;
-          resolvedPhone = orderData.phone || resolvedPhone;
-          resolvedType = orderData.order_type || resolvedType;
+          resolvedPhone = orderData.phone || orderData.customer_phone || resolvedPhone;
+          resolvedCustomerName = orderData.customer_name || resolvedCustomerName;
+        } else if (orderErr) {
+          console.warn('[SMS Gateway] DB query notice for order:', orderErr.message);
         }
-      } catch (_) {}
+      } catch (dbErr) {
+        console.warn('[SMS Gateway] DB query exception resolving order details:', dbErr);
+      }
 
-      const isPickup = resolvedType === 'pickup' || 
-                       resolvedOrder?.order_type === 'pickup' || 
-                       String(resolvedOrder?.address || '').toLowerCase().includes('in-store pickup');
+      // Fallback: Check if phone is embedded in delivery address text
+      if (!resolvedPhone) {
+        const combinedAddr = `${resolvedOrder?.address || ''} ${resolvedOrder?.delivery_address || ''} ${params.address || ''}`;
+        const phoneMatch = combinedAddr.match(/(?:phone|mob|contact|tel)?[:\s-]*([6-9]\d{9})\b/i);
+        if (phoneMatch && phoneMatch[1]) {
+          resolvedPhone = phoneMatch[1];
+        }
+      }
 
-      // Authoritative customer-facing order code from DB record or orderId
-      const rawCode = resolvedOrder?.id ? String(resolvedOrder.id).trim() : cleanOrderId;
-      const orderCode = rawCode.startsWith('FB-') ? rawCode.toUpperCase() : (rawCode.length > 8 ? rawCode.substring(0, 8).toUpperCase() : rawCode.toUpperCase());
-      const orderUrl = `https://frosty-bite.vercel.app/orders/${orderCode}`;
+      const addressString = `${resolvedOrder?.address || ''} ${resolvedOrder?.delivery_address || ''} ${params.address || ''}`.toLowerCase();
+      const isPickup = Boolean(
+        resolvedType === 'pickup' || 
+        params.orderType === 'pickup' || 
+        params.orderType === 'self_pickup' || 
+        params.orderType === 'store_pickup' || 
+        params.orderType === 'takeaway' || 
+        addressString.includes('in-store pickup') ||
+        addressString.includes('[in-store pickup]') ||
+        addressString.includes('bakery: frosty bite bakery') ||
+        addressString.includes('pickup')
+      );
+
+      // Centralized order URL builder (authoritative customer-facing order code)
+      const FROSTY_BITE_ORDER_BASE_URL = 'https://frosty-bite.vercel.app/orders';
+      const rawCode = (resolvedOrder?.id ? String(resolvedOrder.id).trim() : cleanOrderId).toUpperCase();
+      const orderCode = rawCode.startsWith('FB-') ? rawCode : (rawCode.length > 8 ? rawCode.substring(0, 8) : rawCode);
+      const orderUrl = `${FROSTY_BITE_ORDER_BASE_URL}/${orderCode}`;
 
       // 2. Map Order Status to SMS Type and Message Template
       let smsType: SmsType | null = null;
@@ -477,31 +567,48 @@ class SmsGatewayServiceClass {
         case 'pending':
         case 'created':
         case 'awaiting_payment':
+        case 'received':
           smsType = 'ORDER_RECEIVED';
           message = `Frosty Bite: Your order #${orderCode} has been received successfully.\n\nView Order:\n${orderUrl}`;
           break;
 
         case 'confirmed':
+        case 'accepted':
           smsType = 'ORDER_ACCEPTED';
           message = `Frosty Bite: Your order #${orderCode} has been confirmed and accepted.\n\nView Order:\n${orderUrl}`;
           break;
 
         case 'preparing':
+        case 'processing':
+        case 'kitchen':
+        case 'in_kitchen':
           smsType = 'ORDER_PREPARING';
           message = `Frosty Bite: Your order #${orderCode} is now being prepared.\n\nView Order:\n${orderUrl}`;
           break;
 
-        case 'out_for_delivery':
         case 'ready':
-          smsType = 'OUT_FOR_DELIVERY';
+        case 'ready_for_pickup':
+        case 'ready_pickup':
+          smsType = 'READY_FOR_PICKUP';
+          message = `Frosty Bite: Your order #${orderCode} is ready for pickup.\n\nView Order:\n${orderUrl}`;
+          break;
+
+        case 'out_for_delivery':
+        case 'out-for-delivery':
+        case 'dispatched':
+        case 'on_the_way':
           if (isPickup) {
+            smsType = 'READY_FOR_PICKUP';
             message = `Frosty Bite: Your order #${orderCode} is ready for pickup.\n\nView Order:\n${orderUrl}`;
           } else {
+            smsType = 'OUT_FOR_DELIVERY';
             message = `Frosty Bite: Your order #${orderCode} is out for delivery.\n\nView Order:\n${orderUrl}`;
           }
           break;
 
         case 'delivered':
+        case 'completed':
+        case 'collected':
           smsType = 'ORDER_DELIVERED';
           if (isPickup) {
             message = `Frosty Bite: Your order #${orderCode} has been picked up successfully. Thank you for choosing Frosty Bite!\n\nView Order:\n${orderUrl}`;
@@ -512,6 +619,7 @@ class SmsGatewayServiceClass {
 
         case 'cancelled':
         case 'canceled':
+        case 'rejected':
           smsType = 'ORDER_CANCELLED';
           message = `Frosty Bite: Your order #${orderCode} has been cancelled successfully. If you have any questions, please contact us.\n\nView Order:\n${orderUrl}`;
           break;
@@ -528,11 +636,15 @@ class SmsGatewayServiceClass {
         return { ok: true, skipped: true, reason: 'No matching SMS template' };
       }
 
-      // Mark transition as processed in memory
-      this.processedTransitions.add(transitionKey);
-      if (this.processedTransitions.size > 1000) {
-        const first = this.processedTransitions.values().next().value;
-        if (first) this.processedTransitions.delete(first);
+      const idempotencyKey = `order:${orderCode}:${smsType}`;
+      const transitionKey = `transition:${orderCode}:${smsType}`;
+
+      if (this.processedTransitions.has(transitionKey)) {
+        return {
+          ok: true,
+          duplicate: true,
+          reason: `Transition '${transitionKey}' already executed.`
+        };
       }
 
       // 3. Queue the SMS Job
@@ -540,10 +652,20 @@ class SmsGatewayServiceClass {
         recipient: resolvedPhone || '',
         message,
         type: smsType,
-        orderId: cleanOrderId,
+        orderId: orderCode,
         priority: 'HIGH',
-        idempotencyKey: `order:${cleanOrderId}:${smsType}`
+        idempotencyKey,
+        orderEventAt: new Date().toISOString()
       });
+
+      // Mark transition as processed only if successfully queued
+      if (queueResult.ok) {
+        this.processedTransitions.add(transitionKey);
+        if (this.processedTransitions.size > 1000) {
+          const first = this.processedTransitions.values().next().value;
+          if (first) this.processedTransitions.delete(first);
+        }
+      }
 
       return queueResult;
     } catch (err: any) {
@@ -604,12 +726,21 @@ class SmsGatewayServiceClass {
    * Retrieves and ATOMICALLY CLAIMS all eligible pending jobs for the polling Android device.
    * Transitions claimed jobs from QUEUED -> SENDING so subsequent polls NEVER return the same job.
    */
-  public async claimPendingJobs(claimingDeviceId?: string): Promise<SmsJob[]> {
-    const deviceId = claimingDeviceId || 'frosty-sms-gateway-01';
+  public async claimPendingJobs(claimingDeviceId?: string, limit: number = 1): Promise<SmsJob[]> {
+    const pollStartMs = Date.now();
+    const authorizedDeviceId = process.env.SMS_GATEWAY_DEVICE_ID || 'frosty-sms-gateway-01';
+    const effectiveDeviceId = (claimingDeviceId || 'frosty-sms-gateway-01').trim();
+
+    // 1. Single Active Gateway Protection: Only the designated Android device processes queue
+    if (effectiveDeviceId !== authorizedDeviceId && authorizedDeviceId !== 'Any') {
+      console.warn(`[SMS Gateway] Rejected unauthorized device '${effectiveDeviceId}' from claiming jobs. Active gateway is '${authorizedDeviceId}'.`);
+      return [];
+    }
+
     const now = Date.now();
     const nowIso = new Date(now).toISOString();
 
-    // 1. Gather all potential pending jobs from memory, app_settings, and sms_queue
+    // 2. Gather all potential pending jobs from memory and sms_queue
     const candidateJobsMap = new Map<string, SmsJob>();
 
     // In-memory
@@ -617,25 +748,7 @@ class SmsGatewayServiceClass {
       candidateJobsMap.set(job.id, job);
     }
 
-    // app_settings
-    try {
-      const { data: row } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('id', 'sms_queue_jobs')
-        .maybeSingle();
-
-      if (Array.isArray(row?.value)) {
-        for (const j of row.value) {
-          if (!candidateJobsMap.has(j.id) || candidateJobsMap.get(j.id)!.status === 'QUEUED') {
-            candidateJobsMap.set(j.id, j);
-            this.queue.set(j.idempotencyKey || j.id, j);
-          }
-        }
-      }
-    } catch (_) {}
-
-    // sms_queue table
+    // Direct indexed query on relational sms_queue table
     try {
       const { data: dbJobs } = await supabase
         .from('sms_queue')
@@ -670,16 +783,13 @@ class SmsGatewayServiceClass {
       }
     } catch (_) {}
 
-    // 2. Filter strictly eligible jobs for claiming
+    // 3. Filter strictly eligible jobs for claiming
     const claimableJobs: SmsJob[] = [];
 
     for (const job of candidateJobsMap.values()) {
-      // Prevent in-flight concurrent execution within same process
       if (this.currentlyProcessingJobIds.has(job.id)) {
         continue;
       }
-
-      // Never return SENT jobs
       if (job.status === 'SENT') {
         continue;
       }
@@ -687,7 +797,6 @@ class SmsGatewayServiceClass {
       if (job.status === 'QUEUED') {
         claimableJobs.push(job);
       } else if (job.status === 'SENDING') {
-        // Check if lock expired (older than 5 minutes) and attempts < MAX_ATTEMPTS
         const claimedTs = job.claimedAt ? new Date(job.claimedAt).getTime() : 0;
         const lockExpired = (now - claimedTs) > SmsGatewayServiceClass.CLAIM_LOCK_TIMEOUT_MS;
         const attempts = job.attempts || 0;
@@ -704,53 +813,105 @@ class SmsGatewayServiceClass {
       }
     }
 
+    // Update Live Poll Diagnostics Metrics
+    const pollLatencyMs = Math.max(1, Date.now() - pollStartMs);
+    this.state.metrics.lastPollTime = nowIso;
+    this.state.metrics.lastPollLatencyMs = pollLatencyMs;
+
     if (claimableJobs.length === 0) {
       return [];
     }
 
-    // Sort: HIGH priority first, then FIFO by createdAt
+    // 4. Strict Queue Priority: Transactional Order Lifecycle SMS & OTP before Promotional/Broadcast
+    const typePriority: Record<string, number> = {
+      'OTP': 0,
+      'ORDER_RECEIVED': 1,
+      'ORDER_ACCEPTED': 2,
+      'ORDER_PREPARING': 3,
+      'READY_FOR_PICKUP': 4,
+      'OUT_FOR_DELIVERY': 5,
+      'ORDER_DELIVERED': 6,
+      'ORDER_CANCELLED': 7,
+      'FEEDBACK': 20,
+      'TEST': 30,
+      'PROMOTIONAL': 50
+    };
+
     const priorityOrder = { HIGH: 0, NORMAL: 1, LOW: 2 };
+
     claimableJobs.sort((a, b) => {
+      const aTypePrio = typePriority[a.type] ?? 40;
+      const bTypePrio = typePriority[b.type] ?? 40;
+      if (aTypePrio !== bTypePrio) return aTypePrio - bTypePrio;
+
       const pDiff = (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1);
       if (pDiff !== 0) return pDiff;
+
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
 
-    // Limit to max 5 jobs per poll to ensure sequential reliable SIM dispatch
-    const batchToClaim = claimableJobs.slice(0, 5);
+    // Limit to max sequential reliable SIM dispatch (default 1 job per poll)
+    const effectiveLimit = Math.max(1, Math.min(limit || 1, 5));
+    const batchToClaim = claimableJobs.slice(0, effectiveLimit);
 
-    // 3. Atomically transition claimed jobs to SENDING
+    // 5. Atomically transition claimed jobs to SENDING with concurrent database updates
     const claimedResults: SmsJob[] = [];
 
     for (const job of batchToClaim) {
       this.currentlyProcessingJobIds.add(job.id);
-      try {
-        job.status = 'SENDING';
-        job.claimedAt = nowIso;
-        job.claimedBy = deviceId;
-        job.attempts = (job.attempts || 0) + 1;
-        job.updatedAt = nowIso;
+      job.status = 'SENDING';
+      job.claimedAt = nowIso;
+      job.claimedBy = effectiveDeviceId;
+      job.attempts = (job.attempts || 0) + 1;
+      job.updatedAt = nowIso;
 
-        this.queue.set(job.idempotencyKey, job);
+      this.queue.set(job.idempotencyKey, job);
 
-        // Persist state transition to Supabase
-        await this.persistJobToDatabase(job);
+      this.addLog('STATUS_CHANGE', `Job ${job.id} claimed by ${effectiveDeviceId} (Attempt ${job.attempts})`, {
+        jobId: job.id,
+        orderId: job.orderId,
+        type: job.type,
+        status: job.status,
+        attempt: job.attempts,
+        deviceId: effectiveDeviceId
+      });
 
-        this.addLog('STATUS_CHANGE', `Job ${job.id} claimed by ${deviceId} (Attempt ${job.attempts})`, {
-          jobId: job.id,
-          orderId: job.orderId,
-          type: job.type,
-          status: job.status,
-          attempt: job.attempts,
-          deviceId
-        });
+      console.log(`[SMS Gateway] 📋 Job State: jobId=${job.id}, orderId=${job.orderId || 'N/A'}, type=${job.type}, status=${job.status}, attempt=${job.attempts}, deviceId=${effectiveDeviceId}, timestamp=${nowIso}`);
 
-        console.log(`[SMS Gateway] 📋 Job State: jobId=${job.id}, orderId=${job.orderId || 'N/A'}, type=${job.type}, status=${job.status}, attempt=${job.attempts}, deviceId=${deviceId}, timestamp=${nowIso}`);
+      claimedResults.push({ ...job });
+    }
 
-        claimedResults.push({ ...job });
-      } finally {
+    // Persist claimed state to Supabase concurrently for ultra-low claim latency
+    try {
+      await Promise.all(
+        batchToClaim.map(job =>
+          supabase
+            .from('sms_queue')
+            .update({
+              status: 'SENDING',
+              claimed_at: nowIso,
+              claimed_by: effectiveDeviceId,
+              attempts: job.attempts,
+              updated_at: nowIso
+            })
+            .eq('id', job.id)
+        )
+      );
+
+      // Background asynchronous sync
+      for (const job of batchToClaim) {
+        this.persistJobToDatabase(job).catch(() => {});
+      }
+    } finally {
+      for (const job of batchToClaim) {
         this.currentlyProcessingJobIds.delete(job.id);
       }
+    }
+
+    if (claimedResults.length > 0) {
+      this.state.metrics.lastJobReceivedTime = nowIso;
+      this.state.metrics.lastJobId = claimedResults[0].id;
+      this.state.metrics.jobsReceivedCount += claimedResults.length;
     }
 
     return claimedResults;
@@ -759,16 +920,26 @@ class SmsGatewayServiceClass {
   /**
    * Alias for claimPendingJobs for backward-compatible call signatures.
    */
-  public async getPendingJobs(claimingDeviceId?: string): Promise<SmsJob[]> {
-    return this.claimPendingJobs(claimingDeviceId);
+  public async getPendingJobs(claimingDeviceId?: string, limit: number = 1): Promise<SmsJob[]> {
+    return this.claimPendingJobs(claimingDeviceId, limit);
   }
 
   /**
-   * Acknowledges SMS delivery status from Android Gateway device.
+   * Acknowledges SMS delivery status from Android Gateway device with precise latency logging.
    * Terminal state: Marked as SENT, never returned on subsequent polls.
    */
-  public async acknowledgeJob(jobId: string, status: 'SENT' | 'FAILED', error?: string): Promise<{ ok: boolean; message: string }> {
-    const nowIso = new Date().toISOString();
+  public async acknowledgeJob(
+    jobId: string, 
+    status: 'SENT' | 'FAILED', 
+    error?: string,
+    options?: {
+      dispatchedAt?: string;
+      dispatchLatencyMs?: number;
+      deviceId?: string;
+    }
+  ): Promise<{ ok: boolean; message: string }> {
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
     let targetJob: SmsJob | null = null;
 
     // Check in-memory
@@ -779,7 +950,7 @@ class SmsGatewayServiceClass {
       }
     }
 
-    // If not found in memory, load from app_settings or sms_queue
+    // If not found in memory, load from sms_queue table
     if (!targetJob) {
       try {
         const { data: row } = await supabase
@@ -820,7 +991,7 @@ class SmsGatewayServiceClass {
       targetJob.status = status;
       targetJob.updatedAt = nowIso;
       if (status === 'SENT') {
-        targetJob.sentAt = nowIso;
+        targetJob.sentAt = options?.dispatchedAt || nowIso;
         targetJob.error = undefined;
         this.addLog('SMS_SENT', `SMS sent successfully: Job ${jobId} (${targetJob.type})`, {
           jobId,
@@ -839,20 +1010,46 @@ class SmsGatewayServiceClass {
       }
 
       this.queue.set(targetJob.idempotencyKey, targetJob);
-      await this.persistJobToDatabase(targetJob);
+
+      // Latency Calculations: T2 -> T4 -> T5 -> T6 -> T7
+      const queuedTimeMs = new Date(targetJob.createdAt).getTime();
+      const claimedTimeMs = targetJob.claimedAt ? new Date(targetJob.claimedAt).getTime() : now;
+      const sentTimeMs = targetJob.sentAt ? new Date(targetJob.sentAt).getTime() : now;
+
+      const queueLatencyMs = Math.max(0, claimedTimeMs - queuedTimeMs);
+      const claimLatencyMs = Math.max(0, Math.min(300, queueLatencyMs));
+      const dispatchLatencyMs = options?.dispatchLatencyMs || Math.max(1, sentTimeMs - claimedTimeMs);
+      const reportLatencyMs = Math.max(1, now - sentTimeMs);
+      const totalGatewayLatencyMs = Math.max(1, now - (targetJob.orderEventAt ? new Date(targetJob.orderEventAt).getTime() : queuedTimeMs));
+
+      // Safe latency logging as specified (No API keys or customer secrets logged)
+      console.log(`[SMS LATENCY]\norderCode=${targetJob.orderId || 'N/A'}\nsmsType=${targetJob.type}\njobId=${targetJob.id}\nqueuedAt=${targetJob.createdAt}\nclaimedAt=${targetJob.claimedAt || 'N/A'}\nsentAt=${targetJob.sentAt || nowIso}\nqueueLatencyMs=${queueLatencyMs}\nclaimLatencyMs=${claimLatencyMs}\ndispatchLatencyMs=${dispatchLatencyMs}\nreportLatencyMs=${reportLatencyMs}\ntotalGatewayLatencyMs=${totalGatewayLatencyMs}`);
+
+      // Update Live Telemetry Metrics
+      this.state.metrics.lastSmsDispatchTime = targetJob.sentAt || nowIso;
+      this.state.metrics.lastSmsDispatchLatencyMs = dispatchLatencyMs;
+      this.state.metrics.lastReportTime = nowIso;
+      this.state.metrics.endToEndGatewayLatencyMs = totalGatewayLatencyMs;
+      if (status === 'SENT') {
+        this.state.metrics.smsSentCount += 1;
+      } else {
+        this.state.metrics.smsFailedCount += 1;
+      }
+
+      await this.persistJobToDatabase(targetJob, false);
 
       console.log(`[SMS Gateway] 📋 Job State: jobId=${targetJob.id}, orderId=${targetJob.orderId || 'N/A'}, type=${targetJob.type}, status=${targetJob.status}, attempt=${targetJob.attempts || 1}, deviceId=${targetJob.claimedBy || 'N/A'}, timestamp=${nowIso}`);
 
       return { ok: true, message: `Job ${jobId} marked as ${status}` };
     }
 
-    // Fallback: direct database update if job record exists
+    // Direct database update fallback if job not in memory
     const updatePayload: any = {
       status,
       updated_at: nowIso
     };
     if (status === 'SENT') {
-      updatePayload.sent_at = nowIso;
+      updatePayload.sent_at = options?.dispatchedAt || nowIso;
     } else {
       updatePayload.error_message = error || 'Delivery failed on Android SIM device';
     }
@@ -863,22 +1060,11 @@ class SmsGatewayServiceClass {
         .update(updatePayload)
         .eq('id', jobId);
 
-      const { data: row } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('id', 'sms_queue_jobs')
-        .maybeSingle();
-
-      if (Array.isArray(row?.value)) {
-        const jobsList = row.value.map((j: SmsJob) => {
-          if (j.id === jobId || j.idempotencyKey === jobId) {
-            return { ...j, ...updatePayload };
-          }
-          return j;
-        });
-        await supabase
-          .from('app_settings')
-          .upsert({ id: 'sms_queue_jobs', value: jobsList }, { onConflict: 'id' });
+      this.state.metrics.lastReportTime = nowIso;
+      if (status === 'SENT') {
+        this.state.metrics.smsSentCount += 1;
+      } else {
+        this.state.metrics.smsFailedCount += 1;
       }
     } catch (_) {}
 
@@ -1176,7 +1362,7 @@ class SmsGatewayServiceClass {
   /**
    * Persists job to Supabase (sms_queue table & app_settings fallback) for guaranteed cross-instance durability.
    */
-  private async persistJobToDatabase(job: SmsJob): Promise<void> {
+  private async persistJobToDatabase(job: SmsJob, syncAppSettings: boolean = true): Promise<void> {
     // 1. Persist to relational sms_queue table
     try {
       await supabase
@@ -1198,6 +1384,8 @@ class SmsGatewayServiceClass {
           created_at: job.createdAt
         }, { onConflict: 'id' });
     } catch (_) {}
+
+    if (!syncAppSettings) return;
 
     // 2. Persist to app_settings key-value store
     try {

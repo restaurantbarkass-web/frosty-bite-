@@ -221,132 +221,42 @@ export const authService = {
     }
   },
 
-  // Send mobile phone number verification code via WhatsApp
+  // Send mobile phone number verification code via physical-SIM SMS Gateway
   async sendMobileOTP(phone: string, isSignup?: boolean, email?: string, name?: string, password?: string) {
-    const res = await fetch('/api/auth/send-otp', {
+    const res = await fetch('/api/auth/otp/request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ phone, isSignup, email, name, password })
+      body: JSON.stringify({ phone, purpose: isSignup ? 'SIGNUP' : 'LOGIN' })
     });
     const data = await safeParseResponse(res);
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || 'Failed to dispatch WhatsApp verification code.');
+    if (!res.ok || data?.ok === false) {
+      throw new Error(data?.error || 'Failed to dispatch verification code via SMS.');
     }
-
-    // Client-side local WhatsApp server dispatch fallback
-    if (data?.client_dispatch_required) {
-      let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
-      try {
-        configuredUrl = safeTrim(localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
-      } catch (e) {}
-      if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
-        configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
-        try {
-          localStorage.setItem('whatsapp_server_url', 'https://openwa-backend-production-97f8.up.railway.app');
-        } catch (e) {}
-      }
-      
-      const uniqueUrls = new Set<string>();
-      uniqueUrls.add(configuredUrl);
-      
-      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-      const defaults = [
-        'https://openwa-backend-production-97f8.up.railway.app',
-        ...(isHttps ? [] : [
-          'http://127.0.0.1:3001',
-          'http://localhost:3001',
-          'http://127.0.0.1:3002',
-          'http://localhost:3002'
-        ])
-      ];
-      for (const d of defaults) {
-        uniqueUrls.add(d);
-      }
-      const urlsToTry = Array.from(uniqueUrls);
-
-      let success = false;
-      let lastError: any = null;
-      let successfulUrl = '';
-
-      const currentAppOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-
-      for (const url of urlsToTry) {
-        try {
-          // Pre-register our active URL so local server background polling syncs automatically
-          fetch(`${url}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appUrl: currentAppOrigin })
-          }).catch(() => {});
-
-          console.log(`[authService] Attempting dispatch to local WhatsApp server at ${url}...`);
-          const localRes = await fetch(`${url}/send`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              number: data.formattedPhone,
-              message: data.textMessage,
-              appUrl: currentAppOrigin
-            })
-          });
-
-          if (!localRes.ok) {
-            const errText = await localRes.text().catch(() => '');
-            throw new Error(errText || `Server returned status ${localRes.status}`);
-          }
-
-          console.log(`[authService] Local WhatsApp dispatch succeeded on ${url}!`);
-          success = true;
-          successfulUrl = url;
-          try {
-            localStorage.setItem('whatsapp_server_url', url);
-          } catch (e) {
-            console.warn('[authService] Failed to persist whatsapp_server_url to localStorage:', e);
-          }
-          break;
-        } catch (err: any) {
-          console.warn(`[authService] Attempt on ${url} failed:`, err);
-          lastError = err;
-        }
-      }
-
-      if (success) {
-        return {
-          ...data,
-          message: "Verification code sent to your WhatsApp successfully!"
-        };
-      } else {
-        return {
-          ...data,
-          local_dispatch_error: true,
-          local_dispatch_error_message: `Local WhatsApp server is unreachable. Tried: ${urlsToTry.join(', ')}. Last error: ${lastError?.message || lastError}`,
-          message: "WhatsApp server is unreachable. Please verify your local WhatsApp server is running."
-        };
-      }
-    }
-
-    return data;
+    return {
+      success: true,
+      message: data.message || 'OTP sent successfully.',
+      dev_otp_hint: undefined,
+      local_dispatch_error: false,
+      local_dispatch_error_message: undefined
+    };
   },
 
-  // Verify mobile phone number WhatsApp verification code
+  // Verify mobile phone number verification code
   async verifyMobileOTP(phone: string, otp: string) {
-    const res = await fetch('/api/auth/verify-otp', {
+    const res = await fetch('/api/auth/otp/verify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ phone, otp })
+      body: JSON.stringify({ phone, purpose: 'LOGIN', otp })
     });
     const data = await safeParseResponse(res);
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || 'WhatsApp verification code is invalid.');
+    if (!res.ok || data?.ok === false) {
+      throw new Error(data?.error || 'Invalid verification code.');
     }
 
-    // Direct local state authentication sync
     if (data?.user) {
       try {
         localStorage.setItem('frostybite_active_session_email', data.user.email);
@@ -356,105 +266,26 @@ export const authService = {
     return data;
   },
 
-  // Resend mobile WhatsApp verification code
+  // Resend mobile verification code
   async resendMobileOTP(phone: string) {
-    const res = await fetch('/api/auth/resend-otp', {
+    const res = await fetch('/api/auth/otp/request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ phone })
+      body: JSON.stringify({ phone, purpose: 'LOGIN' })
     });
     const data = await safeParseResponse(res);
-    if (!res.ok || data?.success === false) {
-      throw new Error(data?.error || 'Failed to resend WhatsApp verification code.');
+    if (!res.ok || data?.ok === false) {
+      throw new Error(data?.error || 'Failed to resend verification code.');
     }
-
-    // Client-side local WhatsApp server dispatch fallback
-    if (data.client_dispatch_required) {
-      let configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
-      try {
-        configuredUrl = safeTrim(localStorage.getItem('whatsapp_server_url') || 'https://openwa-backend-production-97f8.up.railway.app').replace(/\/+$/, '');
-      } catch (e) {}
-      if (configuredUrl.includes('localhost:3000') || configuredUrl.includes('127.0.0.1:3000')) {
-        configuredUrl = 'https://openwa-backend-production-97f8.up.railway.app';
-        try {
-          localStorage.setItem('whatsapp_server_url', 'https://openwa-backend-production-97f8.up.railway.app');
-        } catch (e) {}
-      }
-      
-      const uniqueUrls = new Set<string>();
-      uniqueUrls.add(configuredUrl);
-      
-      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-      const defaults = [
-        'https://openwa-backend-production-97f8.up.railway.app',
-        ...(isHttps ? [] : [
-          'http://127.0.0.1:3001',
-          'http://localhost:3001',
-          'http://127.0.0.1:3002',
-          'http://localhost:3002'
-        ])
-      ];
-      for (const d of defaults) {
-        uniqueUrls.add(d);
-      }
-      const urlsToTry = Array.from(uniqueUrls);
-
-      let success = false;
-      let lastError: any = null;
-      let successfulUrl = '';
-
-      for (const url of urlsToTry) {
-        try {
-          console.log(`[authService] Attempting resend to local WhatsApp server at ${url}...`);
-          const localRes = await fetch(`${url}/send`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              number: data.formattedPhone,
-              message: data.textMessage
-            })
-          });
-
-          if (!localRes.ok) {
-            const errText = await localRes.text().catch(() => '');
-            throw new Error(errText || `Server returned status ${localRes.status}`);
-          }
-
-          console.log(`[authService] Local WhatsApp resend succeeded on ${url}!`);
-          success = true;
-          successfulUrl = url;
-          try {
-            localStorage.setItem('whatsapp_server_url', url);
-          } catch (e) {
-            console.warn('[authService] Failed to persist whatsapp_server_url to localStorage:', e);
-          }
-          break;
-        } catch (err: any) {
-          console.warn(`[authService] Attempt on ${url} failed:`, err);
-          lastError = err;
-        }
-      }
-
-      if (success) {
-        return {
-          ...data,
-          message: "Verification code resent to your WhatsApp successfully!"
-        };
-      } else {
-        return {
-          ...data,
-          local_dispatch_error: true,
-          local_dispatch_error_message: `Local WhatsApp server is unreachable. Tried: ${urlsToTry.join(', ')}. Last error: ${lastError?.message || lastError}`,
-          message: "WhatsApp server is unreachable. Please verify your local WhatsApp server is running."
-        };
-      }
-    }
-
-    return data;
+    return {
+      success: true,
+      message: data.message || 'OTP resent successfully.',
+      dev_otp_hint: undefined,
+      local_dispatch_error: false,
+      local_dispatch_error_message: undefined
+    };
   },
 
   // Verify OTP directly using backend 8-digit email OTP validator with Supabase fallback
