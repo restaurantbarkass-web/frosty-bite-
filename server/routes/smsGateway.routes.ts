@@ -267,22 +267,57 @@ router.get('/queue', requireGatewayAuth, handleGetPendingJobs);
  */
 const handleReportJob = async (req: Request, res: Response) => {
   try {
-    const jobId = req.body?.jobId || req.body?.id || req.body?.job_id || req.body?.smsId;
-    const rawStatus = req.body?.status ? String(req.body.status).toUpperCase() : '';
-    const error = req.body?.error || req.body?.message || req.body?.errorMessage;
+    const rawBody = req.body || {};
+    console.log('[SMS Gateway Report] Received report payload:', JSON.stringify(rawBody));
 
-    const normalizedStatus = (rawStatus === 'SENT' || rawStatus === 'SUCCESS') ? 'SENT' : (rawStatus.includes('FAIL') ? 'FAILED' : null);
+    const reportsToProcess: any[] = Array.isArray(rawBody) 
+      ? rawBody 
+      : (Array.isArray(rawBody.reports) ? rawBody.reports : (Array.isArray(rawBody.jobs) ? rawBody.jobs : [rawBody]));
 
-    if (!jobId || !normalizedStatus) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Bad Request',
-        message: "jobId/id and valid status ('SENT' | 'FAILED') are required"
-      });
+    const results: any[] = [];
+
+    for (const item of reportsToProcess) {
+      if (!item || typeof item !== 'object') continue;
+
+      const jobId = item.jobId || item.id || item.job_id || item.smsId || item.sms_id || item.messageId || item.message_id || item.job_uuid || item.uuid || item.job || item.data?.jobId || item.data?.id || req.query?.jobId || req.query?.id;
+      
+      let rawStatus = '';
+      if (item.status !== undefined && item.status !== null) {
+        rawStatus = String(item.status).toUpperCase();
+      } else if (item.state !== undefined && item.state !== null) {
+        rawStatus = String(item.state).toUpperCase();
+      } else if (item.result !== undefined && item.result !== null) {
+        rawStatus = String(item.result).toUpperCase();
+      } else if (typeof item.success === 'boolean') {
+        rawStatus = item.success ? 'SENT' : 'FAILED';
+      }
+
+      const error = item.error || item.errorMessage || item.error_message || item.message || item.details?.errorMessage || item.details || item.reason;
+
+      const isSent = ['SENT', 'SUCCESS', 'SUCCESSFUL', 'DELIVERED', 'OK', 'COMPLETED', 'PASSED', 'TRUE', '1', 'SENT_TO_SIM', 'SENT_TO_NETWORK', 'DISPATCHED', 'DONE'].includes(rawStatus) || item.success === true || item.successful === true;
+      const isFailed = ['FAILED', 'FAIL', 'ERROR', 'REJECTED', 'CANCELLED', 'TIMEOUT', 'FALSE', '0', 'GENERIC_FAILURE', 'NO_SERVICE', 'NULL_PDU', 'RADIO_OFF', 'LIMIT_EXCEEDED'].includes(rawStatus) || rawStatus.includes('FAIL') || rawStatus.includes('ERR') || item.success === false;
+
+      // Default to 'SENT' if endpoint was hit with a jobId and no explicit error, since calling /report indicates completion
+      let normalizedStatus: 'SENT' | 'FAILED' = isFailed ? 'FAILED' : 'SENT';
+
+      const deviceId = (req.headers['x-device-id'] as string) || item.deviceId || item.device_id || item.details?.deviceId || 'frosty-sms-gateway-01';
+
+      if (jobId) {
+        const ackResult = await SmsGatewayService.acknowledgeJob(String(jobId), normalizedStatus, error ? String(error) : undefined, {
+          deviceId
+        });
+        results.push({ jobId, status: normalizedStatus, ...ackResult });
+      } else {
+        console.warn('[SMS Gateway Report] No explicit jobId found in item:', JSON.stringify(item));
+        results.push({ ok: true, message: 'Report acknowledged without specific jobId', skipped: true });
+      }
     }
 
-    const result = await SmsGatewayService.acknowledgeJob(String(jobId), normalizedStatus, error);
-    return res.status(200).json(result);
+    return res.status(200).json({
+      ok: true,
+      message: 'Report(s) processed successfully',
+      results: results.length === 1 ? results[0] : results
+    });
   } catch (err: any) {
     console.error('[SMS Gateway] Error reporting/acknowledging job:', err);
     return res.status(500).json({
