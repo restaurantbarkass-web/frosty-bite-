@@ -18,6 +18,3 @@ coverage/
 .env.*.local
 .env*
 !.env.example
-
-# Keystore files
-*.keystore
