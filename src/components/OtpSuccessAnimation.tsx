@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Check, ArrowLeft, ShieldCheck, Sparkles, Mail, Phone, RefreshCw, Edit3, Lock, AlertCircle, ArrowRight, Clock, HelpCircle, ChevronDown, XCircle } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  ShieldCheck, 
+  Sparkles, 
+  Mail, 
+  Phone, 
+  RefreshCw, 
+  Edit3, 
+  AlertCircle, 
+  ArrowRight, 
+  Clock, 
+  HelpCircle, 
+  ChevronDown, 
+  RotateCcw,
+  Award
+} from 'lucide-react';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
 
@@ -22,7 +37,7 @@ interface OtpSuccessAnimationProps {
 
 type AnimStatus = 'entering' | 'verifying' | 'loading' | 'success' | 'exiting';
 
-// Web Audio API Sound Synthesizer for High-End Micro-Interactions
+// Web Audio API Sound Synthesizer for Micro-Interactions
 const playKeypressTick = () => {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -92,14 +107,14 @@ const playErrorThump = () => {
     osc.frequency.setValueAtTime(140, now);
     osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
 
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.22);
+    osc.stop(now + 0.2);
   } catch (_) {}
 };
 
@@ -123,20 +138,20 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
   const [rippleIndex, setRippleIndex] = useState<number | null>(null);
   const [isShaking, setIsShaking] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [verificationResult, setVerificationResult] = useState<any>(null);
   const [showTips, setShowTips] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoRedirectProgress, setAutoRedirectProgress] = useState(0);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const otpLength = 8;
+  const otpLength = 6;
 
   // Floating ambient golden/champagne confectioner's dust particles
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; duration: number; delay: number }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; top: string; left: string; scale: number; delay: number }[]>([]);
 
   useEffect(() => {
-    const pList = Array.from({ length: 18 }).map((_, i) => ({
+    const pList = Array.from({ length: 16 }).map((_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
@@ -146,10 +161,10 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
     }));
     setParticles(pList);
 
-    const sList = Array.from({ length: 14 }).map((_, i) => ({
+    const sList = Array.from({ length: 12 }).map((_, i) => ({
       id: i,
-      top: `${Math.random() * 70 + 15}%`,
-      left: `${Math.random() * 80 + 10}%`,
+      top: `${Math.random() * 60 + 20}%`,
+      left: `${Math.random() * 75 + 12}%`,
       scale: Math.random() * 0.5 + 0.6,
       delay: Math.random() * 1.5,
     }));
@@ -160,29 +175,30 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
   useEffect(() => {
     const firstEmptyIndex = otpArray.findIndex(digit => digit === '');
     const targetIdx = firstEmptyIndex === -1 ? 0 : firstEmptyIndex;
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       otpRefs.current[targetIdx]?.focus();
       setActiveBox(targetIdx);
     }, 150);
+    return () => clearTimeout(timer);
   }, []);
 
-  // React to error prop changes to trigger subtle shake animation and red highlight
+  // React to error prop changes to trigger subtle shake animation and highlight
   useEffect(() => {
     if (error) {
       setHasError(true);
       setIsShaking(true);
-      const timer = setTimeout(() => setIsShaking(false), 550);
+      const timer = setTimeout(() => setIsShaking(false), 600);
       return () => clearTimeout(timer);
     } else {
       setHasError(false);
     }
   }, [error]);
 
-  // Trigger optical ripple wave across slots
+  // Optical ripple wave across slots
   const triggerRippleSequence = useCallback(async () => {
     for (let i = 0; i < otpLength; i++) {
       setRippleIndex(i);
-      await new Promise((r) => setTimeout(r, 45));
+      await new Promise((r) => setTimeout(r, 40));
     }
     setRippleIndex(null);
   }, [otpLength]);
@@ -197,8 +213,8 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
 
     await triggerRippleSequence();
     
-    // Aesthetic morphing pause for high-end micro-interaction
-    await new Promise((resolve) => setTimeout(resolve, 380));
+    // Pause for smooth visual transition
+    await new Promise((resolve) => setTimeout(resolve, 320));
     setAnimStatus('loading');
 
     try {
@@ -211,11 +227,11 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
 
       // Confetti burst
       confetti({
-        particleCount: 110,
-        spread: 75,
+        particleCount: 120,
+        spread: 80,
         origin: { y: 0.55 },
-        colors: ['#F59E0B', '#F97316', '#10B981', '#FDE68A', '#FFFFFF', '#FB923C'],
-        ticks: 240,
+        colors: ['#F59E0B', '#F97316', '#10B981', '#FDE68A', '#FFFFFF', '#14B8A6'],
+        ticks: 260,
         gravity: 0.9,
       });
 
@@ -227,11 +243,9 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
       } catch (_) {}
 
     } catch (err: any) {
-      console.error('[GodLevelOtp] Verification Failed:', err);
       playErrorThump();
       setIsShaking(true);
       setHasError(true);
-      setIsErrorModalOpen(true);
       setAnimStatus('entering');
       setIsSubmitting(false);
 
@@ -239,9 +253,16 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
       setError(errorMessage);
       toast.error(errorMessage, { id: 'otp-error-toast' });
 
-      setTimeout(() => setIsShaking(false), 550);
+      // Mobile Haptic Error Buzz
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate([80, 50, 80]);
+        }
+      } catch (_) {}
+
+      setTimeout(() => setIsShaking(false), 600);
       setTimeout(() => {
-        // Refocus on the first input for frictionless retry
+        // Refocus on input #0 for immediate correction
         otpRefs.current[0]?.focus();
         setActiveBox(0);
       }, 120);
@@ -305,26 +326,25 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
     const rawDigits = e.clipboardData.getData('text').replace(/\D/g, '');
     if (!rawDigits) return;
 
-    const pasted = rawDigits.slice(0, 8);
+    const pasted = rawDigits.slice(0, 6);
 
     playKeypressTick();
     const nextArr = [...otpArray];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       nextArr[i] = pasted[i] || '';
     }
     setOtpArray(nextArr);
 
-    const focusIndex = Math.min(pasted.length, 7);
+    const focusIndex = Math.min(pasted.length, 5);
     otpRefs.current[focusIndex]?.focus();
     setActiveBox(focusIndex);
 
-    if (nextArr.slice(0, 8).every((cell) => cell !== '')) {
-      submitOtpCode(nextArr.slice(0, 8).join(''));
+    if (nextArr.slice(0, 6).every((cell) => cell !== '')) {
+      submitOtpCode(nextArr.slice(0, 6).join(''));
     }
   };
 
-  const handleClearAndRetry = () => {
-    setIsErrorModalOpen(false);
+  const handleClearCode = () => {
     setHasError(false);
     setError(null);
     setOtpArray(Array(otpLength).fill(''));
@@ -343,21 +363,38 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
     setAnimStatus('exiting');
     setTimeout(() => {
       onSuccessRedirect(verificationResult);
-    }, 500);
+    }, 450);
   };
+
+  // Auto redirect countdown on success
+  useEffect(() => {
+    if (animStatus === 'success') {
+      const interval = setInterval(() => {
+        setAutoRedirectProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            handleContinue();
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [animStatus]);
 
   const isEmail = signInMethod !== 'mobile_otp';
   const targetRecipient = isEmail ? email : `+91 ${phone}`;
   const currentCooldown = isEmail ? resendTimer : timerSeconds;
 
   return (
-    <div className="relative w-full overflow-hidden min-h-[480px] flex flex-col justify-between p-1 select-none">
+    <div className="relative w-full overflow-hidden min-h-[460px] flex flex-col justify-between p-1 select-none">
       
       {/* Ambient Bokeh and Confectioner's Shimmer */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2.5rem]">
         {particles.map((p) => (
           <motion.div
-            key={p.id}
+            key={`otp-ambient-particle-${p.id}`}
             className="absolute bg-gradient-to-tr from-amber-400/20 to-orange-300/10 rounded-full blur-[1px]"
             style={{
               left: `${p.x}%`,
@@ -404,7 +441,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                 type="button"
                 onClick={onBack}
                 className="absolute left-0 top-1/2 -translate-y-1/2 p-2.5 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/30 text-zinc-400 hover:text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 group shadow-sm"
-                title="Back to email screen"
+                title="Back to previous screen"
                 id="btn_otp_back"
               >
                 <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -417,7 +454,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight text-white font-sans">Verify Passkey</h2>
                 <p className="text-zinc-400 text-xs leading-relaxed max-w-[260px] mx-auto">
-                  {isEmail ? 'We dispatched an 8-digit security code to' : 'We dispatched an 8-digit WhatsApp code to'}
+                  {isEmail ? 'Enter the 6-digit verification code dispatched to' : 'Enter the 6-digit WhatsApp code dispatched to'}
                 </p>
               </div>
             </div>
@@ -455,36 +492,23 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
               </button>
             </motion.div>
 
-            {/* Error Message banner with physics shake */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-start gap-2.5 text-left max-w-[340px] mx-auto w-full"
-                id="otp_error_banner"
-              >
-                <AlertCircle size={15} className="text-rose-400 shrink-0 mt-0.5" />
-                <span className="leading-snug">{error}</span>
-              </motion.div>
-            )}
-
-            {/* 8-Digit Luxury Passkey Grid */}
-            <div className="space-y-3 py-2">
+            {/* 6-Digit Luxury Passkey Grid with Shake Animation */}
+            <div className="space-y-3 py-1">
               <div className="flex justify-between items-center max-w-[340px] mx-auto px-1">
                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  8-Digit Passkey
+                  6-Digit Passkey
                 </span>
                 <span className="text-[10px] font-medium text-zinc-500 font-mono">
-                  {otpArray.slice(0, 8).filter(Boolean).length}/8
+                  {otpArray.slice(0, 6).filter(Boolean).length}/6
                 </span>
               </div>
 
-              <div 
-                className={`grid grid-cols-8 gap-1 sm:gap-1.5 max-w-[340px] mx-auto py-1 w-full ${
-                  isShaking ? 'animate-[shake_0.5s_cubic-bezier(.36,.07,.19,.97)_both]' : ''
-                }`}
+              <motion.div 
+                animate={isShaking ? { x: [-10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                className="grid grid-cols-6 gap-1.5 sm:gap-2.5 max-w-[340px] mx-auto py-1 w-full"
               >
-                {Array.from({ length: 8 }).map((_, idx) => {
+                {Array.from({ length: 6 }).map((_, idx) => {
                   const digit = otpArray[idx] || '';
                   const isFocused = activeBox === idx;
                   const isRippled = rippleIndex === idx;
@@ -493,8 +517,8 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
 
                   return (
                     <div 
-                      key={idx} 
-                      className="relative w-full aspect-[4/5] min-w-0 flex items-center justify-center"
+                      key={`otp-digit-slot-${idx}`} 
+                      className="relative w-full min-w-0 flex items-center justify-center"
                     >
                       <input
                         ref={(el) => { otpRefs.current[idx] = el; }}
@@ -510,9 +534,9 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                         onChange={(e) => handleInputChange(e.target.value, idx)}
                         onKeyDown={(e) => handleKeyDown(e, idx)}
                         onPaste={handlePaste}
-                        className={`w-full h-11 sm:h-13 text-center border rounded-xl text-base sm:text-lg font-black font-mono focus:outline-none transition-all select-all duration-200 cursor-text
+                        className={`w-full h-12 sm:h-14 text-center border rounded-xl sm:rounded-2xl text-lg sm:text-xl font-black font-mono focus:outline-none transition-all select-all duration-200 cursor-text p-0 min-w-0
                           ${isSlotError
-                            ? 'border-red-500 bg-red-500/10 text-red-400 ring-2 ring-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.35)]'
+                            ? 'border-rose-500 bg-rose-500/10 text-rose-300 ring-2 ring-rose-500/30 shadow-[0_0_20px_rgba(244,63,94,0.35)]'
                             : isFocused 
                               ? 'border-amber-400 bg-amber-500/[0.08] shadow-[0_0_20px_rgba(245,158,11,0.35)] scale-105 text-amber-300 ring-2 ring-amber-400/20' 
                               : isFilled
@@ -529,19 +553,51 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
 
                       {/* Glowing underline indicator */}
                       {isSlotError ? (
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-red-500 rounded-full blur-[0.4px]" />
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-rose-500 rounded-full blur-[0.4px]" />
                       ) : isFilled && !isFocused ? (
                         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-[2px] bg-amber-400/90 rounded-full blur-[0.4px]" />
                       ) : null}
 
-                      {/* Last digit ripple pulse indicator */}
+                      {/* Ripple pulse on final digit completion */}
                       {idx === otpLength - 1 && isFilled && animStatus === 'verifying' && (
                         <div className="absolute inset-0 border-2 border-amber-400 rounded-2xl animate-ping pointer-events-none" />
                       )}
                     </div>
                   );
                 })}
-              </div>
+              </motion.div>
+
+              {/* Dynamic Non-Blocking Inline Error Banner with Instant Clear */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="otp_inline_error_notice"
+                    initial={{ opacity: 0, y: -6, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -6, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs max-w-[340px] mx-auto w-full shadow-inner">
+                      <div className="flex items-center gap-2 overflow-hidden text-left">
+                        <AlertCircle size={15} className="text-rose-400 shrink-0 animate-pulse" />
+                        <span className="truncate leading-tight text-[11px] sm:text-xs">
+                          {typeof error === 'string' ? error : 'Incorrect verification code. Please check & try again.'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearCode}
+                        className="ml-2 shrink-0 px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Clear code and re-type"
+                      >
+                        <RotateCcw size={10} />
+                        <span>Clear</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Action Buttons & Cooldown */}
@@ -597,7 +653,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                   </div>
                 )}
 
-                {/* Helpful Delivery Tip Accordion */}
+                {/* Delivery Tip Accordion */}
                 <div className="pt-1">
                   <button
                     type="button"
@@ -612,6 +668,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                   <AnimatePresence>
                     {showTips && (
                       <motion.div
+                        key="otp-help-tips-dropdown"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -620,7 +677,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                         <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 text-[10px] text-zinc-400 space-y-1.5 text-left max-w-[320px] mx-auto leading-relaxed">
                           <p>• Check your <strong>Spam</strong> or <strong>Promotions</strong> folder.</p>
                           <p>• Verification emails are sent instantly from <strong>auth@frostybite.com</strong>.</p>
-                          <p>• If you mistyped your address, tap <strong>Edit</strong> above to fix it.</p>
+                          <p>• If you mistyped your address, tap <strong>Edit</strong> above to correct it.</p>
                         </div>
                       </motion.div>
                     )}
@@ -630,50 +687,83 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
             </div>
           </motion.div>
         ) : animStatus === 'loading' ? (
+          /* =========================================================================
+             HYPNOTIC ULTRA-LUXURY CONFECTIONERY VAULT LOADING ANIMATION
+             ========================================================================= */
           <motion.div
             key="otp-loading-confectionery"
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.94 }}
             transition={{ duration: 0.4 }}
-            className="flex-1 flex flex-col items-center justify-center py-12 space-y-7 relative z-10"
+            className="flex-1 flex flex-col items-center justify-center py-10 space-y-8 relative z-10"
           >
-            {/* Morphing Dual-Orbital Confectionery Loader */}
-            <div className="relative">
-              {/* Outer soft ambient glow */}
-              <div className="absolute inset-0 bg-amber-500/20 blur-3xl rounded-full scale-150 animate-pulse" />
+            {/* Multi-Orbital Radiant Vault Core */}
+            <div className="relative w-36 h-36 flex items-center justify-center">
+              {/* Outer soft ambient halo */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 via-orange-500/25 to-amber-300/10 blur-3xl rounded-full scale-150 animate-pulse" />
 
-              {/* Counter-rotating orbital rings */}
+              {/* Orbital Ring 1: Clockwise Outer Amber Ring with Ticks */}
               <motion.div
-                className="w-24 h-24 rounded-full border-2 border-amber-500/10 border-t-amber-400 border-r-amber-400/50 relative z-10 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.25)]"
+                className="absolute inset-0 rounded-full border border-dashed border-amber-400/40 shadow-[0_0_25px_rgba(245,158,11,0.2)]"
                 animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 1.3, ease: 'linear' }}
+                transition={{ repeat: Infinity, duration: 6, ease: 'linear' }}
               />
 
+              {/* Orbital Ring 2: Counter-Clockwise Precision Neon Ring */}
               <motion.div
-                className="absolute inset-2 rounded-full border-2 border-orange-500/10 border-b-orange-400 border-l-orange-400/40 z-10"
+                className="absolute inset-3 rounded-full border-2 border-transparent border-t-orange-400 border-r-amber-300"
                 animate={{ rotate: -360 }}
-                transition={{ repeat: Infinity, duration: 1.8, ease: 'linear' }}
+                transition={{ repeat: Infinity, duration: 2.4, ease: 'linear' }}
               />
 
-              {/* Central glowing patisserie crest icon */}
-              <div className="absolute inset-0 m-auto w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-500/40 flex items-center justify-center z-20 shadow-inner">
-                <Lock size={18} className="text-amber-300 animate-pulse" />
-              </div>
+              {/* Orbital Ring 3: Fast Inner Shimmer Ring */}
+              <motion.div
+                className="absolute inset-6 rounded-full border border-amber-400/20 border-b-amber-300 border-l-orange-400"
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1.6, ease: 'linear' }}
+              />
+
+              {/* Central Glowing Bakery Vault Crest */}
+              <motion.div 
+                className="relative z-20 w-16 h-16 rounded-3xl bg-gradient-to-br from-amber-500/30 via-orange-600/20 to-zinc-900/90 border border-amber-400/50 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.45)] backdrop-blur-md"
+                animate={{ scale: [0.96, 1.05, 0.96] }}
+                transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+              >
+                <ShieldCheck size={28} className="text-amber-300 drop-shadow-[0_0_10px_rgba(252,211,77,0.8)]" />
+              </motion.div>
+
+              {/* Orbiting Golden Light Sparks */}
+              {[0, 120, 240].map((angle, i) => (
+                <motion.div
+                  key={`vault-spark-${angle}-${i}`}
+                  className="absolute w-2 h-2 rounded-full bg-amber-300 shadow-[0_0_10px_#F59E0B]"
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 3, delay: i * 0.4, ease: 'linear' }}
+                  style={{ transformOrigin: '72px 72px' }}
+                />
+              ))}
             </div>
 
-            <div className="text-center space-y-2 max-w-[260px] mx-auto z-10">
+            <div className="text-center space-y-2 max-w-[280px] mx-auto z-10">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black uppercase tracking-widest">
+                <Sparkles size={11} className="animate-pulse text-amber-400" />
+                <span>Validating Security Crypt</span>
+              </div>
               <h3 className="text-lg font-black text-white tracking-tight">Authenticating Passkey...</h3>
               <p className="text-zinc-400 text-xs leading-relaxed font-sans">
-                Verifying your cryptographic credentials with the Frosty Bite patisserie vault
+                Connecting securely to the Frosty Bite patisserie vault
               </p>
             </div>
           </motion.div>
         ) : (
+          /* =========================================================================
+             AWARD-WINNING CELEBRATORY SUCCESS STATE (BEAUTIFUL ANIMATION)
+             ========================================================================= */
           <motion.div
             key="otp-success-celebration"
-            className="flex-1 flex flex-col justify-between relative z-10"
-            initial={{ opacity: 0, scale: 0.95 }}
+            className="flex-1 flex flex-col justify-between relative z-10 py-3"
+            initial={{ opacity: 0, scale: 0.94 }}
             animate={
               animStatus === 'exiting'
                 ? { opacity: 0, scale: 0.92, filter: 'blur(8px)' }
@@ -681,53 +771,67 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
             }
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* Shimmering Sparkles Overlay */}
+            {/* Shimmering Floating Starlight Particles */}
             <div className="absolute inset-0 pointer-events-none">
               {sparkles.map((s) => (
                 <motion.div
-                  key={s.id}
-                  className="absolute text-amber-300/60"
+                  key={`otp-sparkle-item-${s.id}`}
+                  className="absolute text-amber-300/80"
                   style={{ top: s.top, left: s.left }}
                   initial={{ scale: 0, rotate: 0 }}
                   animate={{
-                    scale: [0, s.scale, 0],
+                    scale: [0, s.scale * 1.2, 0],
                     rotate: [0, 90, 180],
                     opacity: [0, 1, 0],
                   }}
                   transition={{
-                    duration: 2.8,
+                    duration: 2.6,
                     repeat: Infinity,
                     delay: s.delay,
                   }}
                 >
-                  <Sparkles size={14} />
+                  <Sparkles size={16} />
                 </motion.div>
               ))}
             </div>
 
-            {/* Checkmark, Mascot & Congratulations */}
-            <div className="flex-1 flex flex-col items-center justify-center space-y-6 pt-2 text-center">
+            {/* Central Celebration Crest & Medallion */}
+            <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center">
               
-              {/* Expanding Golden/Emerald Halo Ring */}
-              <div className="relative">
+              {/* Expanding Double Emerald & Gold Radial Corona */}
+              <div className="relative flex items-center justify-center">
+                {/* Outer Ripple Wave */}
                 <motion.div
-                  initial={{ scale: 0.8, opacity: 0.7 }}
-                  animate={{ scale: [0.8, 1.8], opacity: [0.7, 0] }}
-                  transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 1.5, ease: 'easeOut' }}
-                  className="absolute inset-0 border-2 border-emerald-400 rounded-full"
+                  initial={{ scale: 0.7, opacity: 0.8 }}
+                  animate={{ scale: [0.8, 2.2], opacity: [0.8, 0] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
+                  className="absolute w-28 h-28 border-2 border-emerald-400/60 rounded-full"
                 />
 
-                <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full scale-150" />
-
-                {/* Animated SVG Checkmark */}
+                {/* Secondary Warm Gold Wave */}
                 <motion.div
-                  initial={{ scale: 0.2, rotate: -30 }}
+                  initial={{ scale: 0.7, opacity: 0.6 }}
+                  animate={{ scale: [0.8, 1.8], opacity: [0.6, 0] }}
+                  transition={{ duration: 1.8, repeat: Infinity, delay: 0.45, ease: 'easeOut' }}
+                  className="absolute w-28 h-28 border border-amber-400/50 rounded-full"
+                />
+
+                {/* Ambient Deep Emerald Glow Bloom */}
+                <div className="absolute w-36 h-36 bg-gradient-to-tr from-emerald-500/30 via-teal-400/25 to-amber-400/20 blur-2xl rounded-full scale-150" />
+
+                {/* 3D Royal Patisserie Master Seal Medallion */}
+                <motion.div
+                  initial={{ scale: 0.2, rotate: -45 }}
                   animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: 'spring', damping: 14, stiffness: 220 }}
-                  className="w-18 h-18 rounded-3xl bg-gradient-to-br from-emerald-500/20 via-emerald-600/15 to-teal-500/10 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 relative z-10 shadow-[0_0_35px_rgba(16,185,129,0.35)]"
+                  transition={{ type: 'spring', damping: 13, stiffness: 200 }}
+                  className="relative z-10 w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500/25 via-zinc-950/90 to-teal-900/30 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_45px_rgba(16,185,129,0.5)] backdrop-blur-md"
                 >
+                  {/* Decorative Inner Golden Trim */}
+                  <div className="absolute inset-1.5 rounded-2xl border border-amber-400/40 pointer-events-none" />
+
+                  {/* Animated Spring SVG Checkmark */}
                   <svg
-                    className="w-9 h-9 text-emerald-300"
+                    className="w-12 h-12 text-emerald-300 drop-shadow-[0_0_12px_rgba(16,185,129,0.8)]"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -736,7 +840,7 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                     <motion.path
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.6, delay: 0.25, ease: 'easeOut' }}
+                      transition={{ duration: 0.65, delay: 0.25, ease: 'easeOut' }}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       d="M5 13l4 4L19 7"
@@ -745,82 +849,42 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                 </motion.div>
               </div>
 
-              {/* Verified Title & Welcome Subtitle */}
+              {/* Title & Welcome Message */}
               <motion.div
-                initial={{ opacity: 0, y: 14, filter: 'blur(8px)' }}
+                initial={{ opacity: 0, y: 16, filter: 'blur(8px)' }}
                 animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                 transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-1.5 z-10"
+                className="space-y-2 z-10"
               >
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-widest">
-                  <span>Passkey Verified</span>
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-widest shadow-inner">
+                  <Award size={13} className="text-emerald-400" />
+                  <span>Passkey Verified • Access Granted</span>
                 </div>
-                <h3 className="text-2xl font-black tracking-tight text-white">
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white font-sans">
                   Welcome to Frosty Bite
                 </h3>
-                <p className="text-zinc-400 text-xs font-sans leading-relaxed max-w-[250px] mx-auto">
-                  Your confectionery session has been securely established
+                <p className="text-zinc-300 text-xs sm:text-sm font-sans leading-relaxed max-w-[280px] mx-auto">
+                  Your artisanal bakery session has been authenticated successfully
                 </p>
               </motion.div>
 
-              {/* Animated Frosty Bite Pastry Chef Mascot */}
+              {/* Auto Redirect Countdown Bar */}
               <motion.div
-                initial={{ opacity: 0, y: 25, scale: 0.7 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 120, damping: 13, delay: 0.55 }}
-                className="relative w-28 h-28 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="w-full max-w-[240px] mx-auto space-y-1.5 pt-1"
               >
-                <div className="absolute w-20 h-20 bg-amber-500/10 rounded-full blur-xl animate-pulse" />
-
-                <svg className="w-24 h-24 drop-shadow-[0_12px_20px_rgba(0,0,0,0.4)]" viewBox="0 0 100 100">
-                  {/* Cupcake Wrapper / Base */}
-                  <path d="M30 65 L35 85 Q37 88 40 88 L60 88 Q63 88 65 85 L70 65 Z" fill="#FFA858" stroke="#E07C24" strokeWidth="2" />
-                  <line x1="40" y1="65" x2="43" y2="88" stroke="#E07C24" strokeWidth="2" />
-                  <line x1="50" y1="65" x2="50" y2="88" stroke="#E07C24" strokeWidth="2" />
-                  <line x1="60" y1="65" x2="57" y2="88" stroke="#E07C24" strokeWidth="2" />
-
-                  {/* Frosting Swirl */}
-                  <path d="M25 65 Q20 55 30 50 Q35 48 40 50 Q45 42 55 45 Q65 40 70 50 Q80 55 75 65 Z" fill="#FFF8F2" stroke="#FF7A00" strokeWidth="2" />
-                  <path d="M35 58 Q40 54 50 56 Q60 52 65 58" fill="none" stroke="#FFD54F" strokeWidth="2.5" strokeLinecap="round" />
-
-                  {/* Baker Chef Hat */}
-                  <g className="origin-bottom-center">
-                    <rect x="42" y="27" width="16" height="6" rx="2" fill="#FFFFFF" stroke="#FF7A00" strokeWidth="2" />
-                    <path d="M38 28 Q34 20 44 18 Q50 14 56 18 Q66 20 62 28 Z" fill="#FFFFFF" stroke="#FF7A00" strokeWidth="2" />
-                  </g>
-
-                  {/* Sparkling Eyes */}
-                  <circle cx="42" cy="58" r="3.5" fill="#1A1A1A" />
-                  <circle cx="42.5" cy="56.5" r="1.2" fill="#FFFFFF" />
-                  
-                  <circle cx="58" cy="58" r="3.5" fill="#1A1A1A" />
-                  <circle cx="58.5" cy="56.5" r="1.2" fill="#FFFFFF" />
-
-                  {/* Cheeks */}
-                  <circle cx="37" cy="62" r="3" fill="#FF5E5E" opacity="0.6" />
-                  <circle cx="63" cy="62" r="3" fill="#FF5E5E" opacity="0.6" />
-
-                  {/* Smile */}
-                  <path d="M47 62 Q50 65 53 62" fill="none" stroke="#1A1A1A" strokeWidth="2.5" strokeLinecap="round" />
-
-                  {/* Left hand */}
-                  <circle cx="23" cy="68" r="4" fill="#FFF8F2" stroke="#FF7A00" strokeWidth="2" />
-                  
-                  {/* Right hand waving */}
-                  <motion.g
-                    animate={{ rotate: [0, -22, 0, -22, 0] }}
-                    transition={{
-                      repeat: Infinity,
-                      repeatDelay: 1.2,
-                      duration: 0.8,
-                      delay: 0.8,
-                    }}
-                    style={{ originX: '77px', originY: '68px' }}
-                  >
-                    <line x1="77" y1="68" x2="85" y2="60" stroke="#FF7A00" strokeWidth="2.5" strokeLinecap="round" />
-                    <circle cx="85" cy="60" r="4" fill="#FFF8F2" stroke="#FF7A00" strokeWidth="2" />
-                  </motion.g>
-                </svg>
+                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden p-0.5">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300 rounded-full"
+                    style={{ width: `${autoRedirectProgress}%` }}
+                    transition={{ ease: 'linear' }}
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-500 font-mono tracking-wider">
+                  Entering patisserie in a moment...
+                </p>
               </motion.div>
             </div>
 
@@ -828,8 +892,8 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.8, ease: 'easeOut' }}
-              className="pt-3"
+              transition={{ duration: 0.6, delay: 0.65, ease: 'easeOut' }}
+              className="pt-4"
             >
               <button
                 type="button"
@@ -837,72 +901,12 @@ export const OtpSuccessAnimation: React.FC<OtpSuccessAnimationProps> = ({
                 className="relative w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500 hover:from-emerald-500 hover:to-amber-400 text-white font-black text-sm tracking-wider flex items-center justify-center gap-2 border border-white/10 hover:border-white/20 shadow-[0_16px_36px_rgba(16,185,129,0.3)] hover:shadow-[0_20px_45px_rgba(16,185,129,0.4)] transition-all duration-300 transform active:scale-95 group overflow-hidden cursor-pointer"
                 id="btn_continue_to_patisserie"
               >
-                {/* Shiny glass sweep */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                {/* Shiny glass sweep reflection */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 
-                <span>Enter Frosty Bite</span>
+                <span>Enter Frosty Bite Now</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1.5 transition-transform" />
               </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Incorrect OTP Error Popup Modal */}
-      <AnimatePresence>
-        {isErrorModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-            onClick={() => setIsErrorModalOpen(false)}
-            id="otp_error_modal_backdrop"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-              className="w-full max-w-sm rounded-3xl bg-gradient-to-b from-zinc-900 to-zinc-950 border border-red-500/30 p-6 text-center shadow-[0_0_50px_rgba(239,68,68,0.25)] relative overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-              id="otp_error_modal"
-            >
-              {/* Ambient Top Glow */}
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-24 bg-red-500/20 blur-3xl pointer-events-none" />
-
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
-                <AlertCircle size={32} className="animate-pulse" />
-              </div>
-
-              <h3 className="text-lg font-black text-white tracking-tight mb-2">
-                Incorrect Verification Code
-              </h3>
-
-              <p className="text-xs text-zinc-300 leading-relaxed mb-6">
-                {error || 'The 6-digit verification code you entered is invalid or has expired. Please check your email and try again.'}
-              </p>
-
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={handleClearAndRetry}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.98] shadow-[0_4px_16px_rgba(239,68,68,0.3)] flex items-center justify-center gap-2 cursor-pointer"
-                  id="btn_retry_otp"
-                >
-                  <RefreshCw size={14} />
-                  <span>Clear & Try Again</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsErrorModalOpen(false)}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white font-medium text-xs transition-colors cursor-pointer"
-                  id="btn_dismiss_otp_error"
-                >
-                  Close & Review Code
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}

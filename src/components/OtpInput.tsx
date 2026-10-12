@@ -165,18 +165,18 @@ export const OtpInput: React.FC<OtpInputProps> = ({
 
   // Dimensions based on size
   const sizeClasses = {
-    sm: 'max-w-[40px] min-w-[32px] h-11 sm:h-12 text-lg',
-    md: 'max-w-[48px] min-w-[38px] h-14 sm:h-16 text-xl sm:text-2xl',
-    lg: 'max-w-[56px] min-w-[44px] h-16 sm:h-20 text-2xl sm:text-3xl',
+    sm: 'h-10 sm:h-12 text-base sm:text-lg',
+    md: 'h-12 sm:h-14 text-lg sm:text-xl',
+    lg: 'h-14 sm:h-16 text-xl sm:text-2xl',
   }[size];
 
   return (
-    <div className={`w-full flex flex-col items-center gap-3 ${className}`} id={id}>
+    <div className={`w-full flex flex-col items-center gap-3 min-w-0 ${className}`} id={id}>
       {/* Input Slot Fields Container with motion shake animation */}
       <motion.div
         animate={isShaking || isError ? { x: [0, -7, 7, -6, 6, -3, 3, 0] } : { x: 0 }}
         transition={{ duration: 0.45, ease: 'easeInOut' }}
-        className="flex justify-center items-center gap-2 sm:gap-2.5 w-full max-w-[360px] mx-auto py-1"
+        className="flex justify-center items-center gap-1 sm:gap-2.5 w-full max-w-full px-1 mx-auto py-1 min-w-0"
       >
         {Array.from({ length }).map((_, idx) => {
           const digit = digits[idx] || '';
@@ -186,7 +186,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
           return (
             <div
               key={idx}
-              className={`relative flex-1 aspect-square ${sizeClasses}`}
+              className={`relative flex-1 min-w-0 ${sizeClasses}`}
             >
               <input
                 ref={(el) => { inputRefs.current[idx] = el; }}
@@ -199,7 +199,7 @@ export const OtpInput: React.FC<OtpInputProps> = ({
                 onChange={(e) => handleChange(e.target.value, idx)}
                 onKeyDown={(e) => handleKeyDown(e, idx)}
                 onPaste={handlePaste}
-                className={`absolute inset-0 w-full h-full text-center border rounded-2xl font-black font-mono focus:outline-none transition-all duration-200 cursor-text select-all disabled:opacity-40 disabled:cursor-not-allowed
+                className={`w-full h-full text-center border rounded-xl sm:rounded-2xl font-black font-mono focus:outline-none transition-all duration-200 cursor-text select-all disabled:opacity-40 disabled:cursor-not-allowed p-0 min-w-0
                   ${isError
                     ? 'border-red-500 bg-red-50 text-red-600 ring-2 ring-red-500/20 shadow-xs'
                     : isFocused

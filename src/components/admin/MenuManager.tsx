@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Minus, Edit2, Trash2, Image as ImageIcon, Search, Filter, CheckCircle2, XCircle, X, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES } from '../../constants';
+import { categoryService } from '../../services/categoryService';
 import { cn } from '../../lib/utils';
 import { uploadImage } from '../../utils/upload';
 import toast from 'react-hot-toast';
@@ -39,6 +40,15 @@ export const MenuManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [categoriesList, setCategoriesList] = useState<string[]>(CATEGORIES);
+
+  useEffect(() => {
+    categoryService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategoriesList(Array.from(new Set([...CATEGORIES, ...cats.map(c => c.name)])));
+      }
+    });
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -699,7 +709,7 @@ export const MenuManager: React.FC = () => {
                           onChange={(e) => setFormData({...formData, category: e.target.value})}
                           className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl py-3 px-4 text-stone-900 focus:outline-none focus:border-[#E76A54] transition-all font-medium text-sm cursor-pointer"
                         >
-                          {CATEGORIES.map(cat => (
+                          {categoriesList.map(cat => (
                             <option key={cat} value={cat} className="bg-white text-stone-900">{cat}</option>
                           ))}
                         </select>

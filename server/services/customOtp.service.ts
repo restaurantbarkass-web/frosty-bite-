@@ -4,14 +4,14 @@ import { SmsGatewayService } from './smsGateway.service';
 
 export interface OtpRequestParams {
   phone: string;
-  purpose: 'LOGIN' | 'SIGNUP' | 'VERIFY_PHONE' | 'PASSWORD_RESET';
+  purpose: 'LOGIN' | 'SIGNUP' | 'VERIFY_PHONE' | 'PASSWORD_RESET' | 'ACCOUNT_DELETION';
   ip?: string;
   metadata?: Record<string, any>;
 }
 
 export interface OtpVerifyParams {
   phone: string;
-  purpose: 'LOGIN' | 'SIGNUP' | 'VERIFY_PHONE' | 'PASSWORD_RESET';
+  purpose: 'LOGIN' | 'SIGNUP' | 'VERIFY_PHONE' | 'PASSWORD_RESET' | 'ACCOUNT_DELETION';
   otp: string;
   ip?: string;
 }
@@ -22,9 +22,13 @@ export class CustomOtpService {
   private static readonly MAX_ATTEMPTS = 5;
 
   /**
-   * Normalizes phone number to +91XXXXXXXXXX format.
+   * Normalizes phone number to +91XXXXXXXXXX format, or preserves email addresses safely.
    */
   public static normalizePhone(phone: string): string {
+    if (!phone) return '';
+    if (phone.includes('@')) {
+      return phone.trim().toLowerCase();
+    }
     const clean = phone.replace(/\D/g, '');
     if (clean.length === 10) {
       return `+91${clean}`;
@@ -183,6 +187,7 @@ export class CustomOtpService {
         .from('otp_verifications')
         .select('*')
         .eq('phone', normalizedPhone)
+        .eq('purpose', purpose)
         .is('verified_at', null)
         .is('invalidated_at', null)
         .order('created_at', { ascending: false })

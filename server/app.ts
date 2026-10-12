@@ -39,6 +39,9 @@ import paymentRouter from "./routes/payment.routes";
 import campaignsRouter from "./routes/campaigns.routes";
 import smsGatewayRouter from "./routes/smsGateway.routes";
 import otpRouter from "./routes/otp.routes";
+import accountDeletionRouter from "./routes/accountDeletion.routes";
+import customerAdminRouter from "./routes/customerAdmin.routes";
+import categoriesRouter from "./routes/categories.routes";
 
 import { V2GeofencingService } from "./services/v2Geofencing.service";
 import { supabase } from "./lib/supabase";
@@ -224,6 +227,9 @@ app.use(["/payment", "/api/payment"], paymentRouter);
 app.use(["/campaigns", "/api/campaigns"], campaignsRouter);
 app.use(["/sms-gateway", "/api/sms-gateway", "/sms", "/api/sms"], smsGatewayRouter);
 app.use(["/auth/otp", "/api/auth/otp"], otpRouter);
+app.use(["/auth/account-deletion", "/api/auth/account-deletion"], accountDeletionRouter);
+app.use(["/admin/customers", "/api/admin/customers"], customerAdminRouter);
+app.use(["/categories", "/api/categories"], categoriesRouter);
 app.use(["/coupons/validate", "/api/coupons/validate"], (req, res, next) => {
   req.url = "/validate-coupon";
   campaignsRouter(req, res, next);

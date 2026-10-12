@@ -23,6 +23,7 @@ import { FoodItem } from '../types';
 import { FoodCard } from '../components/FoodCard';
 import { FoodCardSkeleton } from '../components/FoodCardSkeleton';
 import { CategoriesPageSkeleton } from '../components/CategoriesPageSkeleton';
+import { categoryService, Category } from '../services/categoryService';
 
 interface CategoryVisualMeta {
   image: string;
@@ -171,6 +172,7 @@ export const CategoriesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<string>('popularity');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [managedCategories, setManagedCategories] = useState<Category[]>([]);
 
   useMetadata({
     title: 'Categories & All Products — Frosty Bite Bakery',
@@ -187,19 +189,26 @@ export const CategoriesPage: React.FC = () => {
     }
   }, [location.search, location.state]);
 
-  // Calculate unique categories from database products
+  // Load managed categories from service
+  useEffect(() => {
+    categoryService.getCategories().then(setManagedCategories);
+    const unsubscribe = categoryService.subscribe(setManagedCategories);
+    return () => unsubscribe();
+  }, []);
+
+  // Calculate unique categories from database products and managed categories
   const computedCategories = useMemo(() => {
-    if (!items || items.length === 0) {
+    const fromProducts = (items || []).map(i => i.category).filter(Boolean);
+    const fromManaged = managedCategories.filter(c => c.is_active).map(c => c.name);
+    const combined = Array.from(new Set([...fromManaged, ...fromProducts]));
+
+    if (combined.length === 0) {
       const filtered = (rawCategories || []).filter(c => c && c.toLowerCase() !== 'all');
       return filtered.length > 0 ? filtered : ['Cakes', 'Cheesecakes', 'Pastries', 'Cupcakes', 'Brownies', 'Breads', 'Cookies', 'Beverages'];
     }
 
-    const uniqueCats = Array.from(
-      new Set(items.map(i => i.category).filter(Boolean))
-    );
-
-    return uniqueCats;
-  }, [items, rawCategories]);
+    return combined;
+  }, [items, rawCategories, managedCategories]);
 
   // Aggregate stats per category
   const categoryStats = useMemo(() => {
@@ -210,9 +219,10 @@ export const CategoriesPage: React.FC = () => {
       const availableItems = catItems.filter(i => i.available !== false);
       const minPrice = catItems.length > 0 ? Math.min(...catItems.map(i => i.price)) : 0;
       
+      const managedMatch = managedCategories.find(c => c.name.toLowerCase() === cat.toLowerCase());
       const topItem = [...catItems].sort((a, b) => (b.rating || 0) - (a.rating || 0))[0];
       const fallbackMeta = CATEGORY_METADATA[cat] || DEFAULT_CATEGORY_META;
-      const bestImage = topItem?.image || fallbackMeta.image;
+      const bestImage = managedMatch?.image || topItem?.image || fallbackMeta.image;
 
       stats[cat] = {
         count: catItems.length,
@@ -223,7 +233,7 @@ export const CategoriesPage: React.FC = () => {
     });
 
     return stats;
-  }, [computedCategories, items]);
+  }, [computedCategories, items, managedCategories]);
 
   // Filtered & Sorted Product Items from Backend
   const displayedProducts = useMemo(() => {

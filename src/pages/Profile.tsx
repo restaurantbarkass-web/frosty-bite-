@@ -37,6 +37,7 @@ import { rewardsService, BadgeConfig } from '../services/rewardsService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { SecureFundsLockModal } from '../components/SecureFundsLockModal';
 import { AddFundsLockedModal } from '../components/AddFundsLockedModal';
+import { AccountDeletionModal } from '../components/AccountDeletionModal';
 import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { LogOut as LucideLogOut } from 'lucide-react';
@@ -75,12 +76,12 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: str
       <div className="absolute -inset-1 bg-gradient-to-tr from-orange-400 via-amber-300 to-pink-500 rounded-full opacity-60 group-hover:scale-105 transition-transform duration-500" />
 
       <motion.div 
-        animate={{ y: [0, -6, 0] }}
+        animate={{ y: [0, -4, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        whileHover={{ scale: 1.06 }}
+        whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.96 }}
         onClick={onEdit}
-        className="relative w-32 h-32 md:w-40 md:h-40 rounded-full p-1 bg-gradient-to-br from-white via-amber-100 to-orange-200 overflow-hidden cursor-pointer shadow-2xl border-4 border-white/90 backdrop-blur-md"
+        className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full p-1 bg-gradient-to-br from-white via-amber-100 to-orange-200 overflow-hidden cursor-pointer shadow-2xl border-4 border-white/90 backdrop-blur-md"
       >
         {!imgError && finalImage ? (
           <img 
@@ -96,22 +97,22 @@ const GlowingAvatar = ({ src, name, svg, config, onEdit, avatarUrl }: { src: str
             dangerouslySetInnerHTML={{ __html: svg }}
           />
         ) : (
-          <div className="w-full h-full rounded-full bg-gradient-to-tr from-orange-600 via-amber-500 to-pink-600 flex items-center justify-center text-white font-black text-3xl md:text-4xl shadow-inner tracking-wider">
+          <div className="w-full h-full rounded-full bg-gradient-to-tr from-orange-600 via-amber-500 to-pink-600 flex items-center justify-center text-white font-black text-2xl sm:text-3xl md:text-4xl shadow-inner tracking-wider">
             {initials}
           </div>
         )}
         
         {!isAI && currentProp !== 'none' && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none flex items-center justify-center">
-             <span className="text-4xl md:text-6xl drop-shadow-2xl animate-bounce-slow mt-16 mr-16">
+             <span className="text-3xl sm:text-4xl md:text-6xl drop-shadow-2xl animate-bounce-slow mt-12 sm:mt-16 mr-12 sm:mr-16">
                {BAKERY_PROPS[currentProp]}
              </span>
           </div>
         )}
 
         <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full">
-          <Camera size={22} className="text-white drop-shadow-lg mb-1 animate-bounce" />
-          <span className="text-[9px] font-black uppercase text-white tracking-widest bg-orange-500/80 px-2 py-0.5 rounded-full border border-white/30">Edit Avatar</span>
+          <Camera size={20} className="text-white drop-shadow-lg mb-1 animate-bounce" />
+          <span className="text-[8px] sm:text-[9px] font-black uppercase text-white tracking-widest bg-orange-500/80 px-2 py-0.5 rounded-full border border-white/30">Edit Avatar</span>
         </div>
       </motion.div>
     </div>
@@ -122,35 +123,35 @@ const PremiumBadge = ({ text, icon: Icon, color = 'bg-primary/10 text-primary bo
   <motion.div 
     initial={{ scale: 0, opacity: 0 }}
     animate={{ scale: 1, opacity: 1 }}
-    className={cn("px-3.5 sm:px-4 py-1.5 rounded-full flex items-center gap-2 border shadow-xs backdrop-blur-md", color)}
+    className={cn("px-3 sm:px-4 py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 border shadow-xs backdrop-blur-md shrink-0", color)}
   >
-    <Icon size={14} />
-    <span className="text-[10px] font-black uppercase tracking-wider sm:tracking-widest">{text}</span>
+    <Icon size={13} className="shrink-0" />
+    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-widest whitespace-nowrap">{text}</span>
   </motion.div>
 );
 
 const StatCard = ({ label, value, icon: Icon, color, delay, onClick }: { label: string; value: string | number; icon: any; color: string; delay: number; onClick?: () => void }) => (
   <motion.div
-    initial={{ x: 50, opacity: 0 }}
+    initial={{ x: 30, opacity: 0 }}
     animate={{ x: 0, opacity: 1 }}
     transition={{ delay, type: 'spring', stiffness: 100 }}
     whileHover={{ y: -4, scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="min-w-[140px] sm:min-w-[170px] bg-white border border-stone-200/80 rounded-3xl p-4 sm:p-5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:border-primary/40 transition-all"
+    className="min-w-[125px] sm:min-w-[160px] bg-white border border-stone-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 group cursor-pointer relative overflow-hidden shadow-xs hover:shadow-md hover:border-primary/40 transition-all shrink-0"
   >
-    <div className={cn("absolute top-0 right-0 p-3 md:p-4 opacity-5 group-hover:opacity-10 transition-all scale-125 md:scale-150 rotate-12", color)}>
-      <Icon className="w-10 h-10 md:w-12 md:h-12" />
+    <div className={cn("absolute top-0 right-0 p-2 sm:p-4 opacity-5 group-hover:opacity-10 transition-all scale-125 md:scale-150 rotate-12 pointer-events-none", color)}>
+      <Icon className="w-8 h-8 sm:w-12 sm:h-12" />
     </div>
-    <div className={cn("w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-stone-100 flex items-center justify-center mb-3 transition-transform group-hover:rotate-12", color)}>
-      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+    <div className={cn("w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center mb-2 sm:mb-3 transition-transform group-hover:rotate-12", color)}>
+      <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
     </div>
-    <div>
-      <h4 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight tabular-nums mb-1">{value}</h4>
+    <div className="min-w-0">
+      <h4 className="text-lg sm:text-2xl font-black text-stone-900 tracking-tight tabular-nums mb-0.5 sm:mb-1 truncate">{value}</h4>
       <div className="flex items-center justify-between gap-1">
-        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-stone-500 group-hover:text-primary transition-colors">{label}</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.1em] sm:tracking-[0.15em] text-stone-500 group-hover:text-primary transition-colors truncate">{label}</p>
         {label === 'Wallet' && onClick && (
-          <span className="text-[8px] bg-orange-50 text-primary border border-orange-200 px-1.5 py-0.5 rounded-full uppercase font-black tracking-wider leading-none">
+          <span className="text-[8px] bg-orange-50 text-primary border border-orange-200 px-1 py-0.5 rounded-full uppercase font-black tracking-wider leading-none shrink-0">
             Lock
           </span>
         )}
@@ -161,40 +162,62 @@ const StatCard = ({ label, value, icon: Icon, color, delay, onClick }: { label: 
 );
 
 const LoyaltyProgressRing = ({ percentage }: { percentage: number }) => {
-  const radius = 70;
+  const radius = 60;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
     <div className="relative flex items-center justify-center group">
-      <svg className="w-48 h-48 transform -rotate-90">
+      <svg className="w-36 h-36 sm:w-48 sm:h-48 transform -rotate-90">
+        <circle
+          cx="72"
+          cy="72"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="10"
+          fill="transparent"
+          className="text-stone-100 sm:hidden"
+        />
         <circle
           cx="96"
           cy="96"
-          r={radius}
+          r="70"
           stroke="currentColor"
           strokeWidth="12"
           fill="transparent"
-          className="text-stone-100"
+          className="text-stone-100 hidden sm:block"
         />
         <motion.circle
           initial={{ strokeDashoffset: circumference }}
           animate={{ strokeDashoffset: offset }}
           transition={{ duration: 2, ease: "easeOut" }}
+          cx="72"
+          cy="72"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="10"
+          fill="transparent"
+          strokeDasharray={circumference}
+          className="text-primary drop-shadow-[0_2px_8px_rgba(231,106,84,0.3)] sm:hidden"
+        />
+        <motion.circle
+          initial={{ strokeDashoffset: 2 * Math.PI * 70 }}
+          animate={{ strokeDashoffset: (2 * Math.PI * 70) - (percentage / 100) * (2 * Math.PI * 70) }}
+          transition={{ duration: 2, ease: "easeOut" }}
           cx="96"
           cy="96"
-          r={radius}
+          r="70"
           stroke="currentColor"
           strokeWidth="12"
           fill="transparent"
-          strokeDasharray={circumference}
-          className="text-primary drop-shadow-[0_2px_8px_rgba(231,106,84,0.3)]"
+          strokeDasharray={2 * Math.PI * 70}
+          className="text-primary drop-shadow-[0_2px_8px_rgba(231,106,84,0.3)] hidden sm:block"
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <Crown size={32} className="text-amber-500 animate-bounce mb-1" />
-        <span className="text-3xl font-black text-stone-900">{percentage}%</span>
-        <span className="text-[9px] font-black uppercase text-stone-500 tracking-widest">To Platinum</span>
+        <Crown size={26} className="text-amber-500 animate-bounce mb-1 sm:w-8 sm:h-8" />
+        <span className="text-2xl sm:text-3xl font-black text-stone-900">{percentage}%</span>
+        <span className="text-[8px] sm:text-[9px] font-black uppercase text-stone-500 tracking-widest">To Platinum</span>
       </div>
     </div>
   );
@@ -206,23 +229,23 @@ const SmartActionCard = ({ label, icon: Icon, onClick, color = 'bg-white' }: { l
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
     className={cn(
-      "relative p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-stone-200/80 shadow-xs hover:shadow-md hover:border-primary/40 flex flex-col items-center justify-center gap-2.5 sm:gap-3 transition-all group overflow-hidden cursor-pointer",
+      "relative p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border border-stone-200/80 shadow-xs hover:shadow-md hover:border-primary/40 flex flex-col items-center justify-center gap-2 sm:gap-3 transition-all group overflow-hidden cursor-pointer w-full min-w-0",
       color
     )}
   >
     <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-all group-hover:scale-110">
+    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-all group-hover:scale-110 shrink-0">
       <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
     </div>
-    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.1em] text-stone-700 group-hover:text-stone-900 transition-colors text-center whitespace-nowrap">{label}</span>
-    <div className="absolute -bottom-4 -right-4 text-stone-900/[0.03] group-hover:text-primary/[0.06] transition-colors">
-      <Icon className="w-16 h-16 md:w-20 md:h-20" />
+    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.05em] sm:tracking-[0.1em] text-stone-700 group-hover:text-stone-900 transition-colors text-center truncate w-full px-0.5">{label}</span>
+    <div className="absolute -bottom-4 -right-4 text-stone-900/[0.03] group-hover:text-primary/[0.06] transition-colors pointer-events-none">
+      <Icon className="w-14 h-14 md:w-20 md:h-20" />
     </div>
   </motion.button>
 );
 
 export const Profile: React.FC = () => {
-  const { user: authUser, isGuest, openAuthModal, logout, refreshProfile } = useAuth();
+  const { user: authUser, isGuest, loading: authLoading, openAuthModal, logout, refreshProfile } = useAuth();
   const { items: menuItems } = useMenu();
   const { reorderItems, addToCart } = useCart();
   const navigate = useNavigate();
@@ -327,6 +350,7 @@ export const Profile: React.FC = () => {
   const [isAddFundsLockOpen, setIsAddFundsLockOpen] = useState(false);
   const [newTierName, setNewTierName] = useState('');
   const [prevTier, setPrevTier] = useState('');
+  const [isAccountDeletionModalOpen, setIsAccountDeletionModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
@@ -400,106 +424,68 @@ export const Profile: React.FC = () => {
   }, [isCheckoutRegisteredGuest, guestState]);
 
   useEffect(() => {
-    if (!authUser) return;
+    if (authLoading) return;
 
-    // Load initial data from cache
-    const profileCacheKey = `profile_cache_${authUser.uid}`;
+    if (!authUser) {
+      setLoading(false);
+      return;
+    }
+
+    // Instantly hydrate user identity from auth context so Profile loads in 0ms
+    setUserData(authUser);
+    setFormData({
+      name: (authUser as any)?.full_name || authUser.displayName || (authUser as any)?.name || '',
+      phone: (authUser as any)?.phone || (authUser as any)?.phoneNumber || '',
+      address: (authUser as any)?.address || ''
+    });
+    if ((authUser as any)?.settings) setSettingsData((authUser as any).settings);
+    
+    // Release loading screen immediately if user identity is present
+    setLoading(false);
+
+    // Load cached orders & wishlist for instant UI display
     const ordersCacheKey = `recent_orders_cache_${authUser.uid}`;
     const wishlistCacheKey = `wishlist_cache_${authUser.uid}`;
 
-    let cachedProfile = null;
-    let cachedOrders = null;
-    let cachedWishlist = null;
-
     try {
-      cachedProfile = localStorage.getItem(profileCacheKey);
-      cachedOrders = localStorage.getItem(ordersCacheKey);
-      cachedWishlist = localStorage.getItem(wishlistCacheKey);
-    } catch (e) {}
-
-    if (cachedProfile) {
-      try {
-        const parsed = JSON.parse(cachedProfile);
-        const data = parsed.data || parsed;
-        setUserData(data);
-        setFormData({
-          name: data.full_name || '',
-          phone: data.phone || '',
-          address: data.address || ''
-        });
-        if (data.settings) setSettingsData(data.settings);
-        setLoading(false);
-      } catch (e) {}
-    }
-    if (cachedOrders) {
-      try {
+      const cachedOrders = localStorage.getItem(ordersCacheKey);
+      if (cachedOrders) {
         const parsed = JSON.parse(cachedOrders);
         setRecentOrders(parsed.data || parsed);
-      } catch (e) {}
-    }
-    if (cachedWishlist) {
-      try {
-        const parsed = JSON.parse(cachedWishlist);
-        setWishlist(parsed.data || parsed);
-      } catch (e) {}
-    }
-
-    const fetchData = async () => {
-      try {
-        // Fetch badge configs
-        const configs = await rewardsService.getBadgeConfigs();
-        setBadgeConfigs(configs);
-
-        // User data
-        if (authUser) {
-          setUserData(authUser);
-          setFormData({
-            name: (authUser as any)?.full_name || authUser.displayName || (authUser as any)?.name || '',
-            phone: (authUser as any)?.phone || (authUser as any)?.phoneNumber || '',
-            address: (authUser as any)?.address || ''
-          });
-          if ((authUser as any)?.settings) setSettingsData((authUser as any).settings);
-        }
-
-        // Recent orders
-        if (authUser) {
-          const stableId = authUser.id || authUser.uid;
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('user_id', stableId)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-          if (!ordersError && ordersData) {
-            setRecentOrders(ordersData as any[]);
-          }
-        }
-
-        // Wishlist from Supabase
-        const wishlistItems = await getUserWishlist(authUser.uid);
-        setWishlist(wishlistItems || []);
-
-        // Rewards gifts
-        const availableGifts = await rewardsService.getGifts();
-        setGifts(availableGifts);
-
-        if (menuItems.length > 0) {
-          const queryText = "Best celebratory dessert for a premium member";
-          const rec = await searchService.getSmartRecommendation(queryText, menuItems);
-          if (rec) {
-             const item = menuItems.find(i => String(i.id) === String(rec.bestMatchId));
-             if (item) setAiRec({ recommendation: rec, item });
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching profile data:", err);
       }
 
-      setLoading(false);
-    };
+      const cachedWishlist = localStorage.getItem(wishlistCacheKey);
+      if (cachedWishlist) {
+        const parsed = JSON.parse(cachedWishlist);
+        setWishlist(parsed.data || parsed);
+      }
+    } catch (_) {}
 
-    fetchData();
+    const stableId = authUser.id || authUser.uid;
+
+    // Parallelize background data loading using Promise.allSettled
+    Promise.allSettled([
+      rewardsService.getBadgeConfigs().then(configs => setBadgeConfigs(configs || [])),
+      supabase.from('orders').select('*').eq('user_id', stableId).order('created_at', { ascending: false }).limit(5)
+        .then(({ data }) => { if (data) setRecentOrders(data as any[]); }),
+      getUserWishlist(authUser.uid).then(items => { if (items) setWishlist(items); }),
+      rewardsService.getGifts().then(gifts => setGifts(gifts || []))
+    ]).catch((err) => {
+      console.warn("Background profile sync error:", err);
+    });
+
+    // Asynchronous non-blocking AI recommendation load
+    if (menuItems && menuItems.length > 0) {
+      const queryText = "Best celebratory dessert for a premium member";
+      searchService.getSmartRecommendation(queryText, menuItems)
+        .then(rec => {
+          if (rec) {
+            const item = menuItems.find(i => String(i.id) === String(rec.bestMatchId));
+            if (item) setAiRec({ recommendation: rec, item });
+          }
+        })
+        .catch(() => {});
+    }
 
     // Real-time subscriptions
     let userSubscription: any = null;
@@ -981,16 +967,14 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 overflow-x-hidden pb-32" ref={containerRef}>
-      {/* Confirmation Modal for Account Deletion */}
-      <ConfirmationModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDeleteAccount}
-        title="Delete Account?"
-        description="CRITICAL ACTION: This will delete your entire order history and account data from Frosty Bite. This cannot be undone."
-        confirmText="Permanently Delete"
-        variant="danger"
-        isLoading={isDeletingAccount}
+      {/* OTP-Verified Permanent Account Deletion Modal */}
+      <AccountDeletionModal
+        isOpen={isAccountDeletionModalOpen}
+        onClose={() => setIsAccountDeletionModalOpen(false)}
+        onDeletionSuccess={async () => {
+          await logout(true);
+          navigate('/');
+        }}
       />
 
       {/* Warm Artisan Bakery Hero Header */}
@@ -1123,14 +1107,14 @@ export const Profile: React.FC = () => {
           </div>
 
           {/* Right Column: Dynamic Content Tabs */}
-          <div className="lg:col-span-8 space-y-6 md:space-y-8">
-            <div className="flex p-1.5 md:p-2 bg-white/95 border border-stone-200/90 rounded-full sticky top-4 z-40 backdrop-blur-xl mx-2 sm:mx-4 lg:mx-0 shadow-sm">
+          <div className="lg:col-span-8 space-y-6 md:space-y-8 min-w-0">
+            <div className="flex p-1 sm:p-1.5 md:p-2 bg-white/95 border border-stone-200/90 rounded-full sticky top-3 z-40 backdrop-blur-xl shadow-xs overflow-x-auto scrollbar-hide max-w-full">
               {(['personal', 'orders', 'wishlist', 'rewards'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    "flex-1 py-3 md:py-3.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.15em] transition-all relative overflow-hidden cursor-pointer",
+                    "flex-1 py-2.5 sm:py-3 md:py-3.5 px-3 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-[0.08em] sm:tracking-[0.15em] transition-all relative overflow-hidden cursor-pointer whitespace-nowrap shrink-0 sm:shrink",
                     activeTab === tab ? "text-white" : "text-stone-500 hover:text-stone-900"
                   )}
                 >
@@ -1154,93 +1138,94 @@ export const Profile: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="space-y-6 md:space-y-8"
+            className="space-y-6 md:space-y-8 min-w-0"
           >
-            <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-6 md:p-10 space-y-8 md:space-y-10">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Personal Identity</h3>
-                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Private Information</p>
+            <div className="bg-white rounded-2xl sm:rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-4 sm:p-8 md:p-10 space-y-6 sm:space-y-8">
+              <div className="flex items-center justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-stone-900 tracking-tight truncate">Personal Identity</h3>
+                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Private Information</p>
                 </div>
                 <motion.button 
                   whileHover={{ scale: 1.05, rotate: 90 }}
                   onClick={() => setIsEditing(true)}
-                  className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-700 hover:text-stone-900 hover:bg-stone-200 transition-colors shrink-0 cursor-pointer"
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-700 hover:text-stone-900 hover:bg-stone-200 transition-colors shrink-0 cursor-pointer"
                 >
-                  <Edit2 className="w-5 h-5 md:w-6 md:h-6" />
+                  <Edit2 className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                 </motion.button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                <div className="space-y-6">
-                  <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
-                      <User size={20} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex gap-3 sm:gap-4 items-start group min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors shrink-0">
+                      <User size={18} />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Full Name</p>
-                      <p className="text-lg font-bold text-stone-900">{user.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Full Name</p>
+                      <p className="text-base sm:text-lg font-bold text-stone-900 truncate">{user.name}</p>
                     </div>
                   </div>
 
-                  <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
-                      <Mail size={20} />
+                  <div className="flex gap-3 sm:gap-4 items-start group min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors shrink-0">
+                      <Mail size={18} />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Email Protocol</p>
-                      <p className="text-lg font-bold text-stone-900 break-all">{user.email}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Email Protocol</p>
+                      <p className="text-base sm:text-lg font-bold text-stone-900 break-all">{user.email}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
-                      <Phone size={20} />
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex gap-3 sm:gap-4 items-start group min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors shrink-0">
+                      <Phone size={18} />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Secure Line</p>
-                      <p className="text-lg font-bold text-stone-900">{user.phone}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Secure Line</p>
+                      <p className="text-base sm:text-lg font-bold text-stone-900 truncate">{user.phone}</p>
                     </div>
                   </div>
 
-                  <div className="flex gap-4 items-start group">
-                    <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors">
-                      <MapPin size={20} />
+                  <div className="flex gap-3 sm:gap-4 items-start group min-w-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-stone-100 flex items-center justify-center text-stone-600 group-hover:text-primary group-hover:bg-orange-50 transition-colors shrink-0">
+                      <MapPin size={18} />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-1">Primary Base</p>
-                      <p className="text-sm font-bold text-stone-900 leading-relaxed line-clamp-2">{user.address}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Primary Base</p>
+                      <p className="text-xs sm:text-sm font-bold text-stone-900 leading-relaxed line-clamp-3">{user.address}</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
               <SmartActionCard label="Add Funds" icon={CreditCard} onClick={handleAddFunds} color="bg-white hover:border-primary/40" />
               <SmartActionCard label="Lock Funds" icon={Shield} onClick={() => setIsFundsLockOpen(true)} color="bg-white hover:border-orange-300" />
               <SmartActionCard label="Help & FAQ" icon={HelpCircle} onClick={() => navigate('/faq')} color="bg-white hover:border-amber-300" />
               <SmartActionCard label="Order Support" icon={MessageCircle} onClick={() => window.open(`https://wa.me/${RESTAURANT_WHATSAPP}`, '_blank')} color="bg-white hover:border-emerald-300" />
               <SmartActionCard label="Share Story" icon={Instagram} onClick={() => setIsShareModalOpen(true)} color="bg-white hover:border-pink-300" />
               <SmartActionCard label="Share Profile" icon={Share2} onClick={handleShare} color="bg-white hover:border-blue-300" />
+              <SmartActionCard label="Delete Account" icon={Trash2} onClick={() => setIsAccountDeletionModalOpen(true)} color="bg-red-50/50 border-red-200/80 hover:border-red-400 text-red-600" />
               <SmartActionCard label="Logout" icon={LogOut} onClick={handleLogout} color="bg-white hover:border-red-300" />
             </div>
 
             {/* Account Session Security & Slide to Logout */}
-            <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-6 md:p-8 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-lg font-black text-stone-900 tracking-tight flex items-center gap-2">
-                    <ShieldCheck className="text-orange-500 w-5 h-5" />
-                    Session & Security
+            <div className="bg-white rounded-2xl sm:rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-4 sm:p-8 md:p-10 space-y-5 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                <div className="min-w-0">
+                  <h4 className="text-base sm:text-lg font-black text-stone-900 tracking-tight flex items-center gap-2">
+                    <ShieldCheck className="text-orange-500 w-5 h-5 shrink-0" />
+                    <span>Session & Security</span>
                   </h4>
                   <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">
                     Authorized Device Authentication
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-wider w-fit">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-[10px] font-black text-emerald-700 uppercase tracking-wider w-fit shrink-0">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   Active Session
                 </span>
@@ -1253,6 +1238,26 @@ export const Profile: React.FC = () => {
                 autoRedirect={true}
                 redirectPath="/login"
               />
+
+              {/* Permanent Account Deletion Option */}
+              <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <h5 className="text-xs font-black text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Trash2 size={14} className="text-red-500" />
+                    Permanent Account Deletion
+                  </h5>
+                  <p className="text-[11px] text-stone-500 font-medium">
+                    Permanently delete your account, order history, rewards, and personal preferences with OTP verification.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAccountDeletionModalOpen(true)}
+                  className="px-5 py-3 bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white text-red-600 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center gap-2 shadow-2xs"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Account</span>
+                </button>
+              </div>
             </div>
           </motion.div>
         ) : activeTab === 'orders' ? (
@@ -1774,7 +1779,7 @@ export const Profile: React.FC = () => {
                 <div className="space-y-4 sm:space-y-6 pt-2">
                   <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Danger Zone</h4>
                   <button 
-                     onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => setIsAccountDeletionModalOpen(true)}
                     className="w-full h-14 sm:h-16 border border-red-200 bg-red-50/60 rounded-2xl flex items-center justify-between px-5 sm:px-6 text-red-600 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-wider cursor-pointer"
                   >
                     <span>Permanently Delete Account</span>
@@ -1817,6 +1822,15 @@ export const Profile: React.FC = () => {
       <AddFundsLockedModal
         isOpen={isAddFundsLockOpen}
         onClose={() => setIsAddFundsLockOpen(false)}
+      />
+
+      <AccountDeletionModal
+        isOpen={isAccountDeletionModalOpen}
+        onClose={() => setIsAccountDeletionModalOpen(false)}
+        onDeletionSuccess={() => {
+          setIsAccountDeletionModalOpen(false);
+          navigate('/');
+        }}
       />
 
       <AvatarEditor 

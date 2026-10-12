@@ -110,8 +110,8 @@ const ForgotPassword = () => {
       return;
     }
 
-    if (otpTrimmed.length < 8) {
-      setError('Incorrect or incomplete code. Please enter the full 8-digit verification code sent to your inbox.');
+    if (otpTrimmed.length < 6) {
+      setError('Incorrect or incomplete code. Please enter the full 6-digit verification code sent to your inbox.');
       return;
     }
 

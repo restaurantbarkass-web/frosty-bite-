@@ -21,7 +21,8 @@ import {
   Bell,
   MessageSquareHeart,
   Sparkles,
-  Smartphone
+  Smartphone,
+  Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -45,6 +46,7 @@ const menuItems = [
   { id: 'feedback', label: 'Customer Feedback', icon: MessageSquareHeart },
   { id: 'admins', label: 'Admins', icon: ShieldCheck },
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
+  { id: 'categories', label: 'Categories', icon: Layers },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'campaigns', label: 'Campaigns', icon: Sparkles },
   { id: 'banners', label: 'Banners', icon: Palette },

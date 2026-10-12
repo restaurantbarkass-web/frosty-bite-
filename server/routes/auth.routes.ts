@@ -925,8 +925,8 @@ router.post('/send-email-otp', async (req, res) => {
     const clientIp = (Array.isArray(rawIp) ? rawIp[0] : typeof rawIp === 'string' ? rawIp.split(',')[0].trim() : String(rawIp))
       .replace(/[^a-zA-Z0-9.-:_]/g, '_');
 
-    // Generate guaranteed 8-digit numerical OTP code
-    const otp = Math.floor(10000000 + Math.random() * 90000000).toString();
+    // Generate guaranteed 6-digit numerical OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Save to secure memory store
     await saveEmailOtp(normalizedEmail, otp);
@@ -949,7 +949,7 @@ router.post('/send-email-otp', async (req, res) => {
 
     return res.json({ 
       success: true, 
-      message: 'An 8-digit verification code has been dispatched to your email.',
+      message: 'A 6-digit verification code has been dispatched to your email.',
       dev_otp_hint: process.env.NODE_ENV !== 'production' ? otp : undefined
     });
   } catch (err: any) {
@@ -976,33 +976,47 @@ router.post('/verify-email-otp', async (req, res) => {
       return res.status(400).json({ error: 'Please enter the full 6-digit verification code.' });
     }
 
-    // 1. Get OTP record
+    let isOtpValid = false;
+
+    // 1. Check in-memory / redis OTP record first
     const otpRecord = await getEmailOtp(normalizedEmail);
-    if (!otpRecord) {
-      return res.status(401).json({ error: 'Verification code not found or has expired. Please request a new code.' });
+    if (otpRecord) {
+      if (otpRecord.expires_at < Date.now()) {
+        await deleteEmailOtp(normalizedEmail);
+      } else if (otpRecord.attempts >= 5) {
+        await deleteEmailOtp(normalizedEmail);
+        return res.status(429).json({ error: 'Maximum attempts exceeded. Please request a new verification code.' });
+      } else {
+        const hashedInput = hashOtp(cleanOtp);
+        if (otpRecord.otp_code === hashedInput) {
+          isOtpValid = true;
+          await deleteEmailOtp(normalizedEmail);
+        } else {
+          await incrementEmailAttempts(normalizedEmail, otpRecord.attempts);
+        }
+      }
     }
 
-    // 2. Check Expiry
-    if (otpRecord.expires_at < Date.now()) {
-      await deleteEmailOtp(normalizedEmail);
-      return res.status(401).json({ error: 'Verification code has expired. Please request a new code.' });
+    // 2. If not verified via local memory store, check Supabase Auth OTP verification
+    if (!isOtpValid) {
+      for (const currentType of ['email', 'signup', 'magiclink'] as const) {
+        try {
+          const { data: sbData, error: sbErr } = await supabase.auth.verifyOtp({
+            email: normalizedEmail,
+            token: cleanOtp,
+            type: currentType
+          });
+          if (!sbErr && sbData?.user) {
+            isOtpValid = true;
+            break;
+          }
+        } catch (_) {}
+      }
     }
 
-    // 3. Check Attempt Count (max 5 attempts)
-    if (otpRecord.attempts >= 5) {
-      await deleteEmailOtp(normalizedEmail);
-      return res.status(429).json({ error: 'Maximum attempts exceeded. Please request a new verification code.' });
-    }
-
-    // 4. Validate OTP (hash comparison)
-    const hashedInput = hashOtp(cleanOtp);
-    if (otpRecord.otp_code !== hashedInput) {
-      await incrementEmailAttempts(normalizedEmail, otpRecord.attempts);
+    if (!isOtpValid) {
       return res.status(401).json({ error: 'Incorrect verification code. Please check your email and try again.' });
     }
-
-    // Success! Clear OTP immediately to prevent reuse
-    await deleteEmailOtp(normalizedEmail);
 
     // Resolve or create user in database
     let dbUser: any = null;
