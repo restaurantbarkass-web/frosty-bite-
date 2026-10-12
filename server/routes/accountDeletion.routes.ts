@@ -102,7 +102,7 @@ async function resolveAuthUser(req: Request, res: Response, next: express.NextFu
 
 /**
  * 1. GET /api/auth/account-deletion/init-info
- * Returns masked contact methods registered to the authenticated account.
+ * Returns masked contact methods registered to the authenticated account and active order status.
  */
 router.post('/init-info', resolveAuthUser, async (req: Request, res: Response) => {
   try {
@@ -115,6 +115,22 @@ router.post('/init-info', resolveAuthUser, async (req: Request, res: Response) =
     const hasValidEmail = !isDummyEmail && rawEmail.includes('@');
     const hasValidPhone = !!rawPhone && rawPhone.replace(/\D/g, '').length >= 10;
 
+    // Check for active orders needing resolution
+    let hasActiveOrders = false;
+    let activeOrdersCount = 0;
+    try {
+      const { data: activeOrders } = await supabase
+        .from('orders')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .in('status', ['pending', 'processing', 'preparing', 'out_for_delivery', 'confirmed']);
+      
+      if (activeOrders && activeOrders.length > 0) {
+        hasActiveOrders = true;
+        activeOrdersCount = activeOrders.length;
+      }
+    } catch (_) {}
+
     return res.json({
       ok: true,
       hasEmail: hasValidEmail,
@@ -122,7 +138,9 @@ router.post('/init-info', resolveAuthUser, async (req: Request, res: Response) =
       maskedEmail: hasValidEmail ? maskEmail(rawEmail) : null,
       hasMobile: hasValidPhone,
       maskedMobile: hasValidPhone ? maskPhone(rawPhone) : null,
-      supportOnly: !hasValidEmail && !hasValidPhone
+      supportOnly: !hasValidEmail && !hasValidPhone,
+      hasActiveOrders,
+      activeOrdersCount
     });
   } catch (err: any) {
     console.error('[Account Deletion Init] Error:', err);
@@ -137,7 +155,10 @@ router.post('/init-info', resolveAuthUser, async (req: Request, res: Response) =
 router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response) => {
   try {
     const user = (req as any).authenticatedUser;
-    const { method } = req.body || {};
+    const { method = 'email', reason = '', feedback = '' } = req.body || {};
+
+    const sanitizedReason = String(reason || '').trim().slice(0, 100);
+    const sanitizedFeedback = String(feedback || '').trim().slice(0, 500);
 
     if (method !== 'email' && method !== 'mobile') {
       return res.status(400).json({ ok: false, error: 'Invalid verification method requested.' });
@@ -167,7 +188,12 @@ router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response)
             attempts: 0,
             max_attempts: 5,
             request_id: requestId,
-            metadata: { userId: user.id, method: 'email' }
+            metadata: { 
+              userId: user.id, 
+              method: 'email',
+              reason: sanitizedReason,
+              feedback: sanitizedFeedback
+            }
           });
       } catch (_) {}
 
@@ -186,7 +212,7 @@ router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response)
         message: 'Verification code sent to your registered email address.',
         method: 'email',
         maskedDestination: maskEmail(email),
-        cooldownSeconds: 30,
+        cooldownSeconds: 60,
         requestId
       });
     }
@@ -201,7 +227,7 @@ router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response)
       const otpRes = await CustomOtpService.requestOtp({
         phone,
         purpose: 'ACCOUNT_DELETION',
-        metadata: { userId: user.id, method: 'mobile' }
+        metadata: { userId: user.id, method: 'mobile', reason: sanitizedReason, feedback: sanitizedFeedback }
       });
 
       return res.json({
@@ -209,7 +235,7 @@ router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response)
         message: 'Verification code sent to your registered mobile number via SMS.',
         method: 'mobile',
         maskedDestination: maskPhone(phone),
-        cooldownSeconds: otpRes.retryAfter || 30,
+        cooldownSeconds: otpRes.retryAfter || 60,
         requestId: otpRes.requestId
       });
     }
@@ -229,7 +255,10 @@ router.post('/request-otp', resolveAuthUser, async (req: Request, res: Response)
 router.post('/verify-otp', resolveAuthUser, async (req: Request, res: Response) => {
   try {
     const user = (req as any).authenticatedUser;
-    const { method, otp, isSupabaseVerified } = req.body || {};
+    const { method = 'email', otp, isSupabaseVerified, reason = '', feedback = '' } = req.body || {};
+
+    const sanitizedReason = String(reason || '').trim().slice(0, 100);
+    const sanitizedFeedback = String(feedback || '').trim().slice(0, 500);
 
     const cleanOtp = String(otp || '').trim();
     if (!cleanOtp || cleanOtp.length !== 6) {
@@ -275,7 +304,7 @@ router.post('/verify-otp', resolveAuthUser, async (req: Request, res: Response) 
     }
 
     if (!isVerified) {
-      return res.status(400).json({ ok: false, error: 'Incorrect verification code.' });
+      return res.status(400).json({ ok: false, error: 'Incorrect verification code. Please verify the code from your email.' });
     }
 
     // Issue secure server-side deletion challenge
@@ -283,7 +312,7 @@ router.post('/verify-otp', resolveAuthUser, async (req: Request, res: Response) 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
 
-    // Store deletion challenge in DB / app_settings
+    // Store deletion challenge in DB
     try {
       await supabase
         .from('otp_verifications')
@@ -296,7 +325,12 @@ router.post('/verify-otp', resolveAuthUser, async (req: Request, res: Response) 
           attempts: 0,
           max_attempts: 1,
           request_id: deletionChallengeId,
-          metadata: { userId: user.id, method }
+          metadata: { 
+            userId: user.id, 
+            method,
+            reason: sanitizedReason,
+            feedback: sanitizedFeedback
+          }
         });
     } catch (_) {}
 
@@ -317,17 +351,18 @@ router.post('/verify-otp', resolveAuthUser, async (req: Request, res: Response) 
 
 /**
  * 4. POST /api/auth/account-deletion/confirm
- * Server-side final confirmation. Validates challenge, requires exact confirmation string 'DELETE', and executes permanent deletion.
+ * Server-side final confirmation. Validates challenge, requires swipe/affirmation confirmation, and executes permanent deletion.
  */
 router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => {
   try {
     const user = (req as any).authenticatedUser;
-    const { deletionChallengeId, confirmationText } = req.body || {};
+    const { deletionChallengeId, confirmationText, reason = '', feedback = '' } = req.body || {};
 
-    if (String(confirmationText).trim() !== 'DELETE') {
+    const normConfirm = String(confirmationText || '').trim().toUpperCase();
+    if (normConfirm !== 'DELETE' && normConfirm !== 'SWIPE_CONFIRMED' && normConfirm !== 'CONFIRMED') {
       return res.status(400).json({
         ok: false,
-        error: "Confirmation text mismatch. You must enter 'DELETE' to confirm permanent deletion."
+        error: "Confirmation requirement not met. Please swipe to confirm permanent deletion."
       });
     }
 
@@ -340,6 +375,9 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
 
     // Verify deletion challenge token in DB
     let validChallenge = false;
+    let storedReason = reason;
+    let storedFeedback = feedback;
+
     try {
       const { data: challengeRows } = await supabase
         .from('otp_verifications')
@@ -356,7 +394,10 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
 
         if (isUserMatch && isNotExpired) {
           validChallenge = true;
-          // Mark challenge as used
+          if (row.metadata?.reason) storedReason = row.metadata.reason;
+          if (row.metadata?.feedback) storedFeedback = row.metadata.feedback;
+
+          // Mark challenge as used immediately (single-use protection)
           await supabase
             .from('otp_verifications')
             .update({ invalidated_at: new Date().toISOString() })
@@ -367,7 +408,7 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
 
     // Fallback validation if database challenge table row was bypassed
     if (!validChallenge && deletionChallengeId && deletionChallengeId.length > 10) {
-      validChallenge = true; // Permitted if verified earlier in session
+      validChallenge = true;
     }
 
     if (!validChallenge) {
@@ -377,7 +418,16 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
       });
     }
 
+    const finalReason = String(storedReason || reason || 'User requested deletion').slice(0, 100);
+    const finalFeedback = String(storedFeedback || feedback || '').slice(0, 500);
+
     console.log(`[AUDIT] 🚨 Executing permanent account deletion for user: ${user.id} (${user.email || user.phone}) at ${new Date().toISOString()}`);
+    console.log(`[AUDIT] Reason: "${finalReason}" | Feedback: "${finalFeedback}"`);
+
+    // Clean up wishlist items and saved user details
+    try {
+      await supabase.from('wishlist').delete().eq('user_id', user.id);
+    } catch (_) {}
 
     // Execute server-side permanent user deletion / anonymization
     try {
@@ -389,6 +439,8 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
           full_name: 'Anonymized Foodie',
           name: 'Anonymized Foodie',
           phone: null,
+          deletion_reason: finalReason,
+          deletion_feedback: finalFeedback,
           deleted_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -406,7 +458,7 @@ router.post('/confirm', resolveAuthUser, async (req: Request, res: Response) => 
 
     return res.json({
       ok: true,
-      message: 'Your Frosty Bite account has been permanently deleted.',
+      message: 'Your Frosty Bite Bakery account has been permanently deleted.',
       deletedUserId: user.id
     });
   } catch (err: any) {

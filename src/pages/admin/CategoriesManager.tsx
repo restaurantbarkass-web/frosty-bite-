@@ -8,13 +8,13 @@ import {
   Image as ImageIcon, 
   Check, 
   X, 
-  Sparkles, 
   RefreshCw, 
   Eye, 
-  EyeOff, 
   Upload, 
   Layers,
-  ArrowUpDown
+  ArrowUp,
+  ArrowDown,
+  ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -36,6 +36,8 @@ const BAKERY_IMAGE_PRESETS = [
   { name: 'Breads', url: 'https://images.unsplash.com/photo-1589367920969-ab8e050bbb04?auto=format&fit=crop&q=80&w=800' },
   { name: 'Macarons', url: 'https://images.unsplash.com/photo-1569864358642-9d1684040f43?auto=format&fit=crop&q=80&w=800' },
   { name: 'Tarts', url: 'https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&q=80&w=800' },
+  { name: 'Beverages', url: 'https://images.unsplash.com/photo-1544787210-2211d44b5042?auto=format&fit=crop&q=80&w=800' },
+  { name: 'Savory', url: 'https://images.unsplash.com/photo-1585478282226-1d713204d95c?auto=format&fit=crop&q=80&w=800' },
 ];
 
 export const CategoriesManager: React.FC = () => {
@@ -60,13 +62,20 @@ export const CategoriesManager: React.FC = () => {
   const [formProductIds, setFormProductIds] = useState<string[]>([]);
   const [productSearchInModal, setProductSearchInModal] = useState('');
 
+  // Inline Quick Add Product to this Category
+  const [isAddingNewProductInline, setIsAddingNewProductInline] = useState(false);
+  const [inlineProductName, setInlineProductName] = useState('');
+  const [inlineProductPrice, setInlineProductPrice] = useState('');
+  const [inlineProductImage, setInlineProductImage] = useState('');
+  const [isSavingInlineProduct, setIsSavingInlineProduct] = useState(false);
+
   // Fetch categories and products
   const loadData = useCallback(async (force = false) => {
     setIsLoading(true);
     try {
       const [cats, productsRes] = await Promise.all([
         categoryService.getCategories(force),
-        supabase.from('products').select('*')
+        supabase.from('products').select('*').order('name')
       ]);
 
       setCategories(cats);
@@ -107,6 +116,10 @@ export const CategoriesManager: React.FC = () => {
     setFormIsActive(true);
     setFormProductIds([]);
     setProductSearchInModal('');
+    setIsAddingNewProductInline(false);
+    setInlineProductName('');
+    setInlineProductPrice('');
+    setInlineProductImage('');
     setEditingCategory(null);
     setIsCreateModalOpen(true);
   };
@@ -125,6 +138,10 @@ export const CategoriesManager: React.FC = () => {
 
     setFormProductIds(Array.from(new Set([...(cat.product_ids || []), ...currentProducts])));
     setProductSearchInModal('');
+    setIsAddingNewProductInline(false);
+    setInlineProductName('');
+    setInlineProductPrice('');
+    setInlineProductImage('');
     setEditingCategory(cat);
     setIsCreateModalOpen(true);
   };
@@ -174,6 +191,63 @@ export const CategoriesManager: React.FC = () => {
       setFormProductIds(prev => prev.filter(id => !filteredIds.includes(id)));
     } else {
       setFormProductIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+    }
+  };
+
+  // Quick Create New Product inside Category Form
+  const handleCreateProductInline = async () => {
+    if (!inlineProductName.trim()) {
+      toast.error('Enter product name');
+      return;
+    }
+    const priceNum = parseFloat(inlineProductPrice);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      toast.error('Enter a valid price');
+      return;
+    }
+
+    setIsSavingInlineProduct(true);
+    const toastId = toast.loading('Adding product...');
+    try {
+      const prodImg = inlineProductImage.trim() || formImage || BAKERY_IMAGE_PRESETS[0].url;
+      const targetCategory = formName.trim() || 'General';
+
+      const { data, error } = await supabase.from('products').insert({
+        name: inlineProductName.trim(),
+        price: priceNum,
+        image: prodImg,
+        category: targetCategory,
+        available: true,
+        stock_quantity: 50,
+        description: `Handcrafted ${inlineProductName.trim()} from our ${targetCategory} bakery collection.`,
+      }).select().single();
+
+      if (error) throw error;
+
+      if (data) {
+        const newProd: FoodItem = {
+          id: String(data.id),
+          name: data.name,
+          price: Number(data.price),
+          image: data.image,
+          category: data.category,
+          description: data.description,
+          rating: 5,
+          stock_quantity: data.stock_quantity,
+        };
+
+        setAllProducts(prev => [newProd, ...prev]);
+        setFormProductIds(prev => [...prev, newProd.id]);
+        setInlineProductName('');
+        setInlineProductPrice('');
+        setInlineProductImage('');
+        setIsAddingNewProductInline(false);
+        toast.success(`"${newProd.name}" added to this category!`, { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add product', { id: toastId });
+    } finally {
+      setIsSavingInlineProduct(false);
     }
   };
 
@@ -251,6 +325,34 @@ export const CategoriesManager: React.FC = () => {
     }
   };
 
+  // Reorder category priority (Move Up / Down)
+  const handleMoveCategoryOrder = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const newCategories = [...categories];
+    const temp = newCategories[index];
+    newCategories[index] = newCategories[targetIndex];
+    newCategories[targetIndex] = temp;
+
+    newCategories.forEach((c, i) => {
+      c.sort_order = i + 1;
+    });
+
+    setCategories([...newCategories]);
+
+    try {
+      await Promise.all([
+        categoryService.updateCategory(newCategories[index].id, { sort_order: newCategories[index].sort_order }),
+        categoryService.updateCategory(newCategories[targetIndex].id, { sort_order: newCategories[targetIndex].sort_order })
+      ]);
+      toast.success('Category order updated!');
+    } catch (err: any) {
+      toast.error('Failed to update category order');
+      await loadData(true);
+    }
+  };
+
   // Filter Categories by search query
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return categories;
@@ -278,7 +380,7 @@ export const CategoriesManager: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold uppercase tracking-wider mb-2">
             <Layers size={13} />
-            <span>Catalog Structure</span>
+            <span>Storefront Catalog</span>
           </div>
           <h1 className="text-2xl font-black text-stone-900 tracking-tight">Category Management</h1>
           <p className="text-xs sm:text-sm text-stone-500 mt-1 max-w-xl">
@@ -391,7 +493,7 @@ export const CategoriesManager: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredCategories.map((cat) => {
+          {filteredCategories.map((cat, index) => {
             const assignedCount = allProducts.filter(
               p => p.category?.toLowerCase() === cat.name.toLowerCase() || (cat.product_ids || []).includes(p.id)
             ).length;
@@ -414,8 +516,8 @@ export const CategoriesManager: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/20 to-transparent" />
 
-                  {/* Active Status Badge */}
-                  <div className="absolute top-3 left-3">
+                  {/* Top Control Bar: Active Status & Order Buttons */}
+                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md ${
                       cat.is_active 
                         ? 'bg-emerald-500/90 text-white shadow-xs' 
@@ -423,14 +525,36 @@ export const CategoriesManager: React.FC = () => {
                     }`}>
                       {cat.is_active ? 'Active' : 'Hidden'}
                     </span>
+
+                    {/* Reorder Arrows */}
+                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-xl p-0.5 text-white">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => handleMoveCategoryOrder(index, 'up')}
+                        className="p-1 hover:bg-white/20 rounded-lg disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="Move category earlier in slide"
+                      >
+                        <ArrowUp size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === categories.length - 1}
+                        onClick={() => handleMoveCategoryOrder(index, 'down')}
+                        className="p-1 hover:bg-white/20 rounded-lg disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                        title="Move category later in slide"
+                      >
+                        <ArrowDown size={13} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Assigned Products Counter */}
+                  {/* Assigned Products Counter & Name */}
                   <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-                    <h3 className="text-xl font-black tracking-tight drop-shadow-md">
+                    <h3 className="text-xl font-black tracking-tight drop-shadow-md truncate pr-2">
                       {cat.name}
                     </h3>
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/20 backdrop-blur-md text-xs font-bold">
+                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/20 backdrop-blur-md text-xs font-bold shrink-0">
                       <Package size={13} />
                       <span>{assignedCount} items</span>
                     </div>
@@ -452,6 +576,7 @@ export const CategoriesManager: React.FC = () => {
                     >
                       <Package size={14} />
                       <span>Manage Products ({assignedCount})</span>
+                      <ChevronRight size={13} />
                     </button>
 
                     {/* Edit & Delete Action Row */}
@@ -522,7 +647,7 @@ export const CategoriesManager: React.FC = () => {
                 </div>
 
                 {/* Modal Body */}
-                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                   {/* Category Name */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">
@@ -565,7 +690,7 @@ export const CategoriesManager: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                       <div className="absolute bottom-3 left-3 text-white">
                         <span className="text-xs font-bold bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                          Live Storefront Preview
+                          Live Storefront Slide Preview
                         </span>
                       </div>
                     </div>
@@ -658,16 +783,70 @@ export const CategoriesManager: React.FC = () => {
                         </p>
                       </div>
 
-                      {filteredProductsInModal.length > 0 && (
+                      <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => handleToggleSelectAll(filteredProductsInModal.map(p => p.id))}
-                          className="text-xs font-bold text-orange-600 hover:text-orange-500 cursor-pointer"
+                          onClick={() => setIsAddingNewProductInline(prev => !prev)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-500 cursor-pointer flex items-center gap-1"
                         >
-                          {filteredProductsInModal.every(p => formProductIds.includes(p.id)) ? 'Deselect All' : 'Select All'}
+                          <Plus size={13} />
+                          <span>{isAddingNewProductInline ? 'Hide New Item Form' : 'Add New Product'}</span>
                         </button>
-                      )}
+
+                        {filteredProductsInModal.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSelectAll(filteredProductsInModal.map(p => p.id))}
+                            className="text-xs font-bold text-orange-600 hover:text-orange-500 cursor-pointer"
+                          >
+                            {filteredProductsInModal.every(p => formProductIds.includes(p.id)) ? 'Deselect All' : 'Select All'}
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Quick Create New Product Inline Drawer */}
+                    {isAddingNewProductInline && (
+                      <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-3 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-bold text-blue-950">Quick-Add New Product to "{formName || 'New Category'}"</h5>
+                          <span className="text-[10px] text-blue-600 font-medium">Saves directly to catalog</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Product name (e.g. Lotus Cheesecake)"
+                            value={inlineProductName}
+                            onChange={(e) => setInlineProductName(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs focus:outline-none focus:border-blue-500 font-medium"
+                          />
+                          <input
+                            type="number"
+                            placeholder="Price (₹)"
+                            value={inlineProductPrice}
+                            onChange={(e) => setInlineProductPrice(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            placeholder="Product image URL (optional, defaults to category image)"
+                            value={inlineProductImage}
+                            onChange={(e) => setInlineProductImage(e.target.value)}
+                            className="flex-1 px-3 py-2 rounded-xl bg-white border border-blue-200 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                          <button
+                            type="button"
+                            disabled={isSavingInlineProduct}
+                            onClick={handleCreateProductInline}
+                            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                          >
+                            {isSavingInlineProduct ? 'Adding...' : 'Add Product'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Product Search Box */}
                     <div className="relative">
@@ -676,13 +855,13 @@ export const CategoriesManager: React.FC = () => {
                         type="text"
                         value={productSearchInModal}
                         onChange={(e) => setProductSearchInModal(e.target.value)}
-                        placeholder="Filter products to add..."
+                        placeholder="Filter catalog products..."
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-stone-50 border border-stone-200 text-xs focus:outline-none focus:border-orange-500"
                       />
                     </div>
 
                     {/* Product Selection List */}
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 border border-stone-200 rounded-2xl p-2 bg-stone-50/50">
+                    <div className="max-h-52 overflow-y-auto space-y-1.5 border border-stone-200 rounded-2xl p-2 bg-stone-50/50 custom-scrollbar">
                       {filteredProductsInModal.length === 0 ? (
                         <p className="text-center text-xs text-stone-400 py-4">No products found</p>
                       ) : (
@@ -810,7 +989,7 @@ export const CategoriesManager: React.FC = () => {
                   />
                 </div>
 
-                <div className="max-h-80 overflow-y-auto space-y-2 border border-stone-200 rounded-2xl p-2 bg-stone-50/50">
+                <div className="max-h-80 overflow-y-auto space-y-2 border border-stone-200 rounded-2xl p-2 bg-stone-50/50 custom-scrollbar">
                   {filteredProductsInModal.map((product) => {
                     const isSelected = formProductIds.includes(product.id);
                     return (
@@ -886,3 +1065,4 @@ export const CategoriesManager: React.FC = () => {
     </div>
   );
 };
+export default CategoriesManager;

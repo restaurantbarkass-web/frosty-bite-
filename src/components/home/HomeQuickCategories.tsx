@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Sparkles, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { categoryService, Category, DEFAULT_BAKERY_CATEGORIES } from '../../services/categoryService';
 
 interface HomeQuickCategoriesProps {
@@ -15,10 +15,17 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
 }) => {
   const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>(DEFAULT_BAKERY_CATEGORIES);
-  const [isLoading, setIsLoading] = useState(true);
+  const [, setIsLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  // Mouse drag & touch sliding state
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const dragDistanceRef = useRef(0);
+  const [isGrabbing, setIsGrabbing] = useState(false);
 
   // Load dynamic categories from backend/database
   useEffect(() => {
@@ -52,12 +59,12 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
   }, []);
 
   // Update scroll arrow indicators
-  const updateScrollButtons = () => {
+  const updateScrollButtons = useCallback(() => {
     if (!scrollContainerRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
     setCanScrollLeft(scrollLeft > 10);
     setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
-  };
+  }, []);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -69,19 +76,61 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
       el.removeEventListener('scroll', updateScrollButtons);
       window.removeEventListener('resize', updateScrollButtons);
     };
-  }, [categories]);
+  }, [categories, updateScrollButtons]);
 
-  // Smooth scroll controls
-  const scrollSmooth = (direction: 'left' | 'right') => {
+  // Ultra-smooth easing scroll animation using requestAnimationFrame
+  const smoothSlideBy = (distance: number, duration = 320) => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const start = el.scrollLeft;
+    const target = start + distance;
+    const startTime = performance.now();
+
+    const step = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutCubic formula
+      const ease = 1 - Math.pow(1 - progress, 3);
+      el.scrollLeft = start + (target - start) * ease;
+      updateScrollButtons();
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  };
+
+  // Mouse Drag to Slide smoothly
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
-    const scrollAmount = direction === 'left' ? -280 : 280;
-    scrollContainerRef.current.scrollBy({
-      left: scrollAmount,
-      behavior: 'smooth'
-    });
+    isDraggingRef.current = true;
+    dragDistanceRef.current = 0;
+    startXRef.current = e.pageX - scrollContainerRef.current.offsetLeft;
+    scrollLeftRef.current = scrollContainerRef.current.scrollLeft;
+    setIsGrabbing(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startXRef.current) * 1.35; // fluid sensitivity
+    dragDistanceRef.current = Math.abs(walk);
+    scrollContainerRef.current.scrollLeft = scrollLeftRef.current - walk;
+    updateScrollButtons();
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false;
+    setIsGrabbing(false);
   };
 
   const handleSelect = (categoryName: string) => {
+    // If the user was dragging the slide, don't trigger selection
+    if (dragDistanceRef.current > 6) return;
+
     onSelectCategory(categoryName);
     const el = document.getElementById('menu-section');
     if (el) {
@@ -109,67 +158,102 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
           <div className="hidden sm:flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => scrollSmooth('left')}
+              onClick={() => smoothSlideBy(-280)}
               disabled={!canScrollLeft}
-              className="w-7 h-7 rounded-full bg-white border border-stone-200 shadow-xs flex items-center justify-center text-stone-600 hover:text-stone-900 hover:bg-stone-50 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+              className="w-8 h-8 rounded-full bg-white border border-stone-200/90 shadow-xs flex items-center justify-center text-stone-600 hover:text-stone-900 hover:bg-stone-50 disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer active:scale-90"
               aria-label="Previous categories"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={16} strokeWidth={2.5} />
             </button>
             <button
               type="button"
-              onClick={() => scrollSmooth('right')}
+              onClick={() => smoothSlideBy(280)}
               disabled={!canScrollRight}
-              className="w-7 h-7 rounded-full bg-white border border-stone-200 shadow-xs flex items-center justify-center text-stone-600 hover:text-stone-900 hover:bg-stone-50 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+              className="w-8 h-8 rounded-full bg-white border border-stone-200/90 shadow-xs flex items-center justify-center text-stone-600 hover:text-stone-900 hover:bg-stone-50 disabled:opacity-20 disabled:pointer-events-none transition-all cursor-pointer active:scale-90"
               aria-label="Next categories"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={16} strokeWidth={2.5} />
             </button>
           </div>
 
           <button 
             type="button"
             onClick={handleViewAll}
-            className="text-[13px] font-semibold text-[#E76A54] hover:text-[#d35842] flex items-center gap-0.5 transition-colors cursor-pointer ml-1"
+            className="text-sm font-bold text-[#E76A54] hover:text-[#d35842] flex items-center gap-1 transition-all cursor-pointer px-2.5 py-1 rounded-xl hover:bg-orange-50/80 active:scale-95"
           >
             <span>View all</span>
-            <span className="text-sm leading-none">→</span>
+            <span className="text-base leading-none">→</span>
           </button>
         </div>
       </div>
 
-      {/* Smooth Slide Container */}
+      {/* Smooth Slide Container with Drag */}
       <div className="relative group">
+
         <div 
           ref={scrollContainerRef}
-          className="flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar py-2 -mx-4 px-4 scroll-smooth snap-x snap-mandatory"
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUpOrLeave}
+          onMouseLeave={handleMouseUpOrLeave}
+          className={`flex gap-3 sm:gap-4 overflow-x-auto no-scrollbar py-2 -mx-4 px-4 scroll-smooth snap-x snap-mandatory ${
+            isGrabbing ? 'cursor-grabbing' : 'cursor-grab'
+          }`}
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
         >
-          {/* "All" Category Pill Card */}
-          <motion.div
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => handleSelect('All')}
-            className="snap-start shrink-0 w-[84px] sm:w-[92px] flex flex-col items-center cursor-pointer group/card"
-          >
-            <div 
-              className={`w-[80px] sm:w-[88px] h-[80px] sm:h-[88px] rounded-2xl flex flex-col items-center justify-center transition-all duration-300 relative overflow-hidden ${
-                activeCategory.toLowerCase() === 'all'
-                  ? 'bg-gradient-to-br from-[#E76A54] to-[#f27e69] text-white ring-2 ring-[#E76A54] shadow-lg shadow-orange-500/25 scale-105'
-                  : 'bg-white border border-stone-200/90 text-stone-700 hover:border-orange-500/40 hover:shadow-md'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-1 group-hover/card:scale-110 transition-transform">
-                <Sparkles size={20} className={activeCategory.toLowerCase() === 'all' ? 'text-white' : 'text-orange-500'} />
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider">All Items</span>
-            </div>
-            <span className={`text-[12px] font-bold mt-2 text-center leading-tight truncate max-w-full ${
-              activeCategory.toLowerCase() === 'all' ? 'text-[#E76A54]' : 'text-[#1F1A17]'
-            }`}>
-              All
-            </span>
-          </motion.div>
+          {/* Cohesive "All Items" Category Card matching photography style */}
+          {(() => {
+            const isAllActive = activeCategory.toLowerCase() === 'all';
+            return (
+              <motion.div
+                whileHover={{ y: -3, scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleSelect('All')}
+                className="snap-start shrink-0 w-[84px] sm:w-[94px] flex flex-col items-center cursor-pointer group/card"
+              >
+                <div 
+                  className={`w-[80px] sm:w-[90px] h-[80px] sm:h-[90px] rounded-2xl p-1 transition-all duration-300 relative overflow-hidden bg-white ${
+                    isAllActive
+                      ? 'ring-2 ring-[#E76A54] shadow-lg shadow-orange-500/25 scale-105 border-transparent'
+                      : 'border border-stone-200/90 hover:border-orange-500/40 hover:shadow-md'
+                  }`}
+                >
+                  <div className="w-full h-full rounded-xl overflow-hidden relative bg-stone-100">
+                    <img
+                      src="https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=800"
+                      alt="All Items"
+                      className="w-full h-full object-cover group-hover/card:scale-110 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-stone-950/20 to-transparent pointer-events-none" />
+                    
+                    {/* Golden All Star Badge */}
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-stone-900/70 backdrop-blur-xs text-[9px] font-black uppercase text-amber-300 tracking-wider flex items-center gap-0.5">
+                      <Sparkles size={8} />
+                      <span>ALL</span>
+                    </div>
+
+                    {isAllActive && (
+                      <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#E76A54] ring-2 ring-white shadow-xs" />
+                    )}
+                  </div>
+                </div>
+
+                <span className={`text-[12px] mt-2 text-center leading-tight truncate max-w-full font-medium transition-colors ${
+                  isAllActive ? 'text-[#E76A54] font-black' : 'text-[#1F1A17] font-semibold'
+                }`}>
+                  All Items
+                </span>
+                <span className="text-[10px] text-stone-400 font-mono leading-none mt-0.5">
+                  Full Menu
+                </span>
+              </motion.div>
+            );
+          })()}
 
           {/* Dynamic Categories with High-Definition Category Imagery */}
           {categories.map((item) => {
@@ -179,14 +263,14 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
             return (
               <motion.div
                 key={item.id}
-                whileHover={{ y: -3, scale: 1.02 }}
-                whileTap={{ scale: 0.96 }}
+                whileHover={{ y: -3, scale: 1.03 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => handleSelect(item.name)}
-                className="snap-start shrink-0 w-[84px] sm:w-[92px] flex flex-col items-center cursor-pointer group/card"
+                className="snap-start shrink-0 w-[84px] sm:w-[94px] flex flex-col items-center cursor-pointer group/card"
               >
                 {/* Category Image Frame */}
                 <div 
-                  className={`w-[80px] sm:w-[88px] h-[80px] sm:h-[88px] rounded-2xl p-1 transition-all duration-300 relative overflow-hidden bg-white ${
+                  className={`w-[80px] sm:w-[90px] h-[80px] sm:h-[90px] rounded-2xl p-1 transition-all duration-300 relative overflow-hidden bg-white ${
                     isActive 
                       ? 'ring-2 ring-[#E76A54] shadow-lg shadow-orange-500/25 scale-105 border-transparent' 
                       : 'border border-stone-200/90 hover:border-orange-500/40 hover:shadow-md'
@@ -203,11 +287,11 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
                       }}
                     />
                     {/* Subtle bottom gradient overlay for depth */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-950/50 via-transparent to-transparent pointer-events-none" />
 
                     {/* Active Check Dot */}
                     {isActive && (
-                      <div className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[#E76A54] ring-2 ring-white shadow-xs" />
+                      <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-[#E76A54] ring-2 ring-white shadow-xs" />
                     )}
                   </div>
                 </div>
@@ -219,10 +303,14 @@ export const HomeQuickCategories: React.FC<HomeQuickCategoriesProps> = ({
                   {item.name}
                 </span>
 
-                {/* Product Count (if known) */}
-                {typeof item.products_count === 'number' && item.products_count > 0 && (
+                {/* Product Count */}
+                {typeof item.products_count === 'number' && item.products_count > 0 ? (
                   <span className="text-[10px] text-stone-400 font-mono leading-none mt-0.5">
                     {item.products_count} items
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-400 font-mono leading-none mt-0.5">
+                    Fresh
                   </span>
                 )}
               </motion.div>

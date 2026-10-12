@@ -109,7 +109,10 @@ export const AdminLayout: React.FC = () => {
     <div className="flex min-h-screen bg-[#FAF8F5] text-stone-900 font-sans selection:bg-[#E76A54]/20 selection:text-[#E76A54] overflow-x-hidden">
       <Sidebar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={(newTab: string) => {
+          setActiveTab(newTab);
+          setSearchParams({ tab: newTab });
+        }} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />

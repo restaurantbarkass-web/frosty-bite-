@@ -1252,10 +1252,10 @@ export const Profile: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setIsAccountDeletionModalOpen(true)}
-                  className="px-5 py-3 bg-red-50 border border-red-200 hover:bg-red-500 hover:text-white text-red-600 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center gap-2 shadow-2xs"
+                  className="w-full sm:w-auto px-5 py-3 bg-red-50 hover:bg-red-500 hover:text-white border border-red-200 hover:border-red-500 text-red-600 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center justify-center gap-2 shadow-xs hover:shadow-sm active:scale-98 h-11"
                 >
-                  <Trash2 size={14} />
-                  <span>Delete Account</span>
+                  <Trash2 size={16} className="shrink-0" />
+                  <span>Delete Account Permanently</span>
                 </button>
               </div>
             </div>
@@ -1780,10 +1780,10 @@ export const Profile: React.FC = () => {
                   <h4 className="text-[10px] font-black text-red-500 uppercase tracking-[0.3em]">Danger Zone</h4>
                   <button 
                     onClick={() => setIsAccountDeletionModalOpen(true)}
-                    className="w-full h-14 sm:h-16 border border-red-200 bg-red-50/60 rounded-2xl flex items-center justify-between px-5 sm:px-6 text-red-600 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs tracking-wider cursor-pointer"
+                    className="w-full h-15 sm:h-16 border-2 border-red-200 bg-red-50/80 rounded-2xl flex items-center justify-between px-6 sm:px-7 text-red-600 hover:bg-red-500 hover:text-white transition-all font-black uppercase text-xs sm:text-sm tracking-wider cursor-pointer shadow-xs active:scale-98"
                   >
-                    <span>Permanently Delete Account</span>
-                    <Trash2 size={18} />
+                    <span>Delete Account Permanently</span>
+                    <Trash2 size={20} />
                   </button>
                 </div>
               </div>
