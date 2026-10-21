@@ -10,6 +10,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { Logo } from './Logo';
 import { LottieOfferButton } from './LottieOfferButton';
 import { preloadRoute } from '../utils/preload';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => void }> = React.memo(({ onCartClick, onSearchClick }) => {
   const { totalItems } = useCartState();
@@ -95,7 +96,7 @@ export const Navbar: React.FC<{ onCartClick: () => void, onSearchClick: () => vo
       }
     ];
     
-    if (user) {
+    if (user || GuestSessionManager.isActive()) {
       links.push({ name: 'Orders', path: '/orders', icon: ClipboardList });
       links.push({ name: 'Alerts', path: '/notifications', icon: Bell });
       if (isAdmin) links.push({ name: 'Admin', path: '/admin', icon: LayoutDashboard });

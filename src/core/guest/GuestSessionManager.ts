@@ -6,6 +6,11 @@ export interface GuestProfile {
   avatar: string;
   badge_tier: string;
   isRegisteredAtCheckout?: boolean;
+  avatar_config?: any;
+  userId?: string;
+  account_type?: string;
+  phone_verified?: boolean;
+  verification_status?: string;
 }
 
 export interface GuestState {
@@ -27,17 +32,22 @@ export class GuestSessionManager {
     if (existing && existing.isGuest) {
       return existing;
     }
+    const uniqueUserId = `guest_uid_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
     const guestState: GuestState = {
       isGuest: true,
-      guestSessionId: `guest_${Math.random().toString(36).substring(2, 12)}_${Date.now()}`,
+      guestSessionId: uniqueUserId,
       guestProfile: {
         name: 'Guest User',
-        email: 'guest@frostybite.app',
+        email: 'guest@frostybite.local',
         phone: '',
         address: '',
         avatar: 'G',
         badge_tier: 'Guest Explorer',
-        isRegisteredAtCheckout: false
+        isRegisteredAtCheckout: false,
+        userId: uniqueUserId,
+        account_type: 'guest',
+        phone_verified: false,
+        verification_status: 'unverified'
       },
       recentlyViewed: [],
       favorites: [],
@@ -56,7 +66,15 @@ export class GuestSessionManager {
     try {
       const data = localStorage.getItem(GUEST_STORAGE_KEY);
       if (data) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (parsed && !parsed.guestProfile?.userId) {
+          parsed.guestProfile.userId = `guest_uid_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+          parsed.guestProfile.account_type = 'guest';
+          parsed.guestProfile.phone_verified = false;
+          parsed.guestProfile.verification_status = 'unverified';
+          localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
       }
     } catch (e) {}
     return null;
@@ -84,6 +102,7 @@ export class GuestSessionManager {
 
   static registerFromCheckout(checkoutData: { name: string; phone: string; address: string; email?: string }): GuestState {
     const current = GuestSessionManager.get() || GuestSessionManager.create();
+    const uniqueUserId = current.guestProfile.userId || `guest_uid_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
     const updated: GuestState = {
       ...current,
       guestProfile: {
@@ -94,7 +113,11 @@ export class GuestSessionManager {
         email: checkoutData.email || current.guestProfile.email,
         avatar: checkoutData.name ? checkoutData.name.charAt(0).toUpperCase() : 'G',
         badge_tier: 'Valued Customer',
-        isRegisteredAtCheckout: true
+        isRegisteredAtCheckout: true,
+        userId: uniqueUserId,
+        account_type: 'guest',
+        phone_verified: false,
+        verification_status: 'unverified'
       }
     };
     try {

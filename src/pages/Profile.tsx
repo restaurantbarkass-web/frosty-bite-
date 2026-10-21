@@ -8,7 +8,7 @@ import {
   Crown, Wallet, Briefcase, Zap, Bell, Award, Coffee, IceCream,
   Pizza, Flame, Moon, Sun, CloudRain, Shield, Camera, 
   Share2, HeartHandshake, HelpCircle, Layout, Calendar,
-  Sparkles as SparkleIcon, Instagram, Download, RotateCcw
+  Sparkles as SparkleIcon, Instagram, Download, RotateCcw, ArrowLeft
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { StoryCard } from '../components/StoryCard';
@@ -401,32 +401,86 @@ export const Profile: React.FC = () => {
     return 'from-purple-600/30 via-indigo-900/10 to-transparent';
   }, [theme]);
 
-  const guestState = GuestSessionManager.get();
-  const isCheckoutRegisteredGuest = isGuest && guestState?.guestProfile?.isRegisteredAtCheckout;
+  const guestState = GuestSessionManager.get() || GuestSessionManager.create();
 
-  useEffect(() => {
-    if (isCheckoutRegisteredGuest && guestState?.guestProfile) {
-      const gp = guestState.guestProfile;
-      setUserData({
-        full_name: gp.name,
-        phone: gp.phone || '',
-        address: gp.address || '',
-        email: gp.email,
-        badge_tier: gp.badge_tier || 'Valued Customer'
-      });
-      setFormData({
-        name: gp.name,
-        phone: gp.phone || '',
-        address: gp.address || ''
-      });
-      setLoading(false);
-    }
-  }, [isCheckoutRegisteredGuest, guestState]);
-
+  // Full Guest Profile Hydration & Guest Orders Sync
   useEffect(() => {
     if (authLoading) return;
 
     if (!authUser) {
+      const gp = guestState?.guestProfile || {
+        name: 'Guest User',
+        phone: '',
+        address: '',
+        email: 'guest@frostybite.local',
+        badge_tier: 'Guest Explorer'
+      };
+
+      setUserData({
+        full_name: gp.name || 'Guest User',
+        phone: gp.phone || '',
+        address: gp.address || '',
+        email: gp.email || 'guest@frostybite.local',
+        badge_tier: gp.badge_tier || 'Guest Explorer',
+        avatar_config: (gp as any)?.avatar_config,
+        is_guest: true
+      });
+
+      setFormData({
+        name: gp.name || 'Guest User',
+        phone: gp.phone || '',
+        address: gp.address || ''
+      });
+
+      // Load cached guest orders
+      try {
+        const storedGuestOrders = JSON.parse(localStorage.getItem('frostybite_guest_orders') || '[]');
+        if (Array.isArray(storedGuestOrders) && storedGuestOrders.length > 0) {
+          setRecentOrders(storedGuestOrders.slice(0, 5));
+        }
+      } catch (e) {}
+
+      // Query Supabase by phone for guest order history if phone is available
+      if (gp.phone) {
+        (async () => {
+          try {
+            const { data } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('phone', gp.phone)
+              .order('created_at', { ascending: false })
+              .limit(5);
+
+            if (data && data.length > 0) {
+              setRecentOrders(prev => {
+                const combined = [...data, ...prev];
+                const seen = new Set();
+                return combined.filter(o => {
+                  const id = o.id || o.order_id;
+                  if (!id || seen.has(id)) return false;
+                  seen.add(id);
+                  return true;
+                }).slice(0, 5);
+              });
+            }
+          } catch (_) {}
+        })();
+      }
+
+      // Guest wishlist / favorites
+      try {
+        const favIds = guestState?.favorites || [];
+        if (favIds.length > 0 && menuItems && menuItems.length > 0) {
+          const guestWish = menuItems.filter(item => favIds.includes(String(item.id)));
+          setWishlist(guestWish);
+        }
+      } catch (e) {}
+
+      // Load badge configs for guest
+      rewardsService.getBadgeConfigs()
+        .then(configs => setBadgeConfigs(configs || []))
+        .catch(() => {});
+
       setLoading(false);
       return;
     }
@@ -573,9 +627,9 @@ export const Profile: React.FC = () => {
   }, [recentOrders, userData, badgeConfigs]);
 
   const stats = useMemo(() => [
-    { label: 'Orders', value: userData?.total_orders || 0, icon: ShoppingBag, color: 'text-blue-400' },
+    { label: 'Orders', value: isGuest ? recentOrders.length : (userData?.total_orders || recentOrders.length || 0), icon: ShoppingBag, color: 'text-blue-400' },
     { label: 'Favorites', value: wishlist.length, icon: Heart, color: 'text-pink-500' },
-    { label: 'Rewards', value: userData?.points || 0, icon: Gift, color: 'text-primary' },
+    { label: 'Rewards', value: isGuest ? 0 : (userData?.points || 0), icon: Gift, color: 'text-primary' },
     { 
       label: 'Wallet', 
       value: userData?.locked_wallet_balance > 0 
@@ -583,10 +637,16 @@ export const Profile: React.FC = () => {
         : `₹${userData?.wallet_balance || 0}`, 
       icon: Wallet, 
       color: 'text-emerald-400',
-      onClick: () => setIsFundsLockOpen(true)
+      onClick: () => {
+        if (isGuest) {
+          toast('Create an account to unlock your digital cash wallet!', { icon: '👛' });
+          return;
+        }
+        setIsFundsLockOpen(true);
+      }
     },
-    { label: 'Experience', value: `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: Zap, color: 'text-yellow-400' },
-  ], [wishlist, userData]);
+    { label: 'Account', value: isGuest ? 'Guest' : `Lv.${Math.floor((userData?.points || 0) / 100) + 1}`, icon: isGuest ? User : Zap, color: 'text-yellow-400' },
+  ], [wishlist, userData, isGuest, recentOrders.length]);
 
   const handleAddFunds = async () => {
     setIsAddFundsLockOpen(true);
@@ -678,7 +738,30 @@ export const Profile: React.FC = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser) return;
+    if (!authUser) {
+      if (isGuest) {
+        const currentGuest = GuestSessionManager.get() || GuestSessionManager.create();
+        GuestSessionManager.update({
+          guestProfile: {
+            ...currentGuest.guestProfile,
+            name: formData.name.trim() || 'Valued Guest',
+            phone: formData.phone.trim(),
+            address: formData.address.trim(),
+            avatar: formData.name.trim() ? formData.name.trim().charAt(0).toUpperCase() : 'G'
+          }
+        });
+        setUserData((prev: any) => ({
+          ...prev,
+          full_name: formData.name.trim() || 'Valued Guest',
+          phone: formData.phone.trim(),
+          address: formData.address.trim(),
+          avatar: formData.name.trim() ? formData.name.trim().charAt(0).toUpperCase() : 'G'
+        }));
+        setIsEditing(false);
+        toast.success('Guest details updated successfully! 🎉');
+      }
+      return;
+    }
 
     try {
       const stableId = authUser.id || authUser.uid;
@@ -758,6 +841,16 @@ export const Profile: React.FC = () => {
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
+      if (!authUser) {
+        if (isGuest) {
+          GuestSessionManager.clear();
+          setShowDeleteConfirm(false);
+          toast.success("Guest session cleared.");
+          await logout(true);
+          navigate('/');
+        }
+        return;
+      }
       const stableId = authUser.id || authUser.uid;
       const { error } = await supabase
         .from('users')
@@ -782,12 +875,12 @@ export const Profile: React.FC = () => {
   };
 
   const user = {
-    name: userData?.full_name || authUser?.displayName || 'User',
-    email: authUser?.email || 'No email provided',
-    phone: userData?.phone || 'Not provided',
-    address: userData?.address || 'No address saved',
+    name: userData?.full_name || authUser?.displayName || (isGuest ? 'Guest User' : 'User'),
+    email: authUser?.email || (isGuest ? 'Guest Session' : 'No email provided'),
+    phone: userData?.phone || (isGuest ? '' : 'Not provided'),
+    address: userData?.address || (isGuest ? 'Add delivery address' : 'No address saved'),
     avatar_url: userData?.avatar_url,
-    avatar: userData?.avatar_url || (userData?.avatar_config ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.avatar_config.seed}${Object.entries(userData.avatar_config.options || {}).map(([k, v]) => `&${k}=${Array.isArray(v) ? v[0] : v}`).join('')}` : authUser?.photoURL) || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || 'User')}&background=f97316&color=fff`,
+    avatar: userData?.avatar_url || (userData?.avatar_config ? `https://api.dicebear.com/7.x/adventurer/svg?seed=${userData.avatar_config.seed}${Object.entries(userData.avatar_config.options || {}).map(([k, v]) => `&${k}=${Array.isArray(v) ? v[0] : v}`).join('')}` : authUser?.photoURL) || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.full_name || authUser?.displayName || (isGuest ? 'Guest' : 'User'))}&background=f97316&color=fff`,
     avatarConfig: userData?.avatar_config,
     aiUsageStats: userData?.ai_usage_stats || { count: userData?.avatar_generation_count || 0, month: new Date().getMonth() },
     avatarSvg: userData?.avatar_config ? createAvatar(adventurer, {
@@ -818,57 +911,36 @@ export const Profile: React.FC = () => {
     }
   };
 
-  if (isGuest && !isCheckoutRegisteredGuest) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col items-center justify-center p-6 pb-32">
-        <div className="relative w-full max-w-md bg-white border border-stone-200/90 rounded-3xl p-8 shadow-sm text-center overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-orange-500/10 to-transparent blur-3xl rounded-full pointer-events-none" />
-
-          <div className="relative mx-auto w-24 h-24 bg-gradient-to-tr from-[#E76A54] via-amber-500 to-orange-400 rounded-full flex items-center justify-center text-white font-black text-3xl shadow-md mb-5 border-4 border-white">
-            G
-            <div className="absolute -bottom-1 -right-1 bg-[#E76A54] text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border-2 border-white">
-              Guest
-            </div>
-          </div>
-
-          <h2 className="text-3xl font-black text-stone-900 tracking-tight mb-2">Guest User</h2>
-          <p className="text-stone-500 text-sm leading-relaxed mb-8">
-            Create an account to save your activity, orders, preferences and more.
-          </p>
-
-          <div className="space-y-3.5">
-            <button
-              onClick={() => navigate('/login', { state: { defaultMode: 'signup' } })}
-              className="w-full h-13 rounded-2xl bg-gradient-to-r from-[#E76A54] to-amber-500 text-white font-black text-sm uppercase tracking-wider shadow-md shadow-[#E76A54]/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-            >
-              Create Account
-            </button>
-
-            <button
-              onClick={() => navigate('/login', { state: { defaultMode: 'signin' } })}
-              className="w-full h-13 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-sm tracking-wide border border-stone-200 active:scale-[0.98] transition-all cursor-pointer"
-            >
-              Sign In
-            </button>
-
-            <button
-              onClick={() => navigate('/')}
-              className="w-full py-3 text-stone-500 hover:text-stone-900 text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer pt-2"
-            >
-              Continue Browsing
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return <LoadingScreen fullScreen={true} message="Establishing secure session..." />;
   }
 
   const handleSaveAvatar = async (avatarConfig: any) => {
-    if (!authUser) return;
+    if (!authUser) {
+      if (isGuest) {
+        const currentGuest = GuestSessionManager.get() || GuestSessionManager.create();
+        GuestSessionManager.update({
+          guestProfile: {
+            ...currentGuest.guestProfile,
+            avatar: avatarConfig.avatar_url || avatarConfig.seed || 'G',
+            avatar_config: {
+              seed: avatarConfig.seed,
+              options: avatarConfig.options
+            }
+          }
+        });
+        setUserData((prev: any) => ({
+          ...prev,
+          avatar_config: {
+            seed: avatarConfig.seed,
+            options: avatarConfig.options
+          }
+        }));
+        setIsAvatarEditorOpen(false);
+        toast.success('Guest avatar style applied! ✨');
+      }
+      return;
+    }
     const loadingToast = toast.loading('Applying your new identity...');
     try {
       let finalAvatarUrl = avatarConfig.avatar_url;
@@ -979,6 +1051,12 @@ export const Profile: React.FC = () => {
 
       {/* Warm Artisan Bakery Hero Header */}
       <section className="relative min-h-[45vh] md:min-h-[55vh] flex items-center justify-center overflow-hidden py-16 md:py-24 bg-gradient-to-b from-orange-50/70 via-[#FAF8F5] to-[#FAF8F5]">
+        <button 
+          onClick={() => navigate(-1)}
+          className="absolute top-6 left-6 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-md shadow-sm border border-stone-200/50 text-stone-700 hover:bg-stone-100 transition-all cursor-pointer"
+        >
+          <ArrowLeft size={20} />
+        </button>
         {/* Dynamic Mesh Background */}
         <div className={cn(
           "absolute inset-0 transition-colors duration-1000 bg-gradient-to-tr opacity-50",
@@ -1008,16 +1086,55 @@ export const Profile: React.FC = () => {
             className="mt-6 md:mt-8 space-y-3 md:space-y-4 w-full max-w-4xl"
           >
             <div className="flex flex-wrap items-center justify-center gap-2.5 md:gap-3 mb-2">
-              <PremiumBadge text={userData?.badge_tier || 'Foodie Starter'} icon={Crown} color="bg-orange-50 text-[#E76A54] border-orange-200" />
-              <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-50 text-emerald-700 border-emerald-200" />
+              <PremiumBadge text={userData?.badge_tier || (isGuest ? 'Guest Explorer' : 'Foodie Starter')} icon={Crown} color="bg-orange-50 text-[#E76A54] border-orange-200" />
+              {isGuest ? (
+                <PremiumBadge text="Guest Session" icon={User} color="bg-amber-50 text-amber-800 border-amber-200" />
+              ) : (
+                <PremiumBadge text="Verified Foodie" icon={ShieldCheck} color="bg-emerald-50 text-emerald-700 border-emerald-200" />
+              )}
             </div>
             
             <h1 id="profile-greeting" className="text-3xl sm:text-5xl md:text-6xl font-black text-stone-900 tracking-tight leading-[1.1] md:leading-none px-2">
               {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E76A54] via-orange-600 to-amber-600 block sm:inline-block mt-1 sm:mt-0">{user.name.split(' ')[0]}</span>
             </h1>
             <p className="text-stone-500 font-bold uppercase tracking-[0.15em] md:tracking-[0.25em] text-[10px] md:text-xs">
-              {userData?.title || 'Midnight Food Explorer'} • Level {Math.floor((userData?.points || 0) / 100) + 1}
+              {isGuest ? 'Guest Food Explorer • Instant Orders' : `${userData?.title || 'Midnight Food Explorer'} • Level ${Math.floor((userData?.points || 0) / 100) + 1}`}
             </p>
+
+            {/* Guest Upgrade Banner */}
+            {isGuest && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+                className="mt-4 p-4 bg-white/95 backdrop-blur-md border border-amber-200/80 rounded-2xl shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-left max-w-xl mx-auto"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#E76A54] to-amber-500 text-white font-black flex items-center justify-center shrink-0 shadow-xs">
+                    G
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-stone-900 tracking-tight flex items-center gap-1.5">
+                      <span>Guest Account Profile</span>
+                      <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 uppercase tracking-wider">
+                        Unverified
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-stone-600">
+                      Link your Google account or verify via SMS OTP anytime to save rewards and sync your orders!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="w-full sm:w-auto px-4 py-2 bg-[#a83255] hover:bg-[#8f2846] text-white rounded-xl text-[11px] font-bold tracking-wider uppercase shadow-xs transition-all shrink-0 cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <Phone size={13} />
+                  <span>Verify Mobile Number</span>
+                </button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
 
@@ -1172,8 +1289,12 @@ export const Profile: React.FC = () => {
                       <Mail size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Email Protocol</p>
-                      <p className="text-base sm:text-lg font-bold text-stone-900 break-all">{user.email}</p>
+                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">
+                        {isGuest ? 'Session Mode' : 'Email Protocol'}
+                      </p>
+                      <p className="text-base sm:text-lg font-bold text-stone-900 break-all">
+                        {isGuest && user.email.includes('@frostybite.local') ? 'Guest Express Mode' : user.email}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1184,8 +1305,19 @@ export const Profile: React.FC = () => {
                       <Phone size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest mb-0.5">Secure Line</p>
-                      <p className="text-base sm:text-lg font-bold text-stone-900 truncate">{user.phone}</p>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="text-[10px] font-black text-stone-500 uppercase tracking-widest">
+                          {isGuest ? 'Mobile Contact' : 'Secure Line'}
+                        </p>
+                        {isGuest && (
+                          <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300 uppercase tracking-wider">
+                            Unverified Phone
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-base sm:text-lg font-bold text-stone-900 truncate">
+                        {user.phone || (isGuest ? 'Tap Edit to add phone' : 'Not provided')}
+                      </p>
                     </div>
                   </div>
 

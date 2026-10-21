@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion } from 'motion/react';
 import { ShieldAlert } from 'lucide-react';
 import { LoadingScreen } from './LoadingScreen';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -24,14 +25,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const navigate = useNavigate();
 
   const userId = user?.uid || user?.id;
+  const isGuestActive = GuestSessionManager.isActive();
   const allowedRolesKey = allowedRoles ? allowedRoles.join(',') : '';
 
   React.useEffect(() => {
-    if (!loading && authStatus !== 'loading' && userId) {
+    if (!loading && authStatus !== 'loading' && (userId || isGuestActive)) {
       if (allowedRoles) {
         const hasAccess = allowedRoles.some(r => {
           if (r === 'admin') return isAdmin;
-          if (r === 'customer') return isCustomer;
+          if (r === 'customer') return isCustomer || isGuestActive;
           return false;
         });
 
@@ -39,30 +41,26 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           logout(true).then(() => navigate('/login', { replace: true })).catch(err => console.error("Auto logout error:", err));
         }
       }
-      if (requireVerification && !isVerified && !isAdmin) {
-         // Optionally force logout or just show block
-      }
     }
-  }, [userId, loading, authStatus, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout]);
+  }, [userId, loading, authStatus, allowedRolesKey, isAdmin, isCustomer, isVerified, requireVerification, autoLogout, navigate, logout, isGuestActive]);
 
   if (loading || authStatus === 'loading') {
     return <LoadingScreen fullScreen={true} message="Verifying secure access..." />;
   }
 
-  if (!user) {
+  if (!user && !isGuestActive) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Strict check for admin allowed roles
+  // Strict check for allowed roles
   if (allowedRoles) {
     const hasAccess = allowedRoles.some(r => {
       if (r === 'admin') return isAdmin;
-      if (r === 'customer') return isCustomer;
+      if (r === 'customer') return isCustomer || isGuestActive;
       return false;
     });
 
     if (!hasAccess) {
-      // If autoLogout is requested or accessing admin route without admin privileges, redirect immediately
       if (autoLogout || allowedRoles.includes('admin')) {
         return <Navigate to="/login" replace />;
       }

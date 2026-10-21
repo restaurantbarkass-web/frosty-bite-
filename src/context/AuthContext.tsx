@@ -58,7 +58,7 @@ export interface AuthContextType {
   logout: (bypassConfirmation?: boolean) => Promise<void>;
   refreshProfile: () => Promise<void>;
   resolveAndSyncUser: (sbUserParam?: any, fbUserParam?: any) => Promise<void>;
-  loginAsGuest: () => void;
+  loginAsGuest: (profileData?: { name?: string; phone?: string }) => void;
   exitGuestMode: () => void;
   openAuthModal: (title?: string, subtitle?: string) => void;
   closeAuthModal: () => void;
@@ -108,8 +108,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return !!user;
   }, [user]);
 
-  const loginAsGuest = useCallback(() => {
-    const gs = GuestSessionManager.create();
+  const loginAsGuest = useCallback((profileData?: { name?: string; phone?: string }) => {
+    let gs = GuestSessionManager.create();
+    if (profileData?.name || profileData?.phone) {
+      gs = GuestSessionManager.update({
+        guestProfile: {
+          ...gs.guestProfile,
+          name: profileData.name || gs.guestProfile.name,
+          phone: profileData.phone || gs.guestProfile.phone,
+          avatar: profileData.name ? profileData.name.charAt(0).toUpperCase() : 'G',
+        }
+      });
+    }
     setGuestState(gs);
     setUser(null);
     setRole('customer');

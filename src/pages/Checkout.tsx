@@ -909,6 +909,14 @@ export const Checkout: React.FC = () => {
           orderType: isPickupOnly ? 'pickup' : 'delivery'
         }).catch(err => console.warn('[SMS Gateway] Non-blocking order creation SMS catch:', err));
         
+        // Save to guest order cache if not signed in
+        if (!user) {
+          try {
+            const guestOrders = JSON.parse(localStorage.getItem('frostybite_guest_orders') || '[]');
+            localStorage.setItem('frostybite_guest_orders', JSON.stringify([orderData, ...guestOrders].slice(0, 30)));
+          } catch (e) {}
+        }
+        
         // Clear saved checkout draft inputs on success
         try {
           localStorage.removeItem('frostybite_checkout_form');

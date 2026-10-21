@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatOrderId } from '../utils/orderUtils';
 import { OrderSkeleton } from '../components/OrderSkeleton';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 const Orders: React.FC = () => {
   const { user } = useAuth();
@@ -59,7 +60,16 @@ const Orders: React.FC = () => {
 
   // Initial state setup: Load cached orders immediately if available for zero-delay offline experience
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      try {
+        const guestOrders = JSON.parse(localStorage.getItem('frostybite_guest_orders') || '[]');
+        if (Array.isArray(guestOrders) && guestOrders.length > 0) {
+          setOrders(guestOrders);
+          setLoading(false);
+        }
+      } catch (e) {}
+      return;
+    }
     const cacheKey = `orders_cache_${user.uid}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
@@ -90,7 +100,45 @@ const Orders: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      const guestState = GuestSessionManager.get();
+      const guestPhone = guestState?.guestProfile?.phone;
+      const guestOrders = JSON.parse(localStorage.getItem('frostybite_guest_orders') || '[]');
+
+      if (guestPhone) {
+        (async () => {
+          try {
+            const { data } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('phone', guestPhone)
+              .order('created_at', { ascending: false });
+
+            if (data && data.length > 0) {
+              const combined = [...data, ...guestOrders];
+              const seen = new Set();
+              const unique = combined.filter((o: any) => {
+                const id = o.id || o.order_id;
+                if (!id || seen.has(id)) return false;
+                seen.add(id);
+                return true;
+              });
+              setOrders(unique as Order[]);
+            } else {
+              setOrders(guestOrders as Order[]);
+            }
+          } catch (e) {
+            setOrders(guestOrders as Order[]);
+          } finally {
+            setLoading(false);
+          }
+        })();
+      } else {
+        setOrders(guestOrders as Order[]);
+        setLoading(false);
+      }
+      return;
+    }
 
     const cacheKey = `orders_cache_${user.uid}`;
     

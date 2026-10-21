@@ -330,7 +330,7 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                   ref={inputRef}
                   type="text"
                   placeholder="Search for cakes, pastries, flavors..."
-                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-12 pr-24 py-4 text-stone-900 text-lg focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white transition-all placeholder:text-stone-400 shadow-xs"
+                  className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-12 pr-28 py-3.5 text-stone-900 text-sm md:text-lg focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-white transition-all placeholder:text-stone-400 shadow-xs"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && performSearch(query)}

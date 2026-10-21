@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { preloadRoute } from '../utils/preload';
 import { cn } from '../lib/utils';
 import { playClickSound } from '../utils/soundEffects';
+import { GuestSessionManager } from '../core/guest/GuestSessionManager';
 
 interface BottomNavProps {
   onCartClick?: () => void;
@@ -121,7 +122,7 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
       {
         id: 'account',
         name: 'Account',
-        path: user ? '/profile' : '/login',
+        path: (user || GuestSessionManager.isActive()) ? '/profile' : '/login',
         icon: User,
         isActive: pathname === '/profile' || pathname === '/login' || pathname === '/signup',
         badge: unreadCount,

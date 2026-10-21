@@ -21,7 +21,7 @@ import { LocalErrorBoundary } from './components/LocalErrorBoundary';
 import { CategoriesPageSkeleton } from './components/CategoriesPageSkeleton';
 import { ProductPageSkeleton } from './components/ProductPageSkeleton';
 import { IntroSplash } from './components/IntroSplash';
-import { OnboardingScreen } from './components/OnboardingScreen';
+import { OnboardingSlider } from './components/OnboardingSlider';
 import { AppUpdateScreen } from './components/AppUpdateScreen';
 import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
@@ -174,7 +174,10 @@ function AppContent() {
       console.warn('localStorage write failed:', e);
     }
     setShowOnboarding(false);
-  }, []);
+    if (!user && location.pathname !== '/login') {
+      navigate('/login');
+    }
+  }, [user, navigate, location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -288,6 +291,12 @@ function AppContent() {
     >
       <CustomToaster />
       
+      <AnimatePresence>
+        {showOnboarding && (
+          <OnboardingSlider onComplete={handleOnboardingComplete} />
+        )}
+      </AnimatePresence>
+      
       {isOffline && (
         <div className="bg-amber-600 text-white font-sans px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 relative z-[100] shadow-md transition-all">
           <span>📡 Operating in Offline Mode. Browsing local cached treats. Placed orders will sync upon active connection.</span>
@@ -323,13 +332,13 @@ function AppContent() {
         </div>
       )}
 
-      {showNavbar && <Navbar onCartClick={() => setIsCartOpen(true)} onSearchClick={() => setIsSearchOverlayOpen(true)} />}
+      {showNavbar && location.pathname !== '/profile' && <Navbar onCartClick={() => setIsCartOpen(true)} onSearchClick={() => setIsSearchOverlayOpen(true)} />}
       {showCartSidebar && (
         <Suspense fallback={null}>
           <CartSidebar />
         </Suspense>
       )}
-      {!hideNavFooter && !isCartOpen && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
+      {!hideNavFooter && !isCartOpen && location.pathname !== '/profile' && <BottomNav onCartClick={() => setIsCartOpen(true)} />}
       <FlyingCartOverlay />
       
       {isSearchOverlayOpen && (
@@ -349,8 +358,8 @@ function AppContent() {
       
       <main className={cn(
         "transition-all flex-1 flex flex-col min-h-svh relative",
-        showNavbar && "pt-24 md:pt-28",
-        !hideNavFooter && "pb-40 md:pb-0"
+        showNavbar && location.pathname !== '/profile' && "pt-24 md:pt-28",
+        !hideNavFooter && location.pathname !== '/profile' && "pb-40 md:pb-0"
       )}>
         {/* IntroSplash is rendered full-screen on initial page mount */}
 
