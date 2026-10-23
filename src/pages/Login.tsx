@@ -59,14 +59,6 @@ export const Login: React.FC = () => {
   const { user, isAdmin, loading, authStatus, refreshProfile, resolveAndSyncUser, loginAsGuest } = useAuth();
   const { selectManualCity } = useGeofence();
 
-  if (loading || authStatus === 'loading') {
-    return <LoadingScreen fullScreen={true} message="Loading Frosty Bite secure portal..." />;
-  }
-
-  if (user) {
-    return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
-  }
-
   const [activeView, setActiveView] = useState<'main' | 'email' | 'mobile' | 'guest'>('main');
   const [showTour, setShowTour] = useState(false);
   const [email, setEmail] = useState('');
@@ -104,6 +96,14 @@ export const Login: React.FC = () => {
     }
   }, [resendMobileCooldown]);
 
+  if (loading || authStatus === 'loading') {
+    return <LoadingScreen fullScreen={true} message="Loading Frosty Bite secure portal..." />;
+  }
+
+  if (user) {
+    return <Navigate to={isAdmin ? "/admin" : "/"} replace />;
+  }
+
   const showNotification = (text: string, icon = 'sparkles', spinning = false) => {
     setToastMsg({ text, icon, spinning });
     setTimeout(() => {
@@ -111,43 +111,22 @@ export const Login: React.FC = () => {
     }, 4500);
   };
 
-  // 1. Continue with Google (OAuth)
+  // 1. Continue with Google (Firebase OAuth)
   const handleGoogleLogin = async () => {
     showNotification('Connecting to Google...', 'sparkles', true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) {
-        console.warn('Supabase Google OAuth fallback to Firebase:', error);
-        const fbUser = await authService.loginWithGoogle();
-        if (fbUser) {
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-          toast.success('Welcome to Frosty Bite!');
-          await resolveAndSyncUser(null, fbUser);
-          await refreshProfile();
-          navigate('/', { replace: true });
-        }
+      const fbUser = await authService.loginWithGoogle();
+      if (fbUser) {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        toast.success('Welcome to Frosty Bite!');
+        await resolveAndSyncUser(null, fbUser);
+        await refreshProfile();
+        navigate('/', { replace: true });
       }
     } catch (err: any) {
-      console.warn('Google sign-in attempting Firebase fallback:', err);
-      try {
-        const fbUser = await authService.loginWithGoogle();
-        if (fbUser) {
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-          toast.success('Welcome to Frosty Bite!');
-          await resolveAndSyncUser(null, fbUser);
-          await refreshProfile();
-          navigate('/', { replace: true });
-          return;
-        }
-      } catch (fbErr: any) {
-        toast.error(fbErr?.message || err?.message || 'Google OAuth failed.');
-        showNotification('Google sign-in encountered an issue.', 'alert', false);
-      }
+      console.error('Google sign-in failed:', err);
+      toast.error(err?.message || 'Google sign-in failed. Please try email or phone login.');
+      showNotification('Google sign-in encountered an issue.', 'alert', false);
     }
   };
 

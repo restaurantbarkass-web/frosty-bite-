@@ -445,16 +445,22 @@ export const authService = {
     };
   },
 
-  // Google Login via Firebase OAuth
+  // Google Login via Firebase OAuth with Popup & Redirect fallback
   async loginWithGoogle() {
-    const { signInWithPopup } = await import('firebase/auth');
+    const { signInWithPopup, signInWithRedirect, getRedirectResult } = await import('firebase/auth');
     const { auth, googleProvider } = await import('../firebase');
     try {
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error: any) {
-      console.error('[Firebase OAuth] signInWithPopup failed:', error);
-      throw error;
+      console.warn('[Firebase OAuth] signInWithPopup failed, trying redirect fallback:', error);
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return null;
+      } catch (redirectErr: any) {
+        console.error('[Firebase OAuth] signInWithRedirect failed:', redirectErr);
+        throw error;
+      }
     }
   },
 
