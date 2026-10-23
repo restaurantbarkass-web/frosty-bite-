@@ -7,16 +7,12 @@ import { Search, Sparkles, ChevronRight, AlertTriangle, X, Flame, Leaf, ChevronD
 import { CATEGORIES, MENU_ITEMS, RESTAURANT_WHATSAPP } from '../constants';
 import { FoodCard } from '../components/FoodCard';
 import { FoodCardSkeleton } from '../components/FoodCardSkeleton';
-import { getFoodRecommendations } from '../services/geminiService';
-import { supabase } from '../supabase';
 import { FoodItem } from '../types';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useAuth } from '../context/AuthContext';
 import { useMenu } from '../context/MenuContext';
 import toast from 'react-hot-toast';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
-import { ReviewsSection } from '../components/ReviewsSection';
-import { VoiceAssistant } from '../components/VoiceAssistant';
 import { UNIVERSAL_LOGO_URL } from '../constants/logo';
 import { HomeShell } from '../components/home/HomeShell';
 import { HomeHeader } from '../components/home/HomeHeader';
@@ -28,6 +24,9 @@ import { HomePromoBanner } from '../components/home/HomePromoBanner';
 import { HomeCollections } from '../components/home/HomeCollections';
 import { HomeBestsellers } from '../components/home/HomeBestsellers';
 import { HomeValuePropositions } from '../components/home/HomeValuePropositions';
+
+const ReviewsSection = React.lazy(() => import('../components/ReviewsSection').then(m => ({ default: m.ReviewsSection })));
+const VoiceAssistant = React.lazy(() => import('../components/VoiceAssistant').then(m => ({ default: m.VoiceAssistant })));
 
 // Variants for staggered animations
 const containerVariants: any = {
@@ -111,46 +110,6 @@ export const Home: React.FC = () => {
     keywords: ['desserts', 'fast food', 'cheesecakes', 'burgers', 'shakes', 'Frosty Bite ordering', 'Cuttack sweets']
   });
 
-  const recommendedItems = React.useMemo(() => {
-    if (!displayItems || displayItems.length === 0) return [];
-    const filtered = displayItems.filter(item => item.available !== false);
-    const itemsToUse = filtered.length > 0 ? filtered : displayItems;
-    return [...itemsToUse].sort(() => 0.5 - Math.random()).slice(0, 6);
-  }, [displayItems]);
-
-  const handlePremiumSearch = React.useCallback((q: string) => {
-    setSearchQuery(q);
-    setTimeout(() => {
-      const element = document.getElementById('menu-section');
-      element?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  }, []);
-
-  const handleFocusChange = React.useCallback((focused: boolean) => {
-    if (focused) {
-      window.dispatchEvent(new CustomEvent('open-search'));
-    }
-  }, []);
-  
-  // Dynamic categories based on menu items
-  const [aiRecs, setAiRecs] = useState<string[]>([]);
-  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-
-  const suggestions = React.useMemo(() => {
-    if (!searchQuery || searchQuery.trim() === '') {
-      return [];
-    }
-
-    const itemSuggestions = displayItems
-      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      .map(item => item.name);
-
-    const categorySuggestions = (menuCategories || [])
-      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    return Array.from(new Set([...itemSuggestions, ...categorySuggestions])).slice(0, 6);
-  }, [searchQuery, displayItems, menuCategories]);
-
   useEffect(() => {
     const handleNavbarSearch = (e: any) => {
       const queryValue = e.detail;
@@ -190,117 +149,6 @@ export const Home: React.FC = () => {
       }, 350);
     }
   }, [location.search, location.state]);
-
-  useEffect(() => {
-    // Delay non-critical data fetching to prioritize main menu rendering
-    const timer = setTimeout(() => {
-        const fetchRecs = async () => {
-          // Check cache first
-          let cachedRecs = null;
-          let cacheTimestamp = null;
-          try {
-            cachedRecs = localStorage.getItem('ai_recs');
-            cacheTimestamp = localStorage.getItem('ai_recs_timestamp');
-          } catch (e) {}
-          const now = Date.now();
-          
-          if (cachedRecs && cacheTimestamp && (now - parseInt(cacheTimestamp)) < 3600000) { // 1 hour cache
-            try {
-              setAiRecs(JSON.parse(cachedRecs));
-              return;
-            } catch (e) {}
-          }
-
-          setIsLoadingRecs(true);
-          try {
-            const recs = await getFoodRecommendations("I want something spicy and filling for dinner");
-            if (recs && recs.length > 0) {
-              setAiRecs(recs);
-              localStorage.setItem('ai_recs', JSON.stringify(recs));
-              localStorage.setItem('ai_recs_timestamp', now.toString());
-            }
-          } catch (e) {
-            console.error(e);
-          } finally {
-            setIsLoadingRecs(false);
-          }
-        };
-        fetchRecs();
-    }, 2000); // 2 second delay
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const [previousPurchases, setPreviousPurchases] = useState<FoodItem[]>([]);
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (!user) {
-      setPreviousPurchases([]);
-      return;
-    }
-
-    const fetchPreviousPurchases = async () => {
-      // Delay user-specific data to prioritize main content
-      await new Promise(r => setTimeout(r, 1000));
-      
-      // If the database is misconfigured with UUID columns...
-      try {
-        const { data: orders, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('user_id', user.uid)
-          .order('created_at', { ascending: false })
-          .limit(20);
-        
-        if (error) {
-          // Silent fail for UUID format errors to prevent console spam for users
-          if (error.code === '22P02') return;
-          throw error;
-        }
-        
-        if (orders && Array.isArray(orders)) {
-          const purchasedItems = new Map<string, FoodItem>();
-          
-          orders.forEach(order => {
-            if (order && order.items && Array.isArray(order.items)) {
-              order.items.forEach((item: any) => {
-                if (item && item.id && !purchasedItems.has(item.id)) {
-                  purchasedItems.set(item.id, {
-                    ...item,
-                    id: item.id
-                  });
-                }
-              });
-            }
-          });
-          
-          setPreviousPurchases(Array.from(purchasedItems.values()).slice(0, 8));
-        }
-      } catch (error) {
-        console.error('Error fetching previous purchases from Supabase:', error);
-      }
-    };
-
-    fetchPreviousPurchases();
-    
-    // Subscribe to new orders to update previous favorites
-    const channel = supabase
-      .channel(`user_orders_home_${user.uid}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'orders',
-        filter: `user_id=eq.${user.uid}`
-      }, () => {
-        fetchPreviousPurchases();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.uid]);
 
   const filteredItems = React.useMemo(() => {
     let result = displayItems.filter(item => {
@@ -572,7 +420,9 @@ export const Home: React.FC = () => {
 
         {/* Reviews Section */}
         <div id="reviews" className="pt-8 border-t border-neutral-200/80">
-          <ReviewsSection />
+          <React.Suspense fallback={<div className="h-48 flex items-center justify-center text-xs text-stone-400" />}>
+            <ReviewsSection />
+          </React.Suspense>
         </div>
 
         {/* Clean Warm Bakery Story Banner */}

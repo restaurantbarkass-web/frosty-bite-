@@ -257,36 +257,29 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
-      // Separation of registered vs guest headers
+      // Headers for registered, phone OTP, and guest checkouts
       const reqHeaders: Record<string, string> = {
         'Content-Type': 'application/json'
       };
 
-      if (isRegisteredOrder) {
-        if (accessTokenPresent && authHeader.Authorization) {
-          reqHeaders['Authorization'] = authHeader.Authorization;
-        } else {
-          console.warn('[UPICheckout] Registered order but no access token is available.');
-          setErrorStatus(401);
-          setErrorMessage('Authentication required for registered customer order. Please log in.');
-          setPaymentState('ERROR');
-          return;
-        }
-      } else {
-        if (guestSessionId) {
-          reqHeaders['X-Guest-Session'] = guestSessionId;
-        } else {
-          console.warn('[UPICheckout] Guest order but no guest session ID is found.');
-          setErrorStatus(400);
-          setErrorMessage('Guest session is missing or expired.');
-          setPaymentState('ERROR');
-          return;
-        }
+      if (accessTokenPresent && authHeader.Authorization) {
+        reqHeaders['Authorization'] = authHeader.Authorization;
+      }
+      if (safeUserId) {
+        reqHeaders['X-User-Id'] = safeUserId;
+      }
+      if (guestSessionId) {
+        reqHeaders['X-Guest-Session'] = guestSessionId;
+      }
+      const customerPhone = currentOrder?.phone || dbOrder?.customer_phone || dbOrder?.phone;
+      if (customerPhone) {
+        reqHeaders['X-Customer-Phone'] = customerPhone;
       }
 
       const payload = {
         order_id: effectiveOrderId,
-        guest_session_id: !isRegisteredOrder ? (guestSessionId || undefined) : undefined,
+        user_id: safeUserId || (dbOrder?.user_id && !dbOrder.user_id.startsWith('guest_') ? dbOrder.user_id : undefined),
+        guest_session_id: guestSessionId || (dbOrder?.user_id?.startsWith('guest_') ? dbOrder.user_id : undefined),
         order_details: currentOrder ? {
           id: effectiveOrderId,
           totalPrice: currentOrder.totalPrice,
@@ -554,15 +547,35 @@ export const UPICheckout: React.FC = () => {
         }
       } catch (e) {}
 
+      let guestSessionId = '';
+      try {
+        const guestState = GuestSessionManager.get();
+        if (guestState?.guestSessionId) {
+          guestSessionId = guestState.guestSessionId;
+        }
+      } catch (e) {}
+
+      const customerPhone = (orderDetails as any)?.phone || '';
+      const statusHeaders: Record<string, string> = {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        ...authHeader
+      };
+      if (user?.uid) {
+        statusHeaders['X-User-Id'] = user.uid;
+      }
+      if (guestSessionId) {
+        statusHeaders['X-Guest-Session'] = guestSessionId;
+      }
+      if (customerPhone) {
+        statusHeaders['X-Customer-Phone'] = customerPhone;
+      }
+
       const res = await fetch(`/api/payment/status/${encodeURIComponent(effectiveOrderId)}?t=${Date.now()}`, {
         cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          ...authHeader
-        }
+        headers: statusHeaders
       });
 
       console.log(`[UPI STATUS] response ${res.status}`);

@@ -78,18 +78,6 @@ export const HomeHeader: React.FC = React.memo(() => {
           }}
           className="flex flex-col items-center justify-center shrink-0 px-2 text-center cursor-pointer select-none group"
         >
-          <div className="flex items-center justify-center mb-0.5 text-[#E5A970] transition-transform duration-300 group-hover:scale-110">
-            <svg 
-              width="18" 
-              height="18" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              className="drop-shadow-xs"
-              aria-hidden="true"
-            >
-              <path d="M12 2a1.5 1.5 0 0 1 1.5 1.5c0 .3-.09.58-.24.81.96.44 1.74 1.25 2.14 2.26.85.24 1.6.76 2.1 1.43H6.5c.5-.67 1.25-1.19 2.1-1.43.4-1.01 1.18-1.82 2.14-2.26A1.5 1.5 0 0 1 12 2m-7 8h14v2c0 1.1-.9 2-2 2h-1c-.55 0-1-.45-1-1s-.45-1-1-1-.95.45-.95 1-.45 1-1 1-1-.45-1-1-.45-1-1-1-.95.45-.95 1-.45 1-1 1-1-.45-1-1-.45-1-1-1-.95.45-.95 1H6c-1.1 0-2-.9-2-2v-2m-1 6h16v4c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-4z"/>
-            </svg>
-          </div>
           <span className="font-serif text-[17px] sm:text-[20px] font-bold tracking-tight text-stone-900 leading-none">
             Frosty Bite
           </span>

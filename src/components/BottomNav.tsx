@@ -34,34 +34,34 @@ export const BottomNav: React.FC<BottomNavProps> = React.memo(({ onCartClick }) 
     let ticking = false;
 
     const handleScroll = () => {
-      if (scrollStopTimeoutRef.current) {
-        clearTimeout(scrollStopTimeoutRef.current);
-      }
-
-      scrollStopTimeoutRef.current = setTimeout(() => {
-        setIsVisible(true);
-      }, 600);
-
-      if (ticking) return;
-
-      window.requestAnimationFrame(() => {
-        const currentScrollY = window.scrollY;
-        const prevScrollY = lastScrollYRef.current;
-        const scrollDelta = currentScrollY - prevScrollY;
-
-        if (currentScrollY < 60) {
-          setIsVisible(true);
-        } else if (scrollDelta > scrollThreshold && currentScrollY > 100) {
-          setIsVisible(false);
-        } else if (scrollDelta < -scrollThreshold) {
-          setIsVisible(true);
+      if (!ticking) {
+        if (scrollStopTimeoutRef.current) {
+          clearTimeout(scrollStopTimeoutRef.current);
         }
 
-        lastScrollYRef.current = currentScrollY;
-        ticking = false;
-      });
+        scrollStopTimeoutRef.current = setTimeout(() => {
+          setIsVisible(true);
+        }, 600);
 
-      ticking = true;
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          const prevScrollY = lastScrollYRef.current;
+          const scrollDelta = currentScrollY - prevScrollY;
+
+          if (currentScrollY < 60) {
+            setIsVisible(true);
+          } else if (scrollDelta > scrollThreshold && currentScrollY > 100) {
+            setIsVisible(false);
+          } else if (scrollDelta < -scrollThreshold) {
+            setIsVisible(true);
+          }
+
+          lastScrollYRef.current = currentScrollY;
+          ticking = false;
+        });
+
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

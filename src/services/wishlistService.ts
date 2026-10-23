@@ -1,6 +1,11 @@
 import { FoodItem } from '../types';
 import { supabase } from '../supabase';
 
+// In-memory wishlist cache and deduplication map
+const userWishlistMemoryCache = new Map<string, { ids: Set<string>; timestamp: number }>();
+const userWishlistInFlight = new Map<string, Promise<Set<string>>>();
+const WISHLIST_CACHE_TTL = 90 * 1000; // 90 seconds fresh
+
 export const toggleWishlist = async (userId: string | null | undefined, item: FoodItem) => {
   if (!userId) {
     // Guest Wishlist (Local Storage)
@@ -55,6 +60,12 @@ export const toggleWishlist = async (userId: string | null | undefined, item: Fo
         throw new Error(`Remove from Supabase failed: ${deleteError.message}`);
       }
 
+      // Update in-memory cache
+      const mem = userWishlistMemoryCache.get(effectiveUserId);
+      if (mem) {
+        mem.ids.delete(item.id);
+      }
+
       // Update Local Cache
       try {
         const cached = localStorage.getItem(cacheKey);
@@ -86,6 +97,12 @@ export const toggleWishlist = async (userId: string | null | undefined, item: Fo
         if (insertError.code === '23505') return true;
         console.error('Supabase insert error:', insertError);
         throw new Error(`Add to Supabase failed: ${insertError.message}`);
+      }
+
+      // Update in-memory cache
+      const mem = userWishlistMemoryCache.get(effectiveUserId);
+      if (mem) {
+        mem.ids.add(item.id);
       }
 
       // Update Local Cache
@@ -124,15 +141,66 @@ export const checkIfWishlisted = async (userId: string | null | undefined, itemI
     }
   }
 
+  // 1. Instant check in memory cache (0ms)
+  const cachedEntry = userWishlistMemoryCache.get(userId);
+  if (cachedEntry && (Date.now() - cachedEntry.timestamp < WISHLIST_CACHE_TTL)) {
+    return cachedEntry.ids.has(itemId);
+  }
+
+  // 2. Check individual document cache in localStorage (0ms)
   try {
-    const { data, error } = await supabase
-      .from('wishlist')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('product_id', itemId)
-      .maybeSingle();
-    
-    return !error && !!data;
+    if (localStorage.getItem(`wishlist_doc_${userId}_${itemId}`)) {
+      return true;
+    }
+  } catch {}
+
+  // 3. Check bulk localStorage cache (0ms)
+  try {
+    const cachedList = localStorage.getItem(`wishlist_cache_${userId}`);
+    if (cachedList) {
+      const parsed = JSON.parse(cachedList);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const idSet = new Set<string>();
+        parsed.forEach((p: any) => {
+          if (p?.id) idSet.add(p.id);
+          else if (p?.product_id) idSet.add(p.product_id);
+        });
+        userWishlistMemoryCache.set(userId, { ids: idSet, timestamp: Date.now() });
+        return idSet.has(itemId);
+      }
+    }
+  } catch {}
+
+  // 4. Batch in-flight query: if multiple cards mount together, execute only 1 network query
+  try {
+    let inFlight = userWishlistInFlight.get(userId);
+    if (!inFlight) {
+      inFlight = (async () => {
+        try {
+          const { data, error } = await supabase
+            .from('wishlist')
+            .select('product_id')
+            .eq('user_id', userId);
+          const idSet = new Set<string>();
+          if (!error && Array.isArray(data)) {
+            data.forEach((row: any) => {
+              if (row?.product_id) idSet.add(row.product_id);
+            });
+          }
+          userWishlistMemoryCache.set(userId, { ids: idSet, timestamp: Date.now() });
+          return idSet;
+        } catch (err) {
+          console.warn('Error fetching bulk wishlist:', err);
+          return new Set<string>();
+        } finally {
+          userWishlistInFlight.delete(userId);
+        }
+      })();
+      userWishlistInFlight.set(userId, inFlight);
+    }
+
+    const idSet = await inFlight;
+    return idSet.has(itemId);
   } catch (error: any) {
     console.warn('Error checking wishlist status:', error);
     return false;
@@ -165,6 +233,13 @@ export const getUserWishlist = async (userId: string | null | undefined) => {
 
     if (data) {
       const items = data.map(d => d.item_details).filter(Boolean);
+      const idSet = new Set<string>();
+      data.forEach(d => {
+        if (d?.product_id) idSet.add(d.product_id);
+        else if (d?.item_details?.id) idSet.add(d.item_details.id);
+      });
+      userWishlistMemoryCache.set(userId, { ids: idSet, timestamp: Date.now() });
+
       try {
         localStorage.setItem(cacheKey, JSON.stringify(items));
       } catch (e) {}

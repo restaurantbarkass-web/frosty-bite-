@@ -95,6 +95,15 @@ export default defineConfig(({ mode }) => {
               if (id.includes('gsap') || id.includes('motion')) {
                 return 'vendor-animation';
               }
+              if (id.includes('@dicebear')) {
+                return 'vendor-dicebear';
+              }
+              if (id.includes('html-to-image')) {
+                return 'vendor-html-to-image';
+              }
+              if (id.includes('date-fns')) {
+                return 'vendor-date-fns';
+              }
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }

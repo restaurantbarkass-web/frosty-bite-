@@ -94,6 +94,7 @@ export const HomeCollections: React.FC<HomeCollectionsProps> = ({ onSelectCollec
                 alt={c.title.replace('\n', ' ')}
                 className="w-full h-full object-cover rounded-full drop-shadow-md"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           </motion.div>

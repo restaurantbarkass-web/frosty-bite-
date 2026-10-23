@@ -40,7 +40,7 @@ import { useMenu } from './context/MenuContext';
 import { requestForToken, subscribeToMessages } from './utils/messaging';
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
-import Home from './pages/HomePage';
+const Home = lazyWithRetry(() => import('./pages/HomePage'));
 
 const CategoriesPage = lazyWithRetry(() => import('./pages/CategoriesPage'));
 const Offers = lazyWithRetry(() => import('./pages/Offers'));
