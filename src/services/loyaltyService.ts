@@ -148,24 +148,67 @@ export const loyaltyService = {
   async getPrizes(): Promise<LoyaltyPrize[]> {
     try {
       const { data, error } = await supabase.from('reward_prizes').select('*');
-      if (error || !data || data.length === 0) return DEFAULT_PRIZES;
-      return data.map((p: any) => ({
-        id: p.id,
+      if (!error && data && data.length > 0) {
+        return data.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          rewardType: p.reward_type,
+          productId: p.product_id,
+          rewardValue: p.reward_value,
+          stockQuantity: p.stock_quantity,
+          active: p.active,
+          validityDays: p.validity_days,
+          redemptionRules: p.redemption_rules,
+          minimumOrderAmount: p.minimum_order_amount || 0,
+          redemptionType: p.redemption_type || (p.minimum_order_amount > 0 ? 'min_purchase' : 'free_claim'),
+          probability: p.probability ?? 20
+        }));
+      }
+
+      // If empty in DB, attempt auto-seed so default items acquire genuine UUIDs
+      const seedPayloads = DEFAULT_PRIZES.map(p => ({
         name: p.name,
         description: p.description,
-        rewardType: p.reward_type,
-        productId: p.product_id,
-        rewardValue: p.reward_value,
-        stockQuantity: p.stock_quantity,
+        reward_type: p.rewardType,
+        reward_value: p.rewardValue,
+        stock_quantity: p.stockQuantity,
         active: p.active,
-        validityDays: p.validity_days,
-        redemptionRules: p.redemption_rules,
-        minimumOrderAmount: p.minimum_order_amount || 0,
-        redemptionType: p.redemption_type || (p.minimum_order_amount > 0 ? 'min_purchase' : 'free_claim'),
-        probability: p.probability ?? 20
+        validity_days: p.validityDays,
+        redemption_rules: p.redemptionRules,
+        minimum_order_amount: p.minimumOrderAmount,
+        redemption_type: p.redemptionType,
+        probability: p.probability
       }));
+
+      const { data: inserted, error: seedError } = await supabase
+        .from('reward_prizes')
+        .insert(seedPayloads)
+        .select();
+
+      if (!seedError && inserted && inserted.length > 0) {
+        return inserted.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          rewardType: p.reward_type,
+          productId: p.product_id,
+          rewardValue: p.reward_value,
+          stockQuantity: p.stock_quantity,
+          active: p.active,
+          validityDays: p.validity_days,
+          redemptionRules: p.redemption_rules,
+          minimumOrderAmount: p.minimum_order_amount || 0,
+          redemptionType: p.redemption_type || (p.minimum_order_amount > 0 ? 'min_purchase' : 'free_claim'),
+          probability: p.probability ?? 20
+        }));
+      }
+
+      const deletedSampleIds = JSON.parse(localStorage.getItem('fb_deleted_sample_prizes') || '[]');
+      return DEFAULT_PRIZES.filter(p => !deletedSampleIds.includes(p.id));
     } catch {
-      return DEFAULT_PRIZES;
+      const deletedSampleIds = JSON.parse(localStorage.getItem('fb_deleted_sample_prizes') || '[]');
+      return DEFAULT_PRIZES.filter(p => !deletedSampleIds.includes(p.id));
     }
   },
 
@@ -185,7 +228,8 @@ export const loyaltyService = {
       probability: prize.probability ?? 20,
       updated_at: new Date().toISOString()
     };
-    if (prize.id && !prize.id.startsWith('new_') && !prize.id.startsWith('prize_')) {
+    const isUuid = prize.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(prize.id);
+    if (isUuid && !prize.id?.startsWith('new_') && !prize.id?.startsWith('prize_')) {
       const { error } = await supabase.from('reward_prizes').update(payload).eq('id', prize.id);
       if (error) throw error;
     } else {
@@ -195,6 +239,55 @@ export const loyaltyService = {
   },
 
   async deletePrize(id: string) {
+    if (!id || id.startsWith('prize_') || id.startsWith('new_')) {
+      // Non-database local sample item: persist deletion locally so it disappears immediately
+      const deletedSampleIds = JSON.parse(localStorage.getItem('fb_deleted_sample_prizes') || '[]');
+      if (!deletedSampleIds.includes(id)) {
+        deletedSampleIds.push(id);
+        localStorage.setItem('fb_deleted_sample_prizes', JSON.stringify(deletedSampleIds));
+      }
+      return;
+    }
+
+    // 1. Validate UUID syntax
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isUuid) {
+      throw new Error(`Invalid gift ID syntax: "${id}" is not a valid database UUID.`);
+    }
+
+    // 2. Call backend admin endpoint for deletion with pre-existence verification
+    try {
+      const res = await fetch(`/api/loyalty/admin/prizes/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.error) {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      // Fallback to direct Supabase client if API server is unreachable
+      if (err?.message && !err.message.includes('Failed to fetch')) {
+        throw err;
+      }
+    }
+
+    // 3. Fallback direct database deletion with existence confirmation
+    const { data: existing, error: checkErr } = await supabase
+      .from('reward_prizes')
+      .select('id, name')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (checkErr) throw checkErr;
+    if (!existing) {
+      // Gift does not exist or was already removed
+      return;
+    }
+
     const { error } = await supabase.from('reward_prizes').delete().eq('id', id);
     if (error) throw error;
   },
@@ -287,7 +380,9 @@ export const loyaltyService = {
 
       return {
         status: existingStamp ? 'already_collected' : 'valid',
-        message: existingStamp ? 'This sweet moment is already stamped! 💗' : 'Yay! Your stamp has been collected!',
+        message: existingStamp 
+          ? 'This sweet moment is already stamped! 💗' 
+          : (stampAwarded ? 'Yay! Your new cupcake stamp has been collected! 🧁' : 'Welcome to your Frosty Bite Passport!'),
         order,
         stampAwarded,
         stampsCollected: Math.min(collected, required),
@@ -299,9 +394,9 @@ export const loyaltyService = {
     } catch {
       return {
         status: 'valid',
-        message: 'Yay! Your stamp has been collected!',
-        stampAwarded: true,
-        stampsCollected: 3,
+        message: 'Welcome to your Frosty Bite Passport!',
+        stampAwarded: false,
+        stampsCollected: 0,
         stampsRequired: 5,
         mysteryBoxUnlocked: false
       };

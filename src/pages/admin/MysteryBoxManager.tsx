@@ -1358,11 +1358,22 @@ Sweet wishes,
                   </label>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl">
+                <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-5 border-t border-stone-200">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    fullWidth={false}
+                    onClick={() => setIsModalOpen(false)} 
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-2xl border-stone-300 text-stone-700 hover:bg-stone-100 hover:text-stone-900 font-bold text-xs uppercase tracking-wider cursor-pointer"
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary" className="bg-[#E76A54] text-white rounded-xl">
+                  <Button 
+                    type="submit" 
+                    variant="primary" 
+                    fullWidth={false}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-[#E76A54] hover:bg-[#d55b45] text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-[#E76A54]/25 transition-all cursor-pointer"
+                  >
                     Save Gift
                   </Button>
                 </div>
@@ -1464,7 +1475,8 @@ Sweet wishes,
                 <Button
                   onClick={() => setGeneratedLinkData(null)}
                   variant="outline"
-                  className="w-full sm:w-auto py-3.5 rounded-2xl text-xs uppercase tracking-wider cursor-pointer"
+                  fullWidth={false}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl border-stone-300 text-stone-700 hover:bg-stone-100 hover:text-stone-900 font-bold text-xs uppercase tracking-wider cursor-pointer"
                 >
                   Done
                 </Button>
@@ -1536,7 +1548,7 @@ Sweet wishes,
               <Button
                 onClick={() => setTimelineReward(null)}
                 variant="outline"
-                className="w-full py-3 rounded-2xl text-xs uppercase tracking-wider cursor-pointer"
+                className="w-full py-3.5 rounded-2xl border-stone-300 text-stone-700 hover:bg-stone-100 hover:text-stone-900 font-bold text-xs uppercase tracking-wider cursor-pointer"
               >
                 Close Audit Log
               </Button>
@@ -1575,14 +1587,20 @@ Sweet wishes,
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setRevokingReward(null)} className="rounded-xl text-xs">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-stone-100">
+                <Button 
+                  variant="outline" 
+                  fullWidth={false}
+                  onClick={() => setRevokingReward(null)} 
+                  className="w-auto px-5 py-2.5 rounded-xl border-stone-300 text-stone-700 hover:bg-stone-100 hover:text-stone-900 font-bold text-xs cursor-pointer"
+                >
                   Cancel
                 </Button>
                 <Button 
                   variant="primary" 
+                  fullWidth={false}
                   onClick={handleRevokeLink}
-                  className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs uppercase tracking-wider"
+                  className="w-auto px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md shadow-rose-600/20 cursor-pointer"
                 >
                   Confirm Revocation
                 </Button>

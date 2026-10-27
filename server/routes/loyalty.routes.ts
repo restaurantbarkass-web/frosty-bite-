@@ -170,7 +170,9 @@ loyaltyRouter.post('/validate-token', async (req: Request, res: Response) => {
 
     return res.json({
       status: existingStamp ? 'already_collected' : 'valid',
-      message: existingStamp ? 'This stamp was already collected! 💗' : 'Yay! Your stamp has been collected!',
+      message: existingStamp 
+        ? 'This stamp was already collected! 💗' 
+        : (stampAwarded ? 'Yay! Your new cupcake stamp has been collected! 🧁' : 'Welcome to your Frosty Bite Loyalty Passport!'),
       stampAwarded,
       stampsCollected: Math.min(count, required),
       stampsRequired: required,
@@ -831,5 +833,78 @@ loyaltyRouter.post('/in-store-redeem', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     return res.status(500).json({ error: 'Failed to verify in-store code' });
+  }
+});
+
+/**
+ * DELETE /admin/prizes/:id
+ * Admin endpoint to delete a prize from the catalog.
+ * Validates UUID format and confirms the prize exists before database deletion.
+ */
+loyaltyRouter.delete('/admin/prizes/:id', async (req: Request, res: Response) => {
+  try {
+    const prizeId = String(req.params.id || '').trim();
+
+    if (!prizeId) {
+      return res.status(400).json({ error: 'Prize ID is required.' });
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(prizeId)) {
+      return res.status(400).json({
+        error: `Invalid prize ID syntax: "${prizeId}" is not a valid UUID.`
+      });
+    }
+
+    const sb = await getSupabase();
+    if (!sb) return res.status(503).json({ error: 'Database service unavailable' });
+
+    // 1. Confirm the gift exists before triggering delete
+    const { data: existingPrize, error: fetchErr } = await sb
+      .from('reward_prizes')
+      .select('id, name')
+      .eq('id', prizeId)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.error('[Loyalty API] Error confirming prize existence:', fetchErr);
+      return res.status(500).json({ error: 'Failed to verify gift existence.' });
+    }
+
+    if (!existingPrize) {
+      return res.status(404).json({ error: 'Gift not found or already removed from database.' });
+    }
+
+    // 2. Check if the gift has active/awarded customer rewards linked to it
+    const { count: awardedCount, error: countErr } = await sb
+      .from('scratch_rewards')
+      .select('*', { count: 'exact', head: true })
+      .eq('prize_id', prizeId);
+
+    if (!countErr && awardedCount && awardedCount > 0) {
+      return res.status(400).json({
+        error: `Cannot delete "${existingPrize.name}" because it has been awarded ${awardedCount} time(s). Please deactivate it instead.`
+      });
+    }
+
+    // 3. Confirm and execute delete operation
+    const { error: deleteErr } = await sb
+      .from('reward_prizes')
+      .delete()
+      .eq('id', prizeId);
+
+    if (deleteErr) {
+      console.error('[Loyalty API] Error deleting prize:', deleteErr);
+      return res.status(500).json({ error: deleteErr.message || 'Failed to delete gift' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Gift "${existingPrize.name}" deleted successfully`
+    });
+  } catch (err: any) {
+    console.error('[Loyalty API] delete prize error:', err);
+    return res.status(500).json({ error: 'Internal server error while deleting gift' });
   }
 });

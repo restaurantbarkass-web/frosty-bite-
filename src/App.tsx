@@ -267,11 +267,12 @@ function AppContent() {
   const isUPICheckoutPage = location.pathname.startsWith('/upi-checkout');
   const isCheckoutPage = location.pathname === '/checkout';
   const isFeedbackPage = location.pathname.startsWith('/feedback');
+  const isLoyaltyPage = location.pathname.startsWith('/loyalty') || location.pathname.startsWith('/claim-reward');
   
   const isHomePage = location.pathname === '/' || location.pathname === '/index.html' || location.pathname === '/categories';
-  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage && !isFeedbackPage;
-  const showNavbar = !isHomePage && !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage && !isFeedbackPage && !isCampaignPage;
-  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage || isFeedbackPage;
+  const showCartSidebar = !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isCheckoutPage && !isFeedbackPage && !isLoyaltyPage;
+  const showNavbar = !isHomePage && !isAdminPage && !isAuthPage && !isUPICheckoutPage && !isProductPage && !isFeedbackPage && !isCampaignPage && !isLoyaltyPage;
+  const hideNavFooter = isAdminPage || isProductPage || isSearching || isAuthPage || isUPICheckoutPage || isCheckoutPage || isFeedbackPage || isLoyaltyPage;
 
   const { bootState } = useBoot();
 
