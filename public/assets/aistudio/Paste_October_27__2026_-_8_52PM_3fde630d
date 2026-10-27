@@ -1,0 +1,1219 @@
+# MASTER DEVELOPMENT PROMPT
+
+## Frosty Bite Bakery — Digital Loyalty Stamps, Animated Rewards, WhatsApp Order Links & Mystery Gift System
+
+Act as a senior full-stack engineer, UI/UX designer, motion designer, database architect, and security engineer.
+
+Your task is to integrate a complete, production-ready Digital Loyalty & Mystery Box Rewards System into my EXISTING Frosty Bite Bakery web application.
+
+This is an extension of an existing production project, NOT a request to create a separate demo website.
+
+The result must be a beautiful, premium, responsive, mobile-first experience that works on desktop browsers and Android devices.
+
+The application must have real database integration, secure backend logic, working admin controls, actual order integration, unique loyalty links, and functioning reward management.
+
+Do not deliver only a design prototype.
+
+Do not replace existing application functionality with mock data.
+
+Do not create fake buttons or simulated backend operations.
+
+==================================================
+
+1. EXISTING PROJECT REQUIREMENTS
+   ==================================================
+
+First inspect the entire existing project.
+
+Identify and understand:
+
+* React, TypeScript, and Vite configuration.
+* Existing routing system.
+* Existing Supabase project configuration.
+* Existing authentication and guest-account handling.
+* Existing customer profile page.
+* Existing admin dashboard.
+* Existing order management system.
+* Existing order status transitions.
+* Existing customer database schema.
+* Existing product and bakery catalog.
+* Existing notification infrastructure.
+* Existing Vercel deployment configuration.
+* Existing design system, fonts, icons, and reusable components.
+* Existing Android WebView or Android application integration, if present.
+
+The application already belongs to Frosty Bite Bakery.
+
+Preserve its existing branding, application structure, database, routes, authentication, order processing, and business logic.
+
+Do not create a second Supabase project.
+
+Do not introduce a second authentication system.
+
+Do not replace the existing order management system.
+
+Do not break guest checkout or existing customer accounts.
+
+Do not modify unrelated pages.
+
+Reuse existing components and database tables whenever appropriate.
+
+If a required database table already exists, inspect it before changing anything.
+
+Create only the missing functionality.
+
+Before making changes, produce a brief internal implementation plan, then implement and verify the complete feature.
+
+==================================================
+2. CORE CUSTOMER EXPERIENCE
+===========================
+
+The complete loyalty journey must be:
+
+1. Customer places an order.
+2. Backend generates a unique loyalty link for that order.
+3. Admin opens the order in the admin dashboard.
+4. Admin clicks the WhatsApp button.
+5. A professionally written message is automatically prepared.
+6. WhatsApp opens with the customer's number and prefilled message.
+7. Admin manually presses Send in WhatsApp.
+8. Customer opens the unique loyalty link.
+9. The loyalty card opens directly.
+10. The backend securely validates the order and loyalty eligibility.
+11. The eligible stamp receives a beautiful animated tick mark.
+12. The customer's loyalty progress is updated.
+13. When the required number of stamps is collected, a mystery box unlocks.
+14. Customer opens the mystery box.
+15. The gift inside is revealed through a scratch-card interaction.
+16. The reward is saved in the customer's reward wallet.
+17. The customer can redeem the reward under its configured conditions.
+
+The key interaction is:
+
+OPEN UNIQUE LINK → BEAUTIFUL ANIMATED TICK ON STAMP → UPDATED LOYALTY CARD.
+
+Do not introduce a separate Collect Stamp or Claim Stamp button.
+
+Do not require customers to write a review to earn a stamp.
+
+Do not require a positive rating or a public review for rewards.
+
+The loyalty stamp is associated with a qualifying purchase, not with the sentiment of a review.
+
+==================================================
+3. UNIQUE LOYALTY LINK FOR EVERY ORDER
+======================================
+
+Every eligible order must have a unique, secure loyalty link.
+
+Example route:
+
+/loyalty/{secure-random-token}
+
+Use the application's existing production domain.
+
+Do not hardcode a different domain if a configured production URL already exists.
+
+Each token must be generated using a cryptographically secure random generator on the backend.
+
+Requirements:
+
+* Generate a unique token for each order.
+* Associate the token with the correct order.
+* Associate the order with the correct customer where possible.
+* Store a hash of the token when practical.
+* Never expose sequential database IDs as authentication credentials.
+* Never expose Supabase service-role keys.
+* Do not put private customer information in the URL.
+* Do not put the reward outcome or prize value in the URL.
+* Support token expiration and revocation.
+* Allow administrators to regenerate or revoke a link when necessary.
+* Avoid generating a new token every time the admin opens an order.
+* Do not create duplicate loyalty records for the same order.
+* Preserve the original token unless an authorized regeneration is requested.
+
+Create a beautiful dedicated loyalty page.
+
+When the customer opens the link:
+
+1. Display a short elegant loading animation.
+2. Validate the token with the backend.
+3. Verify that the order exists and qualifies.
+4. Verify whether its stamp has already been awarded.
+5. If the stamp has not been awarded, award it atomically.
+6. If the stamp has already been awarded, return its existing status.
+7. Display the correct loyalty card and stamp animation.
+8. Update the customer's progress.
+9. Display the mystery box when the required number of stamps is reached.
+
+IMPORTANT SECURITY REQUIREMENT:
+
+Opening a URL with a GET request must not itself perform a stamp-awarding database mutation.
+
+WhatsApp previews, antivirus scanners, and link-preview services can automatically visit URLs.
+
+Instead:
+
+* The page-load request validates and reads the token.
+* The page then initiates stamp redemption through an explicit same-page interaction.
+* This interaction is automatic and requires no extra button from the customer.
+* The backend verifies the token and eligibility.
+* Use appropriate anti-CSRF and abuse protections.
+* Use database constraints and transactions to ensure the stamp is awarded only once.
+
+This is not a visible claim step.
+
+The customer experience remains:
+
+Open link → automatic validation → animated tick.
+
+If the customer has already received the stamp, do not award another one.
+
+Show a friendly message such as:
+
+"Your sweet moment is already saved! 💗"
+
+The page must distinguish between:
+
+* Stamp successfully collected.
+* Stamp already collected.
+* Order not yet eligible.
+* Invalid link.
+* Expired link.
+* Revoked link.
+* Temporary network failure.
+
+Never display a success animation when the backend has rejected the request.
+
+==================================================
+4. BEAUTIFUL ANIMATED LOYALTY CARD
+==================================
+
+Design a premium bakery-themed loyalty card.
+
+The design must feel like a combination of a luxury dessert brand, a cute collectible card, and a modern mobile rewards application.
+
+DESIGN DIRECTION:
+
+* Warm cream background.
+* Soft blush pink accents.
+* Elegant chocolate-brown text.
+* Subtle champagne-gold details.
+* Soft shadows and depth.
+* Rounded corners.
+* Refined typography.
+* Small decorative stars.
+* Delicate bakery illustrations.
+* Premium spacing.
+* Smooth transitions.
+* Beautiful micro-interactions.
+
+Avoid a childish, cluttered, overly saturated interface.
+
+Avoid excessive gradients.
+
+The result must feel premium, adorable, professional, and trustworthy.
+
+Suggested design tokens:
+
+Background: #FFF9F5
+Primary pink: #F3A6B8
+Deep pink: #D96C8B
+Chocolate: #4A2E2A
+Gold: #D8B56D
+White: #FFFFFF
+
+Treat these as starting points and adapt them to the existing Frosty Bite branding.
+
+HEADER:
+
+Display:
+
+FROSTY BITE BAKERY
+
+Subtitle:
+
+"A little sweetness, a little surprise."
+
+Add a beautiful cupcake or cake illustration.
+
+LOYALTY CARD:
+
+Display the configured number of stamp slots.
+
+The admin must be able to configure the required number of stamps.
+
+Each slot should be visually appealing.
+
+Uncollected stamps should look subtle and slightly faded.
+
+Collected stamps should show a cute bakery icon.
+
+Use CSS, SVG, or an existing animation library to produce high-quality animations.
+
+Do not depend on external image URLs that may break in production.
+
+==================================================
+5. SIGNATURE STAMP ANIMATION
+============================
+
+This is the most important animation in the application.
+
+When a new eligible stamp is successfully awarded by the backend, animate the corresponding stamp slot.
+
+ANIMATION SEQUENCE:
+
+PHASE 1 — PAGE ARRIVAL
+
+* Fade the loyalty card into view.
+* Slightly scale the card from 96% to 100%.
+* Use a gentle spring-like transition.
+* Reveal the stamp slots in sequence.
+
+PHASE 2 — ACTIVE STAMP HIGHLIGHT
+
+* Highlight the newly earned stamp slot.
+* Add a soft warm glow.
+* Create a subtle circular ripple behind the slot.
+* Slightly enlarge the slot.
+
+PHASE 3 — STAMP DROP
+
+* A small bakery-themed stamp icon drops from above.
+* Use a smooth ease-in animation.
+* Add a very subtle rotation.
+* The stamp settles naturally into the correct slot.
+
+PHASE 4 — TICK MARK REVEAL
+
+* Draw or animate a beautiful checkmark.
+* The tick should appear as if it is being drawn.
+* Use SVG stroke-dasharray and stroke-dashoffset or a suitable animation technique.
+* Add a small bounce when the tick completes.
+* Show a subtle gold sparkle.
+
+PHASE 5 — PROGRESS UPDATE
+
+Animate the progress counter.
+
+Example:
+
+Before: 2 / 5 STAMPS
+
+After: 3 / 5 STAMPS
+
+The number should smoothly count up.
+
+PHASE 6 — CELEBRATION
+
+Display a subtle message:
+
+"Yay! Another sweet moment collected! 🍰"
+
+Add a few delicate sparkles or small confetti particles.
+
+Keep the celebration short, elegant, and lightweight.
+
+Do not make the animation interfere with navigation.
+
+Do not replay the new-stamp animation every time the customer refreshes the page.
+
+Persist the stamp state in the database.
+
+Use a unique stamp-event identifier and an idempotent animation trigger.
+
+If the customer opens an already-redeemed link, display the completed stamp immediately with a gentle entrance animation instead of replaying the entire stamp-drop sequence.
+
+Respect the device's reduced-motion setting.
+
+The application must remain responsive on low-end Android phones.
+
+==================================================
+6. LOYALTY PROGRESS AND MYSTERY BOX UNLOCK
+==========================================
+
+The number of stamps required must be configurable by the administrator.
+
+Example configuration:
+
+Required stamps: 5
+
+Progress states:
+
+0/5 — Just getting started.
+1/5 — Your sweet journey begins.
+2/5 — Two sweet moments collected.
+3/5 — Your surprise is getting closer.
+4/5 — Just one more stamp!
+5/5 — Your mystery box is unlocked!
+
+Do not hardcode the number five in the business logic.
+
+Use the value stored in the database.
+
+When the final required stamp is successfully awarded:
+
+* Finish the stamp animation.
+* Highlight the completed loyalty card.
+* Animate all collected stamps very subtly.
+* Display a premium celebration.
+* Reveal a previously locked mystery box.
+* Add a glow around the box.
+* Show the message:
+
+"YOU DID IT! 🎉"
+
+"Your loyalty card is complete."
+
+"Your mystery gift is waiting for you."
+
+Show a button:
+
+"OPEN MY MYSTERY BOX 🎁"
+
+The mystery box must only become available when the backend confirms that the customer has earned it.
+
+Do not trust a frontend counter to unlock rewards.
+
+The backend must enforce the stamp threshold.
+
+Support repeated loyalty cycles if the administrator enables them.
+
+If repeated cycles are disabled, do not issue additional boxes after the configured maximum.
+
+==================================================
+7. BEAUTIFUL MYSTERY BOX OPENING
+================================
+
+Build a dedicated mystery box interaction.
+
+The box must feel premium, magical, and delightful.
+
+VISUAL DESIGN:
+
+* A beautiful pastel pink gift box.
+* Elegant champagne-gold ribbon.
+* A soft floating animation.
+* Tiny sparkles around the box.
+* A subtle glow beneath it.
+* A soft shadow.
+* A delicate decorative background.
+* Responsive sizing for mobile screens.
+
+Use CSS transforms, SVG, or lightweight animation tools.
+
+Do not require a large video or heavy 3D library.
+
+ANIMATION SEQUENCE:
+
+1. The box floats gently.
+2. The ribbon shimmers.
+3. The box performs a tiny anticipation shake.
+4. The customer taps "Open My Mystery Box".
+5. The lid rotates open.
+6. A warm glow emerges from inside.
+7. Sparkles float upward.
+8. The inner reward card rises from the box.
+9. The box-opening animation finishes.
+10. The scratch-card interface appears.
+
+The prize must already have been assigned securely by the backend before the animation starts.
+
+Do not choose a prize in frontend JavaScript.
+
+Do not allow repeated clicks to generate additional prizes.
+
+Persist the box's opening state.
+
+If the customer refreshes after opening the box, restore the correct state.
+
+If the box has already been opened, display the existing assigned reward rather than generating a new one.
+
+==================================================
+8. INTERACTIVE SCRATCH-TO-REVEAL REWARD
+=======================================
+
+After the mystery box opens, display a premium digital scratch card.
+
+The card should look like a small luxury bakery gift voucher covered with a metallic gold scratch layer.
+
+CARD DESIGN:
+
+* Cream-colored reward card.
+* Gold foil overlay.
+* Subtle embossed effect.
+* Rounded corners.
+* Elegant typography.
+* Small bakery-themed decorations.
+* A clear instruction:
+
+"SCRATCH TO REVEAL YOUR SWEET SURPRISE"
+
+Underneath, show:
+
+"Use your finger to scratch the golden surface."
+
+IMPLEMENTATION:
+
+Use HTML Canvas or an appropriate lightweight library.
+
+Support:
+
+* Touch events.
+* Pointer events.
+* Mouse interaction.
+* Smooth scratching.
+* Correct device-pixel-ratio scaling.
+* Responsive canvas dimensions.
+* Proper cleanup of event listeners.
+* Reasonable memory usage on mobile devices.
+
+The scratch layer should be visually realistic but performant.
+
+When the scratched area exceeds a configurable threshold, such as 55%:
+
+* Automatically finish removing the remaining overlay.
+* Reveal the prize.
+* Play a subtle celebration.
+* Show the reward title and description.
+* Add a small confetti animation.
+* Display the redemption instructions.
+* Save the revealed status.
+
+The threshold must be configurable.
+
+Do not trigger multiple reveal operations.
+
+The prize must be determined by the backend, not by the scratch percentage.
+
+The scratch interaction only reveals an already-assigned prize.
+
+The reward should remain available after refresh.
+
+Support a graceful fallback for devices that do not support the required canvas interactions.
+
+==================================================
+9. ADMIN REWARD MANAGEMENT
+==========================
+
+Add a new section to the existing admin dashboard:
+
+"LOYALTY & REWARDS"
+
+Use the existing admin authorization system.
+
+Do not create a second admin authentication mechanism.
+
+The following settings must be editable.
+
+LOYALTY CONFIGURATION:
+
+* Enable or disable the loyalty program.
+* Configure stamps required per reward cycle.
+* Configure eligible order statuses.
+* Configure minimum order amount, if desired.
+* Configure eligible fulfillment types.
+* Configure whether repeat reward cycles are permitted.
+* Configure link expiry.
+* Configure stamp-card expiry, if desired.
+* Configure reward expiry.
+* Configure the scratch threshold.
+* Configure whether all mystery boxes must contain a reward.
+
+PRIZE MANAGEMENT:
+
+Allow authorized admins to:
+
+* Add prizes.
+* Edit prizes.
+* Activate or pause prizes.
+* Configure prize type.
+* Configure prize name.
+* Configure prize description.
+* Configure stock quantity.
+* Configure reward value.
+* Configure redemption rules.
+* Configure minimum purchase requirements.
+* Configure expiry duration.
+* View remaining inventory.
+* View assigned prizes.
+* View redeemed prizes.
+* View expired prizes.
+
+Example prize types:
+
+1. Free cupcake.
+2. Free cookie.
+3. Free dessert.
+4. Fixed-value discount.
+5. Percentage discount.
+6. Admin-defined product reward.
+
+Do not hardcode the prize list.
+
+Do not invent product IDs.
+
+When a prize refers to a product, validate the product against the existing bakery product catalog.
+
+Every eligible mystery box should receive a reward if the administrator enables the guaranteed-reward setting.
+
+If stock is exhausted, follow the configured fallback rules.
+
+Never silently assign an unavailable reward.
+
+==================================================
+10. WHATSAPP MESSAGE GENERATOR
+==============================
+
+Integrate the feature into the existing order management screen.
+
+Every eligible order should have a unique loyalty link.
+
+In the order details, show:
+
+* Order number.
+* Customer name.
+* Customer WhatsApp number.
+* Loyalty link.
+* WhatsApp message status.
+* Stamp eligibility.
+* Stamp status.
+
+Add buttons:
+
+"PREVIEW MESSAGE"
+
+"SEND VIA WHATSAPP"
+
+The first button opens a preview of the automatically generated message.
+
+The second button opens the customer's WhatsApp chat with a prefilled message.
+
+Use the customer's verified or configured contact number from the existing order records.
+
+Normalize phone numbers carefully.
+
+Because the bakery operates in India, support valid Indian mobile numbers and the appropriate international dialing format.
+
+Do not append a country code twice.
+
+Do not invent phone numbers.
+
+Example message:
+
+🍰 *Thank You for Choosing Frosty Bite Bakery!* 💗
+
+Hello {{customer_name}}!
+
+We hope you're enjoying your Frosty Bite Bakery experience! 🧁
+
+Your sweet journey starts here.
+
+🎟️ Open your personal loyalty card to collect your stamp for this eligible order and get closer to unlocking a special mystery gift.
+
+✨ *Your Personal Loyalty Link:*
+{{unique_loyalty_link}}
+
+Every sweet moment counts! 🎁
+
+Thank you for being part of our bakery family.
+
+With love,
+*Team Frosty Bite Bakery* 🍰
+
+Replace all placeholders dynamically.
+
+Generate a correctly URL-encoded WhatsApp click-to-chat link.
+
+The browser should open WhatsApp or WhatsApp Web, depending on the device.
+
+IMPORTANT:
+
+This workflow is semi-automatic.
+
+The system automatically generates the message and opens WhatsApp.
+
+The admin must manually press Send in WhatsApp.
+
+Do not claim that the message was actually sent merely because the WhatsApp URL was opened.
+
+Track distinct states where practical:
+
+* Not prepared.
+* Prepared.
+* WhatsApp opened.
+* Confirmed sent by admin.
+* Failed or cancelled.
+
+Clearly label an admin-confirmed status as an administrative confirmation, not independently verified delivery.
+
+Prevent accidental duplicate actions.
+
+If the admin reopens the same order, reuse the existing loyalty link.
+
+Do not regenerate the link simply because the message is sent again.
+
+==================================================
+11. CUSTOMER PROFILE INTEGRATION
+================================
+
+Extend the existing customer profile page.
+
+Add a premium section called:
+
+"MY SWEET REWARDS"
+
+Display:
+
+* Total stamps collected.
+* Current stamp-card progress.
+* Required stamps.
+* Completed loyalty cycles.
+* Mystery boxes unlocked.
+* Mystery boxes opened.
+* Available rewards.
+* Redeemed rewards.
+* Expired rewards.
+* Reward history.
+* Related qualifying orders.
+
+Use beautiful cards, clear progress indicators, and responsive layouts.
+
+Each reward should show:
+
+* Reward name.
+* Reward status.
+* Date earned.
+* Expiry date.
+* Redemption conditions.
+* Unique redemption code, where applicable.
+
+For an incomplete stamp card, show the customer's actual progress.
+
+For a completed card, show the mystery box.
+
+For an opened box, show the already-assigned reward.
+
+For a redeemed reward, show its redemption history.
+
+For guest customers, preserve the existing guest experience.
+
+Do not expose one customer's rewards or order information to another customer.
+
+If guest rewards are linked to a customer profile later, use a secure account-linking process.
+
+Do not rely only on an easily guessed order ID or a URL token as proof of ownership of the entire customer profile.
+
+==================================================
+12. CUSTOMER LOYALTY PAGE STATES
+================================
+
+Create polished states for every situation.
+
+A. LOADING
+
+Show the Frosty Bite Bakery logo or a lightweight bakery illustration.
+
+Display a gentle loading animation.
+
+Text:
+
+"Preparing something sweet..."
+
+B. NEW STAMP AWARDED
+
+Display the stamp-drop animation and animated tick.
+
+Text:
+
+"Yay! Your stamp has been collected!"
+
+C. ALREADY COLLECTED
+
+Show the existing completed stamp.
+
+Text:
+
+"This sweet moment is already saved! 💗"
+
+D. INVALID LINK
+
+Display a friendly error illustration.
+
+Text:
+
+"Oops! We couldn't find this loyalty card."
+
+Provide a button to return to the bakery website.
+
+E. EXPIRED LINK
+
+Text:
+
+"This loyalty link has expired."
+
+Do not award a stamp.
+
+F. ORDER NOT YET ELIGIBLE
+
+Text:
+
+"Your sweet surprise will be ready when your order qualifies."
+
+G. NETWORK FAILURE
+
+Display a retry action.
+
+Do not display a false success animation.
+
+Do not create duplicate stamps when the customer retries.
+
+H. MYSTERY BOX UNLOCKED
+
+Display the completed loyalty card and mystery box.
+
+I. REWARD ALREADY OPENED
+
+Restore the existing reward and its reveal state.
+
+Do not generate another reward.
+
+J. REWARD REDEEMED
+
+Show a beautiful completed state and the existing redemption record.
+
+==================================================
+13. DATABASE AND BACKEND ARCHITECTURE
+=====================================
+
+Use the existing Supabase PostgreSQL database.
+
+Inspect the current schema before writing migrations.
+
+Reuse existing order and customer tables.
+
+Create only the missing tables or columns.
+
+Suggested logical tables:
+
+loyalty_settings
+
+* id
+* enabled
+* stamps_required
+* eligible_order_statuses
+* minimum_order_amount
+* link_expiry_days
+* reward_expiry_days
+* repeat_cycles_enabled
+* scratch_threshold
+* guaranteed_rewards_enabled
+* created_at
+* updated_at
+
+loyalty_links
+
+* id
+* order_id
+* customer_id, nullable if supported by the existing model
+* token_hash
+* status
+* expires_at
+* created_at
+* revoked_at
+
+loyalty_stamps
+
+* id
+* customer_id
+* order_id
+* loyalty_link_id
+* cycle_id, where appropriate
+* created_at
+
+loyalty_cycles
+
+* id
+* customer_id
+* required_stamps
+* current_status
+* completed_at
+* created_at
+
+reward_prizes
+
+* id
+* name
+* description
+* reward_type
+* product_id, where applicable
+* reward_value
+* stock_quantity
+* active
+* validity_days
+* redemption_rules
+* created_at
+* updated_at
+
+scratch_rewards
+
+* id
+* customer_id
+* loyalty_cycle_id
+* prize_id
+* unique_redemption_code
+* status
+* assigned_at
+* opened_at
+* expires_at
+
+reward_redemptions
+
+* id
+* scratch_reward_id
+* customer_id
+* order_id, where applicable
+* redeemed_by_admin_id
+* redeemed_at
+
+loyalty_activity
+
+* id
+* customer_id
+* order_id
+* activity_type
+* metadata
+* created_at
+
+whatsapp_message_logs
+
+* id
+* order_id
+* loyalty_link_id
+* message_status
+* prepared_at
+* whatsapp_opened_at
+* admin_confirmed_sent_at
+* confirmed_by_admin_id
+
+These are suggested logical structures, not permission to duplicate existing tables.
+
+Adapt the schema to the actual project.
+
+Add appropriate:
+
+* Primary keys.
+* Foreign keys.
+* Unique constraints.
+* Indexes.
+* Check constraints.
+* Created and updated timestamps.
+* Row Level Security policies.
+* Appropriate delete and retention behavior.
+
+Add a unique constraint that prevents multiple stamps for the same qualifying order.
+
+Use database transactions or appropriately designed server-side functions for:
+
+* Stamp awarding.
+* Loyalty cycle completion.
+* Prize inventory reservation.
+* Reward assignment.
+* Reward redemption.
+
+Prevent concurrent requests from issuing duplicate stamps or overselling limited prize inventory.
+
+Do not expose privileged database credentials to the browser.
+
+Never trust a customer-provided customer ID, order ID, reward value, or prize ID without validating authorization and relationships on the backend.
+
+==================================================
+14. SECURITY REQUIREMENTS
+=========================
+
+Security is mandatory.
+
+Implement the following protections:
+
+1. Server-side authorization for every administrative operation.
+2. Customer-level access restrictions.
+3. Supabase Row Level Security.
+4. Secure random loyalty tokens.
+5. Token expiry and revocation.
+6. Atomic stamp awarding.
+7. Duplicate-order protection.
+8. Duplicate-reward protection.
+9. Reward inventory protection.
+10. Redemption authorization.
+11. Validation of qualifying order status.
+12. Validation of the order amount when configured.
+13. Server-side prize assignment.
+14. Rate limiting for token validation and redemption.
+15. Safe error messages.
+16. Protection against unauthorized profile access.
+17. Protection against forged customer ownership.
+18. Protection against repeated reward redemption.
+19. Appropriate audit logging.
+20. No secrets committed to source control.
+
+A public loyalty link should expose only the minimum information necessary for that specific order's loyalty experience.
+
+The token must not grant unrestricted access to the customer's account.
+
+Do not use an unauthenticated public endpoint to award arbitrary stamps.
+
+Do not allow the frontend to set a stamp count directly.
+
+Do not allow the frontend to choose its own reward.
+
+Do not allow the frontend to mark a reward as redeemed.
+
+Use the existing authorized backend and authentication patterns wherever possible.
+
+==================================================
+15. RESPONSIVE DESIGN
+=====================
+
+The entire experience must work beautifully on:
+
+* Android mobile browsers.
+* Existing Android app WebViews, if applicable.
+* iPhones.
+* Tablets.
+* Desktop browsers.
+
+MOBILE FIRST:
+
+* No horizontal overflow.
+* Comfortable touch targets.
+* Readable typography.
+* Smooth animations.
+* Correct safe-area handling.
+* Responsive scratch-card canvas.
+* Proper keyboard and focus handling.
+* No layout shifts during animation.
+* No excessively large images.
+* No unnecessary background videos.
+
+The loyalty card should fit naturally within a mobile screen.
+
+The scratch card must work with touch gestures.
+
+Do not block normal scrolling across the entire page.
+
+Limit touch-action restrictions to the scratchable canvas where needed.
+
+Support reduced motion.
+
+==================================================
+16. PERFORMANCE AND ACCESSIBILITY
+=================================
+
+The system must be lightweight.
+
+Prefer CSS and SVG animations over large animation libraries.
+
+Use lazy loading where appropriate.
+
+Avoid excessive re-renders.
+
+Avoid unnecessary network requests.
+
+Do not fetch the same loyalty information repeatedly when it is already available and valid.
+
+Use appropriate database indexes.
+
+Provide accessible labels for interactive controls.
+
+Support keyboard interaction where appropriate.
+
+Maintain adequate text contrast.
+
+Provide visible focus indicators.
+
+Respect prefers-reduced-motion.
+
+Make error states accessible.
+
+Ensure that important information is not communicated through animation alone.
+
+==================================================
+17. VISUAL QUALITY REQUIREMENTS
+===============================
+
+The finished application must not look like a generic admin template.
+
+The customer-facing experience must look like a premium bakery rewards product.
+
+Use:
+
+* Elegant page transitions.
+* Delicate card shadows.
+* Premium typography.
+* Beautiful stamp illustrations.
+* Smooth checkmark animations.
+* A refined gift box.
+* A realistic scratch-card surface.
+* Thoughtful empty states.
+* Subtle celebratory effects.
+* Consistent spacing.
+* Cohesive color tokens.
+
+Use existing project assets when suitable.
+
+If an illustration is required, create or use a local, production-safe asset.
+
+Do not depend on random remote image URLs.
+
+Avoid excessive emoji in the interface. Use them selectively for a cute bakery personality.
+
+The UI should remain professional enough for a real business.
+
+==================================================
+18. TESTING REQUIREMENTS
+========================
+
+After implementation, run the tests and checks available in the project.
+
+At minimum, verify:
+
+1. Existing application routes still work.
+2. Existing authentication still works.
+3. Existing guest checkout still works.
+4. Admin authorization remains intact.
+5. A new order can receive a unique loyalty link.
+6. Reopening an order preserves its existing link.
+7. Invalid links are rejected.
+8. Expired links are rejected.
+9. Revoked links are rejected.
+10. Opening a link awards at most one stamp.
+11. Repeated requests do not create duplicate stamps.
+12. Automated URL previews do not award stamps.
+13. A qualifying order triggers the correct animation.
+14. An already-collected stamp does not replay the new-stamp animation.
+15. Loyalty progress uses the configured stamp threshold.
+16. The mystery box unlocks only after backend verification.
+17. Opening a mystery box does not create multiple rewards.
+18. Scratch completion reveals the already-assigned prize.
+19. Refreshing the page preserves the reward.
+20. Rewards cannot be redeemed twice.
+21. Limited prize inventory cannot be oversold.
+22. WhatsApp messages use the correct customer number.
+23. WhatsApp messages contain the correct unique loyalty link.
+24. Opening WhatsApp is not falsely recorded as confirmed sending.
+25. Customers cannot access another customer's rewards.
+26. Admin-only operations reject unauthorized users.
+27. Mobile layouts do not overflow.
+28. Scratch interactions work with mouse and touch.
+29. Reduced-motion settings are respected.
+30. The production build completes successfully.
+
+Do not claim tests passed unless they were actually executed.
+
+Fix errors introduced by your changes.
+
+Do not silently ignore failed migrations or failed builds.
+
+==================================================
+19. IMPLEMENTATION WORKFLOW
+===========================
+
+Work in this order:
+
+PHASE 1 — PROJECT AUDIT
+
+Inspect the application, database integration, routing, authentication, admin dashboard, and order lifecycle.
+
+PHASE 2 — DATABASE DESIGN
+
+Create safe, minimal migrations that match the existing schema.
+
+PHASE 3 — SECURE BACKEND
+
+Implement unique link generation, validation, stamp awarding, cycle completion, prize assignment, and redemption.
+
+PHASE 4 — CUSTOMER LOYALTY PAGE
+
+Build the complete responsive loyalty card with the signature tick-mark animation.
+
+PHASE 5 — MYSTERY BOX
+
+Implement box unlocking, opening animation, persistent reward assignment, and scratch-to-reveal.
+
+PHASE 6 — WHATSAPP INTEGRATION
+
+Add the unique loyalty link and professionally generated message to the existing order management screen.
+
+PHASE 7 — CUSTOMER PROFILE
+
+Integrate stamps, progress, mystery boxes, rewards, and redemption history.
+
+PHASE 8 — ADMIN MANAGEMENT
+
+Add configuration, prize management, order-level message controls, and loyalty analytics.
+
+PHASE 9 — TESTING
+
+Run database, authorization, application, and build checks.
+
+PHASE 10 — DELIVERY REPORT
+
+Report:
+
+* Files created.
+* Files modified.
+* Database migrations created.
+* Backend endpoints or functions created.
+* New customer routes.
+* Admin features implemented.
+* Environment variables required.
+* Security measures implemented.
+* Tests actually executed.
+* Any remaining manual setup.
+
+Do not claim that external configuration has been completed if it still requires my action.
+
+==================================================
+20. FINAL NON-NEGOTIABLE INSTRUCTIONS
+=====================================
+
+Build the actual feature in the existing application.
+
+Do not stop after generating a plan.
+
+Do not deliver only screenshots or mockups.
+
+Do not replace the application with a new starter project.
+
+Do not delete existing features.
+
+Do not invent successful database operations.
+
+Do not use mock orders in production code.
+
+Do not award stamps based only on frontend state.
+
+Do not select rewards on the frontend.
+
+Do not make WhatsApp messages appear sent when they have merely been prepared.
+
+Do not require customers to submit positive reviews.
+
+Do not require a separate claim button for loyalty stamps.
+
+The customer's main experience must remain:
+
+ADMIN PREPARES WHATSAPP MESSAGE
+→ ADMIN MANUALLY SENDS IT
+→ CUSTOMER OPENS UNIQUE LINK
+→ BACKEND VALIDATES ELIGIBILITY
+→ STAMP TICK ANIMATION PLAYS
+→ LOYALTY CARD UPDATES
+→ COMPLETED CARD UNLOCKS MYSTERY BOX
+→ CUSTOMER OPENS BOX
+→ CUSTOMER SCRATCHES TO REVEAL REWARD
+→ REWARD IS SAVED TO THEIR PROFILE.
+
+Make the final result polished, secure, maintainable, production-ready, and visually delightful.
+
+Begin by inspecting the existing project, then implement the complete system.

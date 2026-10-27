@@ -25,7 +25,8 @@ import {
   Clock,
   Cake,
   PartyPopper,
-  Heart
+  Heart,
+  Gift
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,6 +38,7 @@ import { CouponsRepository } from '../repositories';
 import { supabaseService } from '../services/supabaseService';
 import { emailService } from '../services/emailService';
 import { CampaignService } from '../services/CampaignService';
+import { loyaltyService } from '../services/loyaltyService';
 import toast from 'react-hot-toast';
 import { cn, haptic } from '../lib/utils';
 import { OrderConfirmation } from '../components/OrderConfirmation';
@@ -85,6 +87,32 @@ export const Checkout: React.FC = () => {
   const { user } = useAuth();
   const { userCoords, v2Serviceability } = useGeofence();
   const { addNotification } = useNotifications();
+
+  const [customerRewards, setCustomerRewards] = useState<any[]>([]);
+  const [appliedMysteryGift, setAppliedMysteryGift] = useState<any | null>(null);
+
+  useEffect(() => {
+    const custId = user?.id || user?.uid || 'guest';
+    loyaltyService.getCustomerRewards(custId).then(res => {
+      if (res?.rewards) {
+        const eligible = res.rewards.filter((r: any) => 
+          (r.status === 'assigned' || r.status === 'opened') && 
+          (r.redemption_type === 'min_purchase' || (r.reward_prizes?.minimum_order_amount || 0) > 0)
+        );
+        setCustomerRewards(eligible);
+      }
+    }).catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (appliedMysteryGift) {
+      const minOrder = appliedMysteryGift.reward_prizes?.minimum_order_amount || 0;
+      if (cartSubtotal < minOrder) {
+        setAppliedMysteryGift(null);
+        toast.error(`Cart fell below ₹${minOrder}. Mystery gift removed.`);
+      }
+    }
+  }, [cartSubtotal, appliedMysteryGift]);
   const { 
     isOrderingOpen, 
     isPickupOnly,
@@ -824,6 +852,17 @@ export const Checkout: React.FC = () => {
         });
       }
 
+      if (appliedMysteryGift) {
+        const giftPrize = appliedMysteryGift.reward_prizes;
+        orderItems.push({
+          id: `gift-${appliedMysteryGift.id}`,
+          name: `🎁 Mystery Gift: ${giftPrize?.name || 'Free Bakery Gift'}`,
+          price: 0,
+          quantity: 1,
+          image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500'
+        });
+      }
+
       const selectedTimeLabel = getSelectedTimeLabel();
 
       const scheduledArrivalStr = (deliveryMode === 'scheduled' && scheduledDate)
@@ -934,6 +973,15 @@ export const Checkout: React.FC = () => {
       // Increment coupon usage count if applied via CouponsRepository
       if (appliedCoupon?.id) {
         CouponsRepository.incrementUsageCount(appliedCoupon.id);
+      }
+
+      if (appliedMysteryGift) {
+        supabase.from('scratch_rewards').update({
+          status: 'redeemed',
+          order_id: orderId,
+          redeemed_at: new Date().toISOString(),
+          redemption_method: 'checkout'
+        }).eq('id', appliedMysteryGift.id).then(() => {});
       }
       
       if (formData.paymentMethod === 'upi') {
@@ -1713,6 +1761,88 @@ export const Checkout: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Workflow B: Minimum Purchase Mystery Gift Card */}
+            {customerRewards.length > 0 && (
+              <div className="bg-gradient-to-br from-amber-50/80 via-orange-50/60 to-pink-50/60 rounded-3xl border border-orange-200/80 p-6 md:p-7 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-xs">
+                      <Gift size={20} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 block">
+                        🎁 YOUR MYSTERY GIFT
+                      </span>
+                      <h3 className="text-base font-black text-stone-900 tracking-tight">
+                        {customerRewards[0].reward_prizes?.name || 'Free Mystery Gift'}
+                      </h3>
+                    </div>
+                  </div>
+                  {appliedMysteryGift ? (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full border border-emerald-300">
+                      Applied Free! 🎉
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-stone-500">
+                      Min: ₹{customerRewards[0].reward_prizes?.minimum_order_amount || 0}
+                    </span>
+                  )}
+                </div>
+
+                {(() => {
+                  const minRequired = customerRewards[0].reward_prizes?.minimum_order_amount || 0;
+                  const currentEligible = cartSubtotal;
+                  const isEligible = currentEligible >= minRequired;
+                  const remaining = Math.max(0, minRequired - currentEligible);
+
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-stone-600">
+                        <span>Eligible purchase amount: ₹{currentEligible}</span>
+                        <span>{isEligible ? '✨ Gift Unlocked!' : `Add ₹${remaining} more to unlock!`}</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-stone-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-orange-400 to-amber-500 transition-all duration-300"
+                          style={{ width: `${Math.min(100, minRequired > 0 ? (currentEligible / minRequired) * 100 : 100)}%` }}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-[11px] text-stone-500">
+                          {customerRewards[0].reward_prizes?.redemption_rules || 'Applies 100% free gift on your order.'}
+                        </p>
+                        {appliedMysteryGift ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAppliedMysteryGift(null);
+                              toast('Mystery gift removed.');
+                            }}
+                            className="text-xs text-rose-600 font-bold hover:underline cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!isEligible}
+                            onClick={() => {
+                              setAppliedMysteryGift(customerRewards[0]);
+                              toast.success(`🎉 ${customerRewards[0].reward_prizes?.name} applied free to this order!`);
+                            }}
+                            className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-xs cursor-pointer transition-all"
+                          >
+                            Apply My Gift to This Order
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {/* Coupon Code section */}
             <div className="bg-white rounded-3xl border border-stone-200/80 p-6 md:p-7 shadow-xs">

@@ -107,7 +107,7 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api|ping|health|payment|auth|butler|avatar|config|notifications|validate-address|reviews|search|v2|geofencing|sms-gateway|sms|cities|pincodes|localities|service-areas|trending|migration-script|debug-address|assets|favicon.ico|manifest.json|sw.js|images|icons|robots.txt|sitemap.xml|google).*)",
+      "source": "/((?!api|ping|health|payment|auth|butler|avatar|config|notifications|validate-address|reviews|search|v2|geofencing|sms-gateway|sms|cities|pincodes|localities|service-areas|trending|migration-script|debug-address|assets|favicon.ico|manifest.json|sw.js|images|icons|robots.txt|sitemap.xml|google|\\.well-known).*)",
       "destination": "/index.html"
     }
   ]

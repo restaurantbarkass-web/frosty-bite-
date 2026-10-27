@@ -26,6 +26,7 @@ const CampaignManager = lazy(() => import('../components/admin/CampaignManager')
 const NotificationCenter = lazy(() => import('./admin/NotificationCenter').then(m => ({ default: m.NotificationCenter })));
 const SmsGatewayPage = lazy(() => import('./admin/SmsGatewayPage').then(m => ({ default: m.SmsGatewayPage })));
 const CategoriesManager = lazy(() => import('./admin/CategoriesManager').then(m => ({ default: m.CategoriesManager })));
+const MysteryBoxManager = lazy(() => import('./admin/MysteryBoxManager').then(m => ({ default: m.MysteryBoxManager })));
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
@@ -94,6 +95,7 @@ export const AdminLayout: React.FC = () => {
       case 'menu': return <Menu />;
       case 'categories': return <CategoriesManager />;
       case 'rewards': return <Rewards />;
+      case 'mystery-boxes': return <MysteryBoxManager />;
       case 'coupons': return <Coupons />;
       case 'campaigns': return <CampaignManager />;
       case 'banners': return <BannerManager />;

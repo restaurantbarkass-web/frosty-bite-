@@ -22,7 +22,8 @@ import {
   MessageSquareHeart,
   Sparkles,
   Smartphone,
-  Layers
+  Layers,
+  Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../../lib/utils';
@@ -42,6 +43,7 @@ const menuItems = [
   { id: 'sms-gateway', label: 'SMS Gateway', icon: Smartphone },
   { id: 'notifications', label: 'Push Notifications', icon: Bell },
   { id: 'rewards', label: 'Rewards Engine', icon: Award },
+  { id: 'mystery-boxes', label: 'Mystery Box & Reward Tracking', icon: Gift },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'feedback', label: 'Customer Feedback', icon: MessageSquareHeart },
   { id: 'admins', label: 'Admins', icon: ShieldCheck },

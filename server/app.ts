@@ -42,6 +42,7 @@ import otpRouter from "./routes/otp.routes";
 import accountDeletionRouter from "./routes/accountDeletion.routes";
 import customerAdminRouter from "./routes/customerAdmin.routes";
 import categoriesRouter from "./routes/categories.routes";
+import { loyaltyRouter } from "./routes/loyalty.routes";
 
 import { V2GeofencingService } from "./services/v2Geofencing.service";
 import { supabase } from "./lib/supabase";
@@ -230,6 +231,7 @@ app.use(["/auth/otp", "/api/auth/otp"], otpRouter);
 app.use(["/auth/account-deletion", "/api/auth/account-deletion"], accountDeletionRouter);
 app.use(["/admin/customers", "/api/admin/customers"], customerAdminRouter);
 app.use(["/categories", "/api/categories"], categoriesRouter);
+app.use(["/loyalty", "/api/loyalty"], loyaltyRouter);
 app.use(["/coupons/validate", "/api/coupons/validate"], (req, res, next) => {
   req.url = "/validate-coupon";
   campaignsRouter(req, res, next);
@@ -446,6 +448,27 @@ app.get(["/debug-address", "/api/debug-address"], requireAdmin, async (req, res)
   }
 
   res.json(report);
+});
+
+// Digital Asset Links for Android App Links support
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  const assetlinksPath = path.join(process.cwd(), 'public', '.well-known', 'assetlinks.json');
+  res.setHeader('Content-Type', 'application/json');
+  if (fs.existsSync(assetlinksPath)) {
+    return res.sendFile(assetlinksPath);
+  }
+  return res.status(200).json([
+    {
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: "in.frostybite.bakery",
+        sha256_cert_fingerprints: [
+          "6B:FE:5B:FF:0B:B6:FB:9D:8D:C6:43:16:E6:32:10:92:2E:02:C4:CF:D6:F7:8B:64:63:4F:58:A8:80:8D:6B:B1"
+        ]
+      }
+    }
+  ]);
 });
 
 // Detailed API 404 handler

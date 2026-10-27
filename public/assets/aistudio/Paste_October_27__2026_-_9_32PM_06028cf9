@@ -1,0 +1,1215 @@
+# MASTER IMPLEMENTATION PROMPT
+
+## Frosty Bite Bakery — Loyalty Stamps, Mystery Boxes, Admin-Controlled Gifts, WhatsApp Redemption & Automatic Orders
+
+Act as a senior full-stack engineer, Supabase/PostgreSQL architect, Android/PWA engineer, security specialist, and premium UI/UX designer.
+
+Your task is to inspect, implement, integrate, and test a complete digital loyalty and Mystery Box reward system inside my EXISTING Frosty Bite Bakery application.
+
+This is an implementation task, not just a design or tutorial request.
+
+Do not return only a plan, mockup, or sample code. Inspect the actual project, understand its architecture, implement the necessary changes, run available checks, and report what was completed.
+
+---
+
+# 1. CRITICAL PROJECT REQUIREMENTS
+
+I already have an existing Frosty Bite Bakery application.
+
+Before changing anything:
+
+1. Inspect the complete project structure.
+2. Identify the existing frontend framework and routing system.
+3. Inspect the existing Supabase configuration, database schema, authentication, and Row Level Security policies.
+4. Inspect existing customer profiles and admin authorization.
+5. Inspect the product catalogue, shopping cart, checkout, orders, delivery/pickup configuration, and admin order dashboard.
+6. Inspect existing WhatsApp integrations, if any.
+7. Identify existing loyalty, reward, coupon, or promotional functionality.
+8. Reuse existing components, services, tables, and backend functions wherever appropriate.
+9. Prepare a minimal migration plan before modifying the database.
+10. Preserve existing features and business logic.
+
+IMPORTANT:
+
+* Do not create another application.
+* Do not create another Supabase project.
+* Do not replace the existing authentication system.
+* Do not duplicate existing order tables unnecessarily.
+* Do not create duplicate product catalogues.
+* Do not break existing cart, checkout, orders, customer profiles, admin pages, navigation, or Android functionality.
+* Do not hardcode gifts, products, prices, reward probabilities, minimum order values, or expiration periods.
+* Do not remove existing functionality just to simplify implementation.
+* Keep the application compatible with its existing Vercel deployment and Android/PWA setup.
+* Use the existing project conventions and dependencies.
+* If an existing feature already meets a requirement, extend or reuse it instead of rebuilding it.
+
+If a required database change is necessary, implement a migration that preserves existing data.
+
+---
+
+# 2. OVERALL FEATURE SUMMARY
+
+Build the following connected system:
+
+A. Digital Loyalty Stamp Card.
+B. Unique order-specific loyalty redemption links.
+C. Admin-controlled WhatsApp messaging.
+D. Automatic stamp awarding after secure validation.
+E. Admin-configurable stamp requirements.
+F. Automatic Mystery Box unlocking.
+G. Animated Mystery Box opening.
+H. Admin-controlled gift catalogue and prize allocation.
+I. Scratch-to-reveal reward animation.
+J. Customer reward wallet.
+K. Two distinct reward redemption workflows:
+
+* Free Claim Without Purchase: WhatsApp link and verification code.
+* Minimum Purchase Required: Existing checkout page only.
+  L. Automatic order creation for eligible free claims.
+  M. Existing order dashboard integration.
+  N. Secure reward inventory and redemption tracking.
+  O. Customer loyalty and redemption history.
+
+All features must use the existing application's data and backend infrastructure.
+
+---
+
+# 3. DIGITAL LOYALTY STAMP CARD
+
+Create a premium digital loyalty card in the existing customer account/profile area.
+
+The loyalty card must display:
+
+* Customer's current stamp count.
+* Required number of stamps.
+* Animated stamp slots.
+* Progress indicator.
+* Remaining stamps.
+* Completed loyalty cards.
+* Mystery Boxes unlocked.
+* Loyalty history.
+* Previously earned rewards.
+
+Example:
+
+"Your Sweet Rewards"
+
+5 stamps required to unlock a Mystery Box.
+
+The number five is only an example. The administrator must configure the actual requirement.
+
+Use a responsive layout suitable for Android phones, tablets, and desktop browsers.
+
+The card should feel like a premium bakery loyalty card, not a generic dashboard widget.
+
+---
+
+# 4. ORDER-SPECIFIC LOYALTY LINKS
+
+For eligible orders, create a unique, secure, order-specific loyalty redemption link.
+
+The admin should be able to generate the link from the existing order management page.
+
+The link must be associated with:
+
+* The correct order.
+* The correct customer.
+* The correct loyalty eligibility record.
+* Its expiration and current status.
+
+Never trust a customer ID or order ID supplied by the browser alone.
+
+The backend must verify that the order is eligible before awarding a stamp.
+
+If the customer opens a link belonging to another customer or an ineligible order, reject it safely.
+
+Do not let customers obtain unlimited stamps by repeatedly opening the same link.
+
+## Link preview protection
+
+Opening the link must not immediately award a stamp through a GET request.
+
+WhatsApp, browsers, security scanners, and link-preview services may automatically visit URLs.
+
+Instead:
+
+1. The page loads and reads the redemption session.
+2. The customer sees a beautiful branded loyalty page.
+3. The frontend automatically initiates the protected redemption flow after the page has loaded and the customer context is established.
+4. A backend operation validates and processes the redemption.
+5. The customer does not need to press a visible "Claim Stamp" button.
+6. The backend awards the stamp only if all conditions pass.
+
+The automatic operation must not rely solely on the initial GET request.
+
+Use a protected POST request, server-side validation, idempotency, and appropriate authentication or possession of a secure token.
+
+Where identity verification is necessary, use the existing authentication system or an appropriate secure verification flow.
+
+If the stamp was already awarded, show the existing successful state instead of awarding another stamp.
+
+---
+
+# 5. ADMIN-CONTROLLED WHATSAPP MESSAGING
+
+Integrate with the existing admin order dashboard.
+
+Add an action such as:
+
+"Generate Loyalty Link"
+
+Then provide:
+
+"Send via WhatsApp"
+
+When the admin clicks "Send via WhatsApp":
+
+1. Validate the admin's permissions.
+2. Generate or retrieve a valid redemption link.
+3. Create a professionally formatted message.
+4. Populate the customer's name, order information, link, and expiry.
+5. Open WhatsApp with the customer's phone number and prefilled message.
+6. Let the admin manually press Send in WhatsApp.
+
+Do not claim that the message was sent merely because WhatsApp opened.
+
+Track these events separately where supported:
+
+* Link generated.
+* WhatsApp opened.
+* Admin confirmed message sent.
+* Customer opened the link.
+* Stamp redeemed.
+* Redemption expired.
+
+Do not implement a fake WhatsApp API.
+
+Use WhatsApp click-to-chat for the manual-send workflow. If the project later adopts an approved WhatsApp Business Platform integration, keep that integration separate and configurable.
+
+---
+
+# 6. PROFESSIONAL WHATSAPP MESSAGE FOR LOYALTY STAMPS
+
+Generate a professional, friendly message such as:
+
+"Hello {{customer_name}}! ❤️
+
+Thank you for choosing Frosty Bite Bakery.
+
+Your order has been recorded, and your loyalty reward is waiting!
+
+🎁 Open your personal loyalty link:
+{{loyalty_link}}
+
+Follow the on-screen instructions to collect your stamp.
+
+Your loyalty card brings you closer to a special Mystery Box surprise!
+
+Valid until: {{expiry_date}}
+
+Thank you for being part of Frosty Bite Bakery.
+
+Every bite comes with a little happiness! 🍰"
+
+Populate all placeholders with real values.
+
+Never include private database keys or internal authentication tokens in the visible message.
+
+---
+
+# 7. AUTOMATIC STAMP ANIMATION
+
+After a successful backend redemption, show a beautiful animation.
+
+Animation sequence:
+
+1. The correct empty stamp slot glows.
+2. A bakery-themed stamp drops into the slot.
+3. The slot briefly scales and settles.
+4. A polished SVG checkmark draws itself inside the stamp.
+5. A subtle sparkle effect appears.
+6. The progress indicator updates.
+7. The customer sees the updated number of stamps.
+8. If the required number is reached, show a Mystery Box unlocked animation.
+
+The checkmark must be an actual animated SVG or equivalent vector animation, not an emoji replacing the requested animation.
+
+Do not replay the full award animation when the customer reopens a link for a stamp that has already been awarded.
+
+Show the existing completed stamp instead.
+
+Respect reduced-motion preferences and optimize animations for low-end Android devices.
+
+---
+
+# 8. ADMIN-CONFIGURABLE LOYALTY RULES
+
+Create or extend a Loyalty Settings section in the existing admin panel.
+
+Allow authorized admins to configure:
+
+* Required stamps per loyalty card.
+* Eligible order conditions.
+* Whether only accepted, completed, or delivered orders qualify.
+* Whether cancelled or refunded orders are ineligible.
+* Link expiration period.
+* Whether each order may award one stamp.
+* Whether returning customers can start another loyalty card.
+* Mystery Box unlocking behavior.
+* Reward eligibility rules.
+
+Use secure server-side configuration.
+
+Changing settings must not require rebuilding the Android APK.
+
+Changing the required number of stamps must not corrupt customers' existing stamp history or already-unlocked Mystery Boxes.
+
+Store loyalty history as durable records, not just a mutable integer.
+
+---
+
+# 9. AUTOMATIC MYSTERY BOX UNLOCKING
+
+When a customer reaches the configured stamp requirement:
+
+1. Validate the completed loyalty card on the backend.
+2. Record the completed card.
+3. Create exactly one Mystery Box entitlement for that completed card.
+4. Update the customer profile.
+5. Show an animated "Mystery Box Unlocked!" notification.
+6. Display an "Open My Mystery Box" button.
+
+The frontend must not be allowed to unlock boxes simply by modifying local state.
+
+Use unique constraints or equivalent database safeguards to prevent multiple boxes from being issued for the same completed loyalty card.
+
+A customer must not receive multiple boxes by refreshing the page, repeating requests, or manipulating frontend code.
+
+---
+
+# 10. PREMIUM MYSTERY BOX OPENING EXPERIENCE
+
+Create a beautiful, interactive Mystery Box experience.
+
+Visual design:
+
+* Pastel pink gift box.
+* Champagne-gold ribbon.
+* Cream background.
+* Gentle floating motion.
+* Subtle shadows.
+* Small sparkling particles.
+* Animated lid opening.
+* Soft glow from inside the box.
+* Reward card rising from the box.
+
+Customer flow:
+
+1. Customer opens the unlocked Mystery Box page.
+2. Customer taps "Open My Mystery Box".
+3. Backend securely selects and permanently assigns a prize.
+4. The selected reward is saved before the frontend starts the reveal animation.
+5. The box shakes gently.
+6. The lid opens.
+7. Light and sparkles emerge.
+8. A scratch card appears.
+9. The customer scratches the card.
+10. The already-assigned reward is revealed.
+11. The reward is saved to My Rewards.
+12. The customer can view its conditions and available redemption method.
+
+The prize must be assigned on the backend before the animation starts.
+
+Do not select prizes in frontend JavaScript.
+
+Do not allow customers to refresh, retry, or replay the animation to obtain a different gift.
+
+The animation must only reveal an existing assigned reward.
+
+---
+
+# 11. SCRATCH-TO-REVEAL CARD
+
+Create an interactive scratch card using a suitable HTML canvas or equivalent implementation.
+
+Support:
+
+* Mouse input.
+* Touch input.
+* Pointer events.
+* Smooth scratch behavior.
+* A gold-foil overlay.
+* A hidden reward beneath the foil.
+* Reveal after a configurable threshold, for example 55% scratched.
+* A fallback reveal action for accessibility if appropriate.
+
+The reward must already be stored in the backend.
+
+The scratch animation must never generate or change a prize.
+
+If the page reloads, preserve the assigned reward and its reveal status.
+
+Do not allow scratching to issue a second reward.
+
+---
+
+# 12. ADMIN-ONLY MYSTERY BOX GIFT MANAGER
+
+Create a complete "Mystery Box Gift Manager" in the existing admin panel.
+
+Only authorized admins may create or modify gift configurations.
+
+Do not create staff accounts or staff roles solely for this feature.
+
+The admin must be able to:
+
+* Create a gift.
+* Edit a gift.
+* Add a gift image.
+* Select an existing product from the catalogue.
+* Configure reward type.
+* Configure reward quantity.
+* Configure stock.
+* Activate or deactivate gifts.
+* Set expiration rules.
+* Configure redemption methods.
+* Configure minimum purchase rules.
+* Configure eligibility.
+* Configure reward probabilities.
+* View issued rewards.
+* View redeemed rewards.
+* View remaining stock.
+* View redemption history.
+* Revoke eligible unredeemed rewards.
+* Configure fallback behavior if desired.
+
+Prevent deletion of a gift configuration if existing reward records depend on it. Archive or deactivate it instead, while preserving historical records.
+
+Changes to gift configurations must be reflected in future prize assignments without requiring a new website or APK release.
+
+---
+
+# 13. GIFT TYPES
+
+Support configurable gift types, including:
+
+* Free cake.
+* Free brownie.
+* Free cupcake.
+* Free cookie.
+* Free dessert.
+* Free existing catalogue product.
+* Fixed-amount discount.
+* Percentage discount.
+* Custom admin-defined gift.
+
+Do not hardcode the actual gift list.
+
+The admin should select products from the existing catalogue whenever the reward represents a real product.
+
+Use authoritative catalogue prices and inventory rules.
+
+For each gift, allow configuration of:
+
+* Gift name.
+* Description.
+* Image.
+* Reward type.
+* Assigned product or products.
+* Reward value where appropriate.
+* Available stock.
+* Maximum number of awards.
+* Expiration period.
+* Eligibility conditions.
+* Redemption method.
+* Minimum qualifying purchase.
+* Pickup and delivery eligibility.
+* Applicable fees.
+* Redemption instructions.
+* Active/inactive status.
+
+Use database constraints and backend validation for reward quantities and values.
+
+---
+
+# 14. PRIZE SELECTION AND INVENTORY
+
+Provide admin-configurable prize allocation modes.
+
+A. EQUAL CHANCE
+
+Each eligible active prize has equal selection probability, subject to its stock and configured eligibility.
+
+B. CUSTOM WEIGHTS OR PROBABILITIES
+
+The admin configures each prize's weight or probability.
+
+If percentages are used, validate the configured total according to the selected allocation rules.
+
+C. STOCK-AWARE ALLOCATION
+
+The backend must never assign an out-of-stock prize.
+
+Inventory must be updated safely under concurrent requests.
+
+D. OPTIONAL FALLBACK GIFT
+
+Allow the admin to configure a fallback gift if desired.
+
+If every Mystery Box must contain a gift but no eligible stock remains, pause new openings or use the configured fallback.
+
+Never invent a prize or silently assign an unconfigured gift.
+
+All prize selection must happen securely on the backend.
+
+---
+
+# 15. CUSTOMER REWARDS WALLET
+
+Add a "My Rewards" section to the existing customer profile.
+
+Display:
+
+* Available rewards.
+* Reserved rewards.
+* Redeemed rewards.
+* Expired rewards.
+* Revoked rewards where appropriate.
+* Gift name.
+* Gift image.
+* Reward value if applicable.
+* Assigned product.
+* Reward code.
+* Expiry date.
+* Minimum purchase.
+* Eligible redemption methods.
+* Conditions and instructions.
+* Associated order.
+* Redemption history.
+
+Customers may only access their own rewards.
+
+Use the existing customer profile and authentication system.
+
+Do not duplicate existing profile pages unnecessarily.
+
+---
+
+# 16. CRITICAL REDEMPTION DESIGN: TWO DISTINCT WORKFLOWS
+
+This is a mandatory business rule.
+
+Every gift must have an admin-configurable redemption type.
+
+The system must distinguish between:
+
+A. FREE CLAIM — NO PURCHASE REQUIRED.
+
+B. MINIMUM PURCHASE REQUIRED — CHECKOUT ONLY.
+
+These workflows must not be mixed together.
+
+---
+
+# 17. WORKFLOW A — FREE CLAIM WITHOUT PURCHASE
+
+Example:
+
+The customer wins one free brownie and the admin has configured:
+
+* Purchase required: No.
+* Minimum qualifying purchase: ₹0.
+* Online free-claim redemption: Enabled.
+* In-store redemption: Optional.
+* Validity: Admin-configured.
+* Pickup/delivery rules: Admin-configured.
+
+The admin generates a secure redemption link and verification code from the admin panel.
+
+The admin clicks "Send via WhatsApp".
+
+WhatsApp opens with a professional, prefilled message.
+
+The admin manually presses Send.
+
+The customer receives a message similar to:
+
+"🎁 A Sweet Surprise from Frosty Bite Bakery!
+
+Hello {{customer_name}}! ❤️
+
+Congratulations! Your Mystery Box has a special treat for you.
+
+🍫 Your Gift: 1 FREE BROWNIE
+
+Claim your gift here:
+{{secure_redemption_link}}
+
+🔐 Verification Code: {{verification_code}}
+
+Open the link, enter your code, confirm your pickup or delivery details, and claim your gift.
+
+Valid until: {{expiry_date}}
+
+Terms and conditions apply.
+
+Frosty Bite Bakery
+Every bite comes with a little happiness! 🍰"
+
+The customer opens the branded redemption page.
+
+The page displays:
+
+* Gift name.
+* Gift image.
+* Expiry.
+* Conditions.
+* Verification-code field.
+* "Claim My Gift" button.
+
+The customer enters the correct code.
+
+The backend validates:
+
+* Redemption token.
+* Verification code.
+* Reward ownership.
+* Reward status.
+* Expiration.
+* Gift availability and applicable rules.
+* Redemption eligibility.
+
+If valid, collect the required order information and show a final order summary.
+
+After the customer confirms:
+
+1. Atomically reserve or redeem the reward.
+2. Create the order through the existing order-management system.
+3. Add the assigned free product to the order.
+4. Apply the correct reward discount.
+5. Calculate delivery or pickup conditions using existing business rules.
+6. Use an appropriate payment status for a genuinely zero-payable order.
+7. Return the real order number.
+8. Display an animated success page.
+9. Show the order in the existing admin dashboard.
+
+The customer must not have to add the free gift manually to their cart.
+
+The customer must not be forced to make another purchase when the reward is configured as completely free.
+
+Do not mark an order as paid if no payment occurred. Do not automatically mark the order as accepted, delivered, or completed.
+
+If delivery fees apply, show them before confirmation.
+
+If the customer selects delivery, collect and validate the required address. If pickup is allowed, offer pickup.
+
+If the final payable amount is zero, use the existing application's appropriate zero-payment or payment-not-required state.
+
+If a reward includes any payable charges, display them clearly and use the existing legitimate payment flow.
+
+## Free-claim security
+
+* A GET request must never redeem the gift.
+* Link previews must not create orders.
+* Tokens must be unpredictable.
+* Store token hashes where practical.
+* Verification codes must not be stored or logged in plaintext unnecessarily.
+* Apply rate limits to code attempts.
+* Never expose private customer data in the URL.
+* Do not allow the customer to change the assigned gift.
+* Do not permit multiple orders from one reward.
+* Use atomic database operations and idempotency protection.
+* Expired, revoked, or redeemed links must be rejected.
+
+---
+
+# 18. WORKFLOW B — MINIMUM PURCHASE REQUIRED: CHECKOUT ONLY
+
+THIS REQUIREMENT IS EXTREMELY IMPORTANT.
+
+If a gift has a minimum purchase requirement, DO NOT generate a separate WhatsApp redemption link.
+
+Do not create a separate free-order claim page for minimum-purchase rewards.
+
+The customer must redeem these gifts directly at the existing Frosty Bite Bakery checkout page.
+
+Example reward:
+
+* Gift: One Free Chocolate Cake.
+* Minimum qualifying purchase: ₹299.
+* Eligible gift product: Chocolate Cake.
+* Online checkout redemption: Enabled.
+
+The customer wins the reward and sees it in My Rewards.
+
+The customer can shop normally and add products to the existing cart.
+
+The checkout page detects that the customer has an eligible minimum-purchase reward.
+
+Display a reward card:
+
+"🎁 YOUR MYSTERY GIFT
+
+1 FREE CHOCOLATE CAKE
+
+Minimum qualifying purchase: ₹299
+
+Eligible purchase amount: ₹199
+
+Add ₹100 more to unlock your gift!"
+
+Display:
+
+"Apply My Gift to This Order"
+
+When the qualifying purchase is below the minimum, the button must be disabled.
+
+Display the amount remaining to unlock the gift.
+
+When the qualifying purchase reaches the minimum, automatically update the interface.
+
+Example:
+
+Minimum qualifying purchase: ₹299.
+
+Eligible purchase: ₹199.
+
+Status: Locked.
+
+Button: Disabled.
+
+Eligible purchase: ₹299.
+
+Status: Unlocked.
+
+Button: Enabled.
+
+Eligible purchase: ₹350.
+
+Status: Unlocked.
+
+Button: Enabled.
+
+When the customer clicks "Apply My Gift to This Order":
+
+1. Send the current cart and reward identifier to the backend.
+2. Validate the authenticated customer and reward ownership.
+3. Validate reward status and expiration.
+4. Calculate the authoritative eligible merchandise subtotal on the server.
+5. Validate minimum purchase.
+6. Validate the assigned gift product.
+7. Validate reward stock and applicable rules.
+8. Reserve the reward safely.
+9. Attach the assigned gift to the order.
+10. Apply the correct discount.
+11. Display the gift and discount in the existing checkout order summary.
+12. Recalculate the final total.
+13. Require final customer confirmation.
+14. Create the order through the existing order system.
+15. Finalize reward redemption according to the existing order lifecycle and configured cancellation rules.
+
+The free gift must not be charged to the customer.
+
+The gift's price must come from the existing catalogue and backend, never from a frontend-supplied amount.
+
+Example bill:
+
+Purchased products: ₹299.
+
+Gift product: ₹200.
+
+Gift discount: −₹200.
+
+Total payable: ₹299.
+
+These amounts are illustrative only.
+
+Use actual configured product prices.
+
+## Minimum-purchase calculation
+
+Calculate the qualifying merchandise subtotal according to the admin's rules.
+
+By default:
+
+* Include eligible purchased products.
+* Exclude the free gift itself.
+* Exclude delivery fees.
+* Exclude taxes or other charges from eligibility unless explicitly configured.
+* Do not count a reward discount as customer spending.
+* Apply explicit rules for other coupons or discounts.
+* Never let the customer qualify by manipulating client-side totals.
+
+Recalculate eligibility whenever cart contents change.
+
+If the cart falls below the required minimum after the reward was applied:
+
+* Invalidate or remove the applied gift from the current checkout.
+* Explain why.
+* Recalculate the total.
+* Preserve the reward entitlement if it has not been permanently redeemed.
+
+Do not consume a reward simply because the customer clicked the apply button.
+
+Use a temporary reservation when appropriate.
+
+If checkout fails, release the reservation according to the configured rules.
+
+If the order is cancelled, follow the existing business policy and configured reward-restoration rules.
+
+Use an atomic backend/database operation to prevent duplicate redemption.
+
+---
+
+# 19. IN-STORE REDEMPTION
+
+Support optional in-store redemption when enabled for an individual gift.
+
+For eligible rewards:
+
+1. Customer opens My Rewards.
+2. Customer taps "Redeem at Bakery".
+3. The app displays a unique QR code or redemption code.
+4. Admin scans or enters the code in the protected admin panel.
+5. Backend validates the reward and all applicable conditions.
+6. Admin sees the gift and conditions.
+7. Admin confirms the handover.
+8. Backend atomically marks the reward as redeemed.
+9. The customer's reward history updates.
+
+The QR code must not contain sensitive customer information.
+
+A minimum-purchase gift must still satisfy its minimum purchase requirements.
+
+Do not let customers bypass the purchase requirement by switching to in-store redemption.
+
+For a minimum-purchase gift, in-store redemption must be disabled unless an appropriate qualifying-purchase flow is implemented and enforced.
+
+A single reward must never be successfully redeemed both online and in-store.
+
+Both methods must operate on the same authoritative reward record.
+
+---
+
+# 20. ADMIN REDEMPTION SETTINGS
+
+For each gift, provide the following configuration:
+
+## Reward Configuration
+
+* Gift name.
+* Gift image.
+* Gift type.
+* Assigned product.
+* Reward value where applicable.
+* Available quantity.
+* Active/inactive status.
+
+## Redemption Type
+
+Allow the admin to choose:
+
+1. Free Claim — No Purchase Required.
+2. Minimum Purchase Required.
+
+For Free Claim:
+
+* Minimum purchase defaults to zero.
+* WhatsApp redemption link is supported.
+* Verification code is supported.
+* Customer order creation is supported.
+* Pickup and delivery rules are configurable.
+
+For Minimum Purchase Required:
+
+* Checkout-only redemption.
+* No separate WhatsApp free-claim link.
+* Minimum qualifying purchase amount.
+* Eligible products or categories.
+* Checkout reward button.
+* Backend-enforced eligibility.
+
+## Redemption Methods
+
+Allow the admin to enable or disable the methods permitted for the chosen gift.
+
+* Online Free Claim.
+* Checkout Redemption.
+* In-Store QR Redemption.
+
+Enforce compatible combinations.
+
+Do not let an administrator accidentally enable a bypass that violates the gift's minimum-purchase requirement.
+
+## Additional Settings
+
+* Expiry period.
+* Maximum number of rewards.
+* Stock allocation.
+* Pickup eligibility.
+* Delivery eligibility.
+* Delivery fees.
+* Coupon stacking.
+* Reward restoration on cancellation.
+* Redemption instructions.
+* Fallback gift.
+* Custom terms and conditions.
+
+Validate settings before saving.
+
+---
+
+# 21. REWARD STATES AND ORDER STATES
+
+Maintain a clear distinction between reward status and order status.
+
+Possible reward statuses:
+
+* Available.
+* Reserved.
+* Redeemed.
+* Expired.
+* Revoked.
+
+Use the existing application's compatible order statuses.
+
+A reward may be reserved during checkout without being permanently consumed prematurely.
+
+Define the exact transition rules for:
+
+* Checkout started.
+* Reward applied.
+* Order creation succeeded.
+* Order creation failed.
+* Payment required.
+* Payment completed.
+* Order cancelled.
+* Order refunded.
+* Reward restored, if allowed.
+
+Never mark a reward as redeemed without a successful authorized redemption operation.
+
+Never mark an order as paid without valid payment confirmation.
+
+Never mark an order as delivered or completed without the appropriate workflow.
+
+---
+
+# 22. CUSTOMER PROFILE INTEGRATION
+
+Integrate the following into the existing customer profile:
+
+* Loyalty card.
+* Current stamps.
+* Stamp history.
+* Completed loyalty cards.
+* Mystery Boxes unlocked.
+* Mystery Boxes opened.
+* Rewards wallet.
+* Available rewards.
+* Reserved rewards.
+* Redeemed rewards.
+* Expired rewards.
+* Associated orders.
+* Reward expiry.
+* Redemption history.
+
+Do not duplicate the existing profile system.
+
+Ensure customers can only see their own rewards and orders.
+
+Ensure the guest-account flow remains compatible with existing functionality.
+
+Where a guest receives a reward, associate it with a secure customer or guest identity according to the existing architecture. Require appropriate verification before allowing sensitive account operations or transferring a reward to an account.
+
+---
+
+# 23. PREMIUM BAKERY UI DESIGN
+
+Use the existing Frosty Bite Bakery brand and design conventions.
+
+Suggested design palette:
+
+* Warm cream: #FFF9F5
+* Pastel pink: #F3A6B8
+* Deep pink: #D96C8B
+* Chocolate brown: #4A2E2A
+* Champagne gold: #D8B56D
+* Soft white: #FFFFFF
+
+Design goals:
+
+* Premium bakery aesthetic.
+* Cute but professional.
+* Smooth transitions.
+* Clear typography.
+* Responsive Android layout.
+* Touch-friendly buttons.
+* Subtle shadows.
+* Rounded gift cards.
+* Beautiful progress indicators.
+* Tasteful sparkles.
+* Animated success states.
+* Clear error messages.
+* Accessible color contrast.
+* Reduced-motion support.
+* Good performance on lower-end Android devices.
+
+Do not redesign unrelated screens.
+
+Preserve existing bottom navigation, buttons, ordering functionality, and brand identity unless changes are necessary for integration.
+
+Use real product images from the existing catalogue where appropriate.
+
+Do not use placeholder product data in production.
+
+---
+
+# 24. SUPABASE DATABASE DESIGN
+
+Inspect the existing schema first.
+
+Implement only the necessary tables, columns, indexes, constraints, and functions.
+
+Depending on existing schema conventions, the system may need equivalents of:
+
+* loyalty_settings
+* loyalty_cards
+* loyalty_stamp_records
+* loyalty_redemption_sessions
+* mystery_box_entitlements
+* mystery_box_gifts
+* mystery_box_reward_assignments
+* customer_rewards
+* reward_redemption_sessions
+* reward_redemption_events
+
+These names are suggestions, not a requirement to duplicate existing tables.
+
+Prefer extending existing compatible tables when practical.
+
+Important database invariants:
+
+1. One eligible order cannot award the same loyalty stamp more than once.
+2. One completed loyalty card cannot issue multiple Mystery Boxes.
+3. One Mystery Box cannot assign multiple prizes.
+4. One customer reward cannot generate multiple successful orders.
+5. One reward cannot be redeemed online and in-store.
+6. Stock cannot become negative.
+7. Expired or revoked rewards cannot be redeemed.
+8. Customers cannot read or modify other customers' rewards.
+9. Customers cannot alter reward values or assignment.
+10. Only authorized admins can manage gift configurations.
+
+Use unique constraints, foreign keys, transactions, appropriate indexes, and secure PostgreSQL functions where necessary.
+
+Do not rely on frontend checks for data integrity.
+
+---
+
+# 25. SECURITY REQUIREMENTS
+
+Treat security as a core implementation requirement.
+
+* Reuse the existing Supabase authentication system.
+* Reuse existing admin authorization logic.
+* Enforce Row Level Security.
+* Never expose the Supabase service-role key in frontend code.
+* Never place privileged secrets in Vite variables exposed to the browser.
+* Validate all customer actions on the server.
+* Validate admin actions on the server.
+* Never trust frontend product prices, discounts, reward status, customer IDs, or order totals.
+* Use cryptographically secure tokens.
+* Store sensitive tokens securely, using hashes where appropriate.
+* Rate-limit verification-code attempts.
+* Avoid leaking whether another customer's reward exists.
+* Prevent duplicate orders with idempotency.
+* Use atomic transactions for reward redemption, stock reservation, and order creation.
+* Add appropriate audit logs.
+* Avoid storing verification codes or sensitive tokens in logs.
+* Ensure link previews do not redeem rewards.
+* Never automatically send WhatsApp messages unless a legitimate approved integration has been configured.
+* Never fake payment success.
+* Never invent successful test results.
+
+If backend functions or database procedures are required, implement them using the existing project's supported backend architecture.
+
+---
+
+# 26. EDGE CASES
+
+Handle these cases properly:
+
+* Customer opens the same loyalty link multiple times.
+* Customer opens a link after expiry.
+* Customer opens an invalid or tampered link.
+* Wrong verification code.
+* Too many verification-code attempts.
+* Customer attempts to use another customer's reward.
+* Customer tries to change the assigned gift.
+* Customer refreshes the Mystery Box page.
+* Customer closes the page during the animation.
+* Customer clicks Open Mystery Box multiple times.
+* Gift becomes inactive.
+* Gift stock runs out.
+* Multiple customers try to claim the final gift simultaneously.
+* Customer applies a reward and changes their cart.
+* Customer falls below the minimum purchase.
+* Checkout fails.
+* Customer submits the checkout request twice.
+* Customer cancels an order.
+* Reward expires during checkout.
+* Customer attempts to redeem the same reward online and in-store.
+* Admin deactivates a gift that has already been assigned.
+* Loyalty settings change after a customer has earned stamps.
+* Customer uses guest checkout.
+* Customer has multiple completed loyalty cards.
+
+Preserve historical records and avoid invalidating previously earned rewards without a defined policy.
+
+---
+
+# 27. TESTING REQUIREMENTS
+
+Inspect and use the existing testing framework.
+
+Add or update tests for:
+
+## Loyalty
+
+* Eligible order awards one stamp.
+* Duplicate requests do not award duplicate stamps.
+* Ineligible orders award no stamp.
+* Expired links are rejected.
+* Link preview does not redeem a stamp.
+* Stamp animation reflects the actual backend state.
+
+## Mystery Box
+
+* Completed loyalty card unlocks one box.
+* One box receives one prize.
+* Prize assignment persists after refresh.
+* Prize probabilities follow configured rules.
+* Out-of-stock prizes are never assigned.
+* Duplicate requests do not consume multiple prizes.
+
+## Free Claim
+
+* Valid link and code create the correct gift order.
+* Wrong code is rejected.
+* Expired code is rejected.
+* Already-redeemed reward is rejected.
+* Duplicate submissions do not create duplicate orders.
+* Delivery fees follow configured rules.
+* Zero-payable orders are not falsely marked as paid.
+
+## Minimum-Purchase Checkout
+
+* Below-minimum cart keeps the apply button disabled.
+* Exactly-at-minimum cart enables the button.
+* Above-minimum cart enables the button.
+* Ineligible products do not count toward the minimum.
+* The free gift itself does not count toward the minimum.
+* Delivery fees do not count unless configured.
+* Cart changes trigger eligibility recalculation.
+* Backend rejects a manipulated frontend total.
+* Failed checkout does not permanently consume a reward.
+* Duplicate checkout requests do not create duplicate reward orders.
+
+## In-Store
+
+* Valid QR code can be redeemed by an authorized admin.
+* Invalid QR code is rejected.
+* Repeated QR scans cannot redeem twice.
+* Minimum-purchase rules cannot be bypassed.
+
+## Authorization
+
+* Non-admin users cannot manage gifts.
+* Customers cannot read other customers' rewards.
+* Customers cannot change their assigned gifts.
+* Customers cannot modify stock or reward values.
+* Unauthorized users cannot confirm in-store redemption.
+
+Run all available relevant checks, including type checking, linting, unit tests, and build validation where supported.
+
+Fix errors introduced by the implementation.
+
+Do not claim tests passed unless they were actually executed.
+
+---
+
+# 28. IMPLEMENTATION STRATEGY
+
+Work in the following order:
+
+Phase 1:
+Audit the existing codebase, routes, database, authentication, and order flow.
+
+Phase 2:
+Design the minimal schema changes and implement secure migrations.
+
+Phase 3:
+Implement backend loyalty operations, stamp idempotency, and Mystery Box assignment.
+
+Phase 4:
+Implement the admin Loyalty Settings and Mystery Box Gift Manager.
+
+Phase 5:
+Implement the customer loyalty card and stamp animation.
+
+Phase 6:
+Implement Mystery Box opening and scratch-to-reveal animations.
+
+Phase 7:
+Implement the customer rewards wallet.
+
+Phase 8:
+Implement the Free Claim WhatsApp link and verification-code workflow.
+
+Phase 9:
+Implement Minimum Purchase Required redemption directly in the existing checkout.
+
+Phase 10:
+Implement optional in-store QR redemption.
+
+Phase 11:
+Integrate reward orders with existing order management and customer profiles.
+
+Phase 12:
+Run tests, fix regressions, verify responsive behavior, and prepare deployment instructions.
+
+Do not stop after producing the plan. Continue through implementation wherever the environment permits.
+
+If a step requires credentials, manual dashboard access, or a migration that cannot be executed automatically, clearly identify the exact action required from me. Never claim it has been completed when it has not.
+
+---
+
+# 29. FINAL REPORT
+
+When finished, provide a concise implementation report containing:
+
+1. Existing components and systems reused.
+2. New or modified files.
+3. Database migrations created and whether they were actually applied.
+4. Backend functions implemented.
+5. New customer pages and admin controls.
+6. WhatsApp workflow behavior.
+7. Free-claim redemption behavior.
+8. Minimum-purchase checkout behavior.
+9. Security and idempotency protections.
+10. Tests actually executed and their results.
+11. Build result.
+12. Any remaining manual deployment or configuration steps.
+
+Do not replace the entire application.
+
+Do not remove unrelated functionality.
+
+Do not leave important buttons as decorative UI without working backend behavior.
+
+Do not use mock data as if it were production data.
+
+Do not invent credentials, environment variables, deployment results, or test outcomes.
+
+The finished feature must behave as one integrated part of the existing Frosty Bite Bakery application.

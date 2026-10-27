@@ -445,22 +445,75 @@ export const authService = {
     };
   },
 
-  // Google Login via Firebase OAuth with Popup & Redirect fallback
+  // Check and retrieve any pending Google redirect authentication result
+  async getGoogleRedirectResult() {
+    try {
+      const { getRedirectResult } = await import('firebase/auth');
+      const { auth } = await import('../firebase');
+      const result = await getRedirectResult(auth);
+      if (result && result.user) {
+        console.log('[Firebase OAuth] Successfully resolved redirect user:', result.user.email);
+        return result.user;
+      }
+      return null;
+    } catch (err: any) {
+      console.warn('[Firebase OAuth] getRedirectResult failed:', err);
+      return null;
+    }
+  },
+
+  // Google Login via Firebase OAuth with Popup & safe Redirect fallback
   async loginWithGoogle() {
-    const { signInWithPopup, signInWithRedirect, getRedirectResult } = await import('firebase/auth');
+    const { signInWithPopup, signInWithRedirect, GoogleAuthProvider } = await import('firebase/auth');
     const { auth, googleProvider } = await import('../firebase');
+
+    try {
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+    } catch (_) {}
+
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       return result.user;
     } catch (error: any) {
-      console.warn('[Firebase OAuth] signInWithPopup failed, trying redirect fallback:', error);
-      try {
-        await signInWithRedirect(auth, googleProvider);
-        return null;
-      } catch (redirectErr: any) {
-        console.error('[Firebase OAuth] signInWithRedirect failed:', redirectErr);
-        throw error;
+      const code = error?.code || '';
+      console.warn('[Firebase OAuth] signInWithPopup encountered code:', code, error);
+
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        throw new Error('Google Sign-In was cancelled.');
       }
+
+      if (code === 'auth/operation-not-allowed') {
+        throw new Error('Google Sign-In is disabled in the Firebase Console. Please enable Google in Firebase Authentication > Sign-in method, or sign in via Email OTP, Mobile SMS, or Guest mode.');
+      }
+
+      if (code === 'auth/unauthorized-domain') {
+        const domain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
+        throw new Error(`Domain "${domain}" is not authorized in Firebase Console > Authentication > Settings > Authorized Domains.`);
+      }
+
+      // If running inside an iframe (like AI Studio preview), redirecting will fail due to X-Frame-Options or blocked 3rd-party cookies
+      if (isInIframe) {
+        if (code === 'auth/popup-blocked') {
+          throw new Error('Popup blocked by browser. Please allow popups for Google Sign-In, or use Email/Mobile OTP or Guest mode.');
+        }
+        throw new Error(error?.message || 'Google Sign-In failed inside preview window. Please use Email OTP, Mobile SMS, or Guest mode.');
+      }
+
+      // For top-level windows, try redirect fallback
+      if (code === 'auth/popup-blocked' || code === 'auth/internal-error') {
+        console.log('[Firebase OAuth] Trying signInWithRedirect fallback in top-level window...');
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return null; // Browser will navigate to Google authentication
+        } catch (redirectErr: any) {
+          console.error('[Firebase OAuth] signInWithRedirect failed:', redirectErr);
+          throw redirectErr;
+        }
+      }
+
+      throw error;
     }
   },
 

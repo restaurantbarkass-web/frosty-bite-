@@ -5,9 +5,9 @@
     ],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.frostybite.app",
+      "package_name": "in.frostybite.bakery",
       "sha256_cert_fingerprints": [
-        "PASTE_YOUR_DOWNLOADED_PWABUILDER_SHA256_FINGERPRINT_HERE"
+        "6B:FE:5B:FF:0B:B6:FB:9D:8D:C6:43:16:E6:32:10:92:2E:02:C4:CF:D6:F7:8B:64:63:4F:58:A8:80:8D:6B:B1"
       ]
     }
   }

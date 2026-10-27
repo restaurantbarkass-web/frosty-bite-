@@ -34,6 +34,7 @@ import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-hot-toast';
 
 import { rewardsService, BadgeConfig } from '../services/rewardsService';
+import { loyaltyService } from '../services/loyaltyService';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { SecureFundsLockModal } from '../components/SecureFundsLockModal';
 import { AddFundsLockedModal } from '../components/AddFundsLockedModal';
@@ -353,6 +354,7 @@ export const Profile: React.FC = () => {
   const [isAccountDeletionModalOpen, setIsAccountDeletionModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [loyaltyRewards, setLoyaltyRewards] = useState<{ stampsCollected: number; stampsRequired: number; rewards: any[] }>({ stampsCollected: 0, stampsRequired: 5, rewards: [] });
   
   const currentTierConfig = useMemo(() => {
     return badgeConfigs.find(c => c.tierName === userData?.badge_tier) || {
@@ -481,6 +483,10 @@ export const Profile: React.FC = () => {
         .then(configs => setBadgeConfigs(configs || []))
         .catch(() => {});
 
+      loyaltyService.getCustomerRewards(gp.phone || gp.email || 'guest')
+        .then(res => setLoyaltyRewards(res))
+        .catch(() => {});
+
       setLoading(false);
       return;
     }
@@ -523,7 +529,8 @@ export const Profile: React.FC = () => {
       supabase.from('orders').select('*').eq('user_id', stableId).order('created_at', { ascending: false }).limit(5)
         .then(({ data }) => { if (data) setRecentOrders(data as any[]); }),
       getUserWishlist(authUser.uid).then(items => { if (items) setWishlist(items); }),
-      rewardsService.getGifts().then(gifts => setGifts(gifts || []))
+      rewardsService.getGifts().then(gifts => setGifts(gifts || [])),
+      loyaltyService.getCustomerRewards(stableId).then(res => setLoyaltyRewards(res))
     ]).catch((err) => {
       console.warn("Background profile sync error:", err);
     });
@@ -1330,6 +1337,78 @@ export const Profile: React.FC = () => {
                       <p className="text-xs sm:text-sm font-bold text-stone-900 leading-relaxed line-clamp-3">{user.address}</p>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scratch Tracking Summary Card */}
+            <div className="bg-white rounded-2xl sm:rounded-[2.5rem] md:rounded-[3rem] border border-stone-200/80 shadow-xs p-4 sm:p-8 md:p-10 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-widest mb-1">
+                    <Sparkles size={16} className="animate-spin-slow" />
+                    <span>Digital Stamps & Scratch Cards</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Sweet Rewards Tracker</h3>
+                  <p className="text-stone-500 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">Collect stamps on orders & scratch to reveal prizes</p>
+                </div>
+                <button
+                  onClick={() => navigate('/loyalty/passport')}
+                  className="px-5 py-3 bg-[#E76A54] hover:bg-orange-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md flex items-center gap-2 shrink-0"
+                >
+                  <Gift size={16} />
+                  <span>Open Stamp Passport</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Stamps Progress Box */}
+                <div className="bg-stone-50 rounded-2xl p-5 border border-stone-200/80 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-stone-700 uppercase tracking-wider">Stamp Passport</span>
+                    <span className="text-xs font-black text-primary">{loyaltyRewards.stampsCollected} / {loyaltyRewards.stampsRequired} Stamps</span>
+                  </div>
+                  <div className="h-3 w-full bg-stone-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
+                      style={{ width: `${Math.min(100, (loyaltyRewards.stampsCollected / loyaltyRewards.stampsRequired) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-stone-500 font-medium">
+                    {loyaltyRewards.stampsCollected >= loyaltyRewards.stampsRequired 
+                      ? '🎉 Mystery Box Unlocked! Visit your loyalty passport to scratch & win!' 
+                      : `Collect ${loyaltyRewards.stampsRequired - loyaltyRewards.stampsCollected} more stamps to unlock your Mystery Box reward.`}
+                  </p>
+                </div>
+
+                {/* Scratch Rewards Box */}
+                <div className="bg-stone-50 rounded-2xl p-5 border border-stone-200/80 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-black text-stone-700 uppercase tracking-wider">Scratch Cards Won</span>
+                    <span className="text-xs font-black text-amber-600">{loyaltyRewards.rewards.length} Cards</span>
+                  </div>
+                  {loyaltyRewards.rewards.length === 0 ? (
+                    <p className="text-[11px] text-stone-500 font-medium py-2">
+                      No scratch cards unlocked yet. Place orders and collect stamps to get scratch cards!
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                      {loyaltyRewards.rewards.map((reward: any, idx: number) => (
+                        <div key={reward.id || idx} className="bg-white p-3 rounded-xl border border-stone-200 flex items-center justify-between text-xs">
+                          <div>
+                            <p className="font-black text-stone-900">{reward.reward_prizes?.name || 'Mystery Prize'}</p>
+                            <p className="text-[10px] text-stone-500">Code: <span className="font-mono font-bold text-primary">{reward.unique_redemption_code}</span></p>
+                          </div>
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                            reward.status === 'redeemed' ? 'bg-stone-100 text-stone-600' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          )}>
+                            {reward.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

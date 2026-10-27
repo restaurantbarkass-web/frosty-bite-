@@ -63,6 +63,8 @@ const SearchOverlay = lazyWithRetry(() => import('./components/Search/SearchOver
 const FeedbackPage = lazyWithRetry(() => import('./pages/FeedbackPage'));
 const CampaignPage = lazyWithRetry(() => import('./pages/CampaignPage'));
 const AccountDeletionPage = lazyWithRetry(() => import('./pages/AccountDeletionPage'));
+const LoyaltyPage = lazyWithRetry(() => import('./pages/LoyaltyPage').then(m => ({ default: m.LoyaltyPage })));
+const FreeClaimPage = lazyWithRetry(() => import('./pages/FreeClaimPage').then(m => ({ default: m.FreeClaimPage })));
 
 const PageLoader = () => (
   <div className="fixed top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -471,6 +473,10 @@ function AppContent() {
                     </Suspense>
                   </LocalErrorBoundary>
                 } />
+                <Route path="/loyalty" element={<LocalErrorBoundary fallbackName="Loyalty Page"><LoyaltyPage /></LocalErrorBoundary>} />
+                <Route path="/loyalty/:token" element={<LocalErrorBoundary fallbackName="Loyalty Page"><LoyaltyPage /></LocalErrorBoundary>} />
+                <Route path="/claim-reward" element={<LocalErrorBoundary fallbackName="Free Claim Page"><FreeClaimPage /></LocalErrorBoundary>} />
+                <Route path="/claim-reward/:code" element={<LocalErrorBoundary fallbackName="Free Claim Page"><FreeClaimPage /></LocalErrorBoundary>} />
                 <Route path="*" element={<LocalErrorBoundary fallbackName="Not Found Page"><NotFound /></LocalErrorBoundary>} />
               </Routes>
             </motion.div>

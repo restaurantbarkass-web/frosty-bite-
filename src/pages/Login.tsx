@@ -96,7 +96,39 @@ export const Login: React.FC = () => {
     }
   }, [resendMobileCooldown]);
 
-  if (loading || authStatus === 'loading') {
+  const [forceReady, setForceReady] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  // Safety timeout: never leave user on an infinite blank loading screen if network is slow
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setForceReady(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Check for completed Google redirect sign-in upon returning to /login
+  useEffect(() => {
+    let isMounted = true;
+    const checkRedirect = async () => {
+      try {
+        const fbUser = await authService.getGoogleRedirectResult();
+        if (fbUser && isMounted) {
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+          toast.success('Welcome back to Frosty Bite!');
+          await resolveAndSyncUser(null, fbUser);
+          await refreshProfile();
+          navigate('/', { replace: true });
+        }
+      } catch (err: any) {
+        console.warn('[Login] Redirect check error:', err);
+      }
+    };
+    checkRedirect();
+    return () => { isMounted = false; };
+  }, [navigate, refreshProfile, resolveAndSyncUser]);
+
+  if ((loading || authStatus === 'loading') && !forceReady) {
     return <LoadingScreen fullScreen={true} message="Loading Frosty Bite secure portal..." />;
   }
 
@@ -113,6 +145,7 @@ export const Login: React.FC = () => {
 
   // 1. Continue with Google (Firebase OAuth)
   const handleGoogleLogin = async () => {
+    setGoogleError(null);
     showNotification('Connecting to Google...', 'sparkles', true);
     try {
       const fbUser = await authService.loginWithGoogle();
@@ -124,9 +157,11 @@ export const Login: React.FC = () => {
         navigate('/', { replace: true });
       }
     } catch (err: any) {
-      console.error('Google sign-in failed:', err);
-      toast.error(err?.message || 'Google sign-in failed. Please try email or phone login.');
-      showNotification('Google sign-in encountered an issue.', 'alert', false);
+      console.error('Google sign-in notice:', err);
+      const msg = err?.message || 'Google sign-in encountered an issue.';
+      setGoogleError(msg);
+      toast.error(msg, { duration: 5000 });
+      showNotification(msg.length > 50 ? 'Google sign-in unavailable' : msg, 'alert', false);
     }
   };
 
@@ -423,6 +458,39 @@ export const Login: React.FC = () => {
               </div>
               <ChevronRight size={18} className="text-[#8C583E] group-hover:translate-x-0.5 transition-transform" />
             </button>
+
+            {googleError && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 bg-amber-50/90 border border-amber-200/80 rounded-2xl text-xs text-amber-900 space-y-1.5 shadow-2xs"
+              >
+                <div className="flex items-start gap-1.5 font-bold text-amber-950">
+                  <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>Google Sign-In Notice:</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed pl-5">
+                  {googleError}
+                </p>
+                <div className="flex items-center gap-2 pt-1 pl-5 text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => { setGoogleError(null); setActiveView('email'); }}
+                    className="text-[#88183e] underline hover:text-[#FF7597] cursor-pointer"
+                  >
+                    Use 6-Digit Email OTP
+                  </button>
+                  <span className="text-amber-400">•</span>
+                  <button
+                    type="button"
+                    onClick={() => { setGoogleError(null); setActiveView('guest'); }}
+                    className="text-[#b45309] underline hover:text-[#92400e] cursor-pointer"
+                  >
+                    Instant Guest Checkout
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
             {/* Option 2: Continue with Email */}
             <button 

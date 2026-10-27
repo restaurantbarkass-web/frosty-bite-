@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, MessageSquare, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle, ShoppingBag } from 'lucide-react';
+import { MoreVertical, ExternalLink, User, Clock, CheckCircle2, Truck, Package, MessageCircle, MessageSquare, X, Trash2, Edit2, Volume2, VolumeX, Printer, Bell, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, AlertCircle, ShoppingBag, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../../firebase';
 import { supabase } from '../../supabase';
@@ -13,6 +13,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useConfig } from '../../context/ConfigContext';
 import { rewardsService } from '../../services/rewardsService';
 import { emailService } from '../../services/emailService';
+import { loyaltyService } from '../../services/loyaltyService';
 
 import { Order } from '../../types';
 import { ImageZoom } from '../ImageZoom';
@@ -1616,6 +1617,28 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
                     title="Print"
                   >
                     <Printer size={18} />
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      const token = await loyaltyService.getOrCreateLoyaltyLink(order.id, order.user_id);
+                      const domain = window.location.origin;
+                      const loyaltyLink = `${domain}/loyalty/${token}`;
+                      const customerName = order.customer_name || order.customerName || 'Valued Customer';
+                      const phone = order.phone || '';
+                      const expiryDate = new Date();
+                      expiryDate.setDate(expiryDate.getDate() + 90);
+                      const expiryStr = expiryDate.toLocaleDateString();
+
+                      const message = `Hello ${customerName}! ❤️\n\nThank you for choosing Frosty Bite Bakery.\n\nYour order has been recorded, and your loyalty reward is waiting!\n\n🎁 Open your personal loyalty link:\n${loyaltyLink}\n\nFollow the on-screen instructions to collect your stamp.\n\nYour loyalty card brings you closer to a special Mystery Box surprise!\n\nValid until: ${expiryStr}\n\nThank you for being part of Frosty Bite Bakery.\n\nEvery bite comes with a little happiness! 🍰`;
+                      const cleanPhone = phone.replace(/\D/g, '');
+                      const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message)}`;
+                      window.open(waUrl, '_blank');
+                      toast.success('WhatsApp opened with prefilled loyalty link!');
+                    }}
+                    className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all flex items-center justify-center min-w-[44px] min-h-[44px] cursor-pointer"
+                    title="Send WhatsApp Loyalty Link"
+                  >
+                    <Gift size={18} />
                   </button>
                   <button 
                     onClick={() => {
