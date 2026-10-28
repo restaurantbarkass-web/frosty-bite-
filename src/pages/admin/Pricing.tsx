@@ -41,7 +41,7 @@ export const Pricing: React.FC = () => {
 
   // Customer Links states
   const [feedbackUrlInput, setFeedbackUrlInput] = useState('');
-  const [websiteUrlInput, setWebsiteUrlInput] = useState('https://frostybite.in');
+  const [websiteUrlInput, setWebsiteUrlInput] = useState('https://frosty-bite.vercel.app');
   const [isSavingLinks, setIsSavingLinks] = useState(false);
 
   // Geofencing states
@@ -71,7 +71,7 @@ export const Pricing: React.FC = () => {
       setIsPickupOnly(Boolean(config.pickup_only ?? config.isPickupOnly ?? false));
 
       setFeedbackUrlInput(config.feedbackUrl ?? '');
-      setWebsiteUrlInput(config.websiteUrl ?? 'https://frostybite.in');
+      setWebsiteUrlInput((config.websiteUrl && !config.websiteUrl.includes('frostybite.in')) ? config.websiteUrl : 'https://frosty-bite.vercel.app');
 
       setGeofencingEnabled(config.geofencingEnabled ?? true);
       setGeofencingLatitude(config.geofencingLatitude ?? 20.4625);
@@ -454,7 +454,7 @@ export const Pricing: React.FC = () => {
                   type="url"
                   value={feedbackUrlInput}
                   onChange={(e) => setFeedbackUrlInput(e.target.value)}
-                  placeholder="e.g. https://frostybite.in/feedback"
+                  placeholder="e.g. https://frosty-bite.vercel.app/feedback"
                   className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-xs sm:text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] transition-all font-mono font-medium"
                 />
                 <p className="text-[11px] text-stone-500">
@@ -484,7 +484,7 @@ export const Pricing: React.FC = () => {
                   type="url"
                   value={websiteUrlInput}
                   onChange={(e) => setWebsiteUrlInput(e.target.value)}
-                  placeholder="https://frostybite.in"
+                  placeholder="https://frosty-bite.vercel.app"
                   className="w-full bg-[#FAF8F5] border border-stone-200 rounded-2xl px-4 py-3 text-xs sm:text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#E76A54] transition-all font-mono font-medium"
                 />
                 <p className="text-[11px] text-stone-500">

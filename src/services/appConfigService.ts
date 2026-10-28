@@ -23,7 +23,7 @@ const defaultParams: AppConfig = {
   bakeryMapUrl: "https://www.google.com/maps/search/?api=1&query=20.4625,85.8828",
   bakeryLocationConfirmed: true,
   feedbackUrl: "",
-  websiteUrl: "https://frostybite.in"
+  websiteUrl: "https://frosty-bite.vercel.app"
 };
 
 let currentConfig: AppConfig = (() => {

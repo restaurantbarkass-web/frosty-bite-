@@ -77,23 +77,24 @@ export const OrderCollectedPage: React.FC<OrderCollectedPageProps> = ({
   const normalizedPhone = normalizePhoneNumber(displayOrder.phone);
   const hasValidPhone = Boolean(normalizedPhone);
 
-  // Retrieve customer links from settings
-  // If feedbackUrl is empty in settings, provide an intelligent link to local /feedback?order=id if available
-  const configuredFeedback = config?.feedbackUrl || '';
-  const configuredWebsite = config?.websiteUrl || 'https://frostybite.in';
+  // Retrieve customer links from settings with Vercel domain default
+  const VERCEL_DOMAIN = 'https://frosty-bite.vercel.app';
 
-  // Resolved feedback URL: if configured, use it (or append order id); otherwise use window origin /feedback if local
-  let resolvedFeedbackUrl: string | null = null;
-  if (configuredFeedback && isValidHttpsUrl(configuredFeedback)) {
+  const configuredFeedback = config?.feedbackUrl || '';
+  const rawWebsite = config?.websiteUrl || '';
+  const configuredWebsite = (rawWebsite && !rawWebsite.includes('frostybite.in')) ? rawWebsite : VERCEL_DOMAIN;
+
+  // Resolved feedback URL: if configured, use it; otherwise use production Vercel domain feedback URL
+  let resolvedFeedbackUrl: string = `${VERCEL_DOMAIN}/feedback?order=${displayOrder.id}`;
+  if (configuredFeedback && isValidHttpsUrl(configuredFeedback) && !configuredFeedback.includes('localhost') && !configuredFeedback.includes('127.0.0.1')) {
     resolvedFeedbackUrl = configuredFeedback.includes('?') 
       ? `${configuredFeedback}&order=${displayOrder.id}` 
       : `${configuredFeedback}?order=${displayOrder.id}`;
-  } else if (typeof window !== 'undefined' && window.location?.origin && isValidHttpsUrl(window.location.origin)) {
-    // Dynamic fallback to the running applet feedback route
+  } else if (typeof window !== 'undefined' && window.location?.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1') && isValidHttpsUrl(window.location.origin)) {
     resolvedFeedbackUrl = `${window.location.origin}/feedback?order=${displayOrder.id}`;
   }
 
-  const resolvedWebsiteUrl = sanitizeCustomerUrl(configuredWebsite);
+  const resolvedWebsiteUrl = sanitizeCustomerUrl(configuredWebsite) || VERCEL_DOMAIN;
 
   // Build standard message
   const defaultMessage = buildOrderCollectedWhatsAppMessage(
