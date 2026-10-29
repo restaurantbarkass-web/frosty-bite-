@@ -272,11 +272,90 @@ export const OffersNotificationsManager: React.FC = () => {
       const headers = await getAuthHeaders();
       const res = await fetch(`/api/offers-notifications/audience-preview?audience=${audienceType}`, { headers });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.preview) {
         setAudiencePreview(data.preview);
+        return;
       }
     } catch (err) {
-      console.warn('Failed to calculate audience preview:', err);
+      console.warn('Server audience preview failed, calculating from Supabase fallback:', err);
+    }
+
+    // Resilient fallback: calculate directly from Supabase client
+    try {
+      const { data: users } = await supabase.from('users').select('*').limit(500);
+      const { data: orders } = await supabase.from('orders').select('*').limit(1000);
+      const { count: pushCount } = await supabase.from('push_subscriptions').select('*', { count: 'exact', head: true }).eq('is_active', true);
+
+      const customerMap = new Map<string, any>();
+      users?.forEach((u: any) => {
+        const ph = u.phone || u.mobile || u.phone_number;
+        const key = ph || u.id;
+        if (key) {
+          customerMap.set(key, {
+            id: u.id,
+            name: u.full_name || u.name || 'Valued Customer',
+            phone: ph,
+            orderCount: Number(u.total_orders) || 0,
+            totalSpent: Number(u.lifetime_spend) || 0,
+            isVip: (Number(u.lifetime_spend) || 0) >= 500,
+            isPastBuyer: (Number(u.total_orders) || 0) > 0
+          });
+        }
+      });
+
+      orders?.forEach((o: any) => {
+        let ph = o.phone || o.customer_phone;
+        if (!ph) {
+          const combined = `${o.address || ''} ${o.delivery_address || ''}`;
+          const match = combined.match(/(?:phone|mob|contact|tel)?[:\s-]*([6-9]\d{9})\b/i);
+          if (match && match[1]) ph = match[1];
+        }
+        const key = ph || o.user_id || o.id;
+        if (key) {
+          const amt = Number(o.total || o.total_amount || 0);
+          if (customerMap.has(key)) {
+            const ex = customerMap.get(key);
+            ex.orderCount += 1;
+            ex.totalSpent += amt;
+            ex.isPastBuyer = true;
+            ex.isVip = ex.totalSpent >= 500;
+          } else {
+            customerMap.set(key, {
+              id: o.id,
+              name: o.customer_name || 'Valued Customer',
+              phone: ph,
+              orderCount: 1,
+              totalSpent: amt,
+              isVip: amt >= 500,
+              isPastBuyer: true
+            });
+          }
+        }
+      });
+
+      const list = Array.from(customerMap.values());
+      let filtered = list;
+      if (audienceType === 'past_buyers') filtered = list.filter(c => c.isPastBuyer);
+      else if (audienceType === 'vip') filtered = list.filter(c => c.isVip);
+
+      const smsEligible = filtered.filter(c => !!c.phone).length;
+      setAudiencePreview({
+        audienceType,
+        totalCustomers: filtered.length,
+        smsEligible,
+        whatsappEligible: smsEligible,
+        pushSubscribers: pushCount || 0,
+        customers: filtered.slice(0, 10).map(c => ({
+          id: c.id,
+          name: c.name,
+          maskedPhone: c.phone ? `${c.phone.slice(0, 4)}••••${c.phone.slice(-2)}` : '••••••••••',
+          orderCount: c.orderCount,
+          totalSpent: c.totalSpent,
+          isVip: c.isVip
+        }))
+      });
+    } catch (fbErr) {
+      console.warn('Direct fallback audience calculation warning:', fbErr);
     } finally {
       setAudienceLoading(false);
     }
@@ -285,6 +364,8 @@ export const OffersNotificationsManager: React.FC = () => {
   useEffect(() => {
     fetchOverview();
     fetchCampaigns();
+    // Preload audience sizing on mount so Step 2 values are instantly ready
+    fetchAudiencePreview('all');
   }, []);
 
   useEffect(() => {
@@ -1087,6 +1168,7 @@ export const OffersNotificationsManager: React.FC = () => {
                       return;
                     }
                     setStep(2);
+                    fetchAudiencePreview(form.audience_type);
                   }}
                   className="flex items-center gap-2 px-6 py-2.5 bg-[#4A2E2A] text-white font-bold text-sm rounded-xl hover:opacity-95 shadow-md"
                 >

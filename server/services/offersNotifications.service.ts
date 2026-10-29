@@ -227,13 +227,20 @@ class OffersNotificationsServiceClass {
     try {
       const { data: orders } = await supabase
         .from('orders')
-        .select('id, user_id, customer_name, customer_phone, phone, email, total, total_amount, created_at, status')
+        .select('id, user_id, customer_name, customer_phone, phone, email, total, total_amount, created_at, status, address, delivery_address')
         .order('created_at', { ascending: false })
         .limit(2000);
 
       if (Array.isArray(orders)) {
         orders.forEach(o => {
-          const rawPhone = o.phone || o.customer_phone;
+          let rawPhone = o.phone || o.customer_phone;
+          if (!rawPhone) {
+            const combinedAddr = `${o.address || ''} ${o.delivery_address || ''}`;
+            const phoneMatch = combinedAddr.match(/(?:phone|mob|contact|tel)?[:\s-]*([6-9]\d{9})\b/i);
+            if (phoneMatch && phoneMatch[1]) {
+              rawPhone = phoneMatch[1];
+            }
+          }
           const normalized = this.normalizePhone(rawPhone);
           const key = normalized || (o.user_id ? `user:${o.user_id}` : null) || (o.email ? `email:${o.email}` : null);
           if (!key) return;

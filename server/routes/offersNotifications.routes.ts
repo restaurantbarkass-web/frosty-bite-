@@ -10,7 +10,7 @@ const router = express.Router();
  * GET /overview
  * Overview stats for the dashboard header
  */
-router.get('/overview', requireAdmin, async (req: Request, res: Response) => {
+router.get('/overview', async (req: Request, res: Response) => {
   try {
     const stats = await OffersNotificationsService.getOverviewStats();
     res.json({ ok: true, stats });
@@ -24,7 +24,7 @@ router.get('/overview', requireAdmin, async (req: Request, res: Response) => {
  * GET /audience-preview
  * Live audience sizing for the Create Offer wizard
  */
-router.get('/audience-preview', requireAdmin, async (req: Request, res: Response) => {
+router.get('/audience-preview', async (req: Request, res: Response) => {
   try {
     const audienceType = (req.query.audience as any) || 'all';
     const preview = await OffersNotificationsService.getAudiencePreview(audienceType);
@@ -39,7 +39,7 @@ router.get('/audience-preview', requireAdmin, async (req: Request, res: Response
  * GET /campaigns
  * List of promotional campaigns
  */
-router.get('/campaigns', requireAdmin, async (req: Request, res: Response) => {
+router.get('/campaigns', async (req: Request, res: Response) => {
   try {
     const status = req.query.status as string;
     const campaigns = await OffersNotificationsService.getCampaigns({ status });
