@@ -43,6 +43,7 @@ import accountDeletionRouter from "./routes/accountDeletion.routes";
 import customerAdminRouter from "./routes/customerAdmin.routes";
 import categoriesRouter from "./routes/categories.routes";
 import { loyaltyRouter } from "./routes/loyalty.routes";
+import offersNotificationsRouter from "./routes/offersNotifications.routes";
 
 import { V2GeofencingService } from "./services/v2Geofencing.service";
 import { supabase } from "./lib/supabase";
@@ -232,6 +233,7 @@ app.use(["/auth/account-deletion", "/api/auth/account-deletion"], accountDeletio
 app.use(["/admin/customers", "/api/admin/customers"], customerAdminRouter);
 app.use(["/categories", "/api/categories"], categoriesRouter);
 app.use(["/loyalty", "/api/loyalty"], loyaltyRouter);
+app.use(["/offers-notifications", "/api/offers-notifications"], offersNotificationsRouter);
 app.use(["/coupons/validate", "/api/coupons/validate"], (req, res, next) => {
   req.url = "/validate-coupon";
   campaignsRouter(req, res, next);

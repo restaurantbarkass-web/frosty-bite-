@@ -1,0 +1,985 @@
+# MASTER PROMPT: FROSTY BITE BAKERY — SMART OFFERS & MULTI-CHANNEL NOTIFICATION SYSTEM
+
+## 1. YOUR ROLE
+
+Act as a senior full-stack engineer, Supabase architect, notification infrastructure engineer, security engineer, and premium UI/UX designer.
+
+You are working on my EXISTING Frosty Bite Bakery application.
+
+Website: https://frosty-bite.vercel.app
+
+Repository: https://github.com/restaurantbarkass-web/frosty-bite-.git
+
+The application already has an existing website, admin panel, customer accounts, customer profiles, products, checkout, orders, Supabase database, and an existing Android SMS Gateway integration.
+
+Your task is to EXTEND the existing application with a complete Offers & Multi-Channel Notification System.
+
+DO NOT create a new application.
+DO NOT rebuild the existing website.
+DO NOT replace the existing database.
+DO NOT replace the existing SMS Gateway.
+DO NOT remove existing features.
+DO NOT redesign unrelated pages.
+DO NOT break existing customer accounts, orders, checkout, authentication, navigation, animations, or mobile responsiveness.
+
+First inspect the existing repository, application architecture, Supabase schema, authentication, authorization, admin dashboard, order data, customer data, and SMS Gateway implementation.
+
+Implement the feature using the project's existing conventions and compatible technologies.
+
+If a required integration already exists, reuse it instead of creating a duplicate.
+
+---
+
+# 2. MAIN OBJECTIVE
+
+Create a new admin section named:
+
+"Offers & Notifications"
+
+The admin must be able to create promotional campaigns, such as:
+
+* 10% OFF
+* 20% OFF
+* 30% OFF
+* Flat ₹50 OFF
+* Festival offers
+* Limited-time offers
+* Free gifts
+* Custom promotional campaigns
+
+Every campaign can use three notification channels:
+
+1. SMS — automatically sent using the existing Frosty Bite SMS Gateway.
+2. WhatsApp — generate an individual, personalized, prefilled WhatsApp message for each eligible customer. The admin manually reviews and sends every message.
+3. Website push notifications — automatically send browser push notifications to eligible customers who have subscribed and granted the necessary permission.
+
+All three channels must be independently configurable and managed through one admin dashboard.
+
+IMPORTANT DISTINCTION:
+
+WhatsApp messages must NEVER be sent automatically by this implementation. Only generate the personalized WhatsApp link and open WhatsApp for the admin to send the message manually.
+
+SMS and website push notifications may be sent automatically after the admin explicitly confirms campaign execution.
+
+---
+
+# 3. ADMIN DASHBOARD DESIGN
+
+Add a premium, modern "Offers & Notifications" section to the EXISTING admin panel.
+
+Follow the existing Frosty Bite Bakery brand identity.
+
+Design requirements:
+
+* Premium bakery-inspired interface.
+* Elegant black, white, and warm gold accents where compatible with the existing design.
+* Beautiful cards and clean typography.
+* Subtle animations.
+* Smooth transitions.
+* Responsive desktop, tablet, and mobile layouts.
+* Accessible forms and buttons.
+* Clear loading, success, warning, empty, and error states.
+* No unnecessary animation libraries or oversized dependencies.
+* Preserve the existing admin navigation and styling conventions.
+
+Create the following subsections:
+
+A. Overview
+B. Create Offer
+C. Campaign History
+D. WhatsApp Message Center
+E. Website Push Notifications
+F. Notification Delivery Logs
+G. Notification Settings
+
+Use existing navigation patterns and add only the minimum necessary changes.
+
+---
+
+# 4. CREATE OFFER CAMPAIGN
+
+Create a complete campaign creation wizard.
+
+STEP 1: BASIC OFFER DETAILS
+
+Fields:
+
+* Campaign name.
+* Offer title.
+* Offer description.
+* Discount type.
+* Discount value.
+* Offer code.
+* Start date and time.
+* Expiry date and time.
+* Optional minimum order amount.
+* Optional maximum discount amount.
+* Eligible products or categories, if supported.
+* Campaign image or banner, if appropriate.
+* Optional call-to-action text.
+* Destination page or offer URL.
+
+Discount types:
+
+* Percentage discount.
+* Fixed-amount discount.
+* Free gift or promotional reward.
+* Custom informational promotion.
+
+For example:
+
+Campaign name: Diwali Special 2026
+Offer title: Celebrate with 20% OFF!
+Discount: 20%
+Coupon: FROSTY20
+Minimum order: ₹299
+Validity: Selected start and expiry dates.
+
+Validate every field.
+
+Ensure the expiry time is later than the start time.
+
+Do not assume that creating a campaign automatically creates a working checkout coupon. Inspect the existing coupon and checkout implementation. Integrate with the existing discount system when compatible. If additional database support is necessary, implement it safely without breaking current coupons.
+
+STEP 2: SELECT CUSTOMERS
+
+Provide customer audience options:
+
+1. All eligible customers who have placed at least one order.
+2. Customers who ordered within a selected date range.
+3. Customers who have placed multiple orders.
+4. Customers selected individually.
+5. Customers filtered by order history, if supported by existing data.
+
+The default audience must be:
+
+"All eligible past customers who have placed at least one order."
+
+IMPORTANT CUSTOMER RULES:
+
+* Include customers who have ordered previously, even if they have not ordered recently.
+* Include eligible guest customers if their contact details exist in the database.
+* Deduplicate customers using a normalized contact identifier.
+* Do not send duplicate SMS messages to the same normalized phone number within a campaign.
+* Do not expose customer contact information to unauthorized users.
+* Do not assume that a guest customer has verified their phone number.
+* Do not assume that a phone number can receive WhatsApp messages merely because it exists in the database.
+* Respect consent, opt-out, legal requirements, and channel-specific preferences.
+* Show audience counts before campaign execution.
+
+Display:
+
+Total eligible customers.
+Eligible SMS recipients.
+Eligible WhatsApp recipients.
+Eligible website push subscriptions.
+Excluded recipients and their exclusion reasons.
+
+These numbers must be calculated from actual database records, not hardcoded examples.
+
+STEP 3: SELECT NOTIFICATION CHANNELS
+
+Provide three independent channel cards with toggles:
+
+[ ] SMS
+[ ] WhatsApp
+[ ] Website Push Notifications
+
+Each card must display the eligible audience count.
+
+Allow the admin to enable or disable each channel independently.
+
+STEP 4: PREVIEW
+
+Display previews of:
+
+* SMS message.
+* WhatsApp message.
+* Website push title and body.
+* Website push destination.
+* Campaign details and validity.
+* Estimated audience size per channel.
+
+STEP 5: REVIEW AND EXECUTE
+
+Show a final confirmation screen with:
+
+* Campaign name.
+* Offer details.
+* Customer audience.
+* Enabled channels.
+* Expected SMS count.
+* Expected WhatsApp preparation count.
+* Expected website push count.
+
+Require explicit admin confirmation before starting automated delivery.
+
+After confirmation, create a persistent campaign record and durable delivery jobs.
+
+Never rely on an open browser tab to finish a large campaign.
+
+---
+
+# 5. SMS INTEGRATION — REUSE EXISTING SMS GATEWAY
+
+This is a critical requirement.
+
+The Frosty Bite Bakery project already has an Android SMS Gateway integration.
+
+Existing reported configuration:
+
+Application: Frosty Bite SMS Gateway
+Package: com.frostybite.smsgateway
+
+Reported server heartbeat endpoint:
+
+https://frosty-bite.vercel.app/api/sms-gateway/heartbeat
+
+Reported device ID:
+
+frosty-sms-gateway-01
+
+Existing gateway authentication uses:
+
+X-API-Key
+X-Device-ID
+
+These values are provided as implementation context. Verify the actual existing source code and deployment configuration before changing anything.
+
+DO NOT create another SMS Gateway.
+DO NOT change the existing gateway's authentication contract without necessity.
+DO NOT expose the gateway API key in frontend code.
+DO NOT place privileged credentials in VITE_ environment variables.
+DO NOT hardcode credentials in source files.
+
+Inspect the existing gateway implementation to determine how SMS jobs are currently submitted, acknowledged, processed, and reported.
+
+Reuse the existing working message-sending workflow.
+
+If the gateway currently supports only heartbeat or device connectivity, do not falsely assume it can send SMS jobs. Extend the existing server and Android app only as needed, preserving backward compatibility.
+
+SMS CAMPAIGN WORKFLOW:
+
+1. Admin confirms the campaign.
+2. Backend loads the campaign's eligible SMS recipients.
+3. Backend deduplicates recipients.
+4. Backend validates promotional consent and applicable regulatory requirements.
+5. Backend creates persistent SMS jobs.
+6. Jobs are processed in controlled batches.
+7. The existing gateway processes jobs using its established contract.
+8. Record gateway acceptance and device acknowledgements.
+9. Record delivery receipts when available.
+10. Retry temporary failures with bounded exponential backoff.
+11. Stop retrying permanent failures.
+12. Prevent duplicate messages when a request is retried.
+
+Do not assume that gateway acceptance means the SMS reached the recipient.
+
+SMS COMPLIANCE:
+
+The system must support applicable Indian promotional messaging requirements, including relevant TRAI/DLT registration, sender IDs, approved templates, consent, and opt-out handling.
+
+Use a compliant SMS provider or gateway configuration. Do not attempt to bypass operator restrictions.
+
+If the existing Android SMS Gateway is not suitable for compliant bulk promotional SMS, show a clear configuration warning and support a compliant provider adapter without silently substituting another provider.
+
+SMS TEMPLATE:
+
+Generate the message from the actual campaign data.
+
+Example:
+
+"Frosty Bite Bakery: Enjoy 20% OFF on your favourite treats! Use code FROSTY20. Valid until [expiry]. Order now: [campaign URL]"
+
+Allow the admin to edit and preview the message.
+
+Validate message length and encoding. Account for SMS segmentation when estimating message counts or costs, if provider information is available.
+
+Do not include unsupported emojis or links in a provider template that does not permit them.
+
+---
+
+# 6. WHATSAPP — INDIVIDUAL PREFILLED MESSAGE CENTER
+
+This is one of the most important features.
+
+DO NOT automatically send WhatsApp messages.
+
+DO NOT use unofficial WhatsApp automation.
+DO NOT use browser automation to simulate sending.
+DO NOT send messages directly from a backend WhatsApp account.
+DO NOT misrepresent opening WhatsApp as successful message delivery.
+
+The application must generate a unique prefilled WhatsApp message for each eligible customer.
+
+WHATSAPP MESSAGE CENTER:
+
+Create a dashboard showing:
+
+* Customer name, when available.
+* Masked mobile number in the overview.
+* Campaign name.
+* WhatsApp eligibility.
+* Message preparation status.
+* Last action.
+* Button to open WhatsApp.
+* Button to copy message.
+* Button to mark manually sent.
+* Optional exclusion or failure reason.
+
+The authorized admin can open a customer record to see the full contact number when needed.
+
+CUSTOMER SELECTION:
+
+Include eligible past customers who have placed at least one order and have a usable phone number.
+
+For promotional messages, respect WhatsApp consent and applicable messaging requirements. Do not treat an order history alone as marketing consent.
+
+Normalize phone numbers to international format.
+
+For India, use the +91 country code when the number is confirmed to be an Indian mobile number. Do not blindly prepend +91 to numbers that already contain a country code.
+
+Generate the URL using URL encoding.
+
+Conceptual format:
+
+https://wa.me/91XXXXXXXXXX?text=URL_ENCODED_MESSAGE
+
+Do not insert spaces, plus signs, or punctuation into the wa.me phone-number path.
+
+Use a tested URL-encoding utility such as encodeURIComponent for the message.
+
+MESSAGE PERSONALIZATION:
+
+Support these variables:
+
+{{customer_name}}
+{{offer_title}}
+{{discount_value}}
+{{coupon_code}}
+{{minimum_order}}
+{{expiry_date}}
+{{campaign_url}}
+{{bakery_name}}
+
+If a customer name is missing, use a friendly neutral greeting.
+
+Example template:
+
+"Hey {{customer_name}}! ❤️🍰
+
+We've got a sweet surprise for you from Frosty Bite Bakery!
+
+🎉 Enjoy {{discount_value}} OFF on your favourite treats!
+
+🎟️ Use code: {{coupon_code}}
+
+{{minimum_order}}
+
+Offer valid until {{expiry_date}}.
+
+Order now: {{campaign_url}}
+
+With love,
+Team Frosty Bite ❤️"
+
+Format the final message correctly for the selected campaign.
+
+Do not display unresolved template variables in generated messages.
+
+ADMIN WORKFLOW:
+
+1. Admin creates a campaign.
+2. Backend prepares one WhatsApp message record per eligible recipient.
+3. Dashboard displays the WhatsApp recipient list.
+4. Admin clicks "Open WhatsApp".
+5. WhatsApp opens with the selected customer's number and prefilled message.
+6. Admin manually reviews and sends the message.
+7. Admin returns to the dashboard.
+8. Admin can click "Mark as Sent".
+9. Record that the admin marked the message as sent, including timestamp and admin ID.
+10. Keep an accurate audit history.
+
+Use a status model such as:
+
+* Not prepared.
+* Ready to send.
+* WhatsApp opened.
+* Manually marked sent.
+* Excluded.
+* Cancelled.
+
+"WhatsApp opened" does not mean "message sent."
+
+"Manually marked sent" means the admin confirmed the action. It is not independently verified delivery.
+
+Use a browser-safe mechanism to open WhatsApp. Do not silently mark a message as sent when a link is opened.
+
+Allow the admin to copy the message if WhatsApp cannot open.
+
+CAMPAIGN NAVIGATION:
+
+Add buttons:
+
+* Open WhatsApp.
+* Copy Message.
+* Mark as Sent.
+* Skip Customer.
+* Next Customer.
+
+Create a one-by-one sending workflow so the admin can process recipients efficiently.
+
+Do not automatically open dozens of WhatsApp windows or tabs.
+
+Prevent accidental duplicate preparation records for the same campaign and recipient.
+
+Allow campaign cancellation and recipient exclusion.
+
+---
+
+# 7. WEBSITE PUSH NOTIFICATIONS
+
+Implement real browser push notifications, not merely an in-app notification banner.
+
+First inspect whether the existing project already uses Firebase Cloud Messaging, service workers, a PWA manifest, or another push provider.
+
+Reuse compatible existing infrastructure. Do not register duplicate service workers or create conflicting push subscriptions.
+
+REQUIREMENTS:
+
+* Request permission only after a clear user action or suitable contextual explanation.
+* Never repeatedly prompt customers who have denied permission.
+* Store push subscription or token data securely.
+* Associate subscriptions with authenticated customers where possible.
+* Support guest customers using a secure, non-guessable subscription identifier.
+* Allow multiple devices per customer.
+* Support subscription expiration and token rotation.
+* Respect browser and operating-system restrictions.
+* Never assume that permission granted guarantees successful delivery.
+
+ADMIN PUSH COMPOSER:
+
+Fields:
+
+* Notification title.
+* Notification body.
+* Optional icon.
+* Optional image.
+* Destination URL.
+* Optional scheduled time.
+* Audience selection.
+* Campaign association.
+
+Example:
+
+Title:
+"🍰 A Sweet Surprise Awaits!"
+
+Body:
+"Enjoy 20% OFF at Frosty Bite Bakery. Use code FROSTY20!"
+
+Destination:
+The actual offer page or a compatible existing page containing the offer details.
+
+The destination must be a valid URL within the approved application domain unless an explicitly permitted destination is configured.
+
+PUSH CAMPAIGN WORKFLOW:
+
+1. Admin enables Website Push.
+2. Backend retrieves eligible, active subscriptions.
+3. Backend creates persistent delivery jobs.
+4. Background workers send push notifications in controlled batches.
+5. Record provider responses.
+6. Remove invalid or permanently expired subscriptions when appropriate.
+7. Retry temporary failures safely.
+8. Record notification click events when technically supported.
+9. Open the appropriate destination when a notification is clicked.
+
+Use HTTPS, secure server-side credentials, and appropriate push-provider authentication.
+
+If FCM is already configured, reuse it. Otherwise, choose a compatible implementation based on the existing architecture.
+
+If native Web Push is more suitable, implement it with an established library and securely managed VAPID keys.
+
+Do not expose private keys in frontend code.
+
+Do not claim delivery or display confirmation unless the underlying provider supplies evidence for that status.
+
+IMPORTANT:
+
+Browser push subscriptions are not necessarily equivalent to unique customers. Multiple devices may belong to one customer. Display both recipient and subscription counts where useful.
+
+---
+
+# 8. CAMPAIGN QUEUE AND RELIABILITY
+
+Build the notification system so it continues working if the admin closes the browser.
+
+Use Supabase PostgreSQL as the source of truth and a durable queue or equivalent persistent job-processing architecture.
+
+Evaluate existing Supabase capabilities and current project conventions before selecting the implementation.
+
+Use background workers, scheduled processing, and provider adapters as appropriate.
+
+Each delivery job should include:
+
+* Unique job ID.
+* Campaign ID.
+* Channel.
+* Recipient or subscription reference.
+* Template or message reference.
+* Status.
+* Attempt count.
+* Next retry time.
+* Provider message ID, when available.
+* Last error.
+* Created timestamp.
+* Updated timestamp.
+
+Suggested statuses:
+
+* Pending.
+* Processing.
+* Accepted by provider.
+* Sent, when supported.
+* Delivered, when confirmed.
+* Read, when supported.
+* Failed.
+* Retry scheduled.
+* Cancelled.
+* Skipped.
+
+Use database constraints, idempotency keys, and atomic job claiming to prevent duplicate processing.
+
+Use bounded exponential backoff with jitter for temporary errors.
+
+Respect provider rate limits and retry-after information.
+
+Do not retry permanent errors indefinitely.
+
+Do not send duplicate notifications when a worker crashes after a provider has accepted a message.
+
+Where a provider does not support idempotency, document and mitigate the uncertainty rather than promising exactly-once delivery.
+
+Provide a campaign pause and cancel mechanism.
+
+Do not cancel messages that have already been irreversibly accepted by a provider, but stop queued jobs that have not yet been sent.
+
+---
+
+# 9. DATABASE DESIGN
+
+Inspect the existing Supabase schema before making database changes.
+
+Create only the additional tables and columns necessary for this feature.
+
+Potential entities:
+
+A. notification_campaigns
+
+* id
+* name
+* campaign_type
+* offer configuration
+* template configuration
+* audience configuration
+* selected channels
+* start time
+* expiry time
+* status
+* created_by
+* created_at
+* updated_at
+
+B. notification_campaign_recipients
+
+* id
+* campaign_id
+* customer reference, when available
+* normalized recipient reference
+* channel
+* eligibility status
+* exclusion reason
+* created_at
+
+C. notification_jobs
+
+* id
+* campaign_id
+* recipient reference
+* channel
+* status
+* attempt_count
+* next_attempt_at
+* provider_message_id
+* last_error
+* timestamps
+
+D. notification_templates
+
+* id
+* channel
+* name
+* content
+* metadata
+* approval status, where relevant
+* timestamps
+
+E. notification_subscriptions
+
+* id
+* customer reference, when available
+* endpoint or token reference
+* device information where necessary
+* subscription status
+* last_seen_at
+* created_at
+* updated_at
+
+F. notification_audit_logs
+
+* id
+* campaign_id
+* admin_id
+* action
+* relevant metadata
+* timestamp
+
+G. notification_preferences
+
+* customer reference or secure guest reference
+* channel-specific consent or preference
+* consent source
+* consent timestamp
+* withdrawal timestamp
+* timestamps
+
+These are proposed logical entities, not instructions to duplicate existing tables.
+
+Before creating them:
+
+1. Inspect existing customer and guest identity models.
+2. Inspect existing orders and customer contact fields.
+3. Inspect existing coupon tables.
+4. Inspect existing user roles and admin authorization.
+5. Inspect any existing notification tables.
+6. Reuse compatible tables where possible.
+7. Write safe, incremental, reversible migrations.
+8. Preserve all existing data.
+9. Never drop or recreate existing business tables to implement this feature.
+
+Add suitable indexes, uniqueness constraints, foreign keys, and timestamps.
+
+Use Row Level Security for exposed Supabase tables.
+
+Restrict campaign management, recipient lists, delivery logs, and privileged operations to authorized administrators.
+
+Do not trust a client-side admin flag.
+
+Use the existing server-side authorization mechanism.
+
+Use service-role credentials only in trusted server-side environments. Never expose them to the browser.
+
+---
+
+# 10. ADMIN ANALYTICS
+
+Create a real-time or refreshable campaign overview using actual database records.
+
+Display:
+
+* Total campaigns.
+* Active campaigns.
+* Completed campaigns.
+* Cancelled campaigns.
+* Eligible recipients.
+* SMS jobs queued.
+* SMS messages accepted.
+* SMS delivery confirmations, where available.
+* WhatsApp messages prepared.
+* WhatsApp messages opened.
+* WhatsApp messages manually marked sent.
+* Website push subscriptions targeted.
+* Website push provider successes and failures.
+* Pending jobs.
+* Retry jobs.
+* Failed jobs.
+
+Include channel-specific campaign progress bars.
+
+Use accurate labels.
+
+Do not count a WhatsApp link opening as a sent message.
+
+Do not count a provider API acceptance as confirmed delivery.
+
+Do not invent analytics or use static numbers.
+
+Use pagination and server-side filtering for large datasets.
+
+Allow filtering by campaign, channel, status, and date.
+
+---
+
+# 11. CUSTOMER EXPERIENCE
+
+Preserve the current Frosty Bite Bakery shopping experience.
+
+When a customer opens a campaign destination:
+
+* Display the correct offer details.
+* Show the offer expiry.
+* Display eligibility conditions.
+* Provide a clear call-to-action.
+* Use the existing product and category pages where appropriate.
+* Use the existing checkout and coupon system.
+* Explain when an offer is expired or ineligible.
+* Never apply an unauthorized discount.
+* Never trust a coupon value supplied only by the browser.
+
+If the campaign includes a coupon, validate its rules on the server side during checkout.
+
+Ensure expired campaigns cannot create new discount entitlements.
+
+Do not require users to log in merely to read a public offer page unless existing business rules require authentication.
+
+---
+
+# 12. SECURITY AND PRIVACY
+
+Implement the following protections:
+
+* Server-side admin authorization.
+* Supabase RLS.
+* Secure API authentication.
+* Rate limiting.
+* Input validation.
+* Output encoding.
+* Protection against unauthorized campaign execution.
+* Protection against duplicate jobs.
+* Secure secrets management.
+* Minimal storage of customer data.
+* Masked phone numbers in overview screens.
+* Restricted access to full phone numbers.
+* Audit logging.
+* Consent and opt-out handling.
+* Campaign cancellation.
+* Secure guest-recipient references.
+
+Never expose SMS API keys, service-role keys, FCM service-account credentials, VAPID private keys, or other privileged secrets in the frontend.
+
+Never log authentication tokens or unnecessary customer information.
+
+Use appropriate retention rules for notification logs and customer data.
+
+---
+
+# 13. PERFORMANCE REQUIREMENTS
+
+This feature must remain fast on mobile devices and ordinary laptops.
+
+Requirements:
+
+* Lazy-load large admin sections if compatible with the current application.
+* Avoid unnecessary database queries.
+* Use pagination.
+* Use batch processing.
+* Avoid one database query per customer where possible.
+* Avoid loading every historical order into the browser.
+* Use appropriate indexes.
+* Prevent repeated API calls.
+* Reuse existing UI components and dependencies.
+* Keep the customer-facing home page lightweight.
+* Do not block checkout while campaigns are processed.
+* Do not execute bulk messaging inside a single HTTP request.
+
+Campaign creation should enqueue work and return promptly.
+
+Show clear progress while workers process jobs.
+
+---
+
+# 14. TESTING REQUIREMENTS
+
+Before declaring the feature complete, test:
+
+A. CAMPAIGN CREATION
+
+* Valid campaign creation.
+* Invalid discount values.
+* Invalid expiry dates.
+* Duplicate campaign requests.
+* Campaign pause and cancellation.
+
+B. CUSTOMER AUDIENCE
+
+* Registered customers with orders.
+* Guest customers with orders.
+* Customers with multiple orders.
+* Duplicate mobile numbers.
+* Missing contact numbers.
+* Customers who opted out.
+* Customers with no previous orders.
+* Customers with multiple push subscriptions.
+
+C. SMS
+
+* Gateway online.
+* Gateway offline.
+* Invalid authentication.
+* Temporary send failure.
+* Permanent send failure.
+* Duplicate job prevention.
+* Retry handling.
+* Delivery receipt handling, if supported.
+* Regulatory configuration warnings.
+
+D. WHATSAPP
+
+* Correct phone-number normalization.
+* Correct message URL encoding.
+* Correct personalization.
+* Missing customer names.
+* Missing coupon codes.
+* Valid campaign links.
+* Manual sending status.
+* Copy-message fallback.
+* No automatic sending.
+* No false delivery claims.
+
+E. WEBSITE PUSH
+
+* Permission granted.
+* Permission denied.
+* Expired subscription.
+* Invalid token.
+* Provider failure.
+* Notification click.
+* Correct destination URL.
+* Multiple devices.
+* Guest subscriptions.
+
+F. SECURITY
+
+* Unauthorized users cannot create campaigns.
+* Unauthorized users cannot access recipient lists.
+* Unauthorized users cannot trigger campaign execution.
+* Frontend users cannot access privileged secrets.
+* Database policies protect sensitive records.
+
+G. REGRESSION
+
+* Existing login.
+* Existing products.
+* Existing checkout.
+* Existing coupons.
+* Existing orders.
+* Existing customer profiles.
+* Existing admin panel.
+* Existing SMS Gateway.
+* Existing mobile navigation.
+* Existing PWA behavior.
+
+Run the available automated tests, type checks, linting, and production build.
+
+Fix regressions introduced by the changes.
+
+Do not claim that an external provider integration works unless it has been tested against the real configured provider or its limitations have been explicitly documented.
+
+---
+
+# 15. IMPLEMENTATION STRATEGY
+
+Work in the following order.
+
+PHASE 1: AUDIT
+
+Inspect the existing repository, database schema, admin authorization, customer model, order model, SMS Gateway, push infrastructure, and deployment configuration.
+
+Identify the exact files that must change.
+
+PHASE 2: DATABASE
+
+Implement safe migrations, RLS policies, indexes, and the persistent campaign/job data model.
+
+PHASE 3: ADMIN UI
+
+Implement the Offers & Notifications dashboard, campaign creation wizard, audience selection, channel controls, previews, campaign history, and delivery logs.
+
+PHASE 4: WHATSAPP
+
+Implement personalized message generation, valid WhatsApp links, recipient pagination, manual sending workflow, and audit logs.
+
+PHASE 5: SMS
+
+Integrate with the existing SMS Gateway contract and implement durable job processing. Extend the gateway only when necessary and preserve backward compatibility.
+
+PHASE 6: WEBSITE PUSH
+
+Implement or reuse the existing browser push infrastructure and process campaigns through durable jobs.
+
+PHASE 7: AUTOMATION
+
+Add campaign execution, scheduling where supported, retry handling, cancellation, and idempotency.
+
+PHASE 8: TESTING
+
+Run tests, fix bugs, verify security, and ensure the existing application continues to work.
+
+PHASE 9: DEPLOYMENT REPORT
+
+Provide a concise implementation report listing:
+
+* Files changed.
+* Database migrations added.
+* Existing integrations reused.
+* New environment variables required.
+* Secrets that must be configured.
+* SMS Gateway changes required.
+* Push-provider configuration required.
+* WhatsApp workflow limitations.
+* Tests executed and results.
+* Remaining deployment steps.
+* Features verified against real providers versus mocked tests.
+
+Do not silently skip an integration because credentials are missing. Implement the integration safely, clearly identify the missing configuration, and explain what must be completed.
+
+Do not mark a feature as production-ready merely because the UI has been created.
+
+---
+
+# 16. FINAL ACCEPTANCE CRITERIA
+
+The implementation is complete only when:
+
+1. The existing admin can create a campaign.
+2. The admin can choose an audience based on actual past orders.
+3. Eligible guest customers are included where contact data exists.
+4. Duplicate recipients are handled safely.
+5. SMS jobs use the existing gateway integration.
+6. WhatsApp messages are individually prepared and manually sent by the admin.
+7. Website push notifications are sent to eligible subscriptions.
+8. All channels can be independently enabled or disabled.
+9. Campaigns and delivery jobs persist in the database.
+10. Delivery statuses accurately represent the evidence available.
+11. The admin can inspect failures and retry eligible jobs.
+12. Campaign cancellation works for unsent jobs.
+13. Customer consent and preferences are respected.
+14. Checkout discounts are validated securely.
+15. Existing Frosty Bite Bakery features continue working.
+16. The application builds successfully.
+17. Missing external configuration is clearly documented.
+
+FINAL INSTRUCTION:
+
+Start by inspecting the existing codebase and database schema. Then implement the complete feature using small, safe, incremental changes.
+
+Prioritize correctness, security, reliability, maintainability, and compatibility over flashy UI.
+
+Do not ask me to recreate features that already exist in the repository.
+
+Do not replace existing working integrations with unnecessary alternatives.
+
+Do not stop after designing the dashboard. Implement the actual backend, database, integrations, processing workflow, and testing.
+
+If an integration requires credentials or deployment configuration that is not available, complete the code safely and report exactly what remains to be configured.

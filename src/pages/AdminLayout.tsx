@@ -27,6 +27,7 @@ const NotificationCenter = lazy(() => import('./admin/NotificationCenter').then(
 const SmsGatewayPage = lazy(() => import('./admin/SmsGatewayPage').then(m => ({ default: m.SmsGatewayPage })));
 const CategoriesManager = lazy(() => import('./admin/CategoriesManager').then(m => ({ default: m.CategoriesManager })));
 const MysteryBoxManager = lazy(() => import('./admin/MysteryBoxManager').then(m => ({ default: m.MysteryBoxManager })));
+const OffersNotificationsManager = lazy(() => import('./admin/OffersNotificationsManager').then(m => ({ default: m.OffersNotificationsManager })));
 
 export const AdminLayout: React.FC = () => {
   const location = useLocation();
@@ -97,6 +98,7 @@ export const AdminLayout: React.FC = () => {
       case 'rewards': return <Rewards />;
       case 'mystery-boxes': return <MysteryBoxManager />;
       case 'coupons': return <Coupons />;
+      case 'offers-notifications': return <OffersNotificationsManager />;
       case 'campaigns': return <CampaignManager />;
       case 'banners': return <BannerManager />;
       case 'analytics': return <Analytics />;

@@ -50,6 +50,7 @@ const menuItems = [
   { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed },
   { id: 'categories', label: 'Categories', icon: Layers },
   { id: 'coupons', label: 'Coupons', icon: Tag },
+  { id: 'offers-notifications', label: 'Offers & Notifications', icon: Sparkles },
   { id: 'campaigns', label: 'Campaigns', icon: Sparkles },
   { id: 'banners', label: 'Banners', icon: Palette },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
