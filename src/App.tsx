@@ -23,6 +23,7 @@ import { ProductPageSkeleton } from './components/ProductPageSkeleton';
 import { IntroSplash } from './components/IntroSplash';
 import { OnboardingSlider } from './components/OnboardingSlider';
 import { AppUpdateScreen } from './components/AppUpdateScreen';
+import { StoreStatusAlertModal } from './components/StoreStatusAlertModal';
 import { FlyingCartOverlay } from './components/FlyingCartOverlay';
 import { RESTAURANT_WHATSAPP } from './constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -522,6 +523,7 @@ function AppContent() {
 
 
       <NotificationPermissionBanner />
+      <StoreStatusAlertModal />
       <AppUpdateScreen />
     </div>
   );

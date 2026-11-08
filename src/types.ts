@@ -185,6 +185,16 @@ export interface BakeryLocation {
   bakeryLocationUpdatedAt?: string;
 }
 
+export interface ClosureDetails {
+  title?: string;
+  reason?: string;
+  message?: string;
+  reopenDate?: string;
+  reopenTime?: string;
+  closureImage?: string;
+  reopeningMessage?: string;
+}
+
 export interface AppConfig {
   isOrderingOpen: boolean;
   pickup_only?: boolean;
@@ -198,6 +208,16 @@ export interface AppConfig {
   bakeryLocationUpdatedAt?: string;
   feedbackUrl?: string;
   websiteUrl?: string;
+  // Dynamic Closure Announcement Fields
+  closureTitle?: string;
+  closureReason?: string;
+  storeClosedReason?: string;
+  closureMessage?: string;
+  reopenDate?: string;
+  reopenTime?: string;
+  closureImage?: string;
+  reopeningMessage?: string;
+  closureUpdatedAt?: string;
   [key: string]: any;
 }
 

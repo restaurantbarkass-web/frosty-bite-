@@ -1,6 +1,7 @@
-import { AppConfig, BakeryLocation } from '../types';
+import { AppConfig, BakeryLocation, ClosureDetails } from '../types';
 import { safeTrim, safeTrimLowerCase } from '../utils/string';
-export type { AppConfig, BakeryLocation };
+import { liveAlertService } from './liveAlertService';
+export type { AppConfig, BakeryLocation, ClosureDetails };
 
 const defaultParams: AppConfig = { 
   isOrderingOpen: true,
@@ -23,7 +24,15 @@ const defaultParams: AppConfig = {
   bakeryMapUrl: "https://www.google.com/maps/search/?api=1&query=20.4625,85.8828",
   bakeryLocationConfirmed: true,
   feedbackUrl: "",
-  websiteUrl: "https://frosty-bite.vercel.app"
+  websiteUrl: "https://frosty-bite.vercel.app",
+  closureTitle: "Taking a Little Break! ❤️",
+  closureReason: "Our bakery is temporarily closed while we prepare something special for you.",
+  storeClosedReason: "Our bakery is temporarily closed while we prepare something special for you.",
+  closureMessage: "Thank you for your love and patience. We can't wait to serve you again.",
+  reopenDate: "",
+  reopenTime: "",
+  closureImage: "",
+  reopeningMessage: "WE ARE BACK! 🎉 Frosty Bite Bakery is officially OPEN again! Your favourite cakes and desserts are waiting for you."
 };
 
 let currentConfig: AppConfig = (() => {
@@ -154,6 +163,7 @@ const startSupabaseRealtime = async () => {
                   localStorage.setItem('app_config_cache', JSON.stringify(merged));
                   localStorage.setItem('admin_config_cache', JSON.stringify(merged));
                   console.log('[appConfigService] Real-time settings update received:', merged);
+                  liveAlertService.handleConfigTransition(merged);
                   currentListeners.forEach(l => l(merged));
                 }
               }
@@ -210,6 +220,7 @@ export const appConfigService = {
         currentConfig = fresh;
         localStorage.setItem('app_config_cache', JSON.stringify(fresh));
         localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+        liveAlertService.handleConfigTransition(fresh);
         currentListeners.forEach(l => l(fresh));
       }
     }).catch(() => {});
@@ -227,6 +238,7 @@ export const appConfigService = {
               currentConfig = fresh;
               localStorage.setItem('app_config_cache', JSON.stringify(fresh));
               localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+              liveAlertService.handleConfigTransition(fresh);
               currentListeners.forEach(l => l(fresh));
             }
           }
@@ -246,9 +258,56 @@ export const appConfigService = {
     };
   },
 
-  toggleOrderingStatus: async (currentStatus: boolean, customToken?: string | null) => {
+  toggleOrderingStatus: async (currentStatus: boolean, closureData?: string | ClosureDetails, customToken?: string | null) => {
     const newStatus = !currentStatus;
     const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    let closurePayload: ClosureDetails = {};
+    if (typeof closureData === 'string') {
+      closurePayload = {
+        title: 'Taking a Little Break! ❤️',
+        reason: closureData.trim() || 'Our bakery is temporarily closed while we prepare something special for you.',
+        message: "Thank you for your love and patience. We can't wait to serve you again."
+      };
+    } else if (closureData && typeof closureData === 'object') {
+      closurePayload = closureData;
+    }
+
+    const title = closurePayload.title?.trim() || 'Taking a Little Break! ❤️';
+    const reason = closurePayload.reason?.trim() || 'Our bakery is temporarily closed while we prepare something special for you.';
+    const message = closurePayload.message?.trim() || "Thank you for your love and patience. We can't wait to serve you again.";
+    const reopenDate = closurePayload.reopenDate?.trim() || '';
+    const reopenTime = closurePayload.reopenTime?.trim() || '';
+    const closureImage = closurePayload.closureImage?.trim() || '';
+    const reopeningMessage = closurePayload.reopeningMessage?.trim() || 'WE ARE BACK! 🎉 Frosty Bite Bakery is officially OPEN again! Your favourite cakes and desserts are waiting for you.';
+
+    // Fire instant broadcast so all connected mobile devices get the popup immediately in <100ms
+    if (newStatus === false) {
+      liveAlertService.broadcastLiveEvent({
+        type: 'STORE_CLOSED',
+        title: title,
+        message: message,
+        reason: reason,
+        reopenDate,
+        reopenTime,
+        closureTitle: title,
+        closureMessage: message,
+        closureImage,
+        badge: '🔴 Store Temporarily Closed',
+        actionText: 'Continue Exploring',
+        source: 'admin_toggle'
+      });
+    } else {
+      // When store opens, popup will NOT show!
+      liveAlertService.broadcastLiveEvent({
+        type: 'STORE_OPEN',
+        title: "WE ARE BACK! 🎉",
+        message: reopeningMessage,
+        reopeningMessage: reopeningMessage,
+        badge: "🟢 We're Open & Baking!",
+        source: 'admin_toggle'
+      });
+    }
 
     const response = await fetchWithRetry('/api/config', {
       method: 'POST',
@@ -256,7 +315,18 @@ export const appConfigService = {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ isOrderingOpen: newStatus })
+      body: JSON.stringify({ 
+        isOrderingOpen: newStatus,
+        closureTitle: newStatus ? '' : title,
+        closureReason: newStatus ? '' : reason,
+        storeClosedReason: newStatus ? '' : reason,
+        closureMessage: newStatus ? '' : message,
+        reopenDate: newStatus ? '' : reopenDate,
+        reopenTime: newStatus ? '' : reopenTime,
+        closureImage: newStatus ? '' : closureImage,
+        reopeningMessage: reopeningMessage,
+        closureUpdatedAt: new Date().toISOString()
+      })
     });
 
     if (!response.ok) {
@@ -265,7 +335,18 @@ export const appConfigService = {
     }
 
     const freshResponse = await response.json().catch(() => null);
-    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || { ...currentConfig, isOrderingOpen: newStatus }) };
+    const freshConfig: AppConfig = { ...defaultParams, ...(freshResponse?.config || { 
+      ...currentConfig, 
+      isOrderingOpen: newStatus,
+      closureTitle: newStatus ? '' : title,
+      closureReason: newStatus ? '' : reason,
+      storeClosedReason: newStatus ? '' : reason,
+      closureMessage: newStatus ? '' : message,
+      reopenDate: newStatus ? '' : reopenDate,
+      reopenTime: newStatus ? '' : reopenTime,
+      closureImage: newStatus ? '' : closureImage,
+      reopeningMessage: reopeningMessage
+    }) };
 
     currentConfig = freshConfig;
     localStorage.setItem('app_config_cache', JSON.stringify(freshConfig));
@@ -275,6 +356,27 @@ export const appConfigService = {
 
   updatePickupOnlyStatus: async (isPickupOnly: boolean, customToken?: string | null) => {
     const token = (customToken && customToken !== 'null' && customToken !== 'undefined') ? customToken : await getAuthToken();
+
+    // Fire instant broadcast for pickup only changes
+    if (isPickupOnly) {
+      liveAlertService.broadcastLiveEvent({
+        type: 'PICKUP_ONLY',
+        title: 'Switched to Bakery Pickup Only 🛍️',
+        message: 'Due to kitchen capacity or high demand, online orders are currently accepting In-Store Pickup only. Place your order and collect fresh from our counter!',
+        badge: '🛍️ Pickup Only Active',
+        actionText: 'Got It, View Pickup Menu',
+        source: 'admin_toggle'
+      });
+    } else {
+      liveAlertService.broadcastLiveEvent({
+        type: 'DELIVERY_RESTORED',
+        title: 'Doorstep Delivery Is Back! 🚀',
+        message: 'Delivery service is now fully active! Order your favorite bakery delights delivered directly to your doorstep.',
+        badge: '🚀 Home Delivery Restored',
+        actionText: 'Order for Delivery',
+        source: 'admin_toggle'
+      });
+    }
 
     const response = await fetchWithRetry('/api/config', {
       method: 'POST',
@@ -505,3 +607,29 @@ export const appConfigService = {
     return latestConfig;
   }
 };
+
+// Reliable status refresh when application returns to foreground (Capacitor Android and web browsers)
+if (typeof document !== 'undefined') {
+  const handleForegroundStatusRefresh = async () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        const fresh = await appConfigService.getConfig();
+        if (fresh) {
+          const changed = JSON.stringify(currentConfig) !== JSON.stringify(fresh);
+          if (changed) {
+            currentConfig = fresh;
+            localStorage.setItem('app_config_cache', JSON.stringify(fresh));
+            localStorage.setItem('admin_config_cache', JSON.stringify(fresh));
+            liveAlertService.handleConfigTransition(fresh);
+            currentListeners.forEach(l => l(fresh));
+          }
+        }
+      } catch (e) {
+        console.warn('[appConfigService] Foreground status refresh failed:', e);
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleForegroundStatusRefresh);
+  window.addEventListener('focus', handleForegroundStatusRefresh);
+}

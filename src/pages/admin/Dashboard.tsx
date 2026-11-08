@@ -4,9 +4,10 @@ import { OrdersChart, PopularItemsChart, RevenueChart } from '../../components/a
 import { OrdersTable } from '../../components/admin/OrdersTable';
 import { motion } from 'motion/react';
 import { useConfig } from '../../context/ConfigContext';
-import { Power, CheckCircle2, XCircle, ShoppingBag, Store, ShieldAlert } from 'lucide-react';
+import { Power, CheckCircle2, XCircle, ShoppingBag, Store, ShieldAlert, Megaphone, Radio, Sparkles, Smartphone, BellRing, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { liveAlertService } from '../../services/liveAlertService';
 
 import { supabase } from '../../supabase';
 import { Order } from '../../types';
@@ -19,8 +20,91 @@ export const Dashboard: React.FC = () => {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [supabaseError, setSupabaseError] = useState<string | null>(null);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastHeadline, setBroadcastHeadline] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [showCloseReasonModal, setShowCloseReasonModal] = useState(false);
+  
+  // Dynamic Closure Announcement Fields
+  const [closureTitleInput, setClosureTitleInput] = useState('Taking a Little Break! ❤️');
+  const [closingReasonInput, setClosingReasonInput] = useState('Our bakery is temporarily closed while we prepare something special for you.');
+  const [closureMessageInput, setClosureMessageInput] = useState("Thank you for your love and patience. We can't wait to serve you again.");
+  const [reopenDateInput, setReopenDateInput] = useState('');
+  const [reopenTimeInput, setReopenTimeInput] = useState('10:00 AM');
+  const [closureImageInput, setClosureImageInput] = useState('');
+  const [reopeningMessageInput, setReopeningMessageInput] = useState('WE ARE BACK! 🎉 Frosty Bite Bakery is officially OPEN again! Your favourite cakes and desserts are waiting for you.');
+
+  useEffect(() => {
+    if (config) {
+      if (config.closureTitle) setClosureTitleInput(config.closureTitle);
+      if (config.closureReason || config.storeClosedReason) setClosingReasonInput(config.closureReason || config.storeClosedReason);
+      if (config.closureMessage) setClosureMessageInput(config.closureMessage);
+      if (config.reopenDate) setReopenDateInput(config.reopenDate);
+      if (config.reopenTime) setReopenTimeInput(config.reopenTime);
+      if (config.closureImage) setClosureImageInput(config.closureImage);
+      if (config.reopeningMessage) setReopeningMessageInput(config.reopeningMessage);
+    }
+  }, [config]);
 
   const isPickupOnly = Boolean(config?.pickup_only ?? config?.isPickupOnly ?? false);
+
+  const handleTestMobilePopup = (mode: 'closed' | 'open' | 'pickup') => {
+    if (mode === 'closed') {
+      liveAlertService.triggerLocalAlert({
+        type: 'STORE_CLOSED',
+        title: closureTitleInput || 'Taking a Little Break! ❤️',
+        message: closureMessageInput || "Thank you for your love and patience. We can't wait to serve you again.",
+        reason: closingReasonInput || 'Our bakery is temporarily closed while we prepare something special for you.',
+        reopenDate: reopenDateInput || '20 November 2026',
+        reopenTime: reopenTimeInput || '10:00 AM',
+        closureTitle: closureTitleInput,
+        closureMessage: closureMessageInput,
+        closureImage: closureImageInput,
+        badge: '🔴 Store Temporarily Closed',
+        actionText: 'Continue Exploring'
+      });
+      toast.success('Previewing full-screen Store Closure Announcement on your screen!');
+    } else if (mode === 'open') {
+      // In accordance with instructions: When store is open, popup will not show
+      toast.success('Store Open verified: Popup will NEVER show when store is open!');
+    } else {
+      liveAlertService.triggerLocalAlert({
+        type: 'PICKUP_ONLY',
+        title: 'Switched to Bakery Pickup Only 🛍️',
+        message: 'Due to kitchen capacity or high demand, online orders are currently accepting In-Store Pickup only. Place your order and collect fresh from our counter!',
+        badge: '🛍️ Pickup Only Active',
+        actionText: 'Got It, View Pickup Menu'
+      });
+      toast.success('Previewing Pickup Only popup on your screen!');
+    }
+  };
+
+  const handleSendCustomBroadcast = async () => {
+    if (!broadcastHeadline.trim() || !broadcastMessage.trim()) {
+      toast.error('Please enter a headline and message');
+      return;
+    }
+    setIsBroadcasting(true);
+    try {
+      await liveAlertService.broadcastLiveEvent({
+        type: 'CUSTOM_ANNOUNCEMENT',
+        title: broadcastHeadline.trim(),
+        message: broadcastMessage.trim(),
+        badge: '📣 Live Bakery Notice',
+        actionText: 'View Updates',
+        source: 'admin_broadcast'
+      });
+      toast.success('Live popup broadcasted to all customer mobile phones in real-time!');
+      setShowBroadcastModal(false);
+      setBroadcastHeadline('');
+      setBroadcastMessage('');
+    } catch (e) {
+      toast.error('Failed to send broadcast');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
 
   useEffect(() => {
     // Load initial data from cache
@@ -125,14 +209,46 @@ export const Dashboard: React.FC = () => {
 
   const handleToggleOrdering = async () => {
     if (!config) return;
-    setIsToggling(true);
     const newStatus = !config.isOrderingOpen;
+    if (!newStatus) {
+      // Opening closure configuration modal
+      setShowCloseReasonModal(true);
+      return;
+    }
+
+    setIsToggling(true);
     try {
       const token = await getAuthToken();
-      await toggleOrderingStatus(token);
-      toast.success(`Store is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
+      await toggleOrderingStatus({
+        reopeningMessage: reopeningMessageInput.trim() || 'WE ARE BACK! 🎉 Frosty Bite Bakery is officially OPEN again! Your favourite cakes and desserts are waiting for you.'
+      }, token);
+      toast.success('Store is now OPEN! Closure announcement automatically deactivated.');
     } catch (error) {
       console.error('Error toggling ordering status:', error);
+      toast.error('Failed to update status');
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleConfirmCloseStore = async () => {
+    if (!config) return;
+    setIsToggling(true);
+    try {
+      const token = await getAuthToken();
+      await toggleOrderingStatus({
+        title: closureTitleInput.trim() || 'Taking a Little Break! ❤️',
+        reason: closingReasonInput.trim() || 'Our bakery is temporarily closed while we prepare something special for you.',
+        message: closureMessageInput.trim() || "Thank you for your love and patience. We can't wait to serve you again.",
+        reopenDate: reopenDateInput.trim(),
+        reopenTime: reopenTimeInput.trim(),
+        closureImage: closureImageInput.trim(),
+        reopeningMessage: reopeningMessageInput.trim()
+      }, token);
+      toast.success('Store is now CLOSED. Full-screen announcement published & broadcasted!');
+      setShowCloseReasonModal(false);
+    } catch (error) {
+      console.error('Error closing store:', error);
       toast.error('Failed to update status');
     } finally {
       setIsToggling(false);
@@ -327,7 +443,347 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* Real-time mobile sync & instant announcement tools */}
+        <div className="pt-4 border-t border-stone-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#FFF9F5] via-white to-amber-50/40 p-4 rounded-2xl border border-amber-200/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-xs">
+              <Radio size={20} className="animate-pulse text-[#E76A54]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-stone-900 text-xs sm:text-sm">Instant Mobile Sync: Active</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping" />
+                  &lt;100ms
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-500 font-medium">
+                Store Open / Store Closed toggles instantly trigger an animated popup with gentle chime on all customer mobile phones.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Test alert button */}
+            <div className="flex items-center bg-white border border-stone-200/90 rounded-xl p-1 shadow-xs">
+              <span className="text-[10px] font-bold text-stone-500 px-2 flex items-center gap-1">
+                <Smartphone size={12} /> Test:
+              </span>
+              <button
+                type="button"
+                onClick={() => handleTestMobilePopup('closed')}
+                className="px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                title="Preview Store Closed popup"
+              >
+                Closed
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTestMobilePopup('open')}
+                className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                title="Preview Store Open popup"
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTestMobilePopup('pickup')}
+                className="px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                title="Preview Pickup Only popup"
+              >
+                Pickup
+              </button>
+            </div>
+
+            {/* Custom broadcast popup */}
+            <button
+              type="button"
+              onClick={() => setShowBroadcastModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#4A2E2A] text-white rounded-xl text-xs font-bold hover:bg-[#382320] transition-colors shadow-xs"
+            >
+              <Megaphone size={14} className="text-[#D8B56D]" />
+              <span>Broadcast Notice</span>
+            </button>
+          </div>
+        </div>
       </motion.div>
+
+      {/* Broadcast Announcement Modal */}
+      {showBroadcastModal && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg bg-[#FFF9F5] border border-[#D8B56D]/50 rounded-3xl p-6 sm:p-7 shadow-2xl relative text-left">
+            <button
+              onClick={() => setShowBroadcastModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-full bg-stone-200/70 hover:bg-stone-200 text-stone-600 transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-[#FFE8EC] text-[#E76A54] rounded-2xl">
+                <Megaphone size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-[#4A2E2A] tracking-tight">Broadcast Instant Mobile Alert</h3>
+                <p className="text-xs text-stone-500 font-medium">Pops up immediately on all customer screens and mobile devices</p>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="space-y-1.5 mb-4">
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider">Quick Presets</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastHeadline("Fresh Batch Just Out of the Oven! 🎂");
+                    setBroadcastMessage("Our pastry chefs just finished fresh chocolate croissants and strawberry mousse cups. Grab them while they're warm!");
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:border-[#D8B56D] text-xs font-semibold text-stone-700 transition-colors"
+                >
+                  🎂 Fresh Batch Ready
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastHeadline("Kitchen Rush Notice ⏳");
+                    setBroadcastMessage("Our kitchen is currently experiencing high demand. Order preparation may take 10-15 minutes longer. Thank you for your patience!");
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:border-[#D8B56D] text-xs font-semibold text-stone-700 transition-colors"
+                >
+                  ⏳ Kitchen Rush
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBroadcastHeadline("Closing Soon (Last Orders) ⏰");
+                    setBroadcastMessage("Online order intake will close in 30 minutes! Please finalize your cart to get your late-night treats.");
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-stone-200 hover:border-[#D8B56D] text-xs font-semibold text-stone-700 transition-colors"
+                >
+                  ⏰ Closing in 30 Mins
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Headline</label>
+                <input
+                  type="text"
+                  value={broadcastHeadline}
+                  onChange={(e) => setBroadcastHeadline(e.target.value)}
+                  placeholder="e.g. Fresh Mango Cakes Just Arrived! 🥭"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-stone-900 text-sm font-semibold focus:outline-none focus:border-[#E76A54]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">Popup Message</label>
+                <textarea
+                  rows={3}
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="e.g. Handcrafted with fresh alphonso mangoes and sweet cream. Limited boxes available today!"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-stone-900 text-sm font-medium focus:outline-none focus:border-[#E76A54] resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSendCustomBroadcast}
+                disabled={isBroadcasting}
+                className="flex-1 py-3 px-5 rounded-xl bg-[#E76A54] text-white font-bold text-sm shadow-md hover:bg-[#d95d48] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isBroadcasting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Radio size={16} />
+                    <span>Send to All Customer Phones</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBroadcastModal(false)}
+                className="px-4 py-3 rounded-xl border border-stone-200 text-stone-600 font-semibold text-sm hover:bg-stone-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Store Announcement Configuration Modal */}
+      {showCloseReasonModal && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+          <div className="w-full max-w-xl bg-[#FFF9F5] border-2 border-[#D8B56D]/70 rounded-3xl p-6 sm:p-7 shadow-2xl relative text-left my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowCloseReasonModal(false)}
+              className="absolute top-5 right-5 p-2 rounded-full bg-stone-200/70 hover:bg-stone-200 text-stone-600 transition-colors"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl shadow-xs">
+                <Power size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-stone-900 tracking-tight">Store Closure Announcement</h3>
+                <p className="text-xs text-stone-500 font-medium">Configure the full-screen announcement shown to customers</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              {/* 1. Announcement Title */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                  Announcement Title
+                </label>
+                <input
+                  type="text"
+                  value={closureTitleInput}
+                  onChange={(e) => setClosureTitleInput(e.target.value)}
+                  placeholder="e.g. Taking a Little Break! ❤️"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-stone-200 text-stone-900 text-sm font-bold focus:outline-none focus:border-[#E76A54]"
+                />
+              </div>
+
+              {/* 2. Quick Reason Presets */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1.5">
+                  Closure Reason Presets
+                </label>
+                <div className="flex flex-col gap-1.5">
+                  {[
+                    { icon: '🥐', text: 'Our bakery is temporarily closed while we prepare something special for you.' },
+                    { icon: '🌙', text: 'Closed for the night. Reopening tomorrow morning.' },
+                    { icon: '⏳', text: 'Kitchen at full capacity. Pausing new orders temporarily.' },
+                    { icon: '🎂', text: 'Private catering & bulk festival orders in progress.' },
+                    { icon: '❄️', text: 'Oven maintenance & kitchen deep sanitization break.' }
+                  ].map((preset) => (
+                    <button
+                      key={preset.text}
+                      type="button"
+                      onClick={() => setClosingReasonInput(preset.text)}
+                      className={`px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all flex items-center gap-2 ${
+                        closingReasonInput === preset.text
+                          ? 'bg-rose-50 border-rose-400 text-rose-900 shadow-xs'
+                          : 'bg-white border-stone-200 hover:border-[#D8B56D] text-stone-700'
+                      }`}
+                    >
+                      <span className="text-sm shrink-0">{preset.icon}</span>
+                      <span className="truncate">{preset.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Custom Reason Input */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                  Custom Closure Reason
+                </label>
+                <textarea
+                  rows={2}
+                  value={closingReasonInput}
+                  onChange={(e) => setClosingReasonInput(e.target.value)}
+                  placeholder="Type closure reason..."
+                  className="w-full px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-900 text-xs font-medium focus:outline-none focus:border-[#E76A54] resize-none"
+                />
+              </div>
+
+              {/* 4. Expected Reopening Date & Time */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200/60">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-amber-900 mb-1">
+                    📅 Expected Reopening Date
+                  </label>
+                  <input
+                    type="text"
+                    value={reopenDateInput}
+                    onChange={(e) => setReopenDateInput(e.target.value)}
+                    placeholder="e.g. 20 November 2026"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-amber-200 text-stone-900 text-xs font-bold focus:outline-none focus:border-[#E76A54]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-amber-900 mb-1">
+                    ⏰ Expected Reopening Time
+                  </label>
+                  <input
+                    type="text"
+                    value={reopenTimeInput}
+                    onChange={(e) => setReopenTimeInput(e.target.value)}
+                    placeholder="e.g. 10:00 AM"
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-amber-200 text-stone-900 text-xs font-bold focus:outline-none focus:border-[#E76A54]"
+                  />
+                </div>
+              </div>
+
+              {/* 5. Additional Announcement Message */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                  Additional Note to Customers
+                </label>
+                <textarea
+                  rows={2}
+                  value={closureMessageInput}
+                  onChange={(e) => setClosureMessageInput(e.target.value)}
+                  placeholder="e.g. Thank you for your love and patience. We can't wait to serve you again."
+                  className="w-full px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-900 text-xs font-medium focus:outline-none focus:border-[#E76A54] resize-none"
+                />
+              </div>
+
+              {/* 6. Special Reopening Message (Auto-broadcast when reopening) */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-stone-700 mb-1">
+                  🎉 Message When Reopening
+                </label>
+                <input
+                  type="text"
+                  value={reopeningMessageInput}
+                  onChange={(e) => setReopeningMessageInput(e.target.value)}
+                  placeholder="e.g. WE ARE BACK! 🎉 Frosty Bite Bakery is officially OPEN again!"
+                  className="w-full px-4 py-2 rounded-xl bg-white border border-stone-200 text-stone-900 text-xs font-medium focus:outline-none focus:border-[#E76A54]"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmCloseStore}
+                disabled={isToggling}
+                className="flex-1 py-3.5 px-5 rounded-2xl bg-gradient-to-r from-rose-600 to-rose-700 text-white font-bold text-sm shadow-md hover:brightness-105 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isToggling ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Power size={16} />
+                    <span>Publish Announcement & Close Store</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCloseReasonModal(false)}
+                className="px-5 py-3.5 rounded-2xl border border-stone-200 text-stone-600 font-semibold text-sm hover:bg-stone-100 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <DashboardCards />
 

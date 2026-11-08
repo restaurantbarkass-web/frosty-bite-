@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { appConfigService, AppConfig, BakeryLocation } from '../services/appConfigService';
+import { appConfigService, AppConfig, BakeryLocation, ClosureDetails } from '../services/appConfigService';
 
 interface ConfigContextType {
   config: AppConfig | null;
   isLoading: boolean;
-  toggleOrderingStatus: (customToken?: string | null) => Promise<void>;
+  toggleOrderingStatus: (closureData?: string | ClosureDetails, customToken?: string | null) => Promise<void>;
   updatePickupOnlyStatus: (isPickupOnly: boolean, customToken?: string | null) => Promise<void>;
   updateDeliveryPricing: (pricing: any, customToken?: string | null) => Promise<void>;
   updateGeofencingSettings: (settings: any, customToken?: string | null) => Promise<void>;
@@ -33,9 +33,9 @@ export const ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const toggleOrderingStatus = useCallback(async (customToken?: string | null) => {
+  const toggleOrderingStatus = useCallback(async (closureData?: string | ClosureDetails, customToken?: string | null) => {
     if (!config) return;
-    await appConfigService.toggleOrderingStatus(config.isOrderingOpen, customToken);
+    await appConfigService.toggleOrderingStatus(config.isOrderingOpen, closureData, customToken);
   }, [config]);
 
   const updatePickupOnlyStatus = useCallback(async (isPickupOnly: boolean, customToken?: string | null) => {
